@@ -30,6 +30,19 @@ while ejecutando:
         direccion = "derecha"
     if teclas[pygame.K_z]:
         ejecutando = False
+    if teclas[pygame.K_f]:
+        xb = x
+        yb = y
+        vb = 1.2
+        if direccion == "arriba":
+            yb += vb
+        if direccion == "abajo":
+            yb -= vb
+        if direccion == "izquierda":
+            xb += vb
+        if direccion == "derecha":
+            xb -= vb
+        disparo = pygame.draw.rect(ventana,(100, 200, 100),(xb, yb, 25, 10))
     ventana.fill((0, 0, 0))
     personaje = pygame.draw.rect(ventana, (200, 60, 200), (x, y, 50, 50))
     pygame.display.flip()
