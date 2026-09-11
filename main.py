@@ -29,6 +29,7 @@ def juego(ventana, ejecutando):
     vida = 100
     while ejecutando:
         v = 5
+        v = 0.5
         velocidad = float(v)
         direccion = ()
         for evento in pygame.event.get():
@@ -51,6 +52,7 @@ def juego(ventana, ejecutando):
             direccion = "derecha"
         ventana.fill((0, 0, 0))
         personaje = pygame.draw.rect(ventana, (500, 60, 300), (x, y, 75, 75))
+        personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
         pygame.display.flip()
 menu()
 pygame.quit()
