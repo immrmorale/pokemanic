@@ -1,9 +1,13 @@
 import pygame 
+import time
+import random
 def menu():
     ejecutando = True
     pygame.init()
     ventana = pygame.display.set_mode((1000, 600))
     pygame.display.set_caption("pokemanic")
+    jugar = pygame.draw.rect(ventana, (200, 0, 0), (250, 120, 200, 80))
+    ajustes = pygame.draw.rect(ventana, (0,200, 0), (250, 240, 200, 80))
     while ejecutando:
 
         for evento in pygame.event.get():
@@ -12,26 +16,34 @@ def menu():
         teclas = pygame.key.get_pressed()
         if teclas[pygame.K_z]:
              ejecutando = False
-        
-        jugar = pygame.draw.rect(ventana, (200, 0, 0), (250, 120, 200, 80))
-        ajustes = pygame.draw.rect(ventana, (0,200, 0), (250, 240, 200, 80))
-        salir = pygame.draw.rect(ventana, (0, 0, 200), (250, 360, 200, 80))
-        if salir.collidepoint(pygame.mouse.get_pos()):
-            ejecutando = False
-        if jugar.collidepoint(pygame.mouse.get_pos()):
-            juego(ventana, ejecutando)
-    
+        if evento.type == pygame.MOUSEBUTTONDOWN:
+            if evento.button == 1: 
+                if jugar.collidepoint(evento.pos):
+                    juego(ventana,ejecutando)
+                if salir.collidepoint(evento.pos):
+                    ejecutando = False
         pygame.display.flip()
 def juego(ventana, ejecutando):
     ventana.fill((0, 0, 0))
+    vida = 100
     x = 500
     y = 400
-    vida = 100
+    cont = 0
+    xe = random.randint(0,1000)
+    ye = random.randint(0,600)
+    ultimo_golpe = 0
+    tiempo_entre_golpes = 500
     while ejecutando:
-        v = 5
-        v = 0.5
-        velocidad = float(v)
-        direccion = ()
+        ventana.fill((0, 0, 0))
+        personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
+        enemigo = pygame.draw.rect(ventana,(255, 0, 0),(xe , ye, 75 ,75 ) )
+        pygame.draw.rect(ventana, (0, 200, 0), (20, 20, vida * 2, 25))
+        reloj = pygame.time.Clock()
+        reloj.tick(60)
+        cont += 1
+        velocidad = 5
+        velocidad_e = 2
+        direccion = ()        
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 ejecutando = False
@@ -50,9 +62,22 @@ def juego(ventana, ejecutando):
         if teclas[pygame.K_d] and personaje.right < 1000:
             x += velocidad
             direccion = "derecha"
-        ventana.fill((0, 0, 0))
-        personaje = pygame.draw.rect(ventana, (500, 60, 300), (x, y, 75, 75))
-        personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
+        if xe < x:
+            xe += velocidad_e
+        elif xe > x:
+            xe -= velocidad_e
+        if ye < y:
+            ye += velocidad_e
+        elif ye > y:
+            ye -= velocidad_e
+        if enemigo.colliderect(personaje):
+            ahora = pygame.time.get_ticks()
+            if ahora - ultimo_golpe >= tiempo_entre_golpes:
+                vida -= 10
+                ultimo_golpe = ahora
+        if vida == 0:
+            ejecutando = False
         pygame.display.flip()
+
 menu()
 pygame.quit()
