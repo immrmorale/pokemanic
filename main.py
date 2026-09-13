@@ -51,7 +51,7 @@ def juego(ventana, ejecutando):
             x += velocidad
             direccion = "derecha"
         ventana.fill((0, 0, 0))
-        personaje = pygame.draw.rect(ventana, (500, 60, 300), (x, y, 75, 75))
+        personaje = pygame.draw.rect(ventana, (255, 60, 300), (x, y, 75, 75))
         personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
         pygame.display.flip()
 menu()
