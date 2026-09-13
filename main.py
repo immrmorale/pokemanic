@@ -1,4 +1,4 @@
-import pygame 
+import pygame
 def menu():
     ejecutando = True
     pygame.init()
