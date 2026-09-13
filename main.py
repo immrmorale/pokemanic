@@ -2,10 +2,9 @@ import pygame
 def menu():
     ejecutando = True
     pygame.init()
-    ventana = pygame.display.set_mode((1000, 600))
     pygame.display.set_caption("pokemanic")
     while ejecutando:
-
+        ventana = pygame.display.set_mode((1000, 600))
         for evento in pygame.event.get():
                 if evento.type == pygame.QUIT:
                     ejecutando = False
@@ -29,7 +28,6 @@ def juego(ventana, ejecutando):
     vida = 100
     while ejecutando:
         v = 5
-        v = 0.5
         velocidad = float(v)
         direccion = ()
         for evento in pygame.event.get():
@@ -38,21 +36,23 @@ def juego(ventana, ejecutando):
         teclas = pygame.key.get_pressed()
         if teclas[pygame.K_z]:
              ejecutando = False
-        if teclas[pygame.K_w] and  personaje.top > 0:
+        if teclas[pygame.K_w] and  personaje.top > 50:
             y -= velocidad
             direccion = "arriba"
-        if teclas[pygame.K_s] and  personaje.bottom < 600:
+        if teclas[pygame.K_s] and  personaje.bottom < 550:
             y += velocidad
             direccion = "abajo"
-        if teclas[pygame.K_a] and  personaje.left > 0:
+        if teclas[pygame.K_a] and  personaje.left > 50:
             x -= velocidad
             direccion = "izquierda"
-        if teclas[pygame.K_d] and personaje.right < 1000:
+        if teclas[pygame.K_d] and personaje.right < 950:
             x += velocidad
             direccion = "derecha"
         ventana.fill((0, 0, 0))
-        personaje = pygame.draw.rect(ventana, (255, 60, 300), (x, y, 75, 75))
-        personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
+        escenario = pygame.draw.rect(ventana, (255, 255, 255), (50, 50, 900,500))
+        personaje = pygame.draw.rect(ventana, (255, 60, 255), (x, y, 40, 40))
         pygame.display.flip()
+        #reloj = pygame.time.clock()
+        #reloj.tick(60)
 menu()
 pygame.quit()
