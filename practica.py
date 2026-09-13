@@ -1,6 +1,6 @@
 import pygame
 
-velocidad = 1
+velocidad = 1 
 ancho = 800
 alto = 600
 x = 100
