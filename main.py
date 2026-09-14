@@ -31,8 +31,8 @@ def juego(ventana, ejecutando):
     x = 500
     y = 400
     cont = 0
-    xe = random.randint(50, 950)
-    ye = random.randint(50,550)
+    xe = random.randint(50, 900)
+    ye = random.randint(50,500)
     ultimo_golpe = 0
     tiempo_entre_golpes = 500
     while ejecutando:
