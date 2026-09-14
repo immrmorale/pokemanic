@@ -6,6 +6,7 @@ import sys
 
 
 class Jugador:
+    #hay que hacerle las colisiones, bajarle el cooldown, mejorar la distancia de la hitbox
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 40, 40)
 
@@ -67,6 +68,7 @@ class Jugador:
 
 
 class Enemigo:
+    #hay que agregarle para que tenga colision con el usuario, y que cuando te ataque luego retroceda
     def __init__(self):
         x = random.randint(50, 900)
         y = random.randint(50, 500)
