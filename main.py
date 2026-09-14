@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+
 import pygame 
 import time
 import random
@@ -9,6 +10,8 @@ def menu():
     ejecutando = True
     pygame.init()
     pygame.display.set_caption("pokemanic")
+    ventana = pygame.display.set_mode((1000, 600))
+    salir = pygame.draw.rect(ventana, (0,0, 200), (250, 360, 200, 80))
     jugar = pygame.draw.rect(ventana, (200, 0, 0), (250, 120, 200, 80))
     ajustes = pygame.draw.rect(ventana, (0,200, 0), (250, 240, 200, 80))
     while ejecutando:
@@ -34,11 +37,15 @@ def juego(ventana, ejecutando):
     cont = 0
     xe = random.randint(0,1000)
     ye = random.randint(0,600)
+    xe = random.randint(50, 900)
+    ye = random.randint(50,500)
     ultimo_golpe = 0
     tiempo_entre_golpes = 500
     while ejecutando:
 <<<<<<< HEAD
+
         ventana.fill((0, 0, 0))
+        escenario = pygame.draw.rect(ventana, (255, 255, 255, ), (50, 50, 900, 500 ))
         personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
         enemigo = pygame.draw.rect(ventana,(255, 0, 0),(xe , ye, 75 ,75 ) )
         pygame.draw.rect(ventana, (0, 200, 0), (20, 20, vida * 2, 25))
