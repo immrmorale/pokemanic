@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 import pygame 
 import time
@@ -15,7 +14,10 @@ def menu():
     jugar = pygame.draw.rect(ventana, (200, 0, 0), (250, 120, 200, 80))
     ajustes = pygame.draw.rect(ventana, (0,200, 0), (250, 240, 200, 80))
     while ejecutando:
+<<<<<<< HEAD
         ventana = pygame.display.set_mode((1000, 600))
+=======
+>>>>>>> f8efce2127030dc0aaed51b8ccb1032c30f2f97d
         for evento in pygame.event.get():
                 if evento.type == pygame.QUIT:
                     ejecutando = False
@@ -35,14 +37,11 @@ def juego(ventana, ejecutando):
     x = 500
     y = 400
     cont = 0
-    xe = random.randint(0,1000)
-    ye = random.randint(0,600)
     xe = random.randint(50, 900)
     ye = random.randint(50,500)
     ultimo_golpe = 0
     tiempo_entre_golpes = 500
     while ejecutando:
-<<<<<<< HEAD
 
         ventana.fill((0, 0, 0))
         escenario = pygame.draw.rect(ventana, (255, 255, 255, ), (50, 50, 900, 500 ))
