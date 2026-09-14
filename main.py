@@ -1,107 +1,309 @@
 
-import pygame 
-import time
-import random
-=======
 import pygame
->>>>>>> a13210ad661c49f7afc419087d3cb03c1d357157
-def menu():
-    ejecutando = True
-    pygame.init()
-    pygame.display.set_caption("pokemanic")
-    ventana = pygame.display.set_mode((1000, 600))
-    salir = pygame.draw.rect(ventana, (0,0, 200), (250, 360, 200, 80))
-    jugar = pygame.draw.rect(ventana, (200, 0, 0), (250, 120, 200, 80))
-    ajustes = pygame.draw.rect(ventana, (0,200, 0), (250, 240, 200, 80))
-    while ejecutando:
-<<<<<<< HEAD
-        ventana = pygame.display.set_mode((1000, 600))
-=======
->>>>>>> f8efce2127030dc0aaed51b8ccb1032c30f2f97d
-        for evento in pygame.event.get():
-                if evento.type == pygame.QUIT:
-                    ejecutando = False
-        teclas = pygame.key.get_pressed()
-        if teclas[pygame.K_z]:
-             ejecutando = False
-        if evento.type == pygame.MOUSEBUTTONDOWN:
-            if evento.button == 1: 
-                if jugar.collidepoint(evento.pos):
-                    juego(ventana,ejecutando)
-                if salir.collidepoint(evento.pos):
-                    ejecutando = False
-        pygame.display.flip()
-def juego(ventana, ejecutando):
-    ventana.fill((0, 0, 0))
-    vida = 100
-    x = 500
-    y = 400
-    cont = 0
-    xe = random.randint(50, 900)
-    ye = random.randint(50,500)
-    ultimo_golpe = 0
-    tiempo_entre_golpes = 500
-    while ejecutando:
+import random
+import sys
 
-        ventana.fill((0, 0, 0))
-        escenario = pygame.draw.rect(ventana, (255, 255, 255, ), (50, 50, 900, 500 ))
-        personaje = pygame.draw.rect(ventana, (255, 50, 255), (x, y, 75, 75))
-        enemigo = pygame.draw.rect(ventana,(255, 0, 0),(xe , ye, 75 ,75 ) )
-        pygame.draw.rect(ventana, (0, 200, 0), (20, 20, vida * 2, 25))
-        reloj = pygame.time.Clock()
-        reloj.tick(60)
-        cont += 1
-        velocidad = 5
-        velocidad_e = 2
-        direccion = ()        
-=======
-        v = 5
-        velocidad = float(v)
-        direccion = ()
->>>>>>> a13210ad661c49f7afc419087d3cb03c1d357157
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                ejecutando = False
+
+
+class Jugador:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 40, 40)
+
+        self.vida = 100
+        self.velocidad = 5
+
+        self.ultimo_golpe = 0
+        self.tiempo_entre_golpes = 500
+
+    def mover(self):
         teclas = pygame.key.get_pressed()
-        if teclas[pygame.K_z]:
-             ejecutando = False
-        if teclas[pygame.K_w] and  personaje.top > 50:
-            y -= velocidad
-            direccion = "arriba"
-        if teclas[pygame.K_s] and  personaje.bottom < 550:
-            y += velocidad
-            direccion = "abajo"
-        if teclas[pygame.K_a] and  personaje.left > 50:
-            x -= velocidad
-            direccion = "izquierda"
-        if teclas[pygame.K_d] and personaje.right < 950:
-            x += velocidad
-            direccion = "derecha"
-<<<<<<< HEAD
-        if xe < x:
-            xe += velocidad_e
-        elif xe > x:
-            xe -= velocidad_e
-        if ye < y:
-            ye += velocidad_e
-        elif ye > y:
-            ye -= velocidad_e
-        if enemigo.colliderect(personaje):
+
+        if teclas[pygame.K_w] and self.rect.top > 50:
+            self.rect.y -= self.velocidad
+
+        if teclas[pygame.K_s] and self.rect.bottom < 550:
+            self.rect.y += self.velocidad
+
+        if teclas[pygame.K_a] and self.rect.left > 50:
+            self.rect.x -= self.velocidad
+
+        if teclas[pygame.K_d] and self.rect.right < 950:
+            self.rect.x += self.velocidad
+
+    def atacar(self, enemigo):
+        teclas = pygame.key.get_pressed()
+
+        if teclas[pygame.K_e]:
             ahora = pygame.time.get_ticks()
-            if ahora - ultimo_golpe >= tiempo_entre_golpes:
-                vida -= 10
-                ultimo_golpe = ahora
-        if vida == 0:
-            ejecutando = False
+
+            # Evita atacar muchas veces seguidas
+            if ahora - self.ultimo_golpe >= self.tiempo_entre_golpes:
+
+                # Zona de ataque delante del jugador
+                hitbox = pygame.Rect(
+                    self.rect.x,
+                    self.rect.y,
+                    50,
+                    40
+                )
+
+                if hitbox.colliderect(enemigo.rect):
+                    enemigo.recibir_danio(10)
+                    self.ultimo_golpe = ahora
+
+    def recibir_danio(self, cantidad):
+        self.vida -= cantidad
+
+        if self.vida < 0:
+            self.vida = 0
+
+    def dibujar(self, ventana):
+        pygame.draw.rect(
+            ventana,
+            (255, 50, 255),
+            self.rect
+        )
+
+
+
+class Enemigo:
+    def __init__(self):
+        x = random.randint(50, 900)
+        y = random.randint(50, 500)
+
+        self.rect = pygame.Rect(x, y, 40, 40)
+
+        self.vida = 100
+        self.velocidad = 2
+
+        self.ultimo_golpe = 0
+        self.tiempo_entre_golpes = 500
+
+    def perseguir(self, jugador):
+        if self.rect.x < jugador.rect.x:
+            self.rect.x += self.velocidad
+
+        elif self.rect.x > jugador.rect.x:
+            self.rect.x -= self.velocidad
+
+        if self.rect.y < jugador.rect.y:
+            self.rect.y += self.velocidad
+
+        elif self.rect.y > jugador.rect.y:
+            self.rect.y -= self.velocidad
+
+    def atacar(self, jugador):
+        if self.rect.colliderect(jugador.rect):
+
+            ahora = pygame.time.get_ticks()
+
+            if ahora - self.ultimo_golpe >= self.tiempo_entre_golpes:
+                jugador.recibir_danio(10)
+
+                self.ultimo_golpe = ahora
+
+    def recibir_danio(self, cantidad):
+        self.vida -= cantidad
+
+        if self.vida < 0:
+            self.vida = 0
+
+    def esta_vivo(self):
+        return self.vida > 0
+
+    def dibujar(self, ventana):
+        pygame.draw.rect(
+            ventana,
+            (255, 0, 0),
+            self.rect
+        )
+
+
+class Juego:
+    def __init__(self, ventana):
+        self.ventana = ventana
+        self.reloj = pygame.time.Clock()
+
+        self.ejecutando = True
+
+        self.jugador = Jugador(500, 400)
+        self.enemigo = Enemigo()
+
+    def manejar_eventos(self):
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+                self.ejecutando = False
+
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_z:
+                    self.ejecutando = False
+
+    def actualizar(self):
+        self.jugador.mover()
+
+        self.jugador.atacar(self.enemigo)
+
+        if self.enemigo.esta_vivo():
+            self.enemigo.perseguir(self.jugador)
+            self.enemigo.atacar(self.jugador)
+        else:
+            # Si el enemigo muere, aparece otro
+            self.enemigo = Enemigo()
+
+        if self.jugador.vida <= 0:
+            self.ejecutando = False
+
+    def dibujar(self):
+
+        # Fondo
+        self.ventana.fill((0, 0, 0))
+
+        # Escenario
+        pygame.draw.rect(
+            self.ventana,
+            (255, 255, 255),
+            (50, 50, 900, 500)
+        )
+
+        # Jugador
+        self.jugador.dibujar(self.ventana)
+
+        # Enemigo
+        self.enemigo.dibujar(self.ventana)
+
+        # Barra de vida
+        pygame.draw.rect(
+            self.ventana,
+            (0, 200, 0),
+            (20, 20, self.jugador.vida * 2, 25)
+        )
+
+        # Barra de vida del enemigo
+        pygame.draw.rect(
+            self.ventana,
+            (200, 0, 0),
+            (780, 20, self.enemigo.vida * 2, 25)
+        )
+
         pygame.display.flip()
 
-=======
-        ventana.fill((0, 0, 0))
-        escenario = pygame.draw.rect(ventana, (255, 255, 255), (50, 50, 900,500))
-        personaje = pygame.draw.rect(ventana, (255, 60, 255), (x, y, 40, 40))
+    def ejecutar(self):
+
+        while self.ejecutando:
+
+            self.manejar_eventos()
+            self.actualizar()
+            self.dibujar()
+
+            self.reloj.tick(60)
+
+
+class Menu:
+    def __init__(self, ventana):
+        self.ventana = ventana
+
+        self.ejecutando = True
+
+        # Botones
+        self.boton_jugar = pygame.Rect(
+            150, 110, 200, 60
+        )
+
+        self.boton_ajustes = pygame.Rect(
+            150, 230, 200, 60
+        )
+
+        self.boton_salir = pygame.Rect(
+            150, 350, 200, 60
+        )
+
+    def dibujar(self):
+
+        self.ventana.fill((0, 0, 0))
+
+        pygame.draw.rect(
+            self.ventana,
+            (200, 0, 0),
+            self.boton_jugar
+        )
+
+        pygame.draw.rect(
+            self.ventana,
+            (0, 200, 0),
+            self.boton_ajustes
+        )
+
+        pygame.draw.rect(
+            self.ventana,
+            (0, 0, 200),
+            self.boton_salir
+        )
+
         pygame.display.flip()
-        #reloj = pygame.time.clock()
-        #reloj.tick(60)
->>>>>>> a13210ad661c49f7afc419087d3cb03c1d357157
-menu()
-pygame.quit()
+
+    def manejar_eventos(self):
+
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+                self.ejecutando = False
+                return "salir"
+
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_z:
+                    self.ejecutando = False
+                    return "salir"
+
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+
+                if evento.button == 1:
+
+                    if self.boton_jugar.collidepoint(evento.pos):
+                        return "jugar"
+
+                    if self.boton_salir.collidepoint(evento.pos):
+                        self.ejecutando = False
+                        return "salir"
+
+        return None
+
+    def ejecutar(self):
+
+        while self.ejecutando:
+
+            resultado = self.manejar_eventos()
+
+            if resultado == "jugar":
+                juego = Juego(self.ventana)
+                juego.ejecutar()
+
+            elif resultado == "salir":
+                return False
+
+            self.dibujar()
+
+            pygame.time.Clock().tick(60)
+
+        return False
+
+
+def main():
+
+    pygame.init()
+
+    pygame.display.set_caption("Pokemanic")
+
+    ventana = pygame.display.set_mode((1000, 600))
+
+    menu = Menu(ventana)
+
+    menu.ejecutar()
+
+    pygame.quit()
+    sys.exit()
+
+
+# Ejecutar programa
+if __name__ == "__main__":
+    main()
