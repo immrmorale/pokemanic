@@ -14,7 +14,7 @@ class Jugador:
         self.velocidad = 5
 
         self.ultimo_golpe = 0
-        self.tiempo_entre_golpes = 500
+        self.tiempo_entre_golpes = 200
 
     def mover(self):
         teclas = pygame.key.get_pressed()
@@ -44,8 +44,8 @@ class Jugador:
                 hitbox = pygame.Rect(
                     self.rect.x,
                     self.rect.y,
-                    50,
-                    40
+                    100,
+                    150
                 )
 
                 if hitbox.colliderect(enemigo.rect):
@@ -72,16 +72,22 @@ class Enemigo:
     def __init__(self):
         x = random.randint(50, 900)
         y = random.randint(50, 500)
-
         self.rect = pygame.Rect(x, y, 40, 40)
 
         self.vida = 100
-        self.velocidad = 2
+        self.velocidad = 1
 
         self.ultimo_golpe = 0
         self.tiempo_entre_golpes = 500
+        self.quieto_hasta = 0
+        self.tiempo_quieto = 500
 
     def perseguir(self, jugador):
+        ahora = pygame.time.get_ticks()
+
+        if ahora < self.quieto_hasta:
+            return
+
         if self.rect.x < jugador.rect.x:
             self.rect.x += self.velocidad
 
@@ -94,15 +100,42 @@ class Enemigo:
         elif self.rect.y > jugador.rect.y:
             self.rect.y -= self.velocidad
 
-    def atacar(self, jugador):
-        if self.rect.colliderect(jugador.rect):
+    def retroceder(self, dx, dy, dist=30):
+        # dx y dy son las  direcciónes de la que se aleja del jugador
+        largo = (dx ** 2 + dy ** 2) ** 0.5
 
+        if largo == 0:
+            return 
+
+        dx_norm = dx / largo
+        dy_norm = dy / largo
+
+        nueva_x = self.rect.x + dx_norm * dist
+        nueva_y = self.rect.y + dy_norm * dist
+
+        # clamping: no dejamos que se salga del escenario (50 a 950 / 50 a 550)
+        nueva_x = max(50, min(nueva_x, 950 - self.rect.width))
+        nueva_y = max(50, min(nueva_y, 550 - self.rect.height))
+
+        self.rect.x = nueva_x
+        self.rect.y = nueva_y
+
+    def atacar(self, jugador):
+        zona_ataque = self.rect.inflate(8, 8)
+
+        if zona_ataque.colliderect(jugador.rect):
             ahora = pygame.time.get_ticks()
 
             if ahora - self.ultimo_golpe >= self.tiempo_entre_golpes:
                 jugador.recibir_danio(10)
-
                 self.ultimo_golpe = ahora
+                self.quieto_hasta = ahora + self.tiempo_quieto
+                #direccion
+                dx = self.rect.centerx - jugador.rect.centerx
+                dy = self.rect.centery - jugador.rect.centery
+                self.retroceder(dx, dy, dist=100)
+
+
 
     def recibir_danio(self, cantidad):
         self.vida -= cantidad
@@ -148,6 +181,7 @@ class Juego:
 
         if self.enemigo.esta_vivo():
             self.enemigo.perseguir(self.jugador)
+            self.resolver_colision_ent()
             self.enemigo.atacar(self.jugador)
         else:
             # Si el enemigo muere, aparece otro
@@ -155,6 +189,33 @@ class Juego:
 
         if self.jugador.vida <= 0:
             self.ejecutando = False
+
+    def resolver_colision_ent(self):
+        jugador = self.jugador.rect
+        enemigo = self.enemigo.rect
+
+        if not jugador.colliderect(enemigo):
+            return
+
+        entrecruce_x = min(jugador.right, enemigo.right) - max(
+            jugador.left, enemigo.left
+        )
+        entrecruce_y = min(jugador.bottom, enemigo.bottom) - max(
+            jugador.top, enemigo.top
+        )
+
+        if entrecruce_x < entrecruce_y:
+            if jugador.centerx < enemigo.centerx:
+                enemigo.x += entrecruce_x
+            else:
+                enemigo.x -= entrecruce_x
+        else:
+            if jugador.centery < enemigo.centery:
+                enemigo.y += entrecruce_y
+            else:
+                enemigo.y -= entrecruce_y
+
+        enemigo.clamp_ip(pygame.Rect(50, 50, 900, 500))
 
     def dibujar(self):
 
