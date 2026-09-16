@@ -270,15 +270,15 @@ class Menu:
 
         # Botones
         self.boton_jugar = pygame.Rect(
-            150, 110, 200, 60
+            150, 120, 200, 60
         )
 
         self.boton_ajustes = pygame.Rect(
-            150, 230, 200, 60
+            150, 240, 200, 60
         )
 
         self.boton_salir = pygame.Rect(
-            150, 350, 200, 60
+            150, 360, 200, 60
         )
 
     def dibujar(self):
