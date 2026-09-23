@@ -10,16 +10,18 @@ class Jugador:
     #hay que hacerle las colisiones, bajarle el cooldown, mejorar la distancia de la hitbox
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 40, 40)
-
+        self.moviendose = False
         self.vida = 100
         self.velocidad = 5
 
         self.ultimo_golpe = 0
         self.tiempo_entre_golpes = 200
-
+        while pygame.key.get_pressed()[pygame.K_w], pygame.key.get_pressed()[pygame.K_s], pygame.key.get_pressed()[pygame.K_a], pygame.key.get_pressed()[pygame.K_d] : 
+            self.moviendose = True
+        self.moviendose = False
     def mover(self):
         teclas = pygame.key.get_pressed()
-
+        self.moviendose = False
         if teclas[pygame.K_w] and self.rect.top > 50:
             self.rect.y -= self.velocidad
 
@@ -28,6 +30,7 @@ class Jugador:
 
         if teclas[pygame.K_a] and self.rect.left > 50:
             self.rect.x -= self.velocidad
+
 
         if teclas[pygame.K_d] and self.rect.right < 950:
             self.rect.x += self.velocidad
