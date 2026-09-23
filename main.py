@@ -6,6 +6,7 @@ import sys
 
 
 class Jugador:
+
     #hay que hacerle las colisiones, bajarle el cooldown, mejorar la distancia de la hitbox
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 40, 40)
