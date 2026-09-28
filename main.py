@@ -16,12 +16,11 @@ class Jugador:
 
         self.ultimo_golpe = 0
         self.tiempo_entre_golpes = 200
-        while pygame.key.get_pressed()[pygame.K_w], pygame.key.get_pressed()[pygame.K_s], pygame.key.get_pressed()[pygame.K_a], pygame.key.get_pressed()[pygame.K_d] : 
+        while pygame.key.get_pressed()[pygame.K_w] or  pygame.key.get_pressed()[pygame.K_s] or pygame.key.get_pressed()[pygame.K_a] or pygame.key.get_pressed()[pygame.K_d] : 
             self.moviendose = True
-        self.moviendose = False
+        else: self.moviendose = False
     def mover(self):
         teclas = pygame.key.get_pressed()
-        self.moviendose = False
         if teclas[pygame.K_w] and self.rect.top > 50:
             self.rect.y -= self.velocidad
 
@@ -159,7 +158,15 @@ class Enemigo:
 
 
 class Juego:
-    def __init__(self, ventana):
+    def __init__(self, ventana, pokemon_actual):
+        self.ventana = ventana
+        self.reloj = pygame.time.Clock()
+        self.ejecutando = True
+
+        self.pokemon_actual = pokemon_actual
+
+        self.jugador = Jugador(500, 400)
+        self.enemigo = Enemigo()
         self.ventana = ventana
         self.reloj = pygame.time.Clock()
 
@@ -255,6 +262,38 @@ class Juego:
 
         pygame.display.flip()
 
+    def debugmenu(self, lista_pokes):
+
+        self.ventana.fill((0, 0, 0))
+
+        self.botones_pokemon = []
+
+        numpoke = 0
+
+        for p in lista_pokes:
+
+            xboton = 150 + (numpoke % 4) * 220
+            yboton = 120 + (numpoke // 4) * 120
+
+            boton = pygame.Rect(
+                xboton,
+                yboton,
+                200,
+                60
+            )
+
+            pygame.draw.rect(
+                self.ventana,
+                (200, 200, 200),
+                boton
+            )
+
+            self.botones_pokemon.append((boton, p))
+
+            numpoke += 1
+
+        pygame.display.flip()
+
     def ejecutar(self):
 
         while self.ejecutando:
@@ -284,6 +323,10 @@ class Menu:
         self.boton_salir = pygame.Rect(
             150, 360, 200, 60
         )
+
+        self.botones_pokemon = []
+
+        self.pokemon_actual = None
 
     def dibujar(self):
 
@@ -318,6 +361,7 @@ class Menu:
                 return "salir"
 
             if evento.type == pygame.KEYDOWN:
+
                 if evento.key == pygame.K_z:
                     self.ejecutando = False
                     return "salir"
@@ -333,7 +377,17 @@ class Menu:
                         self.ejecutando = False
                         return "salir"
 
+                    for boton, pokemon in self.botones_pokemon:
+
+                        if boton.collidepoint(evento.pos):
+
+                            self.pokemon_actual = pokemon
+
+                            return "pokemon"
+
         return None
+    
+
 
     def ejecutar(self):
 
@@ -353,6 +407,7 @@ class Menu:
             pygame.time.Clock().tick(60)
 
         return False
+
 
 
 def main():
