@@ -2,160 +2,85 @@ import pygame
 import random
 import sys
 import math
-import os
 from pokemones import pokemones, movimientos
 
 
-DIRECCIONES = [
-    'sur',
-    'sureste',
-    'este',
-    'noreste',
-    'norte',
-    'noroeste',
-    'oeste',
-    'suroeste'
-]
-
-DIRECCION_VECTOR = {
-    'sur': (0, 1),
-    'sureste': (1, 1),
-    'este': (1, 0),
-    'noreste': (1, -1),
-    'norte': (0, -1),
-    'noroeste': (-1, -1),
-    'oeste': (-1, 0),
-    'suroeste': (-1, 1)
-}
+from animaciones import direcciones, direccion_vector, AnimadorPokemon
 
 
-class AnimadorPokemon:
-    def __init__(self, nombre, rect):
-        self.nombre = nombre
-        self.rect = rect
-        self.animacion = 'idle'
-        self.direccion = 0
-        self.frame = 0
-        self.tiempo_frame = 0
-        self.frames = {}
-        self.cargar_animaciones()
+class DebugMenu:
+    def __init__(self, ventana, pokemon_actual='pikachu'):
+        self.ventana = ventana
+        self.pokemon_actual = pokemon_actual
+        self.scroll = 0
+        self.scroll_maximo = 0
+        self.botones_pokemon = []
+        self.fuente = pygame.font.Font(None, 24)
+        self.fuente_titulo = pygame.font.Font(None, 32)
 
-    def buscar_carpeta(self):
-        raiz = os.path.join(os.path.dirname(__file__), 'assets', 'sprites', 'pokemones')
-        opciones = [
-            os.path.join(raiz, self.nombre),
-            os.path.join(raiz, 'sprite_' + self.nombre[:5])
-        ]
+    def abrir(self, pokemon_actual=None):
+        if pokemon_actual in pokemones:
+            self.pokemon_actual = pokemon_actual
 
-        for ruta in opciones:
-            if os.path.isdir(ruta):
-                return ruta
+        ejecutando = True
+        self.scroll = 0
+        reloj = pygame.time.Clock()
+        columnas = 4
+        ancho_boton = 210
+        alto_boton = 62
+        alto_nombre = 28
+        espacio_y = 18
+        filas = math.ceil(len(pokemones) / columnas)
+        contenido_alto = 80 + filas * (alto_boton + alto_nombre + espacio_y)
+        self.scroll_maximo = max(0, contenido_alto - 580)
 
-        equivalencias = {
-            'lucario': 'sprite_luca',
-            'blaziken': 'sprite_blazi'
-        }
+        while ejecutando:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    return 'salir'
 
-        if self.nombre in equivalencias:
-            ruta = os.path.join(raiz, equivalencias[self.nombre])
-            if os.path.isdir(ruta):
-                return ruta
+                if evento.type == pygame.KEYDOWN:
+                    if evento.key == pygame.K_ESCAPE or evento.key == pygame.K_F1:
+                        ejecutando = False
 
-        return None
+                if evento.type == pygame.MOUSEWHEEL:
+                    self.scroll -= evento.y * 60
+                    self.scroll = max(0, min(self.scroll, self.scroll_maximo))
 
-    def cargar_animaciones(self):
-        carpeta = self.buscar_carpeta()
+                if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                    for boton, nombre in self.botones_pokemon:
+                        if boton.collidepoint(evento.pos):
+                            self.pokemon_actual = nombre
+                            ejecutando = False
+                            break
 
-        if carpeta is None:
-            return
+            self.ventana.fill((20, 20, 20))
+            self.botones_pokemon = []
+            titulo = self.fuente_titulo.render('MENU DEBUG', True, (255, 255, 255))
+            ayuda = self.fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte', True, (200, 200, 200))
+            self.ventana.blit(titulo, (25, 15))
+            self.ventana.blit(ayuda, (25, 45))
 
-        nombres = os.listdir(carpeta)
+            for numpoke, nombre in enumerate(pokemones):
+                xboton = 30 + (numpoke % columnas) * 240
+                yboton = 85 + (numpoke // columnas) * (alto_boton + alto_nombre + espacio_y) - self.scroll
+                boton = pygame.Rect(xboton, yboton, ancho_boton, alto_boton)
+                nombre_rect = pygame.Rect(xboton, yboton + alto_boton, ancho_boton, alto_nombre)
 
-        for nombre_carpeta in nombres:
-            ruta = os.path.join(carpeta, nombre_carpeta)
-            if not os.path.isdir(ruta):
-                continue
+                if boton.bottom >= 65 and nombre_rect.top <= 600:
+                    color = (80, 160, 80) if nombre == self.pokemon_actual else (200, 200, 200)
+                    pygame.draw.rect(self.ventana, color, boton)
+                    pygame.draw.rect(self.ventana, (50, 50, 50), nombre_rect)
+                    texto = self.fuente.render(nombre.replace('_', ' ').title(), True, (255, 255, 255))
+                    self.ventana.blit(texto, (xboton + 8, yboton + 20))
+                    texto_nombre = self.fuente.render(nombre, True, (255, 255, 255))
+                    self.ventana.blit(texto_nombre, (xboton + 8, yboton + alto_boton + 5))
+                    self.botones_pokemon.append((boton, nombre))
 
-            animacion = nombre_carpeta.lower()
-            if '_' in animacion:
-                prefijo, resto = animacion.split('_', 1)
-                if resto in ('walk', 'idle', 'strike', 'kick', 'attack'):
-                    animacion = resto
+            pygame.display.flip()
+            reloj.tick(60)
 
-            archivos = []
-            for archivo in os.listdir(ruta):
-                if archivo.lower().endswith('.png'):
-                    try:
-                        numero = int(os.path.splitext(archivo)[0])
-                        archivos.append((numero, archivo))
-                    except ValueError:
-                        pass
-
-            archivos.sort()
-            imagenes = []
-
-            for _, archivo in archivos:
-                try:
-                    imagenes.append(pygame.image.load(os.path.join(ruta, archivo)).convert_alpha())
-                except pygame.error:
-                    pass
-
-            if len(imagenes) >= 8:
-                cantidad_frames = len(imagenes) // 8
-                self.frames[animacion] = []
-
-                for direccion in range(8):
-                    inicio = direccion * cantidad_frames
-                    fin = inicio + cantidad_frames
-                    self.frames[animacion].append(imagenes[inicio:fin])
-
-    def cambiar(self, animacion, direccion):
-        if animacion not in self.frames:
-            if 'idle' in self.frames:
-                animacion = 'idle'
-            else:
-                return
-
-        if self.animacion != animacion or self.direccion != direccion:
-            self.animacion = animacion
-            self.direccion = direccion
-            self.frame = 0
-            self.tiempo_frame = 0
-
-    def actualizar(self):
-        if self.animacion not in self.frames:
-            return
-
-        frames = self.frames[self.animacion][self.direccion]
-        if not frames:
-            return
-
-        self.tiempo_frame += 1
-
-        if self.tiempo_frame >= 6:
-            self.tiempo_frame = 0
-            self.frame += 1
-
-            if self.frame >= len(frames):
-                self.frame = 0
-
-    def esta_terminada(self):
-        if self.animacion not in self.frames:
-            return True
-
-        frames = self.frames[self.animacion][self.direccion]
-        return bool(frames) and self.frame >= len(frames) - 1
-
-    def dibujar(self, ventana):
-        if self.animacion in self.frames:
-            frames = self.frames[self.animacion][self.direccion]
-            if frames:
-                imagen = frames[self.frame]
-                posicion = imagen.get_rect(center=self.rect.center)
-                ventana.blit(imagen, posicion)
-                return True
-
-        return False
+        return self.pokemon_actual
 
 
 class Proyectil:
@@ -173,7 +98,7 @@ class Proyectil:
         self.objetivos_golpeados = []
 
     def actualizar(self, enemigos):
-        vx, vy = DIRECCION_VECTOR[self.direccion]
+        vx, vy = direccion_vector[self.direccion]
         largo = (vx ** 2 + vy ** 2) ** 0.5
         vx /= largo
         vy /= largo
@@ -214,23 +139,45 @@ class Proyectil:
 
 class Jugador:
     def __init__(self, x, y, pokemon_actual):
-        self.rect = pygame.Rect(x, y, 40, 40)
         self.pokemon_actual = pokemon_actual
         self.nombre = self.buscar_nombre()
-        self.vida = pokemon_actual['vida'] if pokemon_actual['vida'] is not None else 100
-        self.velocidad = 5
+        self.aplicar_estadisticas()
+        self.rect = pygame.Rect(0, 0, self.hitbox_tamaño, self.hitbox_tamaño)
+        self.rect.center = (x + 20, y + 20)
         self.direccion = 'sur'
+        self.moviendose = False
         self.ultimo_golpe = -1000
         self.ultimo_proyectil = -1000
         self.atacando = False
-        self.tiempo_ataque = 0
-        self.animador = AnimadorPokemon(self.nombre, self.rect)
+        self.animador = AnimadorPokemon(self.nombre, self.rect, self.tamaño)
 
     def buscar_nombre(self):
         for nombre, datos in pokemones.items():
             if datos is self.pokemon_actual:
                 return nombre
         return 'pokemon'
+
+    def aplicar_estadisticas(self):
+        stats = self.pokemon_actual.get('estadisticas_juego', {})
+        self.vida = self.pokemon_actual.get('vida', 100) or 100
+        self.velocidad = stats.get('velocidad', self.pokemon_actual.get('velocidad_movimiento', 5))
+        self.tamaño = stats.get('tamaño', self.pokemon_actual.get('tamaño', 40))
+        self.hitbox_tamaño = stats.get('hitbox', self.pokemon_actual.get('hitbox', self.tamaño))
+
+    def cambiar_pokemon(self, nombre):
+        if nombre not in pokemones:
+            return
+
+        centro = self.rect.center
+        self.pokemon_actual = pokemones[nombre]
+        self.nombre = nombre
+        self.aplicar_estadisticas()
+        self.rect = pygame.Rect(0, 0, self.hitbox_tamaño, self.hitbox_tamaño)
+        self.rect.center = centro
+        self.ultimo_golpe = -1000
+        self.ultimo_proyectil = -1000
+        self.atacando = False
+        self.animador = AnimadorPokemon(self.nombre, self.rect, self.tamaño)
 
     def mover(self):
         teclas = pygame.key.get_pressed()
@@ -271,25 +218,35 @@ class Jugador:
             dy /= largo
             self.rect.x += round(dx * self.velocidad)
             self.rect.y += round(dy * self.velocidad)
-
             self.rect.clamp_ip(pygame.Rect(50, 50, 900, 500))
 
-    def atacar_cuerpo(self, enemigos):
-        nombre = self.pokemon_actual.get('ataque_cuerpo')
+    def obtener_ataque(self, categoria):
+        ataques = self.pokemon_actual.get('ataques_estadisticas', {})
+        datos = ataques.get(categoria)
+        if datos is not None:
+            return datos
+
+        nombre = self.pokemon_actual.get('ataque_cuerpo' if categoria == 'cuerpo' else 'ataque_proyectil')
         if nombre not in movimientos:
+            return None
+        return movimientos[nombre]
+
+    def atacar_cuerpo(self, enemigos):
+        datos = self.obtener_ataque('cuerpo')
+        if datos is None:
             return
 
-        datos = movimientos[nombre]
         ahora = pygame.time.get_ticks()
-
-        if ahora - self.ultimo_golpe < datos['enfriamiento']:
+        if ahora - self.ultimo_golpe < datos['enfriamiento'] or self.atacando:
             return
 
         self.ultimo_golpe = ahora
         self.atacando = True
-        self.tiempo_ataque = ahora
+        ataque_animacion = self.animador.buscar_ataque()
+        if ataque_animacion:
+            self.animador.cambiar(ataque_animacion, direcciones.index(self.direccion), False)
 
-        vx, vy = DIRECCION_VECTOR[self.direccion]
+        vx, vy = direccion_vector[self.direccion]
         centro_x = self.rect.centerx + vx * datos['distancia'] / 2
         centro_y = self.rect.centery + vy * datos['distancia'] / 2
         hitbox = pygame.Rect(0, 0, datos['distancia'], datos['area'] * 2)
@@ -300,36 +257,35 @@ class Jugador:
                 enemigo.recibir_ataque(datos, self.direccion)
 
     def atacar_proyectil(self, proyectiles):
-        nombre = self.pokemon_actual.get('ataque_proyectil')
-        if nombre not in movimientos:
+        datos = self.obtener_ataque('proyectil')
+        if datos is None:
             return
 
-        datos = movimientos[nombre]
         ahora = pygame.time.get_ticks()
-
-        if ahora - self.ultimo_proyectil < datos['enfriamiento']:
+        if ahora - self.ultimo_proyectil < datos['enfriamiento'] or self.atacando:
             return
 
         self.ultimo_proyectil = ahora
-        vx, vy = DIRECCION_VECTOR[self.direccion]
-        x = self.rect.centerx + vx * 30
-        y = self.rect.centery + vy * 30
+        vx, vy = direccion_vector[self.direccion]
+        x = self.rect.centerx + vx * max(20, self.hitbox_tamaño // 2)
+        y = self.rect.centery + vy * max(20, self.hitbox_tamaño // 2)
         proyectiles.append(Proyectil(x, y, self.direccion, datos))
-        self.atacando = True
-        self.tiempo_ataque = ahora
 
     def actualizar(self):
-        ahora = pygame.time.get_ticks()
-
-        if self.atacando and ahora - self.tiempo_ataque > 350:
+        if self.atacando and self.animador.esta_terminada():
             self.atacando = False
 
+        direccion = direcciones.index(self.direccion)
         if self.atacando:
-            self.animador.cambiar(self.animador.frames.get('strike') and 'strike' or self.animador.frames.get('kick') and 'kick' or 'attack', DIRECCIONES.index(self.direccion))
+            ataque_animacion = self.animador.buscar_ataque()
+            if ataque_animacion:
+                self.animador.cambiar(ataque_animacion, direccion, False)
+            else:
+                self.atacando = False
         elif self.moviendose:
-            self.animador.cambiar('walk', DIRECCIONES.index(self.direccion))
+            self.animador.cambiar('walk', direccion, True)
         else:
-            self.animador.cambiar('idle', DIRECCIONES.index(self.direccion))
+            self.animador.cambiar('idle', direccion, True)
 
         self.animador.actualizar()
 
@@ -340,7 +296,10 @@ class Jugador:
 
     def dibujar(self, ventana):
         if not self.animador.dibujar(ventana):
-            pygame.draw.rect(ventana, (255, 50, 255), self.rect)
+            tamaño = self.tamaño
+            zona = pygame.Rect(0, 0, tamaño, tamaño)
+            zona.center = self.rect.center
+            pygame.draw.rect(ventana, (255, 50, 255), zona)
 
 
 class Enemigo:
@@ -413,8 +372,8 @@ class Enemigo:
                 self.proximo_estado = pygame.time.get_ticks() + 700
 
         retroceso = datos.get('retroceso', 0)
-        if retroceso > 0 and direccion in DIRECCION_VECTOR:
-            vx, vy = DIRECCION_VECTOR[direccion]
+        if retroceso > 0 and direccion in direccion_vector:
+            vx, vy = direccion_vector[direccion]
             self.retroceder(-vx, -vy, retroceso)
 
     def actualizar_estado(self):
@@ -440,14 +399,32 @@ class Enemigo:
 
 
 class Juego:
-    def __init__(self, ventana, pokemon_actual):
+    def __init__(self, ventana, pokemon_actual, pokemon_nombre=None):
         self.ventana = ventana
         self.reloj = pygame.time.Clock()
         self.ejecutando = True
         self.pokemon_actual = pokemon_actual
+        self.pokemon_nombre = pokemon_nombre or self.buscar_nombre(pokemon_actual)
         self.jugador = Jugador(500, 400, pokemon_actual)
         self.enemigos = [Enemigo()]
         self.proyectiles = []
+        self.debug = DebugMenu(ventana, self.pokemon_nombre)
+
+    def buscar_nombre(self, datos):
+        for nombre, pokemon in pokemones.items():
+            if pokemon is datos:
+                return nombre
+        return 'pokemon'
+
+    def abrir_debug(self):
+        nombre = self.debug.abrir(self.pokemon_nombre)
+        if nombre == 'salir':
+            self.ejecutando = False
+            return
+        if nombre in pokemones and nombre != self.pokemon_nombre:
+            self.pokemon_nombre = nombre
+            self.pokemon_actual = pokemones[nombre]
+            self.jugador.cambiar_pokemon(nombre)
 
     def manejar_eventos(self):
         for evento in pygame.event.get():
@@ -455,8 +432,12 @@ class Juego:
                 self.ejecutando = False
 
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_z:
+                if evento.key == pygame.K_x:
                     self.ejecutando = False
+
+                if evento.key == pygame.K_F1:
+                    self.abrir_debug()
+                    continue
 
                 if evento.key == pygame.K_e:
                     self.jugador.atacar_cuerpo(self.enemigos)
@@ -514,7 +495,6 @@ class Juego:
 
     def dibujar(self):
         self.ventana.fill((0, 0, 0))
-
         pygame.draw.rect(self.ventana, (255, 255, 255), (50, 50, 900, 500))
 
         for proyectil in self.proyectiles:
@@ -555,18 +535,20 @@ class Menu:
         self.boton_jugar = pygame.Rect(150, 120, 200, 60)
         self.boton_ajustes = pygame.Rect(150, 240, 200, 60)
         self.boton_salir = pygame.Rect(150, 360, 200, 60)
-        self.botones_pokemon = []
         self.pokemon_actual = 'pikachu'
-        self.scroll = 0
-        self.scroll_maximo = 0
+        self.debug = DebugMenu(ventana, self.pokemon_actual)
+        self.fuente = pygame.font.Font(None, 24)
 
     def dibujar(self):
         self.ventana.fill((0, 0, 0))
-
         pygame.draw.rect(self.ventana, (200, 0, 0), self.boton_jugar)
         pygame.draw.rect(self.ventana, (0, 200, 0), self.boton_ajustes)
         pygame.draw.rect(self.ventana, (0, 0, 200), self.boton_salir)
-
+        self.ventana.blit(self.fuente.render('Jugar', True, (255, 255, 255)), (220, 140))
+        self.ventana.blit(self.fuente.render('Ajustes', True, (255, 255, 255)), (215, 260))
+        self.ventana.blit(self.fuente.render('Salir', True, (255, 255, 255)), (225, 380))
+        self.ventana.blit(self.fuente.render('F1: Menu debug', True, (255, 255, 255)), (700, 20))
+        self.ventana.blit(self.fuente.render('Pokemon: ' + self.pokemon_actual, True, (255, 255, 255)), (700, 45))
         pygame.display.flip()
 
     def manejar_eventos(self):
@@ -576,14 +558,17 @@ class Menu:
                 return 'salir'
 
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_z:
+                if evento.key == pygame.K_x:
                     self.ejecutando = False
                     return 'salir'
 
                 if evento.key == pygame.K_F1:
-                    resultado = self.debugmenu()
+                    resultado = self.debug.abrir(self.pokemon_actual)
                     if resultado == 'salir':
+                        self.ejecutando = False
                         return 'salir'
+                    if resultado in pokemones:
+                        self.pokemon_actual = resultado
 
             if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
                 if self.boton_jugar.collidepoint(evento.pos):
@@ -595,56 +580,6 @@ class Menu:
 
         return None
 
-    def debugmenu(self):
-        ejecutando_debug = True
-        self.scroll = 0
-        reloj = pygame.time.Clock()
-
-        while ejecutando_debug and self.ejecutando:
-            for evento in pygame.event.get():
-                if evento.type == pygame.QUIT:
-                    self.ejecutando = False
-                    return 'salir'
-
-                if evento.type == pygame.KEYDOWN:
-                    if evento.key == pygame.K_ESCAPE or evento.key == pygame.K_F1:
-                        ejecutando_debug = False
-
-                if evento.type == pygame.MOUSEWHEEL:
-                    self.scroll -= evento.y * 60
-                    self.scroll = max(0, min(self.scroll, self.scroll_maximo))
-
-                if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
-                    for boton, nombre in self.botones_pokemon:
-                        if boton.collidepoint(evento.pos):
-                            self.pokemon_actual = nombre
-                            ejecutando_debug = False
-                            break
-
-            self.ventana.fill((20, 20, 20))
-            self.botones_pokemon = []
-
-            cantidad_filas = math.ceil(len(pokemones) / 4)
-            alto_boton = 60
-            espacio_y = 30
-            contenido_alto = 80 + cantidad_filas * (alto_boton + espacio_y)
-            self.scroll_maximo = max(0, contenido_alto - 550)
-
-            for numpoke, nombre in enumerate(pokemones):
-                xboton = 50 + (numpoke % 4) * 240
-                yboton = 70 + (numpoke // 4) * (alto_boton + espacio_y) - self.scroll
-
-                boton = pygame.Rect(xboton, yboton, 200, alto_boton)
-
-                if boton.bottom >= 50 and boton.top <= 550:
-                    pygame.draw.rect(self.ventana, (200, 200, 200), boton)
-                    self.botones_pokemon.append((boton, nombre))
-
-            pygame.display.flip()
-            reloj.tick(60)
-
-        return 'pokemon'
-
     def ejecutar(self):
         reloj = pygame.time.Clock()
 
@@ -652,8 +587,10 @@ class Menu:
             resultado = self.manejar_eventos()
 
             if resultado == 'jugar':
-                juego = Juego(self.ventana, pokemones[self.pokemon_actual])
+                juego = Juego(self.ventana, pokemones[self.pokemon_actual], self.pokemon_actual)
                 juego.ejecutar()
+                if juego.ejecutando is False and juego.jugador.vida <= 0:
+                    self.pokemon_actual = juego.pokemon_nombre
 
             elif resultado == 'salir':
                 return False
