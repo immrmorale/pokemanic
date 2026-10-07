@@ -4,7 +4,6 @@ import sys
 import math
 from pokemones import pokemones, movimientos
 
-
 from animaciones import direcciones, direccion_vector, AnimadorPokemon
 
 
