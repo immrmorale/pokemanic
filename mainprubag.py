@@ -2,8 +2,22 @@ import pygame
 import random
 import math
 import sys
+import generacion
 from pokemones import pokemones, movimientos
 from animaciones import direcciones, direccion_vector, AnimadorPokemon
+
+
+def dibujar_esquinas(pantalla, rect, color=(255, 255, 255), margen=10, largo=14, grosor=3):
+    r = rect.inflate(margen * 2, margen * 2)
+    x1, y1, x2, y2 = r.left, r.top, r.right - 1, r.bottom - 1
+    pygame.draw.line(pantalla, color, (x1, y1), (x1 + largo, y1), grosor)
+    pygame.draw.line(pantalla, color, (x1, y1), (x1, y1 + largo), grosor)
+    pygame.draw.line(pantalla, color, (x2, y1), (x2 - largo, y1), grosor)
+    pygame.draw.line(pantalla, color, (x2, y1), (x2, y1 + largo), grosor)
+    pygame.draw.line(pantalla, color, (x1, y2), (x1 + largo, y2), grosor)
+    pygame.draw.line(pantalla, color, (x1, y2), (x1, y2 - largo), grosor)
+    pygame.draw.line(pantalla, color, (x2, y2), (x2 - largo, y2), grosor)
+    pygame.draw.line(pantalla, color, (x2, y2), (x2, y2 - largo), grosor)
 
 
 def main():
@@ -53,9 +67,9 @@ def main():
             pygame.display.flip()
 
     def jugar(pokemon):
-        ESC = pygame.Rect(0, 0, 2400, 1600)
-        PARED = 40
-        AREA = ESC.inflate(-80, -80)
+        ESC = generacion.crear_escenario()
+        PARED = generacion.TAM_CASILLA
+        AREA = generacion.crear_area(ESC)
         VEL_ENEMIGO = 1
         VEL_P_ENEMIGO = 8
         DIST_P_ENEMIGO = 250
@@ -79,7 +93,7 @@ def main():
         }
         CD_ENEMIGO, CD_JEFE, CD_PIEDRA = 1500, 5000, 2000
         DURACION_PIEDRA = 5000
-        CANT_ENEMIGOS, CANT_PIEDRAS = 10, 30
+        CANT_ENEMIGOS = 10
         TAM_JEFE, BALAS_JEFE, PIEDRAS_POR_USO = 160, 24, 4
         DAÑO_JEFE, DAÑO_PIEDRA = 35, 15
 
@@ -89,15 +103,12 @@ def main():
             r = rect.copy(); r.y += dy
             if not any(r.colliderect(piedra) for piedra in piedras): rect.y += dy
 
-        def crear_piedras():
-            piedras = []
-            centro = pygame.Rect(ESC.centerx - 250, ESC.centery - 250, 500, 500)
-            while len(piedras) < CANT_PIEDRAS:
-                piedra = pygame.Rect(random.randint(PARED + 50, ESC.width - PARED - 100), random.randint(PARED + 50, ESC.height - PARED - 100), 50, 50)
-                if piedra.colliderect(centro) or any(piedra.colliderect(x.inflate(15, 15)) for x in piedras):
-                    continue
-                piedras.append(piedra)
-            return piedras
+        def nada(tipo):
+            tipos = tipo if isinstance(tipo, (list, tuple)) else [tipo]
+            return any(MAPA_TIPOS.get(str(t).lower(), str(t).lower()) == 'agua' for t in tipos)
+
+        def obstaculos_de(tipo, piedras, agua):
+            return piedras if nada(tipo) else piedras + agua
 
         def tipo_combate(datos):
             tipos = datos.get('tipos', datos.get('types', datos.get('tipo', [])))
@@ -126,14 +137,6 @@ def main():
 
         def daño_con_tipo(daño, ataque_tipo, defensa_tipo):
             return max(1, round(daño * multiplicador_tipo(ataque_tipo, defensa_tipo)))
-
-        def crear_puertas():
-            return [
-                pygame.Rect(ESC.centerx - 30, 0, 60, PARED),
-                pygame.Rect(ESC.centerx - 30, ESC.bottom - PARED, 60, PARED),
-                pygame.Rect(0, ESC.centery - 30, PARED, 60),
-                pygame.Rect(ESC.right - PARED, ESC.centery - 30, PARED, 60)
-            ]
 
         def stats_pokemon(nombre):
             datos = pokemones[nombre]
@@ -436,23 +439,25 @@ def main():
                 pygame.display.flip(); reloj_salida.tick(60)
 
         def crear_nivel(numero):
-            piedras = crear_piedras()
-            jefe = crear_jefe(piedras) if numero >= 2 and (numero + 1) % 3 == 0 else None
-            return {'piedras': piedras, 'enemigos': [] if jefe else [crear_enemigo(piedras) for _ in range(CANT_ENEMIGOS)], 'jefe': jefe,
-                    'proyectiles_pokemon': [], 'proyectiles_enemigos': [], 'verdes': [], 'puertas': crear_puertas(), 'llave': None, 'completado': False}
+            generado = generacion.generar_nivel()
+            piedras, agua = generado['paredes'] + generado['piedras'], generado['agua']
+            jefe = crear_jefe(piedras + agua) if numero >= 2 and (numero + 1) % 3 == 0 else None
+            return {'piedras': piedras, 'paredes': generado['paredes'], 'rocas': generado['piedras'], 'agua': agua,
+                    'enemigos': [] if jefe else [crear_enemigo(piedras + agua) for _ in range(CANT_ENEMIGOS)], 'jefe': jefe,
+                    'proyectiles_pokemon': [], 'proyectiles_enemigos': [], 'verdes': [], 'puertas': generado['puertas'], 'llave': None, 'completado': False}
 
         def actualizar_nivel(nivel, j):
-            ahora = pygame.time.get_ticks(); piedras = nivel['piedras']; enemigos = nivel['enemigos']; jefe = nivel['jefe']
-            mover_jugador(j, piedras); actualizar_jugador(j)
+            ahora = pygame.time.get_ticks(); piedras = nivel['piedras']; agua = nivel['agua']; enemigos = nivel['enemigos']; jefe = nivel['jefe']
+            mover_jugador(j, obstaculos_de(j['datos'].get('tipo'), piedras, agua)); actualizar_jugador(j)
             objetivos = enemigos[:] + ([jefe] if jefe else [])
             for proyectil in nivel['proyectiles_pokemon']: actualizar_proyectil_pokemon(proyectil, objetivos, piedras)
             nivel['proyectiles_pokemon'] = [proyectil for proyectil in nivel['proyectiles_pokemon'] if proyectil['activo']]
             for e in enemigos:
                 actualizar_estado(e)
-                if e['vida'] > 0: actualizar_enemigo(e, j, piedras, nivel['proyectiles_enemigos'])
+                if e['vida'] > 0: actualizar_enemigo(e, j, obstaculos_de(e['tipo'], piedras, agua), nivel['proyectiles_enemigos'])
             nivel['enemigos'] = [e for e in enemigos if e['vida'] > 0]
             if jefe:
-                actualizar_jefe(jefe, j, piedras, nivel['proyectiles_enemigos'], nivel['verdes'])
+                actualizar_jefe(jefe, j, obstaculos_de(jefe['tipo'], piedras, agua), nivel['proyectiles_enemigos'], nivel['verdes'])
                 if jefe['vida'] <= 0: nivel['jefe'] = None
             for proyectil in nivel['proyectiles_enemigos']: actualizar_proyectil(proyectil, j, piedras)
             nivel['proyectiles_enemigos'] = [proyectil for proyectil in nivel['proyectiles_enemigos'] if proyectil['activo']]
@@ -493,9 +498,9 @@ def main():
             cx = max(0, min(j['rect'].centerx-W//2, ESC.width-W)); cy = max(0, min(j['rect'].centery-H//2, ESC.height-H))
             ventana.fill('black')
             dibujar_rect(ESC, cx, cy, 'white')
-            paredes = [pygame.Rect(0,0,ESC.width,PARED), pygame.Rect(0,ESC.bottom-PARED,ESC.width,PARED), pygame.Rect(0,0,PARED,ESC.height), pygame.Rect(ESC.right-PARED,0,PARED,ESC.height)]
-            for pared in paredes: dibujar_rect(pared,cx,cy,'black')
-            for piedra in nivel['piedras']: dibujar_rect(piedra,cx,cy,(100,100,100),'ellipse')
+            for lago in nivel['agua']: dibujar_rect(lago,cx,cy,generacion.COLOR_AGUA)
+            for pared in nivel['paredes']: dibujar_rect(pared,cx,cy,generacion.COLOR_PARED)
+            for piedra in nivel['rocas']: dibujar_rect(piedra,cx,cy,(100,100,100),'ellipse')
             for piedra_verde in nivel['verdes']: dibujar_rect(piedra_verde['rect'],cx,cy,(0,220,80),'ellipse')
             for puerta in nivel['puertas']: dibujar_rect(puerta,cx,cy,(60,180,80) if j['llave'] else (120,70,30))
             for proyectil in nivel['proyectiles_enemigos']:
@@ -553,11 +558,59 @@ def main():
                 if resultado == 'muerte': return 'juego_terminado', j['nombre']
                 reloj.tick(60)
 
+    def ajustes(volumen):
+        reloj_ajustes = pygame.time.Clock()
+        f_titulo = pygame.font.Font(None, 48)
+        f_texto = pygame.font.Font(None, 36)
+        while True:
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    return None
+                if e.type == pygame.KEYDOWN:
+                    if e.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE):
+                        return volumen
+                    if e.key in (pygame.K_a, pygame.K_LEFT):
+                        volumen = max(10, volumen - 10)
+                    if e.key in (pygame.K_d, pygame.K_RIGHT):
+                        volumen = min(100, volumen + 10)
+
+            ventana.fill('black')
+            titulo = f_titulo.render('AJUSTES', True, 'white')
+            ventana.blit(titulo, titulo.get_rect(center=(W // 2, 120)))
+
+            fila = pygame.Rect(0, 0, 420, 70)
+            fila.center = (W // 2, H // 2)
+            pygame.draw.rect(ventana, (0, 120, 0), fila)
+            ventana.blit(f_texto.render('Sonidos', True, 'white'), (fila.x + 20, fila.centery - 12))
+            valor = f_texto.render('< ' + str(volumen) + ' >', True, 'white')
+            ventana.blit(valor, valor.get_rect(midright=(fila.right - 20, fila.centery)))
+            dibujar_esquinas(ventana, fila)
+
+            for i in range(10):
+                color = (255, 255, 255) if i < volumen // 10 else (70, 70, 70)
+                pygame.draw.rect(ventana, color, (fila.x + i * 42, fila.bottom + 25, 36, 12))
+
+            ayuda = fuente.render('A / D: cambiar volumen (10 a 100)    ESC: volver', True, (200, 200, 200))
+            ventana.blit(ayuda, ayuda.get_rect(center=(W // 2, H - 60)))
+            pygame.display.flip(); reloj_ajustes.tick(60)
+
     pokemon = 'pikachu' if 'pikachu' in pokemones else next(iter(pokemones))
-    botones = {'jugar': pygame.Rect(150,120,200,60), 'ajustes': pygame.Rect(150,210,200,60), 'salir': pygame.Rect(150,300,200,60)}
+    volumen = 50
+    orden = ['jugar', 'ajustes', 'salir']
+    textos = {'jugar': 'Jugar', 'ajustes': 'Ajustes', 'salir': 'Salir'}
+    colores = {'jugar': (200, 0, 0), 'ajustes': (0, 200, 0), 'salir': (0, 0, 200)}
+    bw, bh, sep = 200, 60, 30
+    alto_total = len(orden) * bh + (len(orden) - 1) * sep
+    logo_ancho, logo_alto, logo_sep = 360, 160, 40
+    y_logo = (H - (logo_alto + logo_sep + alto_total)) // 2
+    y0 = y_logo + logo_alto + logo_sep
+    logo_rect = pygame.Rect((W - logo_ancho) // 2, y_logo, logo_ancho, logo_alto)
+    botones = {nombre: pygame.Rect((W - bw) // 2, y0 + i * (bh + sep), bw, bh) for i, nombre in enumerate(orden)}
+    seleccion = 0
     reloj = pygame.time.Clock()
 
     while True:
+        activar = None
         for e in pygame.event.get():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
                 pygame.quit(); sys.exit()
@@ -565,29 +618,55 @@ def main():
                 resultado_debug, pokemon_seleccionado = debug_menu(pokemon)
                 if resultado_debug == 'salir': pygame.quit(); sys.exit()
                 if pokemon_seleccionado in pokemones: pokemon = pokemon_seleccionado
-            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and botones['jugar'].collidepoint(e.pos):
-                while True:
-                    resultado, seleccionado = jugar(pokemon)
-                    if resultado == 'salir': pygame.quit(); sys.exit()
-                    if resultado == 'debug':
-                        resultado_debug, pokemon_seleccionado = debug_menu(pokemon)
-                        if resultado_debug == 'salir': pygame.quit(); sys.exit()
-                        if pokemon_seleccionado in pokemones: pokemon = pokemon_seleccionado
-                        continue
-                    break
-            elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and botones['salir'].collidepoint(e.pos):
-                pygame.quit(); sys.exit()
+            if e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_w:
+                    seleccion = (seleccion - 1) % len(orden)
+                elif e.key == pygame.K_s:
+                    seleccion = (seleccion + 1) % len(orden)
+                elif e.key in (pygame.K_RETURN, pygame.K_e):
+                    activar = orden[seleccion]
+            if e.type == pygame.MOUSEMOTION:
+                for i, nombre in enumerate(orden):
+                    if botones[nombre].collidepoint(e.pos):
+                        seleccion = i
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                for i, nombre in enumerate(orden):
+                    if botones[nombre].collidepoint(e.pos):
+                        seleccion = i
+                        activar = nombre
+
+        if activar == 'jugar':
+            while True:
+                resultado, seleccionado = jugar(pokemon)
+                if resultado == 'salir': pygame.quit(); sys.exit()
+                if resultado == 'debug':
+                    resultado_debug, pokemon_seleccionado = debug_menu(pokemon)
+                    if resultado_debug == 'salir': pygame.quit(); sys.exit()
+                    if pokemon_seleccionado in pokemones: pokemon = pokemon_seleccionado
+                    continue
+                break
+        elif activar == 'ajustes':
+            resultado_ajustes = ajustes(volumen)
+            if resultado_ajustes is None: pygame.quit(); sys.exit()
+            volumen = resultado_ajustes
+            try: pygame.mixer.music.set_volume(volumen / 100)
+            except pygame.error: pass
+        elif activar == 'salir':
+            pygame.quit(); sys.exit()
 
         ventana.fill('black')
-        for nombre, color in [('jugar',(200,0,0)),('ajustes',(0,200,0)),('salir',(0,0,200))]:
-            pygame.draw.rect(ventana,color,botones[nombre])
-        ventana.blit(fuente.render('Jugar',True,'white'),(220,140))
-        ventana.blit(fuente.render('Ajustes',True,'white'),(215,230))
-        ventana.blit(fuente.render('Salir',True,'white'),(225,320))
-        ventana.blit(fuente.render('F1: Menu debug',True,'white'),(700,20))
-        ventana.blit(fuente.render('Pokemon: '+pokemon,True,'white'),(700,45))
+        # rectangulo del logo (no es un boton); despues se puede dibujar la imagen del logo aca
+        pygame.draw.rect(ventana, (30, 30, 30), logo_rect)
+        pygame.draw.rect(ventana, (120, 120, 120), logo_rect, 2)
+        for i, nombre in enumerate(orden):
+            pygame.draw.rect(ventana, colores[nombre], botones[nombre])
+            texto = fuente.render(textos[nombre], True, 'white')
+            ventana.blit(texto, texto.get_rect(center=botones[nombre].center))
+            if i == seleccion:
+                dibujar_esquinas(ventana, botones[nombre])
+        ventana.blit(fuente.render('F1: Menu debug', True, 'white'), (700, 20))
+        ventana.blit(fuente.render('Pokemon: ' + pokemon, True, 'white'), (700, 45))
         pygame.display.flip(); reloj.tick(60)
-
 
 if __name__ == '__main__':
     main()
