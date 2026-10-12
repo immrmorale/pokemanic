@@ -60,7 +60,18 @@ class AnimacionHoja:
 
 class AnimadorPokemon:
     FACTOR_VELOCIDAD = 2.0
+    FACTOR_IDLE = 4.5
+    FACTOR_CAMINAR = 3.6
+    VELOCIDAD_REFERENCIA = 5.0
+    SUAVIZADO = False
     nombres_ataque = ('attack', 'strike', 'stricke', 'quickstrike', 'quick_strike', 'kick', 'punch', 'slash', 'body', 'melee', 'hit')
+    nombres_forma = {
+        'proyectil': ('shoot', 'charge'),
+        'embestida': ('charge', 'strike', 'quickstrike', 'tackle'),
+        'area': ('swing', 'double', 'rotate'),
+        'buff': ('pose', 'hop', 'charge'),
+        'curar': ('pose', 'hop', 'dance'),
+    }
 
     def __init__(self, pokemon, rect, tamaño=40):
         self.pokemon = _normalizar_nombre(pokemon)
@@ -77,7 +88,10 @@ class AnimadorPokemon:
         self.indice_frame = 0
         self.acumulado = 0.0
         self.terminada = False
+        self.repetir = True
+        self.ritmo = 1.0
         self.escala = 1.0
+        self.cache = {}
         self._cargar()
 
     def _cargar(self):
@@ -136,6 +150,12 @@ class AnimadorPokemon:
                 cargadas += 1
         self.usando_hojas = cargadas > 0
         if self.usando_hojas:
+            for anim in self.animaciones.values():
+                if anim.copia and anim.nombre not in self.sprites and anim.copia.lower() in self.sprites:
+                    base = anim.copia.lower()
+                    self.sprites[anim.nombre] = self.sprites[base]
+                    if base in self.offsets: self.offsets[anim.nombre] = self.offsets[base]
+                    if base in self.sombras: self.sombras[anim.nombre] = self.sombras[base]
             self.escala = self._calcular_escala_base()
 
     def _resolver_copias(self):
@@ -237,25 +257,32 @@ class AnimadorPokemon:
 
     def _buscar_animacion(self, nombre):
         nombre = _normalizar_nombre(nombre)
-        if nombre in self.animaciones:
+        if nombre in self.sprites:
             return nombre
         equivalencias = {
             'idle': ('idle',),
-            'walk': ('walk',),
+            'walk': ('walk', 'idle'),
             'attack': self.nombres_ataque,
         }
         for candidato in equivalencias.get(nombre, (nombre,)):
-            if candidato in self.animaciones:
-                return candidato
             if candidato in self.sprites:
                 return candidato
         return None
 
     def buscar_ataque(self):
         for nombre in self.nombres_ataque:
-            if nombre in self.animaciones or nombre in self.sprites:
+            if nombre in self.sprites:
                 return nombre
         return None
+
+    def buscar_para(self, forma):
+        for nombre in self.nombres_forma.get(forma, ()):
+            if nombre in self.sprites:
+                return nombre
+        return self.buscar_ataque()
+
+    def disponibles(self):
+        return sorted(self.sprites)
 
     def cambiar(self, animacion, direccion=0, repetir=True):
         encontrada = self._buscar_animacion(animacion)
@@ -275,6 +302,8 @@ class AnimadorPokemon:
     def actualizar(self):
         frames = self._frames_actuales()
         if not frames:
+            if not self.repetir:
+                self.terminada = True
             return
         duracion = self._duracion_actual()
         self.acumulado += 1.0
@@ -300,14 +329,23 @@ class AnimadorPokemon:
             return frames[min(self.direccion, len(frames) - 1)]
         return frames
 
+    def _factor_actual(self):
+        ritmo = max(0.3, self.ritmo)
+        if self.animacion_actual == 'idle':
+            return self.FACTOR_IDLE
+        if self.animacion_actual == 'walk':
+            return self.FACTOR_CAMINAR / ritmo
+        return self.FACTOR_VELOCIDAD / ritmo
+
     def _duracion_actual(self):
+        factor = self._factor_actual()
         if self.usando_hojas:
             anim = self.animaciones.get(self.animacion_actual)
             if not anim or not anim.duraciones:
                 return 1
             duracion = anim.duraciones[min(self.indice_frame, len(anim.duraciones) - 1)]
-            return max(1, math.ceil(duracion * self.FACTOR_VELOCIDAD))
-        return 12
+            return max(1, math.ceil(duracion * factor))
+        return max(1, round(6 * factor))
 
     def esta_terminada(self):
         return self.terminada
@@ -332,27 +370,47 @@ class AnimadorPokemon:
                 break
         return mejor if mejor else (ancho / 2, alto / 2)
 
+    def _escalar(self, imagen, ancho, alto):
+        if self.SUAVIZADO:
+            return pygame.transform.smoothscale(imagen, (ancho, alto))
+        return pygame.transform.scale(imagen, (ancho, alto))
+
     def dibujar(self, ventana):
         frames = self._frames_actuales()
         if not frames or self.indice_frame >= len(frames):
             return False
-        imagen = frames[self.indice_frame]
-        if self.usando_hojas:
-            escala = self.escala
-            ancho = max(1, round(imagen.get_width() * escala))
-            alto = max(1, round(imagen.get_height() * escala))
-            imagen = pygame.transform.smoothscale(imagen, (ancho, alto))
-            ox, oy = self._obtener_offset(frames[self.indice_frame], self.animacion_actual, self.direccion, self.indice_frame)
-            ox *= escala
-            oy *= escala
-            posicion = (round(self.rect.centerx - ox), round(self.rect.centery - oy))
-            ventana.blit(imagen, posicion)
-        else:
-            bbox = imagen.get_bounding_rect()
-            if bbox.height > 0:
-                escala = self.tamaño / bbox.height
+        clave = (self.animacion_actual, self.direccion, self.indice_frame)
+        if clave not in self.cache:
+            original = frames[self.indice_frame]
+            if self.usando_hojas:
+                escala = self.escala
+                imagen = self._escalar(original, max(1, round(original.get_width() * escala)), max(1, round(original.get_height() * escala)))
+                ox, oy = self._obtener_offset(original, self.animacion_actual, self.direccion, self.indice_frame)
+                self.cache[clave] = (imagen, ox * escala, oy * escala)
             else:
-                escala = 1.0
-            imagen = pygame.transform.smoothscale(imagen, (max(1, round(imagen.get_width()*escala)), max(1, round(imagen.get_height()*escala))))
-            ventana.blit(imagen, imagen.get_rect(center=self.rect.center))
+                bbox = original.get_bounding_rect()
+                escala = self.tamaño / bbox.height if bbox.height > 0 else 1.0
+                imagen = self._escalar(original, max(1, round(original.get_width() * escala)), max(1, round(original.get_height() * escala)))
+                self.cache[clave] = (imagen, imagen.get_width() / 2, imagen.get_height() / 2)
+        imagen, ox, oy = self.cache[clave]
+        ventana.blit(imagen, (round(self.rect.centerx - ox), round(self.rect.centery - oy)))
         return True
+
+
+def cargar_retrato(nombre):
+    carpeta = _buscar_carpeta(_normalizar_nombre(nombre))
+    if not carpeta:
+        return None
+    lugares = [carpeta] + [os.path.join(carpeta, sub) for sub in ('portrait', 'portraits', 'retrato', 'retratos')]
+    for lugar in lugares:
+        if not os.path.isdir(lugar):
+            continue
+        archivos = {a.lower(): a for a in os.listdir(lugar)}
+        for base in ('normal', 'portrait', 'retrato', 'face', 'cara'):
+            for ext in ('.png', '.jpg', '.jpeg'):
+                if base + ext in archivos:
+                    try:
+                        return pygame.image.load(os.path.join(lugar, archivos[base + ext])).convert_alpha()
+                    except Exception:
+                        pass
+    return None

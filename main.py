@@ -2,8 +2,8 @@ import pygame
 import random
 import math
 import sys
-from pokemones import pokemones, movimientos
-from animaciones import direcciones, direccion_vector, AnimadorPokemon
+from pokemones import pokemones, movimientos, JUGABLES, datos_juego, buscar_movimiento, multiplicador_tipos, normalizar_tipo, sinergia_de
+from animaciones import direcciones, direccion_vector, AnimadorPokemon, cargar_retrato
 
 
 def dibujar_esquinas(pantalla, rect, color=(255, 255, 255), margen=10, largo=14, grosor=3):
@@ -32,7 +32,7 @@ def main():
         f_titulo = pygame.font.Font(None, 32)
         while True:
             columnas, bw, bh, bn, sy = 4, 210, 62, 28, 18
-            filas = math.ceil(len(pokemones) / columnas)
+            filas = math.ceil(len(JUGABLES) / columnas)
             max_scroll = max(0, 80 + filas * (bh + bn + sy) - H)
 
             for e in pygame.event.get():
@@ -51,7 +51,7 @@ def main():
             botones = []
             ventana.blit(f_titulo.render('MENU DEBUG', True, 'white'), (25, 15))
             ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte', True, (200, 200, 200)), (25, 45))
-            for i, nombre in enumerate(pokemones):
+            for i, nombre in enumerate(JUGABLES):
                 x = 30 + i % columnas * 240
                 y = 85 + i // columnas * (bh + bn + sy) - scroll
                 r = pygame.Rect(x, y, bw, bh)
@@ -75,21 +75,13 @@ def main():
         DETECCION = 350
         DISPARO = 500
         DAÑO_ENEMIGO = 10
-        TIPOS_COMBATE = ('lucha', 'hielo', 'volador', 'tierra', 'eléctrico', 'agua')
-        MAPA_TIPOS = {'fighting': 'lucha', 'ice': 'hielo', 'flying': 'volador', 'ground': 'tierra', 'electric': 'eléctrico', 'water': 'agua', 'lucha': 'lucha', 'hielo': 'hielo', 'volador': 'volador', 'tierra': 'tierra', 'eléctrico': 'eléctrico', 'electrico': 'eléctrico', 'agua': 'agua'}
-        COLORES_TIPO = {'lucha': (220, 70, 70), 'hielo': (130, 220, 255), 'volador': (235, 235, 235), 'tierra': (170, 115, 65), 'eléctrico': (245, 220, 40), 'agua': (70, 130, 235)}
-        EFECTIVIDAD = {
-            'lucha': {'hielo': 2.0},
-            'hielo': {'volador': 2.0},
-            'volador': {'lucha': 2.0},
-            'tierra': {'eléctrico': 2.0},
-            'eléctrico': {'agua': 2.0, 'volador': 2.0},
-            'agua': {'tierra': 2.0},
-        }
-        DEBILIDADES = {
-            'hielo': 'lucha', 'volador': 'hielo', 'lucha': 'volador',
-            'eléctrico': 'tierra', 'agua': 'eléctrico', 'tierra': 'agua'
-        }
+        TIPOS_COMBATE = ('lucha', 'hielo', 'volador', 'tierra', 'electrico', 'agua')
+        COLORES_TIPO = {'lucha': (220, 70, 70), 'hielo': (130, 220, 255), 'volador': (235, 235, 235), 'tierra': (170, 115, 65), 'electrico': (245, 220, 40), 'agua': (70, 130, 235),
+                        'fuego': (240, 128, 48), 'planta': (120, 200, 80), 'veneno': (160, 64, 160), 'psiquico': (249, 85, 135), 'bicho': (166, 185, 26), 'roca': (182, 161, 54),
+                        'fantasma': (115, 87, 151), 'dragon': (111, 53, 252), 'siniestro': (112, 87, 70), 'acero': (183, 183, 206), 'normal': (168, 167, 122), 'hada': (214, 133, 173)}
+        ENERGIA_MAX, GASTO_SPRINT, REGEN_ENERGIA, ENERGIA_MIN, MULT_SPRINT, COOLDOWN_CAMBIO = 100.0, 0.6, 0.35, 25.0, 1.7, 2500
+        DIRS = {(1,-1):'noreste',(1,1):'sureste',(-1,-1):'noroeste',(-1,1):'suroeste',(1,0):'este',(-1,0):'oeste',(0,-1):'norte',(0,1):'sur'}
+        EQUIPO_BASE = ('blastoise', 'lucario', 'pikachu', 'talonflame', 'garchomp')
         CD_ENEMIGO, CD_JEFE, CD_PIEDRA = 1500, 5000, 2000
         DURACION_PIEDRA = 5000
         CANT_ENEMIGOS, CANT_PIEDRAS = 10, 30
@@ -113,32 +105,13 @@ def main():
             return piedras
 
         def tipo_combate(datos):
-            tipos = datos.get('tipos', datos.get('types', datos.get('tipo', [])))
-            if isinstance(tipos, str):
-                tipos = [tipos]
-            if isinstance(tipos, dict):
-                tipos = [tipos.get('name', tipos.get('type', tipos.get('tipo', '')))]
-            for tipo in tipos or []:
-                if isinstance(tipo, dict):
-                    tipo = tipo.get('name', tipo.get('type', tipo.get('tipo', '')))
-                tipo = MAPA_TIPOS.get(str(tipo).lower(), str(tipo).lower())
-                if tipo in TIPOS_COMBATE:
-                    return tipo
-            return None
-
-        def multiplicador_tipo(ataque_tipo, defensa_tipo):
-            ataque_tipo = MAPA_TIPOS.get(str(ataque_tipo or '').lower(), str(ataque_tipo or '').lower())
-            defensa_tipo = MAPA_TIPOS.get(str(defensa_tipo or '').lower(), str(defensa_tipo or '').lower())
-            if not ataque_tipo or not defensa_tipo:
-                return 1.0
-            if EFECTIVIDAD.get(ataque_tipo, {}).get(defensa_tipo) == 2.0:
-                return 2.0
-            if DEBILIDADES.get(ataque_tipo) == defensa_tipo:
-                return 0.5
-            return 1.0
+            tipos = datos.get('tipo') or []
+            return normalizar_tipo(tipos[0]) if tipos else None
 
         def daño_con_tipo(daño, ataque_tipo, defensa_tipo):
-            return max(1, round(daño * multiplicador_tipo(ataque_tipo, defensa_tipo)))
+            m = multiplicador_tipos(ataque_tipo, defensa_tipo)
+            if daño <= 0: return 0
+            return max(1, round(daño * m))
 
         def crear_puertas():
             return [
@@ -148,119 +121,239 @@ def main():
                 pygame.Rect(ESC.right - PARED, ESC.centery - 30, PARED, 60)
             ]
 
-        def stats_pokemon(nombre):
-            datos = pokemones[nombre]
-            s = datos.get('estadisticas_juego') or {}
-            vida = datos.get('vida', datos.get('vida_base', s.get('vida', 100)))
-            velocidad = s.get('velocidad', datos.get('velocidad_movimiento', datos.get('velocidad', 5)))
-            tamaño = s.get('tamaño', datos.get('tamaño', 40))
-            hitbox = s.get('hitbox', datos.get('hitbox', tamaño))
-            try: vida = max(1, int(float(vida)))
-            except (TypeError, ValueError): vida = 100
-            try: velocidad = max(0.1, float(velocidad))
-            except (TypeError, ValueError): velocidad = 5.0
-            try: tamaño = max(1, int(float(tamaño)))
-            except (TypeError, ValueError): tamaño = 40
-            try: hitbox = max(1, int(float(hitbox)))
-            except (TypeError, ValueError): hitbox = tamaño
-            return datos, vida, velocidad, tamaño, hitbox
+        def equipo_inicial(nombre):
+            lista = [nombre]
+            for n in EQUIPO_BASE:
+                if n in JUGABLES and n not in lista and len(lista) < 3: lista.append(n)
+            return lista
+
+        def crear_miembro(nombre):
+            vida = datos_juego(nombre)['max_vida']
+            return {'nombre': nombre, 'vida': vida, 'max_vida': vida}
+
+        def actualizar_sinergia(j):
+            total = {}
+            for i, m in enumerate(j['equipo']):
+                if i == j['activo'] or m['vida'] <= 0: continue
+                for clave, valor in sinergia_de(m['nombre']).items(): total[clave] = total.get(clave, 0) + valor
+            j['sinergia'] = total
+
+        def aplicar_pokemon(j, nombre, vida=None, centro=None):
+            g = datos_juego(nombre)
+            rect = pygame.Rect(0, 0, g['ancho'], g['alto'])
+            rect.center = centro or j['rect'].center
+            j.update({'nombre': nombre, 'datos': pokemones[nombre], 'juego': g, 'tipos': g['tipos'], 'rol': g['rol'], 'max_vida': g['max_vida'],
+                      'vida': g['max_vida'] if vida is None else min(vida, g['max_vida']), 'velocidad': g['velocidad'], 'tamaño': g['tamaño'],
+                      'ancho': g['ancho'], 'alto': g['alto'], 'rect': rect, 'ultimo_golpe': -1000, 'ultimo_proyectil': -1000, 'esp_ultimo': [-100000, -100000],
+                      'atacando': False, 'anim_ataque': None, 'embestida': None, 'animador': AnimadorPokemon(nombre, rect, g['tamaño'])})
 
         def crear_jugador(nombre, centro):
-            nombre = nombre if nombre in pokemones else 'pikachu'
-            datos, vida, velocidad, tamaño, hitbox = stats_pokemon(nombre)
-            rect = pygame.Rect(0, 0, hitbox, hitbox)
-            rect.center = centro
-            return {'nombre': nombre, 'datos': datos, 'max_vida': vida, 'vida': vida, 'velocidad': velocidad, 'tamaño': tamaño,
-                    'hitbox': hitbox, 'rect': rect, 'direccion': 'sur', 'moviendose': False, 'ultimo_golpe': -1000,
-                    'ultimo_proyectil': -1000, 'atacando': False, 'llave': False, 'animador': AnimadorPokemon(nombre, rect, tamaño)}
+            nombre = nombre if nombre in JUGABLES else 'pikachu'
+            j = {'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
+                 'resto': [0.0, 0.0], 'ultimo_cambio': -10000, 'equipo': [crear_miembro(n) for n in equipo_inicial(nombre)], 'activo': 0, 'sinergia': {}}
+            aplicar_pokemon(j, nombre, centro=centro)
+            actualizar_sinergia(j)
+            return j
 
-        def cambiar_pokemon(j, nombre):
-            if nombre not in pokemones: return
-            centro = j['rect'].center
-            nuevo = crear_jugador(nombre, centro)
-            nuevo['llave'] = False
-            j.clear(); j.update(nuevo)
+        def guardar_activo(j):
+            j['equipo'][j['activo']]['vida'] = j['vida']
+
+        def cambiar_slot(j, indice, forzar=False):
+            ahora = pygame.time.get_ticks()
+            if not 0 <= indice < len(j['equipo']) or indice == j['activo']: return False
+            m = j['equipo'][indice]
+            if m['vida'] <= 0: return False
+            if not forzar and (j['atacando'] or j['embestida'] or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO): return False
+            guardar_activo(j)
+            j['activo'] = indice; j['ultimo_cambio'] = ahora; j['buffs'] = {}
+            aplicar_pokemon(j, m['nombre'], m['vida'])
+            actualizar_sinergia(j)
+            return True
+
+        def equipar_debug(j, nombre):
+            if nombre not in JUGABLES or nombre == j['nombre']: return
+            guardar_activo(j)
+            a = j['activo']
+            otros = [i for i, m in enumerate(j['equipo']) if m['nombre'] == nombre]
+            if otros: j['equipo'][a], j['equipo'][otros[0]] = j['equipo'][otros[0]], j['equipo'][a]
+            else: j['equipo'][a] = crear_miembro(nombre)
+            j['buffs'] = {}
+            aplicar_pokemon(j, nombre, j['equipo'][a]['vida'])
+            actualizar_sinergia(j)
 
         def reiniciar_jugador(j):
-            datos, vida, velocidad, tamaño, hitbox = stats_pokemon(j['nombre'])
-            j.update({'datos': datos, 'max_vida': vida, 'vida': vida, 'velocidad': velocidad, 'tamaño': tamaño, 'hitbox': hitbox,
-                      'direccion': 'sur', 'moviendose': False, 'ultimo_golpe': -1000, 'ultimo_proyectil': -1000, 'atacando': False, 'llave': False})
-            j['rect'] = pygame.Rect(0, 0, hitbox, hitbox)
-            j['rect'].center = ESC.center
-            j['animador'] = AnimadorPokemon(j['nombre'], j['rect'], tamaño)
+            for m in j['equipo']: m['vida'] = m['max_vida']
+            j.update({'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {}, 'resto': [0.0, 0.0]})
+            aplicar_pokemon(j, j['nombre'], centro=ESC.center)
+            actualizar_sinergia(j)
+
+        def mult_buff(j, clave):
+            b = j['buffs'].get(clave)
+            return b[0] if b and pygame.time.get_ticks() < b[1] else 1.0
+
+        def velocidad_actual(j):
+            return j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * (MULT_SPRINT if j['corriendo'] else 1.0)
 
         def mover_jugador(j, piedras):
             t = pygame.key.get_pressed()
             dx, dy = t[pygame.K_d] - t[pygame.K_a], t[pygame.K_s] - t[pygame.K_w]
             j['moviendose'] = bool(dx or dy)
+            if j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
+            j['corriendo'] = j['moviendose'] and bool(t[pygame.K_LCTRL] or t[pygame.K_RCTRL]) and not j['agotado']
+            if j['corriendo']:
+                j['energia'] = max(0.0, j['energia'] - GASTO_SPRINT)
+                if j['energia'] <= 0: j['agotado'] = True; j['corriendo'] = False
+            else:
+                j['energia'] = min(ENERGIA_MAX, j['energia'] + REGEN_ENERGIA)
             if not j['moviendose']: return
-            dirs = {(1,-1):'noreste',(1,1):'sureste',(-1,-1):'noroeste',(-1,1):'suroeste',(1,0):'este',(-1,0):'oeste',(0,-1):'norte',(0,1):'sur'}
-            j['direccion'] = dirs[(dx, dy)]
-            n = math.hypot(dx, dy)
-            mover(j['rect'], dx / n * j['velocidad'], 0, piedras)
-            mover(j['rect'], 0, dy / n * j['velocidad'], piedras)
+            j['direccion'] = DIRS[(dx, dy)]
+            n = math.hypot(dx, dy); v = velocidad_actual(j)
+            j['resto'][0] += dx / n * v; j['resto'][1] += dy / n * v
+            px, py = int(j['resto'][0]), int(j['resto'][1])
+            j['resto'][0] -= px; j['resto'][1] -= py
+            mover(j['rect'], px, 0, piedras)
+            mover(j['rect'], 0, py, piedras)
             j['rect'].clamp_ip(AREA)
 
-        def ataque(j, tipo):
-            a = (j['datos'].get('ataques_estadisticas') or {}).get(tipo)
-            if a is not None: return a
-            nombre = j['datos'].get('ataque_cuerpo' if tipo == 'cuerpo' else 'ataque_proyectil')
-            return movimientos.get(nombre)
+        def direccion_de(v):
+            sx = 0 if abs(v.x) < abs(v.y) * 0.4 else (1 if v.x > 0 else -1)
+            sy = 0 if abs(v.y) < abs(v.x) * 0.4 else (1 if v.y > 0 else -1)
+            return DIRS.get((sx, sy), 'sur')
 
-        def atacar_cuerpo(j, objetivos):
-            datos = ataque(j, 'cuerpo')
-            if not datos: return
+        def preparar(j, datos):
             datos = dict(datos)
             datos['tipo'] = datos.get('tipo') or datos.get('tipo_ataque') or tipo_combate(j['datos'])
-            ahora = pygame.time.get_ticks()
-            try: enfriamiento = max(0, int(float(datos.get('enfriamiento', 300))))
-            except (TypeError, ValueError): enfriamiento = 300
-            if j['atacando'] or ahora - j['ultimo_golpe'] < enfriamiento: return
-            j['ultimo_golpe'] = ahora; j['atacando'] = True
-            anim = j['animador'].buscar_ataque()
-            if anim: j['animador'].cambiar(anim, direcciones.index(j['direccion']), False)
+            try: base = float(datos.get('daño', 0))
+            except (TypeError, ValueError): base = 0
+            datos['daño'] = round(base * j['juego']['mult_daño'] * mult_buff(j, 'daño') * (1 + j['sinergia'].get('daño', 0)))
+            return datos
+
+        def enfriamiento_de(j, datos):
+            try: base = max(0, int(float(datos.get('enfriamiento', 300))))
+            except (TypeError, ValueError): base = 300
+            return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)))
+
+        def iniciar_ataque(j, forma, enfriamiento):
+            a = j['animador']
+            anim = a.buscar_para(forma)
+            if not anim: return
+            a.ritmo = max(0.8, min(1.6, 450.0 / max(1, enfriamiento)))
+            j['atacando'] = True; j['anim_ataque'] = anim
+            a.cambiar(anim, direcciones.index(j['direccion']), False)
+
+        def golpear(j, datos, objetivos):
             vx, vy = direccion_vector[j['direccion']]
             try: d = max(1, int(float(datos.get('distancia', 50))))
             except (TypeError, ValueError): d = 50
             try: area = max(1, int(float(datos.get('area', 20))))
             except (TypeError, ValueError): area = 20
-            r = pygame.Rect(0, 0, d, area * 2); r.center = (round(j['rect'].centerx + vx * d / 2), round(j['rect'].centery + vy * d / 2))
+            r = pygame.Rect(0, 0, d if vx else area * 2, d if vy else area * 2)
+            if vx and vy: r.size = (d, d)
+            r.center = (round(j['rect'].centerx + vx * d / 2), round(j['rect'].centery + vy * d / 2))
             for objetivo in objetivos:
                 if objetivo['vida'] > 0 and r.colliderect(objetivo['rect']):
                     recibir_ataque(objetivo, datos, j['direccion'])
 
-        def atacar_proyectil(j, proyectiles):
-            datos = ataque(j, 'proyectil')
-            if not datos: return
-            datos = dict(datos)
-            datos['tipo'] = datos.get('tipo') or datos.get('tipo_ataque') or tipo_combate(j['datos'])
-            ahora = pygame.time.get_ticks()
-            try: enfriamiento = max(0, int(float(datos.get('enfriamiento', 300))))
-            except (TypeError, ValueError): enfriamiento = 300
-            if j['atacando'] or ahora - j['ultimo_proyectil'] < enfriamiento: return
-            j['ultimo_proyectil'] = ahora
+        def lanzar(j, datos, proyectiles):
             vx, vy = direccion_vector[j['direccion']]
-            d = max(20, j['hitbox'] // 2)
+            d = max(20, max(j['ancho'], j['alto']) // 2)
             x, y = j['rect'].centerx + vx * d, j['rect'].centery + vy * d
             try: area = max(1, int(float(datos.get('area', 8))))
             except (TypeError, ValueError): area = 8
             tamaño = max(2, area * 2)
             proyectiles.append({'x': float(x), 'y': float(y), 'direccion': j['direccion'], 'datos': datos, 'rect': pygame.Rect(0,0,tamaño,tamaño), 'distancia': 0, 'activo': True, 'golpeados': []})
 
+        def area_efecto(j, datos, objetivos, efectos):
+            try: radio = max(10, int(float(datos.get('area', 100))))
+            except (TypeError, ValueError): radio = 100
+            c = pygame.Vector2(j['rect'].center)
+            for o in objetivos:
+                if o['vida'] > 0 and c.distance_to(o['rect'].center) <= radio + max(o['rect'].width, o['rect'].height) / 2:
+                    recibir_ataque(o, datos, direccion_de(pygame.Vector2(o['rect'].center) - c))
+            ahora = pygame.time.get_ticks()
+            efectos.append({'x': c.x, 'y': c.y, 'radio': radio, 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 350})
+
+        def iniciar_embestida(j, datos):
+            vx, vy = direccion_vector[j['direccion']]
+            n = math.hypot(vx, vy)
+            try: distancia = float(datos.get('distancia', 180))
+            except (TypeError, ValueError): distancia = 180.0
+            try: velocidad = max(1.0, float(datos.get('velocidad', 15)))
+            except (TypeError, ValueError): velocidad = 15.0
+            j['embestida'] = {'vx': vx / n, 'vy': vy / n, 'restante': distancia, 'velocidad': velocidad, 'datos': datos, 'golpeados': [], 'resto': [0.0, 0.0]}
+
+        def actualizar_embestida(j, objetivos, piedras):
+            e = j['embestida']
+            paso = min(e['velocidad'], e['restante'])
+            e['resto'][0] += e['vx'] * paso; e['resto'][1] += e['vy'] * paso
+            px, py = int(e['resto'][0]), int(e['resto'][1])
+            e['resto'][0] -= px; e['resto'][1] -= py
+            antes = j['rect'].center
+            mover(j['rect'], px, 0, piedras); mover(j['rect'], 0, py, piedras)
+            j['rect'].clamp_ip(AREA)
+            e['restante'] -= paso
+            if (px or py) and j['rect'].center == antes: e['restante'] = 0
+            try: area = max(1, int(float(e['datos'].get('area', 22))))
+            except (TypeError, ValueError): area = 22
+            zona = j['rect'].inflate(area * 2, area * 2)
+            for o in objetivos:
+                if o['vida'] > 0 and o not in e['golpeados'] and zona.colliderect(o['rect']):
+                    recibir_ataque(o, e['datos'], j['direccion']); e['golpeados'].append(o)
+            if e['restante'] <= 0: j['embestida'] = None
+
+        def usar_basico(j, indice, nivel):
+            nombre = j['juego']['basicos'][indice]
+            base = buscar_movimiento(nombre) if nombre else None
+            if not base: return
+            datos = preparar(j, base)
+            ahora = pygame.time.get_ticks(); enfriamiento = enfriamiento_de(j, datos)
+            clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
+            if j['atacando'] or j['embestida'] or ahora - j[clave] < enfriamiento: return
+            j[clave] = ahora
+            iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento)
+            if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
+            else: golpear(j, datos, nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else []))
+
+        def usar_especial(j, indice, nivel):
+            nombre, base = j['juego']['especiales'][indice]
+            datos = preparar(j, base)
+            forma = datos.get('forma', 'proyectil')
+            ahora = pygame.time.get_ticks(); enfriamiento = enfriamiento_de(j, datos)
+            if j['atacando'] or j['embestida'] or ahora - j['esp_ultimo'][indice] < enfriamiento: return
+            j['esp_ultimo'][indice] = ahora
+            iniciar_ataque(j, forma, enfriamiento)
+            objetivos = nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else [])
+            if forma == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
+            elif forma == 'cuerpo': golpear(j, datos, objetivos)
+            elif forma == 'area': area_efecto(j, datos, objetivos, nivel['efectos'])
+            elif forma == 'embestida': iniciar_embestida(j, datos)
+            elif forma == 'buff':
+                try: duracion = int(float(datos.get('duracion', 5000)))
+                except (TypeError, ValueError): duracion = 5000
+                for clave, valor in (datos.get('buffs') or {}).items(): j['buffs'][clave] = (valor, ahora + duracion)
+            elif forma == 'curar':
+                try: porcentaje = float(datos.get('porcentaje', 25))
+                except (TypeError, ValueError): porcentaje = 25
+                j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * porcentaje / 100)
+
         def actualizar_jugador(j):
             a = j['animador']
             if j['atacando'] and a.esta_terminada(): j['atacando'] = False
             d = direcciones.index(j['direccion'])
             if j['atacando']:
-                anim = a.buscar_ataque()
+                anim = j['anim_ataque'] or a.buscar_ataque()
                 if anim: a.cambiar(anim, d, False)
                 else: j['atacando'] = False
-            else: a.cambiar('walk' if j['moviendose'] else 'idle', d, True)
+            else:
+                a.ritmo = max(0.6, min(3.0, velocidad_actual(j) / a.VELOCIDAD_REFERENCIA))
+                a.cambiar('walk' if j['moviendose'] else 'idle', d, True)
             a.actualizar()
 
-        def dañar_jugador(j, daño):
+        def dañar_jugador(j, daño, tipo=None):
             try: daño = max(0, float(daño))
             except (TypeError, ValueError): daño = 0
+            if tipo: daño = daño_con_tipo(daño, tipo, j['tipos'])
+            daño *= mult_buff(j, 'defensa') * (1 - j['sinergia'].get('defensa', 0))
             j['vida'] = max(0, j['vida'] - daño)
 
         def recibir_ataque(obj, datos, direccion=None):
@@ -300,15 +393,15 @@ def main():
                 e['vida'] = max(0, e['vida'] - 3); e['proximo_estado'] = ahora + 700
             if ahora >= e['estado_hasta']: e['estado'] = None
 
-        def crear_proyectil(x, y, dx, dy, daño, jefe=False):
-            return {'x': float(x), 'y': float(y), 'dx': dx, 'dy': dy, 'daño': daño, 'jefe': jefe, 'distancia': 0, 'activo': True, 'rect': pygame.Rect(int(x)-8, int(y)-8, 16, 16)}
+        def crear_proyectil(x, y, dx, dy, daño, jefe=False, tipo=None):
+            return {'x': float(x), 'y': float(y), 'dx': dx, 'dy': dy, 'daño': daño, 'jefe': jefe, 'tipo': tipo, 'distancia': 0, 'activo': True, 'rect': pygame.Rect(int(x)-8, int(y)-8, 16, 16)}
 
         def actualizar_proyectil(proyectil, j, piedras):
             proyectil['x'] += proyectil['dx'] * VEL_P_ENEMIGO; proyectil['y'] += proyectil['dy'] * VEL_P_ENEMIGO; proyectil['distancia'] += VEL_P_ENEMIGO
             proyectil['rect'].center = round(proyectil['x']), round(proyectil['y'])
             if proyectil['distancia'] >= DIST_P_ENEMIGO or not ESC.colliderect(proyectil['rect']) or any(proyectil['rect'].colliderect(x) for x in piedras):
                 proyectil['activo'] = False; return
-            if proyectil['rect'].colliderect(j['rect']): dañar_jugador(j, proyectil['daño']); proyectil['activo'] = False
+            if proyectil['rect'].colliderect(j['rect']): dañar_jugador(j, proyectil['daño'], proyectil.get('tipo')); proyectil['activo'] = False
 
         def actualizar_proyectil_pokemon(proyectil, objetivos, piedras):
             vx, vy = direccion_vector[proyectil['direccion']]
@@ -330,7 +423,7 @@ def main():
 
         def actualizar_enemigo(e, j, piedras, proyectiles):
             ahora = pygame.time.get_ticks()
-            if ahora < e['quieto_hasta'] or e['estado'] == 'paralizar':
+            if ahora < e['quieto_hasta'] or e['estado'] in ('paralizar', 'dormir'):
                 return
             distancia = pygame.Vector2(e['rect'].center).distance_to(j['rect'].center)
             if distancia <= DETECCION:
@@ -347,7 +440,7 @@ def main():
                 mover(e['rect'], 0, e['dy']*VEL_ENEMIGO, piedras)
             e['rect'].clamp_ip(AREA)
             if e['rect'].colliderect(j['rect']) and ahora-e['ultimo_golpe'] >= 500:
-                dañar_jugador(j, e['daño'])
+                dañar_jugador(j, e['daño'], e['tipo'])
                 e['ultimo_golpe'] = ahora
                 e['quieto_hasta'] = ahora+500
                 v = pygame.Vector2(e['rect'].center) - pygame.Vector2(j['rect'].center)
@@ -391,12 +484,12 @@ def main():
             if ahora - jefe['ultimo_disparo'] >= CD_JEFE:
                 for i in range(BALAS_JEFE):
                     a = i * math.tau / BALAS_JEFE; dx, dy = math.cos(a), math.sin(a); r = TAM_JEFE//2+10
-                    proyectiles.append(crear_proyectil(jefe['rect'].centerx+dx*r, jefe['rect'].centery+dy*r, dx, dy, 25, True))
+                    proyectiles.append(crear_proyectil(jefe['rect'].centerx+dx*r, jefe['rect'].centery+dy*r, dx, dy, 25, True, jefe['tipo']))
                 jefe['ultimo_disparo'] = ahora
             if ahora - jefe['ultimo_poder'] >= CD_PIEDRA:
                 verdes.extend(crear_piedras_verdes(jefe)); jefe['ultimo_poder'] = ahora
             if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700:
-                dañar_jugador(j, jefe['daño']); jefe['ultimo_golpe'] = ahora
+                dañar_jugador(j, jefe['daño'], jefe['tipo']); jefe['ultimo_golpe'] = ahora
 
         def menu_niveles(nivel_actual):
             niveles = list(range(0, 21))
@@ -409,7 +502,7 @@ def main():
                         return 'salir'
                     if e.type == pygame.KEYDOWN:
                         if e.key in (pygame.K_ESCAPE, pygame.K_F2):
-                            return seleccionado
+                            return None
                         if e.key == pygame.K_UP:
                             seleccionado = max(0, seleccionado - 1)
                         if e.key == pygame.K_DOWN:
@@ -452,12 +545,15 @@ def main():
             piedras = crear_piedras()
             jefe = crear_jefe(piedras) if numero >= 2 and (numero + 1) % 3 == 0 else None
             return {'piedras': piedras, 'enemigos': [] if jefe else [crear_enemigo(piedras) for _ in range(CANT_ENEMIGOS)], 'jefe': jefe,
-                    'proyectiles_pokemon': [], 'proyectiles_enemigos': [], 'verdes': [], 'puertas': crear_puertas(), 'llave': None, 'completado': False}
+                    'proyectiles_pokemon': [], 'proyectiles_enemigos': [], 'efectos': [], 'verdes': [], 'puertas': crear_puertas(), 'llave': None, 'completado': False}
 
         def actualizar_nivel(nivel, j):
             ahora = pygame.time.get_ticks(); piedras = nivel['piedras']; enemigos = nivel['enemigos']; jefe = nivel['jefe']
-            mover_jugador(j, piedras); actualizar_jugador(j)
             objetivos = enemigos[:] + ([jefe] if jefe else [])
+            if j['embestida']: actualizar_embestida(j, objetivos, piedras); j['moviendose'] = True
+            else: mover_jugador(j, piedras)
+            actualizar_jugador(j)
+            nivel['efectos'] = [x for x in nivel['efectos'] if ahora < x['hasta']]
             for proyectil in nivel['proyectiles_pokemon']: actualizar_proyectil_pokemon(proyectil, objetivos, piedras)
             nivel['proyectiles_pokemon'] = [proyectil for proyectil in nivel['proyectiles_pokemon'] if proyectil['activo']]
             for e in enemigos:
@@ -477,7 +573,11 @@ def main():
             if derrotados and nivel['llave'] is None and not j['llave']:
                 nivel['llave'] = pygame.Rect(ESC.centerx-15, ESC.centery-15, 30, 30)
             if nivel['llave'] and j['rect'].colliderect(nivel['llave']): j['llave'] = True; nivel['llave'] = None
-            if j['vida'] <= 0: return 'muerte'
+            if j['vida'] <= 0:
+                guardar_activo(j)
+                vivos = [i for i, m in enumerate(j['equipo']) if m['vida'] > 0]
+                if not vivos: return 'muerte'
+                cambiar_slot(j, vivos[0], True)
             if j['llave'] and any(j['rect'].colliderect(puerta.inflate(20,20)) for puerta in nivel['puertas']):
                 return 'siguiente'
             if not j['llave']:
@@ -502,6 +602,81 @@ def main():
             pygame.draw.rect(ventana, (80,0,0), rect)
             pygame.draw.rect(ventana, (0,200,0), (rect[0], rect[1], int(max(0, vida*rect[2]//max(1,max_vida))), rect[3]))
 
+        retratos = {}
+        f_hud, f_hud_g, f_hud_b = pygame.font.Font(None, 20), pygame.font.Font(None, 26), pygame.font.Font(None, 30)
+        f_hud_b.set_bold(True)
+
+        def retrato(nombre, radio):
+            clave = (nombre, radio)
+            if clave not in retratos:
+                img = cargar_retrato(nombre)
+                if img:
+                    img = pygame.transform.smoothscale(img, (radio * 2, radio * 2))
+                    mascara = pygame.Surface((radio * 2, radio * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(mascara, (255, 255, 255, 255), (radio, radio), radio)
+                    img.blit(mascara, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+                retratos[clave] = img
+            return retratos[clave]
+
+        def circulo_poke(centro, radio, nombre, atenuado=False):
+            pygame.draw.circle(ventana, 'white', centro, radio)
+            img = retrato(nombre, radio - 3)
+            if img: ventana.blit(img, (centro[0] - radio + 3, centro[1] - radio + 3))
+            else:
+                t = f_hud_g.render(nombre[:2].title(), True, 'black')
+                ventana.blit(t, t.get_rect(center=centro))
+            pygame.draw.circle(ventana, 'black', centro, radio, 3)
+            if atenuado:
+                velo = pygame.Surface((radio * 2, radio * 2), pygame.SRCALPHA)
+                pygame.draw.circle(velo, (0, 0, 0, 150), (radio, radio), radio)
+                ventana.blit(velo, (centro[0] - radio, centro[1] - radio))
+
+        def barra_hud(rect, vida, max_vida):
+            pygame.draw.rect(ventana, 'white', rect)
+            pygame.draw.rect(ventana, (130, 0, 20), (rect[0], rect[1], int(max(0, vida) * rect[2] // max(1, max_vida)), rect[3]))
+            pygame.draw.rect(ventana, 'black', rect, 3)
+
+        def dibujar_hud(j, nivel):
+            ahora = pygame.time.get_ticks()
+            circulo_poke((50, 116), 40, j['nombre'])
+            barra_hud((92, 90, 322, 52), j['vida'], j['max_vida'])
+            t = f_hud_g.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
+            ventana.blit(t, t.get_rect(center=(253, 116)))
+            pygame.draw.rect(ventana, (60, 60, 60), (92, 146, 322, 8))
+            pygame.draw.rect(ventana, (120, 120, 160) if j['agotado'] else (0, 160, 230), (92, 146, int(322 * j['energia'] / ENERGIA_MAX), 8))
+            ventana.blit(f_hud_b.render(j['nombre'].replace('_', ' '), True, 'black'), (96, 158))
+            esperando = ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO
+            k = 0
+            for i, m in enumerate(j['equipo']):
+                if i == j['activo']: continue
+                cy = 16 + k * 38
+                circulo_poke((98, cy), 14, m['nombre'], esperando or m['vida'] <= 0)
+                ventana.blit(f_hud.render(str(i + 1), True, 'black'), (78, cy - 6))
+                barra_hud((117, cy - 10, 133, 20), m['vida'], m['max_vida'])
+                ventana.blit(f_hud.render(m['nombre'].replace('_', ' '), True, 'black'), (121, cy + 11))
+                k += 1
+            for i, (nombre, datos) in enumerate(j['juego']['especiales']):
+                radio = 30 - i * 6
+                cx, cy = W - 60 - i * 85, H - 62
+                enfriamiento = max(1, enfriamiento_de(j, datos))
+                restante = max(0, enfriamiento - (ahora - j['esp_ultimo'][i]))
+                pygame.draw.circle(ventana, 'white', (cx, cy), radio)
+                pygame.draw.circle(ventana, 'black', (cx, cy), radio, 3)
+                tecla = f_hud_g.render('Shift' if i == 0 else 'R', True, 'black')
+                ventana.blit(tecla, tecla.get_rect(center=(cx, cy)))
+                if restante:
+                    velo = pygame.Surface((radio * 2, radio * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(velo, (0, 0, 0, 160), (radio, radio), radio)
+                    ventana.blit(velo, (cx - radio, cy - radio))
+                    s = f_hud.render(str(round(restante / 1000, 1)), True, 'white')
+                    ventana.blit(s, s.get_rect(center=(cx, cy)))
+                n = f_hud.render(nombre.replace('_', ' '), True, 'white')
+                ventana.blit(n, n.get_rect(center=(cx, cy + radio + 12)))
+            if nivel['jefe']:
+                b = nivel['jefe']
+                ventana.blit(f_hud.render('JEFE - ' + b['tipo'], True, 'white'), (W - 360, 4))
+                barra_hud((W - 360, 24, 340, 24), b['vida'], b['max_vida'])
+
         def dibujar_objetos(nivel, j):
             cx = max(0, min(j['rect'].centerx-W//2, ESC.width-W)); cy = max(0, min(j['rect'].centery-H//2, ESC.height-H))
             ventana.fill('black')
@@ -513,6 +688,8 @@ def main():
             for puerta in nivel['puertas']: dibujar_rect(puerta,cx,cy,(60,180,80) if j['llave'] else (120,70,30))
             for proyectil in nivel['proyectiles_enemigos']:
                 pygame.draw.circle(ventana, (255,50,0) if proyectil['jefe'] else (255,150,0), (round(proyectil['x']-cx),round(proyectil['y']-cy)), 9 if proyectil['jefe'] else 8)
+            for ef in nivel['efectos']:
+                pygame.draw.circle(ventana, COLORES_TIPO.get(normalizar_tipo(ef['tipo']), (255,255,255)), (round(ef['x']-cx), round(ef['y']-cy)), ef['radio'], 4)
             for proyectil in nivel['proyectiles_pokemon']:
                 try: radio = max(2, int(float(proyectil['datos'].get('area', 8))))
                 except (TypeError, ValueError): radio = 8
@@ -533,8 +710,7 @@ def main():
                 ventana.blit(f.render('¡NIVEL COMPLETADO!', True, 'white'), (350,245))
                 texto_nivel = 'Ve a buscar la llave' if not j['llave'] else 'Ve a una puerta para continuar'
                 ventana.blit(pygame.font.Font(None, 24).render(texto_nivel, True, (220,220,220)), (335,295))
-            pygame.draw.rect(ventana,(80,0,0),(20,20,300,25))
-            pygame.draw.rect(ventana,(0,200,0),(20,20,min(300,j['vida']*300//max(1,j['max_vida'])),25))
+            dibujar_hud(j, nivel)
             pygame.display.flip()
 
         j = crear_jugador(pokemon, ESC.center)
@@ -549,15 +725,22 @@ def main():
                     if e.type == pygame.KEYDOWN:
                         if e.key == pygame.K_ESCAPE:
                             if confirmar_salida(): return 'salir', j['nombre']
-                        if e.key == pygame.K_F1: return 'debug', j['nombre']
+                        if e.key == pygame.K_F1:
+                            resultado_debug, elegido = debug_menu(j['nombre'])
+                            if resultado_debug == 'salir': return 'salir', j['nombre']
+                            equipar_debug(j, elegido)
                         if e.key == pygame.K_F2:
                             nuevo_nivel = menu_niveles(nivel_numero)
                             if nuevo_nivel == 'salir': return 'salir', j['nombre']
-                            nivel_numero = nuevo_nivel
-                            reiniciar_nivel = True
-                            break
-                        if e.key == pygame.K_e: atacar_cuerpo(j, nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else []))
-                        if e.key == pygame.K_q: atacar_proyectil(j, nivel['proyectiles_pokemon'])
+                            if nuevo_nivel is not None:
+                                nivel_numero = nuevo_nivel
+                                reiniciar_nivel = True
+                                break
+                        if e.key == pygame.K_e: usar_basico(j, 0, nivel)
+                        if e.key == pygame.K_q: usar_basico(j, 1, nivel)
+                        if e.key in (pygame.K_LSHIFT, pygame.K_RSHIFT): usar_especial(j, 0, nivel)
+                        if e.key == pygame.K_r: usar_especial(j, 1, nivel)
+                        if e.key in (pygame.K_1, pygame.K_2, pygame.K_3): cambiar_slot(j, e.key - pygame.K_1)
                 if reiniciar_nivel:
                     break
                 resultado = actualizar_nivel(nivel, j)
