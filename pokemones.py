@@ -194,3 +194,66 @@ def datos_juego(nombre):
     return {'nombre': nombre, 'tipos': tipos, 'rol': rol, 'max_vida': vida, 'velocidad': round(velocidad, 2), 'tamaño': tamaño, 'ancho': ancho, 'alto': alto,
             'mult_daño': r['daño'], 'mult_enfriamiento': r['enfriamiento'], 'basicos': [d.get('ataque_cuerpo'), d.get('ataque_proyectil')],
             'especiales': _especiales_de(nombre, rol, tipos), 'sinergia': sinergia_de(nombre)}
+
+
+ASIST_MEC = {
+    'impacto': {'daño': 60, 'area': 110, 'alcance': 520, 'enfriamiento': 60000, 'efecto': None},
+    'escudo': {'duracion': 5000, 'buffs': {'defensa': 0.25}, 'enfriamiento': 60000},
+    'furia': {'duracion': 7000, 'buffs': {'daño': 1.6, 'enfriamiento': 0.7}, 'enfriamiento': 70000},
+    'carrera': {'duracion': 6000, 'buffs': {'velocidad': 1.6, 'sprint': 2.0}, 'enfriamiento': 45000},
+    'curar': {'porcentaje': 40, 'enfriamiento': 80000},
+    'desvanecer': {'area': 200, 'alcance': 520, 'porcentaje_jefe': 10, 'enfriamiento': 90000},
+    'masivo': {'area': 480, 'daño': 8, 'duracion': 3500, 'enfriamiento': 55000},
+}
+
+ASIST_IMPACTO = {
+    'electrico': ('trueno', 'thunder'), 'agua': ('hidrobomba', 'hydro-pump'), 'hielo': ('ventisca', 'blizzard'), 'lucha': ('onda_certera', 'focus-blast'),
+    'tierra': ('terremoto', 'earthquake'), 'volador': ('vendaval', 'hurricane'), 'fuego': ('llamarada', 'fire-blast'), 'dragon': ('cometa_draco', 'draco-meteor'),
+    'roca': ('avalancha', 'rock-slide'), 'siniestro': ('pulso_umbrio', 'dark-pulse'), 'acero': ('foco_resplandor', 'flash-cannon'),
+    'fantasma': ('bola_sombra', 'shadow-ball'), 'psiquico': ('psiquico', 'psychic'), 'planta': ('rayo_solar', 'solar-beam'),
+    'veneno': ('bomba_lodo', 'sludge-bomb'), 'normal': ('hiperrayo', 'hyper-beam'),
+}
+ASIST_ESCUDO = (('refugio', 'withdraw'), ('defensa_ferrea', 'iron-defense'), ('pantalla_luz', 'light-screen'), ('reflejo', 'reflect'), ('proteccion', 'protect'))
+ASIST_CARRERA = (('viento_afin', 'tailwind'), ('agilidad', 'agility'), ('velocidad_extrema', 'extreme-speed'), ('ataque_rapido', 'quick-attack'))
+ASIST_CURAR = (('recuperacion', 'recover'), ('aromaterapia', 'aromatherapy'), ('campana_cura', 'heal-bell'), ('deseo', 'wish'), ('descanso', 'rest'))
+ASIST_DESVANECER = (('memento', 'memento'), ('mismo_destino', 'destiny-bond'), ('canto_mortal', 'perish-song'), ('explosion', 'explosion'))
+ASIST_MASIVO = {
+    'electrico': ('onda_trueno', 'thunder-wave', 'paralizar'), 'hielo': ('viento_hielo', 'icy-wind', 'ralentizar'),
+    'agua': ('viento_hielo', 'icy-wind', 'ralentizar'), 'veneno': ('canto', 'sing', 'dormir'),
+}
+ASIST_ESPECIE = {
+    'pikachu': ('impacto', ('trueno', 'thunder', 'electrico')), 'pichu': ('impacto', ('trueno', 'thunder', 'electrico')),
+    'froslass': ('desvanecer', ('mismo_destino', 'destiny-bond', 'fantasma')),
+}
+
+
+def _aprende(nombre, ingles):
+    lista = _oficiales.get(nombre, {}).get('movimientos')
+    return lista is None or ingles in lista
+
+
+def _elegir(nombre, candidatos):
+    for c in candidatos:
+        if _oficiales.get(nombre, {}).get('movimientos') is not None and _aprende(nombre, c[1]): return c
+    return candidatos[0]
+
+
+def asistencia_de(nombre):
+    rol = ROL_POKEMON.get(nombre, 'atacante')
+    tipos = [normalizar_tipo(t) for t in pokemones[nombre].get('tipo', [])] or ['normal']
+    if nombre in ASIST_ESPECIE:
+        mec, mov = ASIST_ESPECIE[nombre]
+    elif rol == 'atacante':
+        mec = 'impacto'
+        mov = _elegir(nombre, [ASIST_IMPACTO[t] for t in tipos if t in ASIST_IMPACTO] or [ASIST_IMPACTO['normal']])
+    elif rol == 'tanque': mec, mov = 'escudo', _elegir(nombre, ASIST_ESCUDO)
+    elif rol == 'velocista': mec, mov = 'carrera', _elegir(nombre, ASIST_CARRERA)
+    elif tipos[0] in ('fantasma', 'psiquico') or 'fantasma' in tipos: mec, mov = 'desvanecer', _elegir(nombre, ASIST_DESVANECER)
+    elif tipos[0] in ASIST_MASIVO: mec, mov = 'masivo', ASIST_MASIVO[tipos[0]]
+    else: mec, mov = 'curar', _elegir(nombre, ASIST_CURAR)
+    datos = dict(ASIST_MEC[mec])
+    datos.update({'mecanica': mec, 'nombre': mov[0], 'ingles': mov[1], 'tipo': mov[2] if len(mov) > 2 and mec in ('impacto', 'desvanecer') else (tipos[0] if mec == 'impacto' else 'normal')})
+    if mec == 'impacto' and len(mov) < 3: datos['tipo'] = next((t for t in tipos if ASIST_IMPACTO.get(t) == mov), tipos[0])
+    if mec == 'masivo': datos['efecto'] = {'tipo': mov[2], 'duracion': datos['duracion'], 'probabilidad': 100}
+    datos['mult_daño'] = ROLES[rol]['daño']
+    return datos

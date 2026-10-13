@@ -1,63 +1,75 @@
 import os
+import sys
 import time
-import urllib.error
 import urllib.request
+import urllib.error
 import xml.etree.ElementTree as ET
-from pokemones import pokemones, JUGABLES
+from concurrent.futures import ThreadPoolExecutor
+
+from pokemones import pokemones
 
 BASE = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/'
-DESTINO = os.path.join('assets', 'sprites', 'pokemones')
-ANIMACIONES = ('idle', 'walk', 'attack', 'strike', 'shoot', 'charge', 'swing', 'double', 'hop', 'rotate', 'pose', 'dance', 'hurt')
-FORMAS = {'samurott_hisui': '0503/0001'}
-EXTRA = ('regigigas', 'regice', 'regirock', 'registeel', 'regieleki', 'regidrago', 'arceus')
+DESTINO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sprites', 'pokemones')
+RETRATOS = ('Normal', 'Pain')
+FORMAS = {'samurott_hisui': '0001'}
+SALTEAR = ('missigno', 'arceus_beta')
 
 
-def bajar(ruta, destino):
-    if os.path.isfile(destino):
+def bajar(url, intentos=3):
+    for i in range(intentos):
+        try:
+            pedido = urllib.request.Request(url, headers={'User-Agent': 'pokemanic-descarga'})
+            with urllib.request.urlopen(pedido, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+        except Exception:
+            pass
+        time.sleep(1 + i)
+    return None
+
+
+def guardar(url, ruta):
+    if os.path.isfile(ruta):
         return True
-    try:
-        req = urllib.request.Request(BASE + ruta, headers={'User-Agent': 'pokemanic'})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            datos = r.read()
-    except (urllib.error.URLError, OSError):
+    datos = bajar(url)
+    if datos is None:
         return False
-    os.makedirs(os.path.dirname(destino), exist_ok=True)
-    with open(destino, 'wb') as f:
+    os.makedirs(os.path.dirname(ruta), exist_ok=True)
+    with open(ruta, 'wb') as f:
         f.write(datos)
     return True
 
 
-def bajar_pokemon(nombre):
-    dex = pokemones[nombre].get('pokedex')
-    if not isinstance(dex, int) and nombre not in FORMAS:
-        return False
-    repo = FORMAS.get(nombre) or '%04d' % dex
+def descargar(nombre, datos):
+    dex = '%04d' % datos['pokedex']
+    forma = FORMAS.get(nombre)
+    subruta = dex + ('/' + forma if forma else '')
     carpeta = os.path.join(DESTINO, 'sprite_' + nombre)
-    if not bajar('sprite/' + repo + '/AnimData.xml', os.path.join(carpeta, 'AnimData.xml')):
-        return False
-    raiz = ET.parse(os.path.join(carpeta, 'AnimData.xml')).getroot()
-    for nodo in raiz.find('Anims').findall('Anim'):
-        anim = nodo.findtext('Name')
-        if not anim or anim.lower() not in ANIMACIONES or nodo.findtext('FrameWidth') is None:
-            continue
-        for sufijo in ('-Anim.png', '-Offsets.png', '-Shadow.png'):
-            bajar('sprite/' + repo + '/' + anim + sufijo, os.path.join(carpeta, anim + sufijo))
-    bajar('portrait/' + repo + '/Normal.png', os.path.join(carpeta, 'portrait', 'Normal.png'))
-    return True
+    if not guardar(BASE + 'sprite/' + subruta + '/AnimData.xml', os.path.join(carpeta, 'AnimData.xml')):
+        return nombre, 0, ['AnimData.xml']
+    animaciones = []
+    for anim in ET.parse(os.path.join(carpeta, 'AnimData.xml')).getroot().find('Anims').findall('Anim'):
+        if anim.findtext('Name') and not anim.findtext('CopyOf'):
+            animaciones.append(anim.findtext('Name'))
+    faltan = []
+    for anim in animaciones:
+        archivo = anim + '-Anim.png'
+        if not guardar(BASE + 'sprite/' + subruta + '/' + archivo, os.path.join(carpeta, archivo)):
+            faltan.append(archivo)
+    for emocion in RETRATOS:
+        if not guardar(BASE + 'portrait/' + subruta + '/' + emocion + '.png', os.path.join(carpeta, 'portrait', emocion + '.png')):
+            faltan.append('portrait/' + emocion + '.png')
+    return nombre, len(animaciones), faltan
 
 
 def main():
-    fallos = []
-    for nombre in list(JUGABLES) + list(EXTRA):
-        if nombre not in pokemones:
-            continue
-        ok = bajar_pokemon(nombre)
-        print('ok' if ok else 'FALLA', nombre)
-        if not ok:
-            fallos.append(nombre)
-        time.sleep(0.1)
-    if fallos:
-        print('sin descargar:', ', '.join(fallos))
+    pendientes = [(n, d) for n, d in pokemones.items() if n not in SALTEAR]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for nombre, cantidad, faltan in pool.map(lambda x: descargar(*x), pendientes):
+            print(nombre.ljust(18), cantidad, 'animaciones', '| faltan:' if faltan else '', ', '.join(faltan))
+    print('listo: ' + DESTINO)
 
 
 if __name__ == '__main__':

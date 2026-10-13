@@ -27,6 +27,7 @@ def main():
             'altura': datos['height'],
             'peso': datos['weight'],
             'stats': {s['stat']['name']: s['base_stat'] for s in datos['stats']},
+            'movimientos': sorted(mv['move']['name'] for mv in datos['moves']),
         }
         print('ok', nombre)
         time.sleep(0.2)

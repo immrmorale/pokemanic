@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 import sys
-from pokemones import pokemones, movimientos, JUGABLES, datos_juego, buscar_movimiento, multiplicador_tipos, normalizar_tipo, sinergia_de
+from pokemones import pokemones, movimientos, JUGABLES, ROL_POKEMON, datos_juego, asistencia_de, buscar_movimiento, multiplicador_tipos, normalizar_tipo, sinergia_de
 from animaciones import direcciones, direccion_vector, AnimadorPokemon, cargar_retrato
 
 
@@ -26,7 +26,52 @@ def main():
     pygame.display.set_caption('Pokemanic')
     fuente = pygame.font.Font(None, 24)
 
-    def debug_menu(pokemon):
+    retratos_menu = {}
+
+    def retrato_menu(nombre, lado):
+        clave = (nombre, lado)
+        if clave not in retratos_menu:
+            img = cargar_retrato(nombre)
+            retratos_menu[clave] = pygame.transform.smoothscale(img, (lado, lado)) if img else None
+        return retratos_menu[clave]
+
+    def elegir_espacio(nombre, equipo, activo):
+        f_titulo, f_texto = pygame.font.Font(None, 36), pygame.font.Font(None, 26)
+        cajas = [pygame.Rect(W // 2 - 345 + i * 235, 210, 220, 170) for i in range(3)]
+        while True:
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    return 'salir'
+                if e.type == pygame.KEYDOWN:
+                    if e.key == pygame.K_ESCAPE:
+                        return None
+                    if e.key in (pygame.K_1, pygame.K_2, pygame.K_3):
+                        return e.key - pygame.K_1
+                if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                    for i, r in enumerate(cajas):
+                        if r.collidepoint(e.pos):
+                            return i
+            ventana.fill((20, 20, 20))
+            titulo = f_titulo.render('En que espacio queres a ' + nombre.replace('_', ' ').title() + '?', True, 'white')
+            ventana.blit(titulo, titulo.get_rect(center=(W // 2, 140)))
+            ayuda = f_texto.render('Clic o teclas 1 / 2 / 3 - ESC para cancelar', True, (200, 200, 200))
+            ventana.blit(ayuda, ayuda.get_rect(center=(W // 2, 175)))
+            raton = pygame.mouse.get_pos()
+            for i, r in enumerate(cajas):
+                pygame.draw.rect(ventana, (60, 60, 60) if r.collidepoint(raton) else (40, 40, 40), r)
+                pygame.draw.rect(ventana, (80, 160, 80) if i == activo else (200, 200, 200), r, 3)
+                ventana.blit(f_titulo.render('Espacio ' + str(i + 1), True, 'white'), (r.x + 12, r.y + 10))
+                ocupante = equipo[i] if i < len(equipo) else None
+                if ocupante:
+                    img = retrato_menu(ocupante, 56)
+                    if img: ventana.blit(img, (r.x + 12, r.y + 60))
+                    ventana.blit(f_texto.render(ocupante.replace('_', ' ').title(), True, 'white'), (r.x + 76, r.y + 80))
+                if i == activo:
+                    ventana.blit(f_texto.render('(activo)', True, (120, 220, 120)), (r.x + 12, r.bottom - 32))
+            pygame.display.flip()
+
+    def debug_menu(equipo, activo):
+        pygame.mouse.set_visible(True)
         scroll = 0
         botones = []
         f_titulo = pygame.font.Font(None, 32)
@@ -37,20 +82,25 @@ def main():
 
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
-                    return 'salir', pokemon
+                    return 'salir', None, None
                 if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_F1):
-                    return pokemon, pokemon
+                    return 'ok', None, None
                 if e.type == pygame.MOUSEWHEEL:
                     scroll = max(0, min(scroll - e.y * 60, max_scroll))
                 if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                     for r, nombre in botones:
                         if r.collidepoint(e.pos):
-                            return nombre, nombre
+                            espacio = elegir_espacio(nombre, equipo, activo)
+                            if espacio == 'salir':
+                                return 'salir', None, None
+                            if espacio is not None:
+                                return 'ok', nombre, espacio
+                            break
 
             ventana.fill((20, 20, 20))
             botones = []
             ventana.blit(f_titulo.render('MENU DEBUG', True, 'white'), (25, 15))
-            ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte', True, (200, 200, 200)), (25, 45))
+            ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte - clic para elegir espacio', True, (200, 200, 200)), (25, 45))
             for i, nombre in enumerate(JUGABLES):
                 x = 30 + i % columnas * 240
                 y = 85 + i // columnas * (bh + bn + sy) - scroll
@@ -58,14 +108,19 @@ def main():
                 nr = pygame.Rect(x, y + bh, bw, bn)
                 if r.bottom < 65 or nr.top > H:
                     continue
-                pygame.draw.rect(ventana, (80, 160, 80) if nombre == pokemon else (200, 200, 200), r)
+                en_equipo = nombre in equipo
+                pygame.draw.rect(ventana, (80, 160, 80) if en_equipo else (200, 200, 200), r)
                 pygame.draw.rect(ventana, (50, 50, 50), nr)
-                ventana.blit(fuente.render(nombre.replace('_', ' ').title(), True, 'white'), (x + 8, y + 20))
-                ventana.blit(fuente.render(nombre, True, 'white'), (x + 8, y + bh + 5))
+                img = retrato_menu(nombre, bh - 12)
+                if img: ventana.blit(img, (x + 6, y + 6))
+                ventana.blit(fuente.render(nombre.replace('_', ' ').title(), True, 'black'), (x + bh, y + 22))
+                detalle = ROL_POKEMON.get(nombre, '')
+                if en_equipo: detalle += ' - espacio ' + str(equipo.index(nombre) + 1)
+                ventana.blit(fuente.render(detalle, True, 'white'), (x + 8, y + bh + 5))
                 botones.append((r, nombre))
             pygame.display.flip()
 
-    def jugar(pokemon):
+    def jugar(nombres, modo):
         ESC = pygame.Rect(0, 0, 1800, 1200)
         PARED = 40
         AREA = ESC.inflate(-80, -80)
@@ -129,7 +184,12 @@ def main():
 
         def crear_miembro(nombre):
             vida = datos_juego(nombre)['max_vida']
-            return {'nombre': nombre, 'vida': vida, 'max_vida': vida}
+            miembro = {'nombre': nombre, 'vida': vida, 'max_vida': vida, 'asist': asistencia_de(nombre), 'asist_listo': 0}
+            reiniciar_asistencia(miembro)
+            return miembro
+
+        def reiniciar_asistencia(m):
+            m['asist_listo'] = pygame.time.get_ticks() + round(m['asist']['enfriamiento'] * 0.3)
 
         def actualizar_sinergia(j):
             total = {}
@@ -147,11 +207,15 @@ def main():
                       'ancho': g['ancho'], 'alto': g['alto'], 'rect': rect, 'ultimo_golpe': -1000, 'ultimo_proyectil': -1000, 'esp_ultimo': [-100000, -100000],
                       'atacando': False, 'anim_ataque': None, 'embestida': None, 'animador': AnimadorPokemon(nombre, rect, g['tamaño'])})
 
-        def crear_jugador(nombre, centro):
-            nombre = nombre if nombre in JUGABLES else 'pikachu'
-            j = {'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
-                 'resto': [0.0, 0.0], 'ultimo_cambio': -10000, 'equipo': [crear_miembro(n) for n in equipo_inicial(nombre)], 'activo': 0, 'sinergia': {}}
-            aplicar_pokemon(j, nombre, centro=centro)
+        def crear_jugador(nombres, centro, modo):
+            equipo = []
+            for n in nombres:
+                if n in JUGABLES and n not in equipo: equipo.append(n)
+            for n in equipo_inicial(equipo[0] if equipo else 'pikachu'):
+                if len(equipo) < 3 and n not in equipo: equipo.append(n)
+            j = {'modo': modo, 'uso': 'teclas' if modo == 'teclas' else 'mouse', 't_mouse': 0, 'pos_mouse': pygame.mouse.get_pos(), 'ultimo_dir': (0, 1), 'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
+                 'resto': [0.0, 0.0], 'aim': (0.0, 1.0), 'dir_ataque': 0, 'ultimo_cambio': -10000, 'equipo': [crear_miembro(n) for n in equipo], 'activo': 0, 'sinergia': {}}
+            aplicar_pokemon(j, equipo[0], centro=centro)
             actualizar_sinergia(j)
             return j
 
@@ -170,19 +234,27 @@ def main():
             actualizar_sinergia(j)
             return True
 
-        def equipar_debug(j, nombre):
-            if nombre not in JUGABLES or nombre == j['nombre']: return
+        def equipar_debug(j, nombre, espacio):
+            if nombre not in JUGABLES or not 0 <= espacio < len(j['equipo']): return
             guardar_activo(j)
-            a = j['activo']
-            otros = [i for i, m in enumerate(j['equipo']) if m['nombre'] == nombre]
-            if otros: j['equipo'][a], j['equipo'][otros[0]] = j['equipo'][otros[0]], j['equipo'][a]
-            else: j['equipo'][a] = crear_miembro(nombre)
-            j['buffs'] = {}
-            aplicar_pokemon(j, nombre, j['equipo'][a]['vida'])
+            equipo = j['equipo']; a = j['activo']
+            otros = [i for i, mi in enumerate(equipo) if mi['nombre'] == nombre]
+            if otros:
+                i = otros[0]
+                if i == espacio: return
+                equipo[espacio], equipo[i] = equipo[i], equipo[espacio]
+                nuevo = equipo[espacio]
+                if i == a: j['activo'] = espacio; actualizar_sinergia(j); return
+            else:
+                nuevo = crear_miembro(nombre)
+                equipo[espacio] = nuevo
+            if espacio == a:
+                j['buffs'] = {}
+                aplicar_pokemon(j, nombre, nuevo['vida'])
             actualizar_sinergia(j)
 
         def reiniciar_jugador(j):
-            for m in j['equipo']: m['vida'] = m['max_vida']
+            for m in j['equipo']: m['vida'] = m['max_vida']; reiniciar_asistencia(m)
             j.update({'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {}, 'resto': [0.0, 0.0]})
             aplicar_pokemon(j, j['nombre'], centro=ESC.center)
             actualizar_sinergia(j)
@@ -199,14 +271,15 @@ def main():
             dx, dy = t[pygame.K_d] - t[pygame.K_a], t[pygame.K_s] - t[pygame.K_w]
             j['moviendose'] = bool(dx or dy)
             if j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
-            j['corriendo'] = j['moviendose'] and bool(t[pygame.K_LCTRL] or t[pygame.K_RCTRL]) and not j['agotado']
+            gratis = mult_buff(j, 'sprint') > 1
+            j['corriendo'] = j['moviendose'] and bool(t[pygame.K_LCTRL] or t[pygame.K_RCTRL]) and (gratis or not j['agotado'])
             if j['corriendo']:
-                j['energia'] = max(0.0, j['energia'] - GASTO_SPRINT)
-                if j['energia'] <= 0: j['agotado'] = True; j['corriendo'] = False
+                if not gratis: j['energia'] = max(0.0, j['energia'] - GASTO_SPRINT)
+                if j['energia'] <= 0 and not gratis: j['agotado'] = True; j['corriendo'] = False
             else:
                 j['energia'] = min(ENERGIA_MAX, j['energia'] + REGEN_ENERGIA)
             if not j['moviendose']: return
-            j['direccion'] = DIRS[(dx, dy)]
+            j['ultimo_dir'] = (dx, dy)
             n = math.hypot(dx, dy); v = velocidad_actual(j)
             j['resto'][0] += dx / n * v; j['resto'][1] += dy / n * v
             px, py = int(j['resto'][0]), int(j['resto'][1])
@@ -214,6 +287,41 @@ def main():
             mover(j['rect'], px, 0, piedras)
             mover(j['rect'], 0, py, piedras)
             j['rect'].clamp_ip(AREA)
+
+        def camara(j):
+            return max(0, min(j['rect'].centerx - W // 2, ESC.width - W)), max(0, min(j['rect'].centery - H // 2, ESC.height - H))
+
+        def apuntar(j):
+            if j['embestida']: return
+            ahora = pygame.time.get_ticks()
+            if j['modo'] == 'teclas': j['uso'] = 'teclas'
+            else:
+                pos = pygame.mouse.get_pos(); botones = pygame.mouse.get_pressed()
+                if math.hypot(pos[0] - j['pos_mouse'][0], pos[1] - j['pos_mouse'][1]) >= 3 or botones[0] or botones[2]:
+                    j['uso'] = 'mouse'; j['t_mouse'] = ahora
+                j['pos_mouse'] = pos
+                if j['modo'] == 'mixto' and j['uso'] == 'mouse' and j['moviendose'] and ahora - j['t_mouse'] > 1500: j['uso'] = 'teclas'
+            if j['uso'] == 'teclas':
+                dx, dy = j['ultimo_dir']; n = math.hypot(dx, dy)
+                j['aim'] = (dx / n, dy / n); j['direccion'] = DIRS[(dx, dy)]
+                return
+            cx, cy = camara(j)
+            mx, my = pygame.mouse.get_pos()
+            vx, vy = mx + cx - j['rect'].centerx, my + cy - j['rect'].centery
+            n = math.hypot(vx, vy)
+            if n < 4: return
+            j['aim'] = (vx / n, vy / n)
+            j['direccion'] = direccion_de(pygame.Vector2(vx, vy))
+
+        def punto_apuntado(j, alcance):
+            cx, cy = camara(j)
+            mx, my = pygame.mouse.get_pos()
+            px, py = j['rect'].center
+            if j['uso'] == 'teclas': mx, my = px - cx + j['aim'][0] * 250, py - cy + j['aim'][1] * 250
+            vx, vy = mx + cx - px, my + cy - py
+            n = math.hypot(vx, vy)
+            if n > alcance: vx, vy = vx / n * alcance, vy / n * alcance
+            return px + vx, py + vy
 
         def direccion_de(v):
             sx = 0 if abs(v.x) < abs(v.y) * 0.4 else (1 if v.x > 0 else -1)
@@ -231,42 +339,47 @@ def main():
         def enfriamiento_de(j, datos):
             try: base = max(0, int(float(datos.get('enfriamiento', 300))))
             except (TypeError, ValueError): base = 300
-            return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)))
+            return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento'))
 
         def iniciar_ataque(j, forma, enfriamiento):
             a = j['animador']
             anim = a.buscar_para(forma)
             if not anim: return
             a.ritmo = max(0.8, min(1.6, 450.0 / max(1, enfriamiento)))
-            j['atacando'] = True; j['anim_ataque'] = anim
-            a.cambiar(anim, direcciones.index(j['direccion']), False)
+            j['atacando'] = True; j['anim_ataque'] = anim; j['dir_ataque'] = direcciones.index(j['direccion'])
+            a.cambiar(anim, j['dir_ataque'], False)
 
-        def golpear(j, datos, objetivos):
-            vx, vy = direccion_vector[j['direccion']]
+        def golpear(j, datos, objetivos, efectos=None):
+            ax, ay = j['aim']
             try: d = max(1, int(float(datos.get('distancia', 50))))
             except (TypeError, ValueError): d = 50
             try: area = max(1, int(float(datos.get('area', 20))))
             except (TypeError, ValueError): area = 20
-            r = pygame.Rect(0, 0, d if vx else area * 2, d if vy else area * 2)
-            if vx and vy: r.size = (d, d)
-            r.center = (round(j['rect'].centerx + vx * d / 2), round(j['rect'].centery + vy * d / 2))
+            px, py = j['rect'].center
             for objetivo in objetivos:
-                if objetivo['vida'] > 0 and r.colliderect(objetivo['rect']):
+                if objetivo['vida'] <= 0: continue
+                mitad = max(objetivo['rect'].width, objetivo['rect'].height) / 2
+                vx, vy = objetivo['rect'].centerx - px, objetivo['rect'].centery - py
+                adelante, lado = vx * ax + vy * ay, abs(vx * ay - vy * ax)
+                if -mitad <= adelante <= d + mitad and lado <= area + mitad:
                     recibir_ataque(objetivo, datos, j['direccion'])
+            if efectos is not None:
+                ahora = pygame.time.get_ticks()
+                efectos.append({'x': px, 'y': py, 'linea': (px + ax * d, py + ay * d), 'radio': max(3, min(area, 14)), 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 130})
 
         def lanzar(j, datos, proyectiles):
-            vx, vy = direccion_vector[j['direccion']]
+            ax, ay = j['aim']
             d = max(20, max(j['ancho'], j['alto']) // 2)
-            x, y = j['rect'].centerx + vx * d, j['rect'].centery + vy * d
+            x, y = j['rect'].centerx + ax * d, j['rect'].centery + ay * d
             try: area = max(1, int(float(datos.get('area', 8))))
             except (TypeError, ValueError): area = 8
             tamaño = max(2, area * 2)
-            proyectiles.append({'x': float(x), 'y': float(y), 'direccion': j['direccion'], 'datos': datos, 'rect': pygame.Rect(0,0,tamaño,tamaño), 'distancia': 0, 'activo': True, 'golpeados': []})
+            proyectiles.append({'x': float(x), 'y': float(y), 'vx': ax, 'vy': ay, 'direccion': j['direccion'], 'datos': datos, 'rect': pygame.Rect(0,0,tamaño,tamaño), 'distancia': 0, 'activo': True, 'golpeados': []})
 
-        def area_efecto(j, datos, objetivos, efectos):
+        def area_efecto(j, datos, objetivos, efectos, centro=None):
             try: radio = max(10, int(float(datos.get('area', 100))))
             except (TypeError, ValueError): radio = 100
-            c = pygame.Vector2(j['rect'].center)
+            c = pygame.Vector2(centro or j['rect'].center)
             for o in objetivos:
                 if o['vida'] > 0 and c.distance_to(o['rect'].center) <= radio + max(o['rect'].width, o['rect'].height) / 2:
                     recibir_ataque(o, datos, direccion_de(pygame.Vector2(o['rect'].center) - c))
@@ -274,8 +387,8 @@ def main():
             efectos.append({'x': c.x, 'y': c.y, 'radio': radio, 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 350})
 
         def iniciar_embestida(j, datos):
-            vx, vy = direccion_vector[j['direccion']]
-            n = math.hypot(vx, vy)
+            vx, vy = j['aim']
+            n = 1.0
             try: distancia = float(datos.get('distancia', 180))
             except (TypeError, ValueError): distancia = 180.0
             try: velocidad = max(1.0, float(datos.get('velocidad', 15)))
@@ -312,7 +425,7 @@ def main():
             j[clave] = ahora
             iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento)
             if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
-            else: golpear(j, datos, nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else []))
+            else: golpear(j, datos, nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else []), nivel['efectos'])
 
         def usar_especial(j, indice, nivel):
             nombre, base = j['juego']['especiales'][indice]
@@ -324,7 +437,7 @@ def main():
             iniciar_ataque(j, forma, enfriamiento)
             objetivos = nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else [])
             if forma == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
-            elif forma == 'cuerpo': golpear(j, datos, objetivos)
+            elif forma == 'cuerpo': golpear(j, datos, objetivos, nivel['efectos'])
             elif forma == 'area': area_efecto(j, datos, objetivos, nivel['efectos'])
             elif forma == 'embestida': iniciar_embestida(j, datos)
             elif forma == 'buff':
@@ -336,13 +449,42 @@ def main():
                 except (TypeError, ValueError): porcentaje = 25
                 j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * porcentaje / 100)
 
+        def usar_asistencia(j, k, nivel):
+            ahora = pygame.time.get_ticks()
+            reserva = [m for i, m in enumerate(j['equipo']) if i != j['activo']]
+            if k >= len(reserva): return
+            m = reserva[k]
+            if m['vida'] <= 0 or ahora < m['asist_listo']: return
+            a = m['asist']; mec = a['mecanica']
+            objetivos = nivel['enemigos'][:] + ([nivel['jefe']] if nivel['jefe'] else [])
+            m['asist_listo'] = ahora + a['enfriamiento']
+            if mec == 'impacto':
+                datos = {'tipo': a['tipo'], 'daño': round(a['daño'] * a['mult_daño']), 'area': a['area'], 'retroceso': 30, 'efecto': a['efecto']}
+                area_efecto(j, datos, objetivos, nivel['efectos'], punto_apuntado(j, a['alcance']))
+            elif mec in ('escudo', 'furia', 'carrera'):
+                for clave, valor in a['buffs'].items(): j['buffs'][clave] = (valor, ahora + a['duracion'])
+                nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': a['tipo'], 'inicio': ahora, 'hasta': ahora + 500})
+            elif mec == 'curar':
+                j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * a['porcentaje'] / 100)
+                nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': 'planta', 'inicio': ahora, 'hasta': ahora + 500})
+            elif mec == 'desvanecer':
+                centro = pygame.Vector2(punto_apuntado(j, a['alcance']))
+                for o in objetivos:
+                    if o['vida'] > 0 and centro.distance_to(o['rect'].center) <= a['area'] + max(o['rect'].width, o['rect'].height) / 2:
+                        if o is nivel['jefe']: o['vida'] = max(0, o['vida'] - o['max_vida'] * a['porcentaje_jefe'] / 100)
+                        else: o['vida'] = 0
+                nivel['efectos'].append({'x': centro.x, 'y': centro.y, 'radio': a['area'], 'tipo': 'fantasma', 'inicio': ahora, 'hasta': ahora + 600})
+            elif mec == 'masivo':
+                datos = {'tipo': 'normal', 'daño': a['daño'], 'area': a['area'], 'retroceso': 0, 'efecto': a['efecto']}
+                area_efecto(j, datos, objetivos, nivel['efectos'])
+
         def actualizar_jugador(j):
             a = j['animador']
             if j['atacando'] and a.esta_terminada(): j['atacando'] = False
             d = direcciones.index(j['direccion'])
             if j['atacando']:
                 anim = j['anim_ataque'] or a.buscar_ataque()
-                if anim: a.cambiar(anim, d, False)
+                if anim: a.cambiar(anim, j['dir_ataque'], False)
                 else: j['atacando'] = False
             else:
                 a.ritmo = max(0.6, min(3.0, velocidad_actual(j) / a.VELOCIDAD_REFERENCIA))
@@ -404,7 +546,7 @@ def main():
             if proyectil['rect'].colliderect(j['rect']): dañar_jugador(j, proyectil['daño'], proyectil.get('tipo')); proyectil['activo'] = False
 
         def actualizar_proyectil_pokemon(proyectil, objetivos, piedras):
-            vx, vy = direccion_vector[proyectil['direccion']]
+            vx, vy = proyectil['vx'], proyectil['vy']
             try: paso = max(0.1, float(proyectil['datos'].get('velocidad', 8)))
             except (TypeError, ValueError): paso = 8.0
             proyectil['x'] += vx * paso; proyectil['y'] += vy * paso; proyectil['distancia'] += paso; proyectil['rect'].center = round(proyectil['x']), round(proyectil['y'])
@@ -492,34 +634,58 @@ def main():
                 dañar_jugador(j, jefe['daño'], jefe['tipo']); jefe['ultimo_golpe'] = ahora
 
         def menu_niveles(nivel_actual):
-            niveles = list(range(0, 21))
-            seleccionado = nivel_actual
+            pygame.mouse.set_visible(True)
+            total = 21
+            columnas, bw, bh, bn, sy = 4, 210, 62, 28, 18
+            filas = math.ceil(total / columnas)
+            max_scroll = max(0, 80 + filas * (bh + bn + sy) - H)
+            seleccionado = max(0, min(total - 1, nivel_actual))
+            scroll = 0
+            botones = []
             reloj_debug = pygame.time.Clock()
+            f_titulo = pygame.font.Font(None, 32)
             while True:
-                reiniciar_nivel = False
                 for e in pygame.event.get():
                     if e.type == pygame.QUIT:
                         return 'salir'
                     if e.type == pygame.KEYDOWN:
                         if e.key in (pygame.K_ESCAPE, pygame.K_F2):
                             return None
-                        if e.key == pygame.K_UP:
-                            seleccionado = max(0, seleccionado - 1)
-                        if e.key == pygame.K_DOWN:
-                            seleccionado = min(20, seleccionado + 1)
+                        if e.key == pygame.K_UP and seleccionado - columnas >= 0: seleccionado -= columnas
+                        if e.key == pygame.K_DOWN and seleccionado + columnas < total: seleccionado += columnas
+                        if e.key == pygame.K_LEFT: seleccionado = max(0, seleccionado - 1)
+                        if e.key == pygame.K_RIGHT: seleccionado = min(total - 1, seleccionado + 1)
                         if e.key == pygame.K_RETURN:
                             return seleccionado
-                ventana.fill((18,18,18))
-                ventana.blit(pygame.font.Font(None, 34).render('DEBUG DE NIVELES', True, 'white'), (30, 25))
-                ventana.blit(pygame.font.Font(None, 24).render('F2 o ESC para volver - Flechas para elegir - ENTER para aplicar', True, (200,200,200)), (30, 60))
-                for i in range(max(0, seleccionado-5), min(21, seleccionado+6)):
-                    y = 110 + (i - max(0, seleccionado-5)) * 40
-                    color = (80,180,80) if i == seleccionado else (100,100,100)
-                    pygame.draw.rect(ventana, color, (300,y,400,32))
-                    ventana.blit(pygame.font.Font(None,24).render('Nivel ' + str(i + 1), True, 'white'), (450,y+6))
+                        y_sel = 85 + seleccionado // columnas * (bh + bn + sy)
+                        if y_sel - scroll < 65: scroll = max(0, y_sel - 85)
+                        if y_sel + bh + bn - scroll > H: scroll = min(max_scroll, y_sel + bh + bn - H + 20)
+                    if e.type == pygame.MOUSEWHEEL:
+                        scroll = max(0, min(scroll - e.y * 60, max_scroll))
+                    if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                        for r, i in botones:
+                            if r.collidepoint(e.pos):
+                                return i
+                ventana.fill((20, 20, 20))
+                botones = []
+                ventana.blit(f_titulo.render('MENU DE NIVELES', True, 'white'), (25, 15))
+                ventana.blit(fuente.render('F2 o ESC para cerrar - rueda del mouse para desplazarte - clic o ENTER para elegir', True, (200, 200, 200)), (25, 45))
+                for i in range(total):
+                    x = 30 + i % columnas * 240
+                    y = 85 + i // columnas * (bh + bn + sy) - scroll
+                    r = pygame.Rect(x, y, bw, bh)
+                    nr = pygame.Rect(x, y + bh, bw, bn)
+                    if r.bottom < 65 or nr.top > H:
+                        continue
+                    pygame.draw.rect(ventana, (80, 160, 80) if i == seleccionado else (200, 200, 200), r)
+                    pygame.draw.rect(ventana, (50, 50, 50), nr)
+                    ventana.blit(fuente.render('Nivel ' + str(i + 1), True, 'black'), (x + 8, y + 22))
+                    ventana.blit(fuente.render('jefe' if i >= 2 and (i + 1) % 3 == 0 else 'normal', True, 'white'), (x + 8, y + bh + 5))
+                    botones.append((r, i))
                 pygame.display.flip(); reloj_debug.tick(60)
 
         def confirmar_salida():
+            pygame.mouse.set_visible(True)
             reloj_salida = pygame.time.Clock()
             while True:
                 for e in pygame.event.get():
@@ -638,22 +804,26 @@ def main():
 
         def dibujar_hud(j, nivel):
             ahora = pygame.time.get_ticks()
-            circulo_poke((50, 116), 40, j['nombre'])
-            barra_hud((92, 90, 322, 52), j['vida'], j['max_vida'])
-            t = f_hud_g.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
-            ventana.blit(t, t.get_rect(center=(253, 116)))
-            pygame.draw.rect(ventana, (60, 60, 60), (92, 146, 322, 8))
-            pygame.draw.rect(ventana, (120, 120, 160) if j['agotado'] else (0, 160, 230), (92, 146, int(322 * j['energia'] / ENERGIA_MAX), 8))
-            ventana.blit(f_hud_b.render(j['nombre'].replace('_', ' '), True, 'black'), (96, 158))
+            circulo_poke((44, 86), 34, j['nombre'])
+            barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'])
+            t = f_hud.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
+            ventana.blit(t, t.get_rect(center=(200, 86)))
+            pygame.draw.rect(ventana, (60, 60, 60), (80, 108, 240, 6))
+            pygame.draw.rect(ventana, (120, 120, 160) if j['agotado'] else (0, 160, 230), (80, 108, int(240 * j['energia'] / ENERGIA_MAX), 6))
+            ventana.blit(f_hud_b.render(j['nombre'].replace('_', ' '), True, 'black'), (84, 117))
             esperando = ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO
             k = 0
             for i, m in enumerate(j['equipo']):
                 if i == j['activo']: continue
-                cy = 16 + k * 38
-                circulo_poke((98, cy), 14, m['nombre'], esperando or m['vida'] <= 0)
-                ventana.blit(f_hud.render(str(i + 1), True, 'black'), (78, cy - 6))
-                barra_hud((117, cy - 10, 133, 20), m['vida'], m['max_vida'])
-                ventana.blit(f_hud.render(m['nombre'].replace('_', ' '), True, 'black'), (121, cy + 11))
+                cy = 14 + k * 30
+                circulo_poke((86, cy), 11, m['nombre'], esperando or m['vida'] <= 0)
+                ventana.blit(f_hud.render(str(i + 1), True, 'black'), (68, cy - 6))
+                barra_hud((100, cy - 8, 100, 16), m['vida'], m['max_vida'])
+                ventana.blit(f_hud.render(m['nombre'].replace('_', ' '), True, 'black'), (103, cy + 9))
+                resto = max(0, m['asist_listo'] - ahora)
+                listo = resto == 0 and m['vida'] > 0
+                texto = ('F' if k == 0 else 'G') + ' ' + m['asist']['nombre'].replace('_', ' ') + ' ' + ('LISTO' if not resto else str(resto // 1000 + 1) + 's')
+                ventana.blit(f_hud.render(texto, True, (0, 150, 0) if listo else (90, 90, 90)), (206, cy - 5))
                 k += 1
             for i, (nombre, datos) in enumerate(j['juego']['especiales']):
                 radio = 30 - i * 6
@@ -670,15 +840,15 @@ def main():
                     ventana.blit(velo, (cx - radio, cy - radio))
                     s = f_hud.render(str(round(restante / 1000, 1)), True, 'white')
                     ventana.blit(s, s.get_rect(center=(cx, cy)))
-                n = f_hud.render(nombre.replace('_', ' '), True, 'white')
+                n = f_hud.render(nombre.replace('_', ' '), True, (60, 60, 60))
                 ventana.blit(n, n.get_rect(center=(cx, cy + radio + 12)))
             if nivel['jefe']:
                 b = nivel['jefe']
-                ventana.blit(f_hud.render('JEFE - ' + b['tipo'], True, 'white'), (W - 360, 4))
-                barra_hud((W - 360, 24, 340, 24), b['vida'], b['max_vida'])
+                ventana.blit(f_hud.render('JEFE - ' + b['tipo'], True, 'white'), (W - 300, 4))
+                barra_hud((W - 300, 22, 280, 20), b['vida'], b['max_vida'])
 
         def dibujar_objetos(nivel, j):
-            cx = max(0, min(j['rect'].centerx-W//2, ESC.width-W)); cy = max(0, min(j['rect'].centery-H//2, ESC.height-H))
+            cx, cy = camara(j)
             ventana.fill('black')
             dibujar_rect(ESC, cx, cy, 'white')
             paredes = [pygame.Rect(0,0,ESC.width,PARED), pygame.Rect(0,ESC.bottom-PARED,ESC.width,PARED), pygame.Rect(0,0,PARED,ESC.height), pygame.Rect(ESC.right-PARED,0,PARED,ESC.height)]
@@ -689,12 +859,19 @@ def main():
             for proyectil in nivel['proyectiles_enemigos']:
                 pygame.draw.circle(ventana, (255,50,0) if proyectil['jefe'] else (255,150,0), (round(proyectil['x']-cx),round(proyectil['y']-cy)), 9 if proyectil['jefe'] else 8)
             for ef in nivel['efectos']:
-                pygame.draw.circle(ventana, COLORES_TIPO.get(normalizar_tipo(ef['tipo']), (255,255,255)), (round(ef['x']-cx), round(ef['y']-cy)), ef['radio'], 4)
+                color_ef = COLORES_TIPO.get(normalizar_tipo(ef['tipo']), (255,255,255))
+                if 'linea' in ef: pygame.draw.line(ventana, color_ef, (round(ef['x']-cx), round(ef['y']-cy)), (round(ef['linea'][0]-cx), round(ef['linea'][1]-cy)), ef['radio'])
+                else: pygame.draw.circle(ventana, color_ef, (round(ef['x']-cx), round(ef['y']-cy)), ef['radio'], 4)
             for proyectil in nivel['proyectiles_pokemon']:
                 try: radio = max(2, int(float(proyectil['datos'].get('area', 8))))
                 except (TypeError, ValueError): radio = 8
                 pygame.draw.circle(ventana, (80,180,255), (round(proyectil['x']-cx),round(proyectil['y']-cy)), radio)
             dibujar_jugador(j,cx,cy)
+            if j['uso'] == 'mouse': mx, my = pygame.mouse.get_pos()
+            else: mx, my = round(j['rect'].centerx - cx + j['aim'][0] * 90), round(j['rect'].centery - cy + j['aim'][1] * 90)
+            pygame.draw.circle(ventana, (230, 20, 20), (mx, my), 11, 2)
+            for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                pygame.draw.line(ventana, (230, 20, 20), (mx + ox * 6, my + oy * 6), (mx + ox * 16, my + oy * 16), 2)
             for e in nivel['enemigos']:
                 dibujar_rect(e['rect'],cx,cy,e['color'])
                 barra((e['rect'].x-cx,e['rect'].y-cy-9,e['rect'].width,5),e['vida'],e['max_vida'])
@@ -713,22 +890,24 @@ def main():
             dibujar_hud(j, nivel)
             pygame.display.flip()
 
-        j = crear_jugador(pokemon, ESC.center)
+        j = crear_jugador(nombres, ESC.center, modo)
         nivel_numero = 0
         reloj = pygame.time.Clock()
         while True:
             reiniciar_jugador(j); nivel = crear_nivel(nivel_numero)
             reiniciar_nivel = False
             while True:
+                pygame.mouse.set_visible(False)
+                apuntar(j)
                 for e in pygame.event.get():
                     if e.type == pygame.QUIT: return 'salir', j['nombre']
                     if e.type == pygame.KEYDOWN:
                         if e.key == pygame.K_ESCAPE:
                             if confirmar_salida(): return 'salir', j['nombre']
                         if e.key == pygame.K_F1:
-                            resultado_debug, elegido = debug_menu(j['nombre'])
+                            resultado_debug, elegido, espacio = debug_menu([mi['nombre'] for mi in j['equipo']], j['activo'])
                             if resultado_debug == 'salir': return 'salir', j['nombre']
-                            equipar_debug(j, elegido)
+                            if elegido: equipar_debug(j, elegido, espacio)
                         if e.key == pygame.K_F2:
                             nuevo_nivel = menu_niveles(nivel_numero)
                             if nuevo_nivel == 'salir': return 'salir', j['nombre']
@@ -740,53 +919,86 @@ def main():
                         if e.key == pygame.K_q: usar_basico(j, 1, nivel)
                         if e.key in (pygame.K_LSHIFT, pygame.K_RSHIFT): usar_especial(j, 0, nivel)
                         if e.key == pygame.K_r: usar_especial(j, 1, nivel)
+                        if e.key == pygame.K_f: usar_asistencia(j, 0, nivel)
+                        if e.key == pygame.K_g: usar_asistencia(j, 1, nivel)
                         if e.key in (pygame.K_1, pygame.K_2, pygame.K_3): cambiar_slot(j, e.key - pygame.K_1)
                 if reiniciar_nivel:
                     break
+                botones = pygame.mouse.get_pressed()
+                if modo != 'teclas' and botones[0]: usar_basico(j, 0, nivel)
+                if modo != 'teclas' and botones[2]: usar_basico(j, 1, nivel)
                 resultado = actualizar_nivel(nivel, j)
                 dibujar_objetos(nivel, j)
                 if resultado == 'siguiente': nivel_numero += 1; break
                 if resultado == 'muerte': return 'juego_terminado', j['nombre']
                 reloj.tick(60)
 
-    def ajustes(volumen):
+    def ajustes(volumen, modo):
         reloj_ajustes = pygame.time.Clock()
         f_titulo = pygame.font.Font(None, 48)
         f_texto = pygame.font.Font(None, 36)
+        modos = ['mouse', 'teclas', 'mixto']
+        descripcion = {'mouse': 'Apuntas con el mouse: clic izq. cuerpo a cuerpo, clic der. a distancia',
+                       'teclas': 'Atacas con E / Q / Shift / R hacia donde caminaste por ultima vez',
+                       'mixto': 'Teclas hasta que mueves el mouse; vuelve a teclas si caminas sin tocarlo'}
+        fila_sel = 0
         while True:
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
                     return None
                 if e.type == pygame.KEYDOWN:
                     if e.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE):
-                        return volumen
+                        return volumen, modo
+                    if e.key in (pygame.K_w, pygame.K_UP):
+                        fila_sel = 0
+                    if e.key in (pygame.K_s, pygame.K_DOWN):
+                        fila_sel = 1
                     if e.key in (pygame.K_a, pygame.K_LEFT):
-                        volumen = max(10, volumen - 10)
+                        if fila_sel == 0: volumen = max(10, volumen - 10)
+                        else: modo = modos[(modos.index(modo) - 1) % len(modos)]
                     if e.key in (pygame.K_d, pygame.K_RIGHT):
-                        volumen = min(100, volumen + 10)
+                        if fila_sel == 0: volumen = min(100, volumen + 10)
+                        else: modo = modos[(modos.index(modo) + 1) % len(modos)]
 
             ventana.fill('black')
             titulo = f_titulo.render('AJUSTES', True, 'white')
-            ventana.blit(titulo, titulo.get_rect(center=(W // 2, 120)))
+            ventana.blit(titulo, titulo.get_rect(center=(W // 2, 100)))
 
             fila = pygame.Rect(0, 0, 420, 70)
-            fila.center = (W // 2, H // 2)
+            fila.center = (W // 2, 240)
             pygame.draw.rect(ventana, (0, 120, 0), fila)
             ventana.blit(f_texto.render('Sonidos', True, 'white'), (fila.x + 20, fila.centery - 12))
             valor = f_texto.render('< ' + str(volumen) + ' >', True, 'white')
             ventana.blit(valor, valor.get_rect(midright=(fila.right - 20, fila.centery)))
-            dibujar_esquinas(ventana, fila)
 
             for i in range(10):
                 color = (255, 255, 255) if i < volumen // 10 else (70, 70, 70)
                 pygame.draw.rect(ventana, color, (fila.x + i * 42, fila.bottom + 25, 36, 12))
 
-            ayuda = fuente.render('A / D: cambiar volumen (10 a 100)    ESC: volver', True, (200, 200, 200))
+            fila2 = pygame.Rect(0, 0, 420, 70)
+            fila2.center = (W // 2, 390)
+            pygame.draw.rect(ventana, (0, 120, 0), fila2)
+            ventana.blit(f_texto.render('Combate', True, 'white'), (fila2.x + 20, fila2.centery - 12))
+            valor2 = f_texto.render('< ' + modo.title() + ' >', True, 'white')
+            ventana.blit(valor2, valor2.get_rect(midright=(fila2.right - 20, fila2.centery)))
+            d = fuente.render(descripcion[modo], True, (200, 200, 200))
+            ventana.blit(d, d.get_rect(center=(W // 2, fila2.bottom + 30)))
+            dibujar_esquinas(ventana, fila if fila_sel == 0 else fila2)
+
+            ayuda = fuente.render('W / S: elegir opcion    A / D: cambiar    ESC: volver', True, (200, 200, 200))
             ventana.blit(ayuda, ayuda.get_rect(center=(W // 2, H - 60)))
             pygame.display.flip(); reloj_ajustes.tick(60)
 
-    pokemon = 'pikachu' if 'pikachu' in pokemones else next(iter(pokemones))
+    equipo_menu = [n for n in ('pikachu', 'blastoise', 'lucario') if n in JUGABLES]
+    modo_combate = 'mouse'
     volumen = 50
+
+    def asignar_equipo(lista, nombre, espacio):
+        if nombre in lista:
+            i = lista.index(nombre)
+            lista[i], lista[espacio] = lista[espacio], lista[i]
+        else:
+            lista[espacio] = nombre
     orden = ['jugar', 'ajustes', 'salir']
     textos = {'jugar': 'Jugar', 'ajustes': 'Ajustes', 'salir': 'Salir'}
     colores = {'jugar': (200, 0, 0), 'ajustes': (0, 200, 0), 'salir': (0, 0, 200)}
@@ -806,9 +1018,9 @@ def main():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
                 pygame.quit(); sys.exit()
             if e.type == pygame.KEYDOWN and e.key == pygame.K_F1:
-                resultado_debug, pokemon_seleccionado = debug_menu(pokemon)
+                resultado_debug, elegido, espacio = debug_menu(equipo_menu, 0)
                 if resultado_debug == 'salir': pygame.quit(); sys.exit()
-                if pokemon_seleccionado in pokemones: pokemon = pokemon_seleccionado
+                if elegido: asignar_equipo(equipo_menu, elegido, espacio)
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_w:
                     seleccion = (seleccion - 1) % len(orden)
@@ -828,18 +1040,14 @@ def main():
 
         if activar == 'jugar':
             while True:
-                resultado, seleccionado = jugar(pokemon)
+                resultado, seleccionado = jugar(equipo_menu, modo_combate)
+                pygame.mouse.set_visible(True)
                 if resultado == 'salir': pygame.quit(); sys.exit()
-                if resultado == 'debug':
-                    resultado_debug, pokemon_seleccionado = debug_menu(pokemon)
-                    if resultado_debug == 'salir': pygame.quit(); sys.exit()
-                    if pokemon_seleccionado in pokemones: pokemon = pokemon_seleccionado
-                    continue
                 break
         elif activar == 'ajustes':
-            resultado_ajustes = ajustes(volumen)
+            resultado_ajustes = ajustes(volumen, modo_combate)
             if resultado_ajustes is None: pygame.quit(); sys.exit()
-            volumen = resultado_ajustes
+            volumen, modo_combate = resultado_ajustes
             try: pygame.mixer.music.set_volume(volumen / 100)
             except pygame.error: pass
         elif activar == 'salir':
@@ -856,7 +1064,9 @@ def main():
             if i == seleccion:
                 dibujar_esquinas(ventana, botones[nombre])
         ventana.blit(fuente.render('F1: Menu debug', True, 'white'), (700, 20))
-        ventana.blit(fuente.render('Pokemon: ' + pokemon, True, 'white'), (700, 45))
+        texto_equipo = fuente.render('Equipo: ' + ' / '.join(equipo_menu), True, 'white')
+        ventana.blit(texto_equipo, texto_equipo.get_rect(topright=(W - 20, 45)))
+        ventana.blit(fuente.render('Combate: ' + modo_combate, True, 'white'), (700, 70))
         pygame.display.flip(); reloj.tick(60)
 
 if __name__ == '__main__':
