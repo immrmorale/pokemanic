@@ -7,10 +7,28 @@ CAMBIOS = {'samurott_hisui': 'samurott-hisui'}
 SALTAR = ('arceus_beta', 'missigno')
 
 
-def pedir(slug):
-    url = 'https://pokeapi.co/api/v2/pokemon/' + slug
+def pedir(url):
+    if not url.startswith('http'):
+        url = 'https://pokeapi.co/api/v2/pokemon/' + url
     with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic'}), timeout=20) as r:
         return json.loads(r.read().decode('utf-8'))
+
+
+def buscar_cadena(nodo, objetivo, padre=None):
+    if nodo['species']['name'] == objetivo:
+        return padre, [n['species']['name'] for n in nodo['evolves_to']]
+    for hijo in nodo['evolves_to']:
+        r = buscar_cadena(hijo, objetivo, nodo['species']['name'])
+        if r:
+            return r
+    return None
+
+
+def descripcion(especie):
+    textos = [t['flavor_text'] for t in especie['flavor_text_entries'] if t['language']['name'] == 'es']
+    if not textos:
+        textos = [t['flavor_text'] for t in especie['flavor_text_entries'] if t['language']['name'] == 'en']
+    return ' '.join(textos[-1].replace('\n', ' ').replace('\f', ' ').split()) if textos else None
 
 
 def main():
@@ -23,12 +41,22 @@ def main():
         except Exception as error:
             print('falla', nombre, error)
             continue
-        salida[nombre] = {
+        registro = {
             'altura': datos['height'],
             'peso': datos['weight'],
             'stats': {s['stat']['name']: s['base_stat'] for s in datos['stats']},
             'movimientos': sorted(mv['move']['name'] for mv in datos['moves']),
         }
+        try:
+            especie = pedir(datos['species']['url'])
+            registro['descripcion'] = descripcion(especie)
+            cadena = pedir(especie['evolution_chain']['url'])
+            encontrado = buscar_cadena(cadena['chain'], especie['name'])
+            if encontrado:
+                registro['evoluciona_de'], registro['evoluciona_a'] = encontrado
+        except Exception as error:
+            print('sin especie', nombre, error)
+        salida[nombre] = registro
         print('ok', nombre)
         time.sleep(0.2)
     with open('datos_pokeapi.json', 'w', encoding='utf-8') as f:

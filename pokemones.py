@@ -257,3 +257,62 @@ def asistencia_de(nombre):
     if mec == 'masivo': datos['efecto'] = {'tipo': mov[2], 'duracion': datos['duracion'], 'probabilidad': 100}
     datos['mult_daño'] = ROLES[rol]['daño']
     return datos
+
+
+EVOLUCION_A = {
+    'pichu': ['pikachu'], 'pikachu': ['raichu'], 'sneasel': ['weavile'], 'snorunt': ['glalie', 'froslass'], 'spheal': ['sealeo'], 'sealeo': ['walrein'],
+    'vanillite': ['vanillish'], 'vanillish': ['vanilluxe'], 'rookidee': ['corvisquire'], 'corvisquire': ['corviknight'], 'natu': ['xatu'],
+    'drifloon': ['drifblim'], 'magnemite': ['magneton'], 'magneton': ['magnezone'], 'mareep': ['flaaffy'], 'flaaffy': ['ampharos'],
+    'shinx': ['luxio'], 'luxio': ['luxray'], 'electrike': ['manectric'], 'sandshrew': ['sandslash'], 'geodude': ['graveler'], 'graveler': ['golem'],
+    'cubone': ['marowak'], 'wooper': ['quagsire'], 'gible': ['gabite'], 'gabite': ['garchomp'], 'golett': ['golurk'], 'mankey': ['primeape'],
+    'primeape': ['annihilape'], 'machop': ['machoke'], 'machoke': ['machamp'], 'torchic': ['combusken'], 'combusken': ['blaziken'],
+    'riolu': ['lucario'], 'timburr': ['gurdurr'], 'gurdurr': ['conkeldurr'], 'mudkip': ['marshtomp'], 'marshtomp': ['swampert'],
+    'squirtle': ['wartortle'], 'wartortle': ['blastoise'], 'froakie': ['frogadier'], 'frogadier': ['greninja'], 'mareanie': ['toxapex'],
+    'oshawott': ['dewott'], 'dewott': ['samurott'], 'fletchling': ['fletchinder'], 'fletchinder': ['talonflame'], 'chikorita': ['bayleef'],
+}
+EVOLUCION_DE_EXTRA = {'clodsire': 'wooper (forma de Paldea)', 'samurott_hisui': 'dewott (forma de Hisui)'}
+NOMBRES_STATS = (('hp', 'PS'), ('attack', 'Ataque'), ('defense', 'Defensa'), ('special-attack', 'At. Esp.'), ('special-defense', 'Def. Esp.'), ('speed', 'Velocidad'))
+
+
+def _limpiar(n):
+    return str(n).replace('-', ' ').replace('_', ' ')
+
+
+def evoluciones_de(nombre):
+    oficial = _oficiales.get(nombre, {})
+    if 'evoluciona_a' in oficial or 'evoluciona_de' in oficial:
+        de = oficial.get('evoluciona_de')
+        return (_limpiar(de) if de else None), [_limpiar(x) for x in oficial.get('evoluciona_a', [])]
+    de = EVOLUCION_DE_EXTRA.get(nombre)
+    if not de:
+        previos = [k for k, v in EVOLUCION_A.items() if nombre in v]
+        de = previos[0] if previos else None
+    return (_limpiar(de) if de else None), [_limpiar(x) for x in EVOLUCION_A.get(nombre, [])]
+
+
+def descripcion_de(nombre):
+    return _oficiales.get(nombre, {}).get('descripcion')
+
+
+def stats_oficiales(nombre):
+    s = _oficiales.get(nombre, {}).get('stats')
+    return [(etiqueta, s[clave]) for clave, etiqueta in NOMBRES_STATS if clave in s] if s else None
+
+
+def aprende_de(nombre):
+    lista = _oficiales.get(nombre, {}).get('movimientos')
+    return [_limpiar(m) for m in lista] if lista else None
+
+
+def debilidades_de(nombre):
+    tipos = [normalizar_tipo(t) for t in pokemones[nombre].get('tipo', [])]
+    res = {'x4': [], 'x2': [], 'x05': [], 'x025': [], 'x0': []}
+    for atk, fila in TABLA_TIPOS.items():
+        m = 1.0
+        for d in tipos:
+            if d in fila.get('x0', ()): m = 0.0; break
+            if d in fila.get('x2', ()): m *= 2.0
+            elif d in fila.get('x05', ()): m *= 0.5
+        clave = {4.0: 'x4', 2.0: 'x2', 0.5: 'x05', 0.25: 'x025', 0.0: 'x0'}.get(m)
+        if clave: res[clave].append(atk)
+    return res

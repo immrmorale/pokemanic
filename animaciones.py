@@ -40,6 +40,14 @@ def _buscar_carpeta(nombre):
     return None
 
 
+_CACHE_CARGA = {}
+_CACHE_ESCALADO = {}
+
+
+def tiene_sprites(nombre):
+    return _buscar_carpeta(_normalizar_nombre(nombre)) is not None
+
+
 def _numero_direccion(nombre):
     encontrados = re.findall(r'(\d+)', nombre)
     return int(encontrados[-1]) if encontrados else None
@@ -91,8 +99,19 @@ class AnimadorPokemon:
         self.repetir = True
         self.ritmo = 1.0
         self.escala = 1.0
-        self.cache = {}
-        self._cargar()
+        self.altura_base = 0
+        self._cargar_con_cache()
+        if self.usando_hojas and self.altura_base:
+            self.escala = self.tamaño / float(self.altura_base)
+        self.cache = _CACHE_ESCALADO.setdefault((self.pokemon, self.tamaño), {})
+
+    def _cargar_con_cache(self):
+        c = _CACHE_CARGA.get(self.pokemon)
+        if c is None:
+            self._cargar()
+            _CACHE_CARGA[self.pokemon] = (self.animaciones, self.sprites, self.offsets, self.sombras, self.usando_hojas, self.altura_base)
+        else:
+            self.animaciones, self.sprites, self.offsets, self.sombras, self.usando_hojas, self.altura_base = c
 
     def _cargar(self):
         if not self.carpeta:
@@ -253,6 +272,7 @@ class AnimadorPokemon:
         if not candidatos:
             return 1.0
         altura = max(candidatos)
+        self.altura_base = altura
         return self.tamaño / float(altura)
 
     def _buscar_animacion(self, nombre):

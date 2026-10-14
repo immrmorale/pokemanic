@@ -123,7 +123,10 @@
    "whirlpool",
    "zap-cannon",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Nada sin problema en aguas heladas gracias a la soberbia resistencia al frío que posee. Su tersa piel es ligeramente fría al tacto.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "sneasel": {
   "altura": 9,
@@ -254,6 +257,12 @@
    "water-pulse",
    "whirlpool",
    "x-scissor"
+  ],
+  "descripcion": "Es un Pokémon de naturaleza astuta y fiera. Se cuela en los nidos de otros Pokémon cuando no están y roba sus huevos.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "weavile",
+   "sneasler"
   ]
  },
  "weavile": {
@@ -383,7 +392,10 @@
    "water-pulse",
    "whirlpool",
    "x-scissor"
-  ]
+  ],
+  "descripcion": "Se comunican mediante marcas que tallan con sus garras. Se cree que tienen un repertorio de más de 500.",
+  "evoluciona_de": "sneasel",
+  "evoluciona_a": []
  },
  "snorunt": {
   "altura": 7,
@@ -459,6 +471,12 @@
    "trailblaze",
    "water-pulse",
    "weather-ball"
+  ],
+  "descripcion": "Las regiones frías son su hábitat natural. Se encuentra a sus anchas incluso en lugares donde la temperatura alcanza los -100 °C.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "glalie",
+   "froslass"
   ]
  },
  "glalie": {
@@ -555,7 +573,10 @@
    "trailblaze",
    "water-pulse",
    "weather-ball"
-  ]
+  ],
+  "descripcion": "Congela a sus presas helando en un momento la humedad contenida en el aire que lo rodea.",
+  "evoluciona_de": "snorunt",
+  "evoluciona_a": []
  },
  "froslass": {
   "altura": 13,
@@ -669,7 +690,10 @@
    "water-pulse",
    "weather-ball",
    "will-o-wisp"
-  ]
+  ],
+  "descripcion": "Expulsa un vaho gélido a -50 °C con el que congela a sus presas para luego llevarlas a su morada y colocarlas como adorno.",
+  "evoluciona_de": "snorunt",
+  "evoluciona_a": []
  },
  "spheal": {
   "altura": 8,
@@ -751,6 +775,11 @@
    "waterfall",
    "whirlpool",
    "yawn"
+  ],
+  "descripcion": "Flota entre las olas para examinar el océano. Si encuentra una presa, avisa enseguida a los Walrein de su manada.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "sealeo"
   ]
  },
  "sealeo": {
@@ -825,6 +854,11 @@
    "water-pulse",
    "waterfall",
    "whirlpool"
+  ],
+  "descripcion": "Tiene la costumbre de hacer girar en la punta del morro cualquier objeto redondeado, ya sea una Poké Ball o un Spheal.",
+  "evoluciona_de": "spheal",
+  "evoluciona_a": [
+   "walrein"
   ]
  },
  "walrein": {
@@ -912,7 +946,10 @@
    "water-pulse",
    "waterfall",
    "whirlpool"
-  ]
+  ],
+  "descripcion": "Sus colmillos nunca dejan de crecer. Aunque los pierda en un combate, al cabo de un año ya los habrá regenerado por completo.",
+  "evoluciona_de": "sealeo",
+  "evoluciona_a": []
  },
  "vanillite": {
   "altura": 4,
@@ -978,6 +1015,11 @@
    "toxic",
    "uproar",
    "water-pulse"
+  ],
+  "descripcion": "Este Pokémon nació a partir de un carámbano. Exhala un vaho a -50 °C con el que congela el ambiente para adaptarlo a sus necesidades.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "vanillish"
   ]
  },
  "vanillish": {
@@ -1038,6 +1080,11 @@
    "toxic",
    "uproar",
    "water-pulse"
+  ],
+  "descripcion": "Congela a sus enemigos con un vaho a -100 °C, pero no llega a arrebatarles la vida debido a su carácter benévolo.",
+  "evoluciona_de": "vanillite",
+  "evoluciona_a": [
+   "vanilluxe"
   ]
  },
  "vanilluxe": {
@@ -1109,7 +1156,10 @@
    "uproar",
    "water-pulse",
    "weather-ball"
-  ]
+  ],
+  "descripcion": "Su temperatura corporal ronda los -6 °C. Se dice que nace de la fusión de dos Vanillish.",
+  "evoluciona_de": "vanillish",
+  "evoluciona_a": []
  },
  "rookidee": {
   "altura": 2,
@@ -1170,6 +1220,11 @@
    "thief",
    "u-turn",
    "work-up"
+  ],
+  "descripcion": "Su pequeño cuerpo le permite volar a gran velocidad para golpear los puntos débiles de rivales mucho más grandes que él.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "corvisquire"
   ]
  },
  "corvisquire": {
@@ -1228,6 +1283,11 @@
    "thief",
    "u-turn",
    "work-up"
+  ],
+  "descripcion": "Tras haber librado combates muy duros, ha desarrollado la habilidad de determinar con precisión la fuerza de su adversario.",
+  "evoluciona_de": "rookidee",
+  "evoluciona_a": [
+   "corviknight"
   ]
  },
  "corviknight": {
@@ -1311,7 +1371,10 @@
    "thief",
    "u-turn",
    "work-up"
-  ]
+  ],
+  "descripcion": "Debido a su excelente capacidad de vuelo y a su gran inteligencia, ejerce de taxi volador en Galar.",
+  "evoluciona_de": "corvisquire",
+  "evoluciona_a": []
  },
  "hawlucha": {
   "altura": 8,
@@ -1434,7 +1497,10 @@
    "work-up",
    "x-scissor",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Siempre se exhibe con alguna pose justo antes de propinar el golpe de gracia, momento que algunos rivales aprovechan para contraatacar.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "natu": {
   "altura": 2,
@@ -1541,6 +1607,11 @@
    "u-turn",
    "wish",
    "zen-headbutt"
+  ],
+  "descripcion": "Se desplaza dando saltitos porque sus alas no han crecido lo suficiente. Siempre está mirando algo fijamente.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "xatu"
   ]
  },
  "xatu": {
@@ -1646,7 +1717,10 @@
    "u-turn",
    "wish",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Este extraño Pokémon puede ver el pasado y el futuro. Se pasa el día mirando al sol.",
+  "evoluciona_de": "natu",
+  "evoluciona_a": []
  },
  "drifloon": {
   "altura": 4,
@@ -1756,6 +1830,11 @@
    "trick-room",
    "weather-ball",
    "will-o-wisp"
+  ],
+  "descripcion": "Está formado por una aglomeración de espíritus. Suele aparecer en grandes números durante las estaciones húmedas.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "drifblim"
   ]
  },
  "drifblim": {
@@ -1868,7 +1947,10 @@
    "trick-room",
    "weather-ball",
    "will-o-wisp"
-  ]
+  ],
+  "descripcion": "Agarra a gente y a Pokémon para llevárselos a algún sitio, aunque nadie sabe exactamente adónde.",
+  "evoluciona_de": "drifloon",
+  "evoluciona_a": []
  },
  "magnemite": {
   "altura": 3,
@@ -1956,6 +2038,11 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
+  ],
+  "descripcion": "Se nutre de electricidad. Puede flotar en el aire gracias a las ondas electromagnéticas que emite a través de las unidades de sus extremidades.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "magneton"
   ]
  },
  "magneton": {
@@ -2048,6 +2135,11 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
+  ],
+  "descripcion": "Emite de forma constante una potente fuerza magnética que causa estragos en prácticamente cualquier ordenador al que se acerque.",
+  "evoluciona_de": "magnemite",
+  "evoluciona_a": [
+   "magnezone"
   ]
  },
  "magnezone": {
@@ -2143,7 +2235,10 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Se piensa que estuvo expuesto a un campo magnético especial que alteró su estructura molecular e hizo que evolucionara.",
+  "evoluciona_de": "magneton",
+  "evoluciona_a": []
  },
  "pichu": {
   "altura": 3,
@@ -2243,6 +2338,11 @@
    "wild-charge",
    "wish",
    "zap-cannon"
+  ],
+  "descripcion": "Las bolsas de electricidad de sus mejillas son muy pequeñas y, a poco que se desborden, recibe una fuerte descarga.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "pikachu"
   ]
  },
  "pikachu": {
@@ -2366,6 +2466,11 @@
    "wild-charge",
    "wish",
    "zap-cannon"
+  ],
+  "descripcion": "Los miembros de esta especie se saludan entre sí uniendo sus colas y transmitiéndose corriente eléctrica.",
+  "evoluciona_de": "pichu",
+  "evoluciona_a": [
+   "raichu"
   ]
  },
  "raichu": {
@@ -2496,7 +2601,10 @@
    "wild-charge",
    "wish",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Cuando ha descargado las bolsas de las mejillas, levanta la cola y absorbe la carga eléctrica que hay en el ambiente.",
+  "evoluciona_de": "pikachu",
+  "evoluciona_a": []
  },
  "mareep": {
   "altura": 6,
@@ -2581,6 +2689,11 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
+  ],
+  "descripcion": "Su lana acumula electricidad estática con la fricción. Al ser tan adorable, la gente se acerca para acariciarlo y se lleva un doloroso chispazo.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "flaaffy"
   ]
  },
  "flaaffy": {
@@ -2678,6 +2791,11 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
+  ],
+  "descripcion": "Su lana sedosa acumula tanta electricidad que algunas partes de su cuerpo se han quedado desprovistas de pelo.",
+  "evoluciona_de": "mareep",
+  "evoluciona_a": [
+   "ampharos"
   ]
  },
  "ampharos": {
@@ -2796,7 +2914,10 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Su cola emite un brillo claro e intenso. Se lo venera desde tiempos remotos como guía de los marineros.",
+  "evoluciona_de": "flaaffy",
+  "evoluciona_a": []
  },
  "shinx": {
   "altura": 5,
@@ -2882,6 +3003,11 @@
    "trailblaze",
    "volt-switch",
    "wild-charge"
+  ],
+  "descripcion": "Su pelaje brilla gracias a la electricidad. Envía señales a sus semejantes agitando la punta luminosa de la cola.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "luxio"
   ]
  },
  "luxio": {
@@ -2964,6 +3090,11 @@
    "trailblaze",
    "volt-switch",
    "wild-charge"
+  ],
+  "descripcion": "Cuando encuentra a un adversario, se prepara para combatir sacando las garras, que emiten una corriente eléctrica de un millón de voltios.",
+  "evoluciona_de": "shinx",
+  "evoluciona_a": [
+   "luxray"
   ]
  },
  "luxray": {
@@ -3057,7 +3188,10 @@
    "trailblaze",
    "volt-switch",
    "wild-charge"
-  ]
+  ],
+  "descripcion": "Duerme durante largos períodos para recuperar la enorme cantidad de electricidad que consume al usar su capacidad para ver a través de objetos.",
+  "evoluciona_de": "luxio",
+  "evoluciona_a": []
  },
  "electrike": {
   "altura": 6,
@@ -3136,6 +3270,11 @@
    "uproar",
    "volt-switch",
    "wild-charge"
+  ],
+  "descripcion": "Almacena electricidad estática en su pelaje. En estaciones secas, suelta chispas por todo el cuerpo.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "manectric"
   ]
  },
  "manectric": {
@@ -3225,7 +3364,10 @@
    "uproar",
    "volt-switch",
    "wild-charge"
-  ]
+  ],
+  "descripcion": "Rara vez aparece ante la gente. Dicen que suele colocar su madriguera donde caen rayos.",
+  "evoluciona_de": "electrike",
+  "evoluciona_a": []
  },
  "sandshrew": {
   "altura": 6,
@@ -3338,6 +3480,11 @@
    "toxic",
    "work-up",
    "x-scissor"
+  ],
+  "descripcion": "Excava madrigueras profundas en las que vive. Parte con sus afiladas garras cualquier roca, por dura que sea, que le entorpezca el camino.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "sandslash"
   ]
  },
  "sandslash": {
@@ -3455,7 +3602,10 @@
    "toxic",
    "work-up",
    "x-scissor"
-  ]
+  ],
+  "descripcion": "Trepa a los árboles con sus afiladas garras y deja caer bayas para los Sandshrew que esperan debajo.",
+  "evoluciona_de": "sandshrew",
+  "evoluciona_a": []
  },
  "geodude": {
   "altura": 4,
@@ -3555,6 +3705,11 @@
    "thunder-punch",
    "toxic",
    "wide-guard"
+  ],
+  "descripcion": "Se suele encontrar en senderos de montaña y sitios parecidos. Conviene andar con cuidado para no pisarlo sin querer y provocar su enfado.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "graveler"
   ]
  },
  "graveler": {
@@ -3659,6 +3814,11 @@
    "thunder-punch",
    "toxic",
    "wide-guard"
+  ],
+  "descripcion": "Se le suele ver rodando montaña abajo. No evita los obstáculos, sino que los arrolla.",
+  "evoluciona_de": "geodude",
+  "evoluciona_a": [
+   "golem"
   ]
  },
  "golem": {
@@ -3769,7 +3929,10 @@
    "thunder-punch",
    "toxic",
    "wide-guard"
-  ]
+  ],
+  "descripcion": "Nada más mudar la piel, su cuerpo se vuelve blando y blanquecino, pero se endurece al poco tiempo de entrar en contacto con el aire.",
+  "evoluciona_de": "graveler",
+  "evoluciona_a": []
  },
  "cubone": {
   "altura": 4,
@@ -3879,6 +4042,11 @@
    "toxic",
    "uproar",
    "water-gun"
+  ],
+  "descripcion": "Lleva puesto el cráneo de su difunta madre. A veces llora en sueños, pero cada lágrima vertida le hace más fuerte.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "marowak"
   ]
  },
  "marowak": {
@@ -3992,7 +4160,10 @@
    "toxic",
    "uproar",
    "water-gun"
-  ]
+  ],
+  "descripcion": "Al evolucionar, se ha fusionado con el cráneo de su madre y, además, ha adquirido un carácter agresivo.",
+  "evoluciona_de": "cubone",
+  "evoluciona_a": []
  },
  "wooper": {
   "altura": 4,
@@ -4098,6 +4269,12 @@
    "waterfall",
    "whirlpool",
    "yawn"
+  ],
+  "descripcion": "Cuando se desplaza en tierra firme, cubre su cuerpo con una membrana mucosa y venenosa para mantener hidratada la piel.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "quagsire",
+   "clodsire"
   ]
  },
  "quagsire": {
@@ -4214,7 +4391,10 @@
    "waterfall",
    "whirlpool",
    "yawn"
-  ]
+  ],
+  "descripcion": "Su cuerpo siempre resulta escurridizo al tacto. Suele chocarse contra el lecho del río al nadar, pero no le importa demasiado.",
+  "evoluciona_de": "wooper",
+  "evoluciona_a": []
  },
  "gible": {
   "altura": 7,
@@ -4305,6 +4485,11 @@
    "thunder-fang",
    "toxic",
    "twister"
+  ],
+  "descripcion": "Ataca indiscriminadamente a cualquier cosa que se mueva y la arrastra a su agujero. Pese a tener una boca enorme, su estómago es pequeño.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "gabite"
   ]
  },
  "gabite": {
@@ -4400,6 +4585,11 @@
    "thunder-fang",
    "toxic",
    "twister"
+  ],
+  "descripcion": "Entierra gemas en la cueva que le sirve de nido y hace trizas con sus garras y colmillos a cualquier intruso.",
+  "evoluciona_de": "gible",
+  "evoluciona_a": [
+   "garchomp"
   ]
  },
  "garchomp": {
@@ -4508,7 +4698,10 @@
    "toxic",
    "twister",
    "whirlpool"
-  ]
+  ],
+  "descripcion": "Se mueve a gran velocidad incluso por tierra. Es capaz de cazar una presa en una montaña nevada y volver a su guarida sin llegar a pasar frío.",
+  "evoluciona_de": "gabite",
+  "evoluciona_a": []
  },
  "golett": {
   "altura": 10,
@@ -4611,6 +4804,11 @@
    "thief",
    "thunder-punch",
    "toxic"
+  ],
+  "descripcion": "Fue creado a partir del barro para emplearlo como sirviente. Todavía acata las órdenes que le dio su amo hace milenios.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "golurk"
   ]
  },
  "golurk": {
@@ -4732,7 +4930,10 @@
    "toxic",
    "trick",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Se dice que su cuerpo alberga un móvil perpetuo que genera energía, pero no se ha constatado la veracidad de tamaña afirmación.",
+  "evoluciona_de": "golett",
+  "evoluciona_a": []
  },
  "mankey": {
   "altura": 5,
@@ -4864,6 +5065,11 @@
    "uproar",
    "vacuum-wave",
    "work-up"
+  ],
+  "descripcion": "Este ágil Pokémon vive en los árboles. Se enfada con facilidad y, cuando lo hace, se abalanza contra todo lo que se encuentre a su alrededor.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "primeape"
   ]
  },
  "primeape": {
@@ -4993,6 +5199,11 @@
    "uproar",
    "vacuum-wave",
    "work-up"
+  ],
+  "descripcion": "Solo se calma cuando no hay nadie cerca, por lo que llegar a ver ese momento resulta verdaderamente difícil.",
+  "evoluciona_de": "mankey",
+  "evoluciona_a": [
+   "annihilape"
   ]
  },
  "annihilape": {
@@ -5089,7 +5300,10 @@
    "u-turn",
    "uproar",
    "vacuum-wave"
-  ]
+  ],
+  "descripcion": "It imbues its fists with the power of the rage that it kept hidden in its heart. Opponents struck by these imbued fists will be shattered to their core.",
+  "evoluciona_de": "primeape",
+  "evoluciona_a": []
  },
  "machop": {
   "altura": 8,
@@ -5202,6 +5416,11 @@
    "vital-throw",
    "wake-up-slap",
    "work-up"
+  ],
+  "descripcion": "Siempre rebosante de energía, pasa el tiempo levantando piedras para hacerse aún más fuerte.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "machoke"
   ]
  },
  "machoke": {
@@ -5310,6 +5529,11 @@
    "vital-throw",
    "wake-up-slap",
    "work-up"
+  ],
+  "descripcion": "Tiene una complexión tan fuerte que nunca se cansa. Suele ayudar a la gente a cargar objetos pesados.",
+  "evoluciona_de": "machop",
+  "evoluciona_a": [
+   "machamp"
   ]
  },
  "machamp": {
@@ -5433,7 +5657,10 @@
    "wake-up-slap",
    "wide-guard",
    "work-up"
-  ]
+  ],
+  "descripcion": "Puede dar varios puñetazos de una sola vez gracias a sus cuatro brazos. Golpea más rápido de lo que piensa.",
+  "evoluciona_de": "machoke",
+  "evoluciona_a": []
  },
  "torchic": {
   "altura": 4,
@@ -5529,6 +5756,11 @@
    "uproar",
    "will-o-wisp",
    "work-up"
+  ],
+  "descripcion": "Torchic tiene un lugar en el interior de su organismo en el que guarda la llama que posee. Si le das un abrazo, arderá encantado. Este Pokémon está recubierto totalmente de sedoso plumón.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "combusken"
   ]
  },
  "combusken": {
@@ -5644,6 +5876,11 @@
    "vacuum-wave",
    "will-o-wisp",
    "work-up"
+  ],
+  "descripcion": "Combusken lucha haciendo uso de las abrasadoras llamas que expulsa por el pico y de unas patadas fulminantes. Este Pokémon emite un sonido muy fuerte y molesto.",
+  "evoluciona_de": "torchic",
+  "evoluciona_a": [
+   "blaziken"
   ]
  },
  "blaziken": {
@@ -5780,7 +6017,10 @@
    "vacuum-wave",
    "will-o-wisp",
    "work-up"
-  ]
+  ],
+  "descripcion": "Blaziken tiene unas piernas tan fuertes que puede saltar por encima de un edificio de 30 pisos con facilidad. Además, da unos puñetazos fulminantes que dejan al oponente chamuscado y lleno de tizne.",
+  "evoluciona_de": "combusken",
+  "evoluciona_a": []
  },
  "riolu": {
   "altura": 7,
@@ -5891,6 +6131,11 @@
    "vacuum-wave",
    "work-up",
    "zen-headbutt"
+  ],
+  "descripcion": "Percibe los sentimientos de quienes lo rodean, así como las condiciones del entorno, mediante unas ondas conocidas como auras.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "lucario"
   ]
  },
  "lucario": {
@@ -6024,7 +6269,10 @@
    "water-pulse",
    "work-up",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Puede leer los pensamientos de la gente, por lo que establece lazos afectivos únicamente con Entrenadores de corazón noble.",
+  "evoluciona_de": "riolu",
+  "evoluciona_a": []
  },
  "timburr": {
   "altura": 6,
@@ -6118,6 +6366,11 @@
    "wake-up-slap",
    "wide-guard",
    "work-up"
+  ],
+  "descripcion": "Cuando logra transportar una viga de madera que triplica su altura y peso, es señal de que va a evolucionar.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "gurdurr"
   ]
  },
  "gurdurr": {
@@ -6209,6 +6462,11 @@
    "wake-up-slap",
    "wide-guard",
    "work-up"
+  ],
+  "descripcion": "Blande vigas de acero con gran destreza, pero la construcción no se le da muy bien; de hecho, su especialidad es la demolición.",
+  "evoluciona_de": "timburr",
+  "evoluciona_a": [
+   "conkeldurr"
   ]
  },
  "conkeldurr": {
@@ -6309,7 +6567,10 @@
    "wake-up-slap",
    "wide-guard",
    "work-up"
-  ]
+  ],
+  "descripcion": "Cuando decide ponerse en serio, suelta sus pilares de hormigón y se abalanza sobre el rival con solo un puño como arma.",
+  "evoluciona_de": "gurdurr",
+  "evoluciona_a": []
  },
  "mudkip": {
   "altura": 4,
@@ -6408,6 +6669,11 @@
    "wide-guard",
    "work-up",
    "yawn"
+  ],
+  "descripcion": "En el agua, Mudkip usa las branquias que tiene en los mofletes para respirar. Cuando tiene que enfrentarse a una situación delicada en combate, desata una fuerza asombrosa con la que puede destruir rocas incluso mayores que él.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "marshtomp"
   ]
  },
  "marshtomp": {
@@ -6518,6 +6784,11 @@
    "wide-guard",
    "work-up",
    "yawn"
+  ],
+  "descripcion": "Marshtomp se desplaza más rápido por el lodo que por el agua. Los cuartos traseros de este Pokémon muestran un desarrollo más que evidente, lo que le permite andar solo sobre las patas traseras.",
+  "evoluciona_de": "mudkip",
+  "evoluciona_a": [
+   "swampert"
   ]
  },
  "swampert": {
@@ -6651,7 +6922,10 @@
    "wide-guard",
    "work-up",
    "yawn"
-  ]
+  ],
+  "descripcion": "Swampert puede predecir tormentas al percibir con las aletas los sutiles cambios que producen las olas y las corrientes. Si está a punto de estallar una tormenta, empezará a apilar piedras para resguardarse.",
+  "evoluciona_de": "marshtomp",
+  "evoluciona_a": []
  },
  "squirtle": {
   "altura": 5,
@@ -6770,6 +7044,11 @@
    "work-up",
    "yawn",
    "zen-headbutt"
+  ],
+  "descripcion": "Cuando se siente en peligro, se esconde en su caparazón y escupe chorros de agua por la boca.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "wartortle"
   ]
  },
  "wartortle": {
@@ -6885,6 +7164,11 @@
    "work-up",
    "yawn",
    "zen-headbutt"
+  ],
+  "descripcion": "Utiliza hábilmente sus peludas orejas y la cola para mantener el equilibrio al nadar.",
+  "evoluciona_de": "squirtle",
+  "evoluciona_a": [
+   "blastoise"
   ]
  },
  "blastoise": {
@@ -7020,7 +7304,10 @@
    "work-up",
    "yawn",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Dispara chorros de agua a través de los cañones de su caparazón, capaces de agujerear incluso el acero.",
+  "evoluciona_de": "wartortle",
+  "evoluciona_a": []
  },
  "froakie": {
   "altura": 3,
@@ -7111,6 +7398,11 @@
    "water-sport",
    "waterfall",
    "work-up"
+  ],
+  "descripcion": "Protege su piel cubriendo el cuerpo con una fina capa de burbujas. Aunque parezca despreocupado, no deja de vigilar con astucia lo que le rodea.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "frogadier"
   ]
  },
  "frogadier": {
@@ -7202,6 +7494,11 @@
    "water-pulse",
    "waterfall",
    "work-up"
+  ],
+  "descripcion": "Su agilidad no tiene parangón. De hecho, es capaz de escalar una torre de más de 600 metros en tan solo un minuto.",
+  "evoluciona_de": "froakie",
+  "evoluciona_a": [
+   "greninja"
   ]
  },
  "greninja": {
@@ -7311,7 +7608,10 @@
    "waterfall",
    "weather-ball",
    "work-up"
-  ]
+  ],
+  "descripcion": "Aparece y desaparece de improvisto, cual ninja. Marea al oponente con su soberbia agilidad y lo hace trizas con sus Shuriken de Agua.",
+  "evoluciona_de": "frogadier",
+  "evoluciona_a": []
  },
  "mareanie": {
   "altura": 4,
@@ -7391,6 +7691,11 @@
    "venoshock",
    "water-pulse",
    "wide-guard"
+  ],
+  "descripcion": "A diferencia de sus congéneres de Alola, los ejemplares de Galar aún no saben lo deliciosas que están las ramas de Corsola.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "toxapex"
   ]
  },
  "toxapex": {
@@ -7481,7 +7786,10 @@
    "venoshock",
    "water-pulse",
    "wide-guard"
-  ]
+  ],
+  "descripcion": "La bolsa de veneno en el interior de su cuerpo contiene toxinas tan potentes que provocarían tres días de dolores intensos hasta a un Wailord.",
+  "evoluciona_de": "mareanie",
+  "evoluciona_a": []
  },
  "oshawott": {
   "altura": 5,
@@ -7573,6 +7881,11 @@
    "whirlpool",
    "work-up",
    "x-scissor"
+  ],
+  "descripcion": "Ataca con la vieira de su ombligo. En cuanto para un ataque, pasa al contraataque sin dilación.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "dewott"
   ]
  },
  "dewott": {
@@ -7664,6 +7977,11 @@
    "whirlpool",
    "work-up",
    "x-scissor"
+  ],
+  "descripcion": "Tras un exhaustivo entrenamiento, Dewott puede dominar diversas técnicas para usar con sus vieiras.",
+  "evoluciona_de": "oshawott",
+  "evoluciona_a": [
+   "samurott"
   ]
  },
  "samurott": {
@@ -7774,7 +8092,10 @@
    "whirlpool",
    "work-up",
    "x-scissor"
-  ]
+  ],
+  "descripcion": "Derriba a su rival con un solo tajo del sable que lleva en su coraza. Acalla al enemigo con una simple mirada.",
+  "evoluciona_de": "dewott",
+  "evoluciona_a": []
  },
  "clodsire": {
   "altura": 18,
@@ -7846,7 +8167,10 @@
    "waterfall",
    "yawn",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "It lives at the bottom of ponds and swamps. It will carry Wooper on its back and ferry them across water from one shore to the other.",
+  "evoluciona_de": "wooper",
+  "evoluciona_a": []
  },
  "samurott_hisui": {
   "altura": 15,
@@ -7938,7 +8262,10 @@
    "waterfall",
    "whirlpool",
    "x-scissor"
-  ]
+  ],
+  "descripcion": "Derriba a su rival con un solo tajo del sable que lleva en su coraza. Acalla al enemigo con una simple mirada.",
+  "evoluciona_de": "dewott",
+  "evoluciona_a": []
  },
  "fletchling": {
   "altura": 3,
@@ -8010,6 +8337,11 @@
    "u-turn",
    "will-o-wisp",
    "work-up"
+  ],
+  "descripcion": "Su temperatura corporal aumenta de repente cuando se exalta y puede causar quemaduras al contacto con la piel.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "fletchinder"
   ]
  },
  "fletchinder": {
@@ -8087,6 +8419,11 @@
    "u-turn",
    "will-o-wisp",
    "work-up"
+  ],
+  "descripcion": "Defienden su territorio con suma agresividad. Se pelean entre sí por el control de las áreas de caza.",
+  "evoluciona_de": "fletchling",
+  "evoluciona_a": [
+   "talonflame"
   ]
  },
  "talonflame": {
@@ -8174,7 +8511,10 @@
    "whirlwind",
    "will-o-wisp",
    "work-up"
-  ]
+  ],
+  "descripcion": "Arremete contra sus presas a una velocidad de 500 km/h y les asesta el golpe de gracia con una patada muy potente, sin dejarles escapatoria.",
+  "evoluciona_de": "fletchinder",
+  "evoluciona_a": []
  },
  "regigigas": {
   "altura": 37,
@@ -8273,7 +8613,10 @@
    "toxic",
    "wide-guard",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Dicen que creó a otros Pokémon a partir de distintos materiales y que, después, colocó los continentes en su posición actual.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "regice": {
   "altura": 18,
@@ -8370,7 +8713,10 @@
    "thunderbolt",
    "toxic",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Todo su cuerpo está compuesto de hielo. Se dice que surgió bajo una gruesa placa de hielo durante alguna glaciación.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "regirock": {
   "altura": 17,
@@ -8471,7 +8817,10 @@
    "thunderbolt",
    "toxic",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Su cuerpo rocoso ha sido examinado con las técnicas científicas más avanzadas, pero no se han encontrado ni su cerebro ni su corazón.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "registeel": {
   "altura": 19,
@@ -8574,7 +8923,10 @@
    "thunderbolt",
    "toxic",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Dicen que se formó en el manto terrestre y ascendió a la superficie hace aproximadamente diez mil años.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "regieleki": {
   "altura": 12,
@@ -8635,7 +8987,10 @@
    "volt-switch",
    "wild-charge",
    "zap-cannon"
-  ]
+  ],
+  "descripcion": "Todo su cuerpo es un órgano electrógeno, cuya potencia sería suficiente para abastecer la región de Galar por completo.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "regidrago": {
   "altura": 21,
@@ -8692,7 +9047,10 @@
    "thunder-fang",
    "twister",
    "vice-grip"
-  ]
+  ],
+  "descripcion": "Todo su cuerpo es una gema de energía dragón cristalizada. Se cree que posee los poderes de todos los Pokémon dragón.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "chikorita": {
   "altura": 9,
@@ -8782,6 +9140,11 @@
    "work-up",
    "worry-seed",
    "wring-out"
+  ],
+  "descripcion": "Al luchar, Chikorita agita la hoja que tiene para mantener a raya al rival. Pero, al mismo tiempo, libera una suave fragancia que apacigua el encuentro y crea un ambiente agradable y de amistad.",
+  "evoluciona_de": null,
+  "evoluciona_a": [
+   "bayleef"
   ]
  },
  "celebi": {
@@ -8900,7 +9263,10 @@
    "wonder-room",
    "worry-seed",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "Vino del futuro haciendo un viaje en el tiempo. Además de curar las heridas, posee la capacidad de revitalizar la hierba y los árboles.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  },
  "arceus": {
   "altura": 32,
@@ -9087,6 +9453,9 @@
    "work-up",
    "x-scissor",
    "zen-headbutt"
-  ]
+  ],
+  "descripcion": "La mitología cuenta que este Pokémon nació antes de que el Universo existiera.",
+  "evoluciona_de": null,
+  "evoluciona_a": []
  }
 }
