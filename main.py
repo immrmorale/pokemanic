@@ -76,9 +76,9 @@ def main():
                     ventana.blit(f_texto.render('(activo)', True, (120, 220, 120)), (r.x + 12, r.bottom - 32))
             pantalla.presentar()
 
-    def debug_menu(equipo, activo, con_jefes=False):
+    def debug_menu(equipo, activo):
         pygame.mouse.set_visible(True)
-        lista = JUGABLES + ([n for n, d in pokemones.items() if d.get('boss') and tiene_sprites(n)] if con_jefes else [])
+        lista = list(JUGABLES)                           # con el codigo Konami adentro de este menu se suman los jefes
         scroll = 0
         botones = []
         f_titulo = pygame.font.Font(None, 32)
@@ -90,6 +90,8 @@ def main():
             for e in controles.eventos():
                 if e.type == pygame.QUIT:
                     return 'salir', None, None
+                if e.type == controles.KONAMI:
+                    lista = list(JUGABLES) + [n for n, d in pokemones.items() if d.get('boss') and tiene_sprites(n) and n not in JUGABLES]
                 if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_F1):
                     return 'ok', None, None
                 if e.type == pygame.MOUSEWHEEL:
@@ -194,7 +196,6 @@ def main():
         orden = ['jugar', 'pokedex', 'ajustes', 'glosario', 'salir']
         botones = {o: pygame.Rect(100, 170 + i * 80, 300, 60) for i, o in enumerate(orden[:4])}
         botones['salir'] = pygame.Rect(0, 0, 84, 84)
-        espera_f1 = 0                                    # F1 y despues el codigo Konami: menu debug de pokemon (con jefes)
         botones['salir'].center = (W - 100, H - 80)
         f_titulo, f_boton, f_info = pygame.font.Font(None, 64), pygame.font.Font(None, 44), pygame.font.Font(None, 24)
         seleccion = 0
@@ -207,15 +208,13 @@ def main():
                 if e.type == pygame.KEYDOWN:
                     if e.key == pygame.K_ESCAPE:
                         return 'titulo'
-                    if e.key == pygame.K_F1: espera_f1 = pygame.time.get_ticks() + 5000
+                    if e.key == pygame.K_F1:                    # menu debug de pokemon (no se avisa en ningun lado)
+                        resultado_debug, nombre, espacio = debug_menu(equipo, 0)
+                        if resultado_debug == 'salir': return 'cerrar'
+                        if nombre: asignar_equipo(equipo, nombre, espacio)
                     if e.key in (pygame.K_w, pygame.K_UP): seleccion = (seleccion - 1) % len(orden)
                     if e.key in (pygame.K_s, pygame.K_DOWN): seleccion = (seleccion + 1) % len(orden)
                     if e.key in (pygame.K_RETURN, pygame.K_e): elegido = orden[seleccion]
-                if e.type == controles.KONAMI and pygame.time.get_ticks() < espera_f1:
-                    espera_f1 = 0
-                    resultado_debug, nombre, espacio = debug_menu(equipo, 0, True)
-                    if resultado_debug == 'salir': return 'cerrar'
-                    if nombre: asignar_equipo(equipo, nombre, espacio)
                 if e.type == pygame.MOUSEMOTION:
                     for i, o in enumerate(orden):
                         if botones[o].collidepoint(pantalla.a_logico(e.pos)): seleccion = i
@@ -1692,7 +1691,6 @@ def main():
         rec = mundos.nuevo_recorrido()                               # plan de la partida: eras, salas, tiendas, jefes y clima
         destino, entrada = None, 'sur'
         reloj = pygame.time.Clock()
-        espera_f1 = 0                                                # F1 y despues el codigo Konami: menu debug de pokemon (con jefes)
         while True:
             nivel = crear_nivel(rec, destino, entrada, j)
             reiniciar_jugador(j, nivel['sala']['inicio'])
@@ -1708,11 +1706,6 @@ def main():
                 apuntar(j)
                 for e in controles.eventos():
                     if e.type == pygame.QUIT: return 'salir', j['nombre']
-                    if e.type == controles.KONAMI and tiempo() < espera_f1:
-                        espera_f1 = 0
-                        resultado_debug, elegido, espacio = pausado(debug_menu, [mi['nombre'] for mi in j['equipo']], j['activo'], True)
-                        if resultado_debug == 'salir': return 'salir', j['nombre']
-                        if elegido: equipar_debug(j, elegido, espacio)
                     acciones = controles.acciones(e)
                     if 'pausa' in acciones:
                         accion_pausa = pausado(menu_pausa, ventana.copy())
@@ -1734,7 +1727,10 @@ def main():
                     for k, clave in enumerate(('poke1', 'poke2', 'poke3')):
                         if clave in acciones: cambiar_slot(j, k)
                     if e.type == pygame.KEYDOWN:
-                        if e.key == pygame.K_F1: espera_f1 = tiempo() + 5000
+                        if e.key == pygame.K_F1:                   # menu debug de pokemon
+                            resultado_debug, elegido, espacio = pausado(debug_menu, [mi['nombre'] for mi in j['equipo']], j['activo'])
+                            if resultado_debug == 'salir': return 'salir', j['nombre']
+                            if elegido: equipar_debug(j, elegido, espacio)
                         if e.key == pygame.K_F2:
                             eleccion = pausado(menu_niveles, rec)
                             if eleccion == 'salir': return 'salir', j['nombre']

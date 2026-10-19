@@ -224,7 +224,7 @@ Kecleon atiende en el mostrador. Hay un estante arriba, otro abajo y dos mesas d
   - Cualquier acción se reasigna desde el menú, y "Restaurar preset" vuelve a las teclas de fábrica.
   - Con control: la palanca izquierda mueve, la derecha apunta y la cruz cambia de pokémon. En los menús, A confirma y B vuelve.
 - **Código Konami** (↑↑↓↓←→←→BA) en Ajustes o en Pausa: menú debug con todas las MT, MT que no se gastan, vida infinita, sin recarga, monedas infinitas, un golpe mata y +5 niveles.
-- **F1 + Konami** (en el menú o jugando): menú debug de pokémon, también con los jefes (Regis y Arceus jugables). F1 solo ya no hace nada.
+- **F1** (en el menú o jugando, no se avisa en ningún lado): menú debug para equiparte cualquier pokémon. Si adentro hacés el Konami, se suman los jefes (Regis y Arceus jugables).
 
 ## Efectos (`efectos.py`)
 

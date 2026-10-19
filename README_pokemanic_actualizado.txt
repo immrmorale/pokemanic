@@ -27,4 +27,4 @@ Mundo (eras, salas, tienda, clima, IA): ver LISTA_MUNDO.md
 - python visor_mundo.py: mirar salas generadas sin jugar
 - python recortar_assets.py hoja.png: recortar sprites de una hoja y guardarlos en assets/mundo
 - TAB: equipo (ficha, MT, evoluciones, mochila, reserva)   E: comprar / hablar con un pokemon que quiere unirse
-- Konami en ajustes o pausa: menu debug   F1 + Konami: debug de pokemon (con jefes)
+- Konami en ajustes o pausa: menu debug   F1: debug de pokemon (con Konami adentro aparecen los jefes)
