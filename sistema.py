@@ -86,6 +86,26 @@ def armar_pantalla():
         escala = min(rw / W, rh / H)                         # entra entera, sin deformar
         estado['destino'] = pygame.Rect(0, 0, round(W * escala), round(H * escala))
         estado['destino'].center = (rw // 2, rh // 2)
+        poner_cursor()
+
+
+    # manito de los menus: assets/interfaz/cursor.png si esta (la punta del dedo arriba a la izquierda), si no este dibujo (X borde, . guante)
+    MANO = ('     XX         ', '    X..X        ', '    X..X        ', '    X..X        ', '    X..XXX      ', '    X..X..XXX   ',
+            '    X..X..X..XX ', ' XX X..X..X..X.X', 'X..XX........X.X', 'X...X..........X', ' X.............X', '  X............X',
+            '  X...........X ', '   X..........X ', '    X........X  ', '    XXXXXXXXXX  ')
+
+
+    def poner_cursor():
+        ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'cursor.png')
+        if os.path.isfile(ruta): img, punta = pygame.image.load(ruta).convert_alpha(), (0, 0)
+        else:
+            img = pygame.Surface((16, 16), pygame.SRCALPHA)
+            for y, fila in enumerate(MANO):
+                for x, c in enumerate(fila):
+                    if c != ' ': img.set_at((x, y), (30, 30, 30) if c == 'X' else (250, 250, 250))
+            img, punta = pygame.transform.scale(img, (32, 32)), (11, 1)
+        try: pygame.mouse.set_cursor(pygame.cursors.Cursor(punta, img))
+        except (pygame.error, AttributeError): pass               # algunos sistemas no dejan cursores de color: queda la flecha
 
 
     def presentar():

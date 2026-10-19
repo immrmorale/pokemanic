@@ -479,7 +479,7 @@ def armar_menus():
             ['  ' + mat + ': ' + ', '.join(t + ' x' + str(v) for t, v in tabla.items()) for mat, tabla in entorno.MATERIALES.items()] + \
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
-        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '. Nada cura.', ''] + \
+        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '. Lo unico que cura es la Baya Oran (a veces tambien la suelta un enemigo).', ''] + \
             [it['nombre'] + ' (' + str(it['precio']) + ' $): ' + it['desc'] for k, it in tienda.ITEMS.items() if not it.get('mt')]
         s['Niveles y stats'] = [
             'Ganas experiencia derrotando pokemon, rompiendo cosas, completando salas y comprando. Los de la banca ganan la mitad.',
@@ -599,8 +599,8 @@ def armar_menus():
         escena = {'animadores': {}, 'quieto_desde': pygame.time.get_ticks(), 'dormidos': False}
         while True:
             equipo_ = j['equipo']
-            elegido = min(elegido, len(equipo_) - 1)
             opciones_ = list(range(len(equipo_))) + ['mochila', 'reserva', 'volver']
+            elegido = min(elegido, len(opciones_) - 1)          # (antes se recortaba al equipo y nunca se podia elegir mochila ni reserva)
             accion = None
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'

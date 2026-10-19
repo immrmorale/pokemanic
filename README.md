@@ -318,7 +318,7 @@ La atiende Kecleon. Acercate a una vitrina y apretá E para comprar.
 - **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
 - **Mesas:** objetos permanentes. Uno suele ser del tipo de tu equipo o el objeto de evolución que alguien necesita.
 
-**Nada cura.**
+**Curas (pocas, a proposito):** la Baya Oran de la tienda (70 $, 25% a todo el equipo) y la que a veces suelta un enemigo (6%, 12% al que pelea). Al pasar de sala los que siguen en pie recuperan 6%. Recuperacion, Respiro, Sintesis y Descanso curan al que pelea y la mitad a la banca. Nada revive.
 
 | Tipo de objeto | Ejemplos |
 |---|---|

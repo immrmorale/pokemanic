@@ -1547,6 +1547,14 @@ def armar_efectos():
         chispas(ef, x, y, (180, 230, 255), 30, 3, 60, 4)
 
 
+    def cura(ef, x, y):
+        """Crucecitas verdes que suben cuando te curas."""
+        if _animacion(ef, 'cura', x, y, 80): return
+        for i in range(14):
+            ef['parts'].append({'x': x + random.uniform(-24, 24), 'y': y + random.uniform(-6, 24), 'vx': 0, 'vy': -random.uniform(0.8, 1.8),
+                                'vida': 34 + i, 'max': 48, 'color': (90, 235, 110), 'tam': 4, 'g': 0, 'forma': 'estrella'})
+
+
     def corazones(ef, x, y):
         """Un pokemon quiere unirse a tu equipo."""
         for _ in range(3):

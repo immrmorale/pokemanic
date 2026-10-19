@@ -312,7 +312,7 @@ def main():
                     partes.append('sprint sin gasto' if clave == 'sprint' else etiquetas.get(clave, clave + ' x') + str(valor))
                 partes.append('durante ' + str(round(num('duracion') / 1000, 1)) + ' s')
             elif forma == 'curar':
-                partes.append('cura ' + str(int(num('porcentaje'))) + '% de la vida')
+                partes.append('cura ' + str(int(num('porcentaje'))) + '% de la vida (la mitad a los de la banca)')
             else:
                 partes.append({'cuerpo': 'cuerpo a cuerpo', 'proyectil': 'proyectil', 'area': 'de área', 'embestida': 'embestida'}.get(forma, str(forma)))
                 partes.append('daño ' + str(int(num('daño'))))
@@ -329,7 +329,7 @@ def main():
             if mec == 'escudo': return 'el activo recibe solo el 25% del daño durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'furia': return 'daño x1.6 y recargas x0.7 durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'carrera': return 'velocidad x1.6 y sprint sin gasto durante ' + str(a['duracion'] // 1000) + ' s'
-            if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo'
+            if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo y la mitad a los demas'
             if mec == 'desvanecer': return 'elimina enemigos comunes en un radio de ' + str(a['area']) + ' y le quita el ' + str(a['porcentaje_jefe']) + '% a un jefe'
             return 'aplica ' + str((a.get('efecto') or {}).get('tipo')) + ' a todos los enemigos cercanos'
 
@@ -520,6 +520,7 @@ def main():
         def pausado(f, *args):
             t0 = pygame.time.get_ticks()
             controles.contexto('menu')
+            pygame.mouse.set_visible(True)                       # en la partida el cursor se esconde (se apunta con la mira); en los menus se ve
             r = f(*args)
             controles.contexto('juego')
             pausa['total'] += pygame.time.get_ticks() - t0
@@ -529,6 +530,9 @@ def main():
         AREA = generacion.crear_area(ESC)
         mundo = {'ent': None, 'ef': efectos.crear()}  # entorno de la sala actual (terrenos, objetos, clima) y las particulas
         RESTAURAR_VIDA_ENTRE_SALAS = False          # True: como antes, cada sala empieza con la vida llena
+        CURA_SALA = 0.06                            # al pasar de sala los que siguen en pie recuperan esta parte de su vida
+        CURA_BANCA = 0.5                            # los movimientos que curan: el que pelea todo, los de la banca la mitad
+        PROB_BAYA, CURA_BAYA = 0.06, 0.12           # a veces un enemigo suelta una Baya Oran: cura al que pelea al agarrarla
         DURACION_CARTEL = 1200                      # ms que se ve un cartel ("sala completada", "conseguiste la llave"...)
         BASICO_DISTANCIA = {'daño': 0.65, 'enfriamiento': 1.5, 'distancia': 0.85}   # el ataque a distancia basico es mas flojo que el de cerca
         DURACION_ENTRADA = 450                      # ms que el pokemon camina solo al entrar a una sala
@@ -675,10 +679,11 @@ def main():
                 actualizar_sinergia(j)
 
             def reiniciar_jugador(j, centro):
-                """Al entrar a una sala: te pone en la entrada. La vida sigue como estaba (sin curas, como en Hades)."""
+                """Al entrar a una sala: te pone en la entrada. La vida sigue como estaba, mas un poquito para los que siguen en pie."""
                 guardar_activo(j)
                 for m in j['equipo']:
                     if RESTAURAR_VIDA_ENTRE_SALAS: m['vida'] = m['max_vida']
+                    elif m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * CURA_SALA)
                     reiniciar_asistencia(m)
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
                           'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False})
@@ -913,7 +918,14 @@ def main():
                 elif forma == 'curar':
                     try: porcentaje = float(datos.get('porcentaje', 25))
                     except (TypeError, ValueError): porcentaje = 25
-                    j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * porcentaje / 100)
+                    curar_equipo(j, porcentaje / 100)
+
+            def curar_equipo(j, parte, banca=CURA_BANCA):
+                """Cura al que pelea esa parte de su vida y a los de la banca que siguen en pie 'banca' veces eso. Los debilitados no vuelven."""
+                j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * parte)
+                for i, m in enumerate(j['equipo']):
+                    if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * parte * banca)
+                efectos.cura(mundo['ef'], *j['rect'].center)
 
             def usar_asistencia(j, k, nivel):
                 ahora = tiempo()
@@ -932,7 +944,7 @@ def main():
                     for clave, valor in a['buffs'].items(): j['buffs'][clave] = (valor, ahora + a['duracion'])
                     nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': a['tipo'], 'inicio': ahora, 'hasta': ahora + 500})
                 elif mec == 'curar':
-                    j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * a['porcentaje'] / 100)
+                    curar_equipo(j, a['porcentaje'] / 100)
                     nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': 'planta', 'inicio': ahora, 'hasta': ahora + 500})
                 elif mec == 'desvanecer':
                     centro = pygame.Vector2(punto_apuntado(j, a['alcance']))
@@ -992,10 +1004,10 @@ def main():
                     entorno.mover(mundo['ent'], obj['rect'], round(vx * retroceso), round(vy * retroceso), entorno.tipos_de(obj)); obj['rect'].clamp_ip(AREA)
 
             return (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-                    recibir_ataque)
+                    recibir_ataque, curar_equipo)
 
         (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-         recibir_ataque) = armar_ataques()
+         recibir_ataque, curar_equipo) = armar_ataques()
 
         def armar_enemigos():
             """Enemigos, proyectiles y jefes."""
@@ -1242,7 +1254,7 @@ def main():
                 tienda.nueva_sala(j['inventario'], tipo)
                 esc = mundos.escala(era, rec['sala'])
                 nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': esc, 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [], 'proyectiles_enemigos': [],
-                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda', 'monedas': [], 'carteles': [],
+                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda', 'monedas': [], 'bayas': [], 'carteles': [],
                          'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, rec['sala'], tipo),
                          'amigo': None, 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0}
                 mundo['ef']['parts'], mundo['ef']['anims'] = [], []
@@ -1388,6 +1400,7 @@ def main():
                 for e in enemigos:                                      # los que caen: monedas, experiencia y a veces quieren ser tus amigos
                     if e['vida'] <= 0:
                         soltar_monedas(nivel, j, *e['rect'].center, MONEDAS_ENEMIGO + nivel['sala']['era'])
+                        if random.random() < PROB_BAYA: nivel['bayas'].append({'x': e['rect'].centerx + 18, 'y': e['rect'].centery})
                         ganar_xp(nivel, j, progreso.xp_por_derrota(e['nombre'], e['nivel'], j['nivel']))
                         efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
                         quiza_amigo(nivel, j, e)
@@ -1421,6 +1434,9 @@ def main():
                     d = math.hypot(dx, dy)
                     if d < 40: j['monedas'] += moneda['valor']; nivel['monedas'].remove(moneda); continue
                     if nivel['completado'] or d < 110: moneda['x'] += dx / d * 9; moneda['y'] += dy / d * 9
+                for baya in nivel['bayas'][:]:                           # las bayas no vienen solas: hay que ir a buscarlas
+                    if math.hypot(j['rect'].centerx - baya['x'], j['rect'].centery - baya['y']) < 36:
+                        nivel['bayas'].remove(baya); curar_equipo(j, CURA_BAYA, 0); cartel(nivel, 'Baya Oran! +' + str(round(CURA_BAYA * 100)) + '% de vida', 1400)
                 derrotados = not nivel['enemigos'] and nivel['jefe'] is None and not nivel['oleadas'] and not nivel['apariciones']
                 if derrotados and not nivel['completado']:
                     nivel['completado'] = True
@@ -1500,15 +1516,29 @@ def main():
                     pygame.draw.circle(velo, (0, 0, 0, 150), (radio, radio), radio)
                     ventana.blit(velo, (centro[0] - radio, centro[1] - radio))
 
-            def barra_hud(rect, vida, max_vida):
+            barras = {}                                              # vida que muestra cada barra (persigue a la real para que se note el cambio)
+
+            def barra_hud(rect, vida, max_vida, clave=None):
+                """Barra de vida. Si baja queda un pedazo naranja que se va achicando; si sube se llena en verde y despues se pone roja."""
+                x, y, w, h = rect
+                real = max(0, vida) / max(1, max_vida)
+                b = barras.setdefault(clave, {'vista': real, 't': tiempo()})
+                ahora = tiempo(); dt = min(100, ahora - b['t']); b['t'] = ahora
+                paso = dt * 0.0006 if abs(real - b['vista']) < 0.5 else dt * 0.0015      # ritmo por tiempo real: igual en cualquier pc
+                b['vista'] = max(real, b['vista'] - paso) if b['vista'] > real else min(real, b['vista'] + paso)
                 pygame.draw.rect(ventana, 'white', rect)
-                pygame.draw.rect(ventana, (130, 0, 20), (rect[0], rect[1], int(max(0, vida) * rect[2] // max(1, max_vida)), rect[3]))
+                if b['vista'] > real:                                # daño: rojo hasta la vida real y naranja hasta lo que tenia
+                    pygame.draw.rect(ventana, (255, 150, 40), (x, y, int(w * b['vista']), h))
+                    pygame.draw.rect(ventana, (130, 0, 20), (x, y, int(w * real), h))
+                else:                                                # cura: rojo hasta lo que se ve y verde hasta lo nuevo
+                    pygame.draw.rect(ventana, (60, 210, 90), (x, y, int(w * real), h))
+                    pygame.draw.rect(ventana, (130, 0, 20), (x, y, int(w * b['vista']), h))
                 pygame.draw.rect(ventana, 'black', rect, 3)
 
             def dibujar_hud(j, nivel, rec):
                 ahora = tiempo()
                 circulo_poke((44, 86), 34, j['nombre'])
-                barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'])
+                barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'], ('hud', j['nombre']))
                 t = f_hud.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
                 ventana.blit(t, t.get_rect(center=(200, 86)))
                 pygame.draw.rect(ventana, (60, 60, 60), (80, 108, 240, 6))
@@ -1529,7 +1559,7 @@ def main():
                     cy = 14 + k * 30
                     circulo_poke((86, cy), 11, m['nombre'], esperando or m['vida'] <= 0)
                     ventana.blit(f_hud.render(str(i + 1), True, 'black'), (68, cy - 6))
-                    barra_hud((100, cy - 8, 100, 16), m['vida'], m['max_vida'])
+                    barra_hud((100, cy - 8, 100, 16), m['vida'], m['max_vida'], ('banca', m['nombre']))
                     ventana.blit(f_hud.render(m['nombre'].replace('_', ' '), True, 'black'), (103, cy + 9))
                     resto = max(0, m['asist_listo'] - ahora)
                     listo = resto == 0 and m['vida'] > 0
@@ -1675,6 +1705,11 @@ def main():
                 for moneda in nivel['monedas']:
                     pygame.draw.circle(ventana, (250, 210, 50), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8)
                     pygame.draw.circle(ventana, (150, 110, 20), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8, 2)
+                for baya in nivel['bayas']:                              # Baya Oran: bolita azul con una hojita
+                    bx, by = round(baya['x'] - cx), round(baya['y'] - cy + math.sin(tiempo() / 250) * 2)
+                    pygame.draw.circle(ventana, (60, 110, 220), (bx, by), 9); pygame.draw.circle(ventana, (20, 40, 90), (bx, by), 9, 2)
+                    pygame.draw.circle(ventana, (170, 210, 255), (bx - 3, by - 3), 3)
+                    pygame.draw.ellipse(ventana, (70, 170, 60), (bx - 2, by - 15, 10, 6))
                 dibujar_jugador(j,cx,cy)
                 if j['oculto']: pygame.draw.circle(ventana, (200, 200, 255), (j['rect'].centerx - cx, j['rect'].top - cy - 8), 5, 2)   # escondido
                 if j['uso'] == 'mouse': mx, my = pantalla.raton()

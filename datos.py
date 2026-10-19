@@ -474,7 +474,7 @@ mts = armar_mts()
 # ==================== tienda ====================
 
 def armar_tienda():
-    """Objetos de la tienda (nada cura) y lo que hacen sobre el jugador.
+    """Objetos de la tienda (lo unico que cura es la Baya Oran) y lo que hacen sobre el jugador.
 
         j['inventario'] = tienda.inventario_nuevo()
         tienda.mult(j['inventario'], 'daño')       # multiplicador de todo lo comprado para esa clave
@@ -529,6 +529,7 @@ def armar_tienda():
         'garra_afilada': {'nombre': 'Garra Afilada', 'precio': 220, 'color': (200, 200, 220), 'objeto': True, 'desc': 'hace evolucionar a Sneasel'},
         'cordon_union': {'nombre': 'Cordon Union', 'precio': 240, 'color': (240, 140, 60), 'objeto': True,
                          'desc': 'evoluciona a los que en los juegos evolucionan por intercambio (Graveler, Machoke, Gurdurr)'},
+        'baya_oran': {'nombre': 'Baya Oran', 'precio': 70, 'color': (60, 110, 220), 'cura': 0.25, 'desc': 'cura 25% de la vida a todo el equipo (no revive)'},
         'lazo_amistad': {'nombre': 'Lazo Amistad', 'precio': 110, 'color': (250, 120, 170), 'temporal': ('amistad', 2.0, SALAS_X),
                          'desc': 'el doble de chance de que un pokemon quiera unirse por 3 salas'},
     })
@@ -537,7 +538,7 @@ def armar_tienda():
                          'desc': 'enseña ' + _mt['nombre'][3:] + ' (tipo ' + _mt['tipo'] + ') en una casilla desde el menu de equipo'}
     EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union')
 
-    COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad')
+    COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad', 'baya_oran')
     DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda')
     DE_TIPO = tuple(k for k, v in ITEMS.items() if 'tipo' in v)
 
@@ -611,6 +612,10 @@ def armar_tienda():
         inv['comprados'].append(clave)
         if item.get('objeto'): inv['objetos'][clave] = inv['objetos'].get(clave, 0) + 1   # a la mochila
         if 'repelente' in item: inv['repelente'] += item['repelente']
+        if 'cura' in item:                                    # Baya Oran: cura en el momento a todos los que siguen en pie
+            j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * item['cura'])
+            for i, m in enumerate(j['equipo']):
+                if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * item['cura'])
         if 'temporal' in item: inv['temporal'].append(list(item['temporal']))
         if 'critico' in item: inv['critico'] = [item['critico'][0], inv['critico'][1] + item['critico'][1]]
         for c, v in item.get('permanente', {}).items(): inv['permanente'][c] = inv['permanente'].get(c, 1.0) * v
