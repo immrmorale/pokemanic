@@ -4,6 +4,8 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py descargar           baja los sprites y retratos del PMD (SpriteCollab)
     python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI
     python herramientas.py recortar hoja.png   recorta sprites de una hoja y los deja en assets/mundo
+    python herramientas.py tiles               recorta los tiles de las mazmorras del PMD y los pone como terrenos de cada era
+    python herramientas.py efectos             arma los efectos de golpes, cura, nivel... con los Attack Effects del PMD
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
@@ -531,6 +533,107 @@ def herramienta_verificar():
 
 # ==================== pruebas ====================
 
+# ==================== tiles de las mazmorras del PMD ====================
+
+def herramienta_tiles():
+    """Recorta las hojas 'Dungeon Tiles' del Explorers of Sky (spriters-resource) y deja una casilla por terreno en assets/mundo/<era>/terrenos.
+    Todas las hojas tienen la misma grilla: casillas de 24 px con una linea de 1 px. Grupos de 3 columnas en orden:
+    Legend, Walls, Wall Alt 1, Wall Alt 2, Ground, Ground Alt 1, Ground Alt 2, (Unused Ground) y Water (agua, lava o vacio segun el lugar).
+    De cada grupo se usa el tile del medio del primer bloque de 3x3: el que esta rodeado de lo mismo y se puede repetir."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    # era -> {terreno: (lugar de la hoja, grupo)}. Grupos: pared, suelo, suelo2, suelo3 (variantes del suelo), agua
+    PLAN = {
+        'glaciacion': {'pared': ('Vast Ice Mountain', 'pared'), 'suelo': ('Vast Ice Mountain', 'suelo'), 'agua': ('Vast Ice Mountain', 'agua'),
+                       'nieve': ('7th Station Pass', 'suelo'), 'hielo': ('7th Station Pass', 'agua')},
+        'piedra': {'pared': ('Barren Valley', 'pared'), 'suelo': ('Barren Valley', 'suelo'), 'agua': ('Barren Valley', 'agua')},
+        'metales': {'pared': ('Deep Boulder Quarry', 'pared'), 'suelo': ('Deep Boulder Quarry', 'suelo')},
+        'medieval': {'pared': ('4th Station Pass', 'pared'), 'suelo': ('4th Station Pass', 'suelo'), 'agua': ('4th Station Pass', 'agua'),
+                     'hierba': ('4th Station Pass', 'suelo')},
+        'moderna': {'pared': ('Temporal Tower (In the Future of Darkness)', 'pared'), 'suelo': ('Temporal Tower (In the Future of Darkness)', 'suelo'),
+                    'agua': ('Temporal Tower (In the Future of Darkness)', 'agua')},
+        'origen': {'pared': ('Temporal Spire (In the Future of Darkness)', 'pared'), 'suelo': ('Temporal Spire (In the Future of Darkness)', 'suelo'),
+                   'agua': ('Temporal Spire (In the Future of Darkness)', 'agua')},
+        '': {'arena': ('Limestone Cavern', 'suelo'), 'agua': ('4th Station Pass', 'agua')},      # para todas las eras (si la era no tiene el suyo)
+    }
+
+    def buscar_hoja(lugar):
+        for carpeta in (os.path.join(assets, 'hojas'), assets):          # primero assets/hojas, si no las sueltas en assets
+            if not os.path.isdir(carpeta): continue
+            for archivo in os.listdir(carpeta):
+                if 'Dungeon Tiles' in archivo and archivo.endswith(' - ' + lugar + '.png'): return os.path.join(carpeta, archivo)
+        return None
+
+    def columna(hoja, grupo):
+        agua = 21 if hoja.get_width() <= 813 else 24                       # las hojas angostas no tienen 'Unused Ground'
+        return {'pared': 4, 'suelo': 13, 'suelo2': 16, 'suelo3': 19, 'agua': agua + 1}[grupo]
+
+    def casilla(hoja, grupo):
+        """3x3 tiles iguales (72 px): el juego la estira al tamaño de la casilla."""
+        x, y = 9 + 25 * columna(hoja, grupo), 163 + 25
+        t = hoja.subsurface((x, y, 24, 24))
+        if t.get_at((12, 12))[:3] in ((255, 0, 255), (0, 128, 128)): return None   # grupo vacio en esa hoja (magenta o el fondo)
+        sup = pygame.Surface((72, 72))
+        for i in range(3):
+            for k in range(3): sup.blit(t, (i * 24, k * 24))
+        return sup
+
+    def main():
+        pygame.init(); pygame.display.set_mode((1, 1))
+        hojas, hechos, faltan = {}, 0, set()
+        for era, terrenos in PLAN.items():
+            carpeta = os.path.join(assets, 'mundo', era, 'terrenos') if era else os.path.join(assets, 'mundo', 'terrenos')
+            for terreno, (lugar, grupo) in terrenos.items():
+                if lugar not in hojas:
+                    ruta = buscar_hoja(lugar)
+                    hojas[lugar] = pygame.image.load(ruta).convert() if ruta else None
+                if not hojas[lugar]: faltan.add(lugar); continue
+                os.makedirs(carpeta, exist_ok=True)
+                for sufijo, g in (('', grupo), ('_2', grupo + '2'), ('_3', grupo + '3')) if grupo == 'suelo' else (('', grupo),):
+                    img = casilla(hojas[lugar], g)
+                    if img: pygame.image.save(img, os.path.join(carpeta, terreno + sufijo + '.png')); hechos += 1
+        print(hechos, 'casillas en assets/mundo')
+        if faltan: print('faltan las hojas (bajalas de spriters-resource, Explorers of Sky > Dungeon Tiles):', ', '.join(sorted(faltan)))
+
+    main()
+
+
+# ==================== efectos de ataque del PMD ====================
+
+def herramienta_efectos():
+    """Del zip 'Attack Effects' del Explorers of Sky (move_VFX/<numero>/000/<frame>.png) arma las tiras de assets/efectos:
+    una fila de frames cuadrados (como las lee mundo.efectos). Los numeros no tienen nombre: se eligieron mirandolos."""
+    import io, zipfile
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    ELEGIDOS = {'golpe': '0038', 'golpe_normal': '0038', 'golpe_fuego': '0008', 'golpe_agua': '0021', 'golpe_electrico': '0222',
+                'golpe_hielo': '0141', 'golpe_planta': '0076', 'golpe_veneno': '0144', 'golpe_tierra': '0002', 'golpe_roca': '0182',
+                'golpe_lucha': '0221', 'golpe_psiquico': '0171', 'golpe_fantasma': '0046', 'golpe_siniestro': '0122', 'golpe_dragon': '0092',
+                'golpe_acero': '0166', 'golpe_volador': '0149', 'golpe_hada': '0254',
+                'explosion': '0253', 'romper': '0140', 'nivel': '0125', 'evolucion': '0180', 'cura': '0105'}
+    MAX_FRAMES = 12                                                 # los largos se recortan salteando frames (un golpe no puede durar 2 segundos)
+
+    def main():
+        pygame.init(); pygame.display.set_mode((1, 1))
+        zips = [os.path.join(c, a) for c in (os.path.join(assets, 'hojas'), assets) if os.path.isdir(c) for a in os.listdir(c) if a.endswith('Attack Effects.zip')]
+        if not zips: print('falta el zip (spriters-resource, Explorers of Sky > Miscellaneous > Attack Effects) en assets/hojas'); return
+        z = zipfile.ZipFile(zips[0])
+        nombres = z.namelist()
+        os.makedirs(os.path.join(assets, 'efectos'), exist_ok=True)
+        for efecto, numero in ELEGIDOS.items():
+            rutas = sorted(n for n in nombres if n.startswith('move_VFX/' + numero + '/000/') and n.endswith('.png'))
+            if not rutas: print('no esta', numero); continue
+            rutas = [rutas[round(i * (len(rutas) - 1) / (MAX_FRAMES - 1))] for i in range(MAX_FRAMES)] if len(rutas) > MAX_FRAMES else rutas
+            frames = [pygame.image.load(io.BytesIO(z.read(r)), 'f.png').convert_alpha() for r in rutas]
+            lado = max(max(f.get_size()) for f in frames)
+            tira = pygame.Surface((lado * len(frames), lado), pygame.SRCALPHA)
+            for i, f in enumerate(frames): tira.blit(f, f.get_rect(center=(i * lado + lado // 2, lado // 2)))   # cada frame centrado en su cuadrado
+            pygame.image.save(tira, os.path.join(assets, 'efectos', efecto + '.png'))
+        print(len(ELEGIDOS), 'efectos en assets/efectos')
+
+    main()
+
+
 def ver_salas():
     """Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego)."""
     letras = {'suelo': '.', 'pared': '#', 'puerta': 'D', 'entrada': 'E', 'agua': '~', 'puente': '=', 'hierba': '"', 'lava': '%', 'sombra': 's'}
@@ -558,6 +661,8 @@ if __name__ == '__main__':
     if orden == 'descargar': herramienta_descargar()
     elif orden == 'datos': herramienta_datos()
     elif orden == 'recortar' and len(sys.argv) > 2: herramienta_recortar(sys.argv[2])
+    elif orden == 'tiles': herramienta_tiles()
+    elif orden == 'efectos': herramienta_efectos()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()

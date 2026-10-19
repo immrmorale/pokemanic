@@ -1655,8 +1655,11 @@ def main():
                     item = tienda.ITEMS[v['item']]
                     x, y = v['pos'][0] - cx, v['pos'][1] - cy
                     caja = pygame.Rect(0, 0, 30, 30); caja.center = (x, y - 4)
-                    pygame.draw.rect(ventana, (60, 60, 60) if v['vendido'] else item['color'], caja, border_radius=6)
-                    pygame.draw.rect(ventana, (20, 20, 20), caja, 2, border_radius=6)
+                    icono = None if v['vendido'] else menus.icono_objeto(v['item'], 32)   # el icono del BW si esta, si no el cuadradito de color
+                    if icono: ventana.blit(icono, icono.get_rect(center=caja.center))
+                    else:
+                        pygame.draw.rect(ventana, (60, 60, 60) if v['vendido'] else item['color'], caja, border_radius=6)
+                        pygame.draw.rect(ventana, (20, 20, 20), caja, 2, border_radius=6)
                     nombre = f_tipo.render('VENDIDO' if v['vendido'] else item['nombre'], True, 'white')
                     ventana.blit(nombre, nombre.get_rect(midtop=(x, y + 14)))
                     if not v['vendido']:

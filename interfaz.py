@@ -154,6 +154,22 @@ def armar_menus():
         return caja
 
 
+    OBJETOS_IMG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'objetos')
+    _iconos = {}
+
+
+    def icono_objeto(clave, lado):
+        """Icono de un objeto de la tienda: assets/interfaz/objetos/<clave>.png (las MT tambien buscan mt_<tipo>.png). None si no hay."""
+        if (clave, lado) not in _iconos:
+            item = tienda.ITEMS.get(clave, {})
+            img = None
+            for nombre in (clave, 'mt_' + str(item.get('tipo')) if item.get('mt') else None):
+                ruta = os.path.join(OBJETOS_IMG, str(nombre) + '.png')
+                if nombre and os.path.isfile(ruta): img = pygame.transform.scale(pygame.image.load(ruta).convert_alpha(), (lado, lado)); break
+            _iconos[(clave, lado)] = img
+        return _iconos[(clave, lado)]
+
+
     def chip_tipo(ventana, tipo, x, y):
         t = fuente(20).render(tipo, True, 'black')
         r = pygame.Rect(x, y, t.get_width() + 14, 22)
@@ -815,13 +831,16 @@ def armar_menus():
             ventana.fill(GRIS)
             titulo(ventana, 'Mochila', 40, 30, 60)
             inv = j['inventario']
-            lineas = [(tienda.ITEMS[k]['nombre'] + '  x' + str(n), tienda.ITEMS[k]['desc'], tienda.ITEMS[k]['color']) for k, n in inv['objetos'].items() if n > 0]
-            lineas += [(tienda.ITEMS[k]['nombre'], tienda.ITEMS[k]['desc'], tienda.ITEMS[k]['color']) for k in dict.fromkeys(inv['comprados'])
+            lineas = [(k, tienda.ITEMS[k]['nombre'] + '  x' + str(n), tienda.ITEMS[k]['desc'], tienda.ITEMS[k]['color']) for k, n in inv['objetos'].items() if n > 0]
+            lineas += [(k, tienda.ITEMS[k]['nombre'], tienda.ITEMS[k].get('desc', ''), tienda.ITEMS[k]['color']) for k in dict.fromkeys(inv['comprados'])
                        if 'permanente' in tienda.ITEMS[k] or 'tipo' in tienda.ITEMS[k]]
             if not lineas: ventana.blit(fuente(30).render('Vacia. Las cosas se consiguen en la tienda y de los jefes.', True, (30, 30, 30)), (40, 120))
-            for k, (nombre, desc, color) in enumerate(lineas[:12]):
+            for k, (clave, nombre, desc, color) in enumerate(lineas[:12]):
                 r = pygame.Rect(40, 110 + k * 38, W - 80, 32)
-                pygame.draw.rect(ventana, OSCURO, r); pygame.draw.rect(ventana, color, (r.x + 6, r.y + 6, 20, 20), border_radius=4)
+                pygame.draw.rect(ventana, OSCURO, r)
+                icono = icono_objeto(clave, 24)
+                if icono: ventana.blit(icono, (r.x + 4, r.y + 4))
+                else: pygame.draw.rect(ventana, color, (r.x + 6, r.y + 6, 20, 20), border_radius=4)
                 ventana.blit(fuente(24).render(nombre, True, 'white'), (r.x + 36, r.y + 8))
                 ventana.blit(fuente(20).render(desc, True, (200, 200, 200)), (r.x + 300, r.y + 9))
             ventana.blit(fuente(22).render('Las MT y piedras se usan desde la ficha de cada pokemon.   ESC: volver', True, 'white'), (40, H - 36))

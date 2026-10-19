@@ -767,7 +767,12 @@ def armar_animaciones():
                 anim = self.animaciones.get(self.animacion_actual)
                 if not anim:
                     return []
-                return self.sprites.get(anim.nombre, [[] for _ in range(8)])[self.direccion]
+                return self.sprites.get(anim.nombre, [[] for _ in range(8)])[self._fila()]
+
+        def _fila(self):
+            # algunas hojas (Sink, Sleep, Laying...) tienen una sola direccion: se usa la ultima fila que haya
+            filas = self.sprites.get(self.animacion_actual) if self.usando_hojas else None
+            return min(self.direccion, len(filas) - 1) if filas else self.direccion
             frames = self.sprites.get(self.animacion_actual, [])
             if frames and isinstance(frames[0], list):
                 return frames[min(self.direccion, len(frames) - 1)]
@@ -826,13 +831,13 @@ def armar_animaciones():
             frames = self._frames_actuales()
             if not frames or self.indice_frame >= len(frames):
                 return False
-            clave = (self.animacion_actual, self.direccion, self.indice_frame)
+            clave = (self.animacion_actual, self._fila(), self.indice_frame)
             if clave not in self.cache:
                 original = frames[self.indice_frame]
                 if self.usando_hojas:
                     escala = self.escala
                     imagen = self._escalar(original, max(1, round(original.get_width() * escala)), max(1, round(original.get_height() * escala)))
-                    ox, oy = self._obtener_offset(original, self.animacion_actual, self.direccion, self.indice_frame)
+                    ox, oy = self._obtener_offset(original, self.animacion_actual, self._fila(), self.indice_frame)
                     self.cache[clave] = (imagen, ox * escala, oy * escala)
                 else:
                     bbox = original.get_bounding_rect()

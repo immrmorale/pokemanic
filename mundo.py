@@ -1327,6 +1327,8 @@ def armar_entorno():
             for c, t in enumerate(fila):
                 r = pygame.Rect(c * tam, f * tam, tam, tam)
                 img = imagen('terrenos', t, era['clave'])               # si hay sprite del terreno se usa ese
+                variante = (f * 31 + c * 17) % 9                         # 2 de cada 9 casillas usan una variante (suelo_2, suelo_3) si existe
+                if img and variante < 2: img = imagen('terrenos', t + '_' + str(variante + 2), era['clave']) or img
                 if img:
                     fondo.blit(_escalada(img, tam, tam), r); con_sprite.add(t); continue
                 if t == 'suelo': color = _aclarar(era['suelo'], 8 if (f + c) % 2 else -4)   # piso del color de la era

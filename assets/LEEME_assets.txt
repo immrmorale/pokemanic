@@ -1,7 +1,7 @@
 Como van los assets (el juego busca los archivos en estas carpetas; si falta alguno, dibuja una forma basica)
 
 assets/
-  sprites/pokemones/sprite_<nombre>/   sprites de cada pokemon (formato PMDCollab: AnimData.xml + <Anim>-Anim.png). Los baja descargar_assets.py
+  sprites/pokemones/sprite_<nombre>/   sprites de cada pokemon (formato PMDCollab: AnimData.xml + <Anim>-Anim.png). Los baja: python herramientas.py descargar
   mundo/
     objetos/<nombre>.png               objetos del mundo para todas las eras (arbol.png, barril.png...). Nombres: mundos.OBJETOS
     terrenos/<nombre>.png              una casilla de terreno (agua.png, hierba.png, suelo.png...). Nombres: mundos.TERRENOS
@@ -15,4 +15,11 @@ assets/
   hojas/                               hojas originales sin recortar (el juego no las usa; para recortar con recortar_assets.py)
   sonido/musica/ y sonido/efectos/     (para mas adelante)
 
-Para recortar de una hoja: python recortar_assets.py assets/hojas/la_hoja.png
+Regla: solo assets de Pokemon Blanco/Negro y de los Mystery Dungeon (Red Rescue Team, Explorers of Time/Darkness/Sky).
+Spriters Resource no deja bajar nada automatico: las hojas se bajan a mano y van en assets/hojas (o sueltas en assets).
+
+Comandos para pasar las hojas al juego:
+  python herramientas.py tiles      'Dungeon Tiles' del Explorers of Sky -> mundo/<era>/terrenos (suelo, pared, agua + variantes suelo_2, suelo_3)
+  python herramientas.py efectos    zip 'Attack Effects' del Explorers of Sky -> efectos/ (golpe de cada tipo, cura, nivel, explosion...)
+  python herramientas.py recortar assets/hojas/la_hoja.png    recortar a mano cualquier otra hoja
+Iconos de objetos (de Blanco/Negro): interfaz/objetos/<clave>.png (las MT pueden usar mt_<tipo>.png). Cursor: interfaz/cursor.png
