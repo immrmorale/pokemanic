@@ -1227,6 +1227,11 @@ def armar_entorno():
         """
         j = ctx['jugador']
         ent['ahora'] = ahora
+        for o in ent['objetos']:                                    # pokemon puestos como objeto (Chikorita): se animan con la logica, no con el dibujo
+            a = o.get('animador')
+            if a:
+                a.actualizar()
+                if a.esta_terminada(): a.cambiar('idle', 0, True)   # termino un gesto (asentir): vuelve a estar quieto
         vivos = [e for e in ctx['enemigos'] if e['vida'] > 0]
         ent['ocupadas'] = set()
         for e in [j] + vivos: ent['ocupadas'] |= _casillas_rect(ent, e['rect'])
@@ -1375,9 +1380,7 @@ def armar_entorno():
             if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Chikorita en la tienda): animado
                 if 'animador' not in o:
                     o['animador'] = AnimadorPokemon(o['nombre'], pygame.Rect(0, 0, 10, 10), max(o['rect'].size) + 30); o['animador'].cambiar('idle', 0, True)
-                o['animador'].rect.center = r.center
-                o['animador'].actualizar()
-                if o['animador'].esta_terminada(): o['animador'].cambiar('idle', 0, True)   # termino un gesto (asentir): vuelve a estar quieto
+                o['animador'].rect.center = r.center                    # avanza en actualizar(), aca solo se dibuja
                 if o['animador'].dibujar(ventana): continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
                 sprite = _escalada(img, r.width)

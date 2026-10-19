@@ -1788,6 +1788,8 @@ def main():
         rec = mundos.nuevo_recorrido()                               # plan de la partida: eras, salas, tiendas, jefes y clima
         destino, entrada = None, 'sur'
         reloj = pygame.time.Clock()
+        PASO, MAX_ATRASO = 1000 / 60, 250                            # un paso de logica (ms) y lo maximo que se recupera por frame
+        acumulado = PASO
         while True:
             nivel = crear_nivel(rec, destino, entrada, j)
             reiniciar_jugador(j, nivel['sala']['inicio'])
@@ -1843,7 +1845,11 @@ def main():
                 if controles.hay_control():                          # con control se puede dejar apretado el ataque
                     if controles._boton(controles.perfil('control').get('basico1', '')): usar_basico(j, 0, nivel)
                     if controles._boton(controles.perfil('control').get('basico2', '')): usar_basico(j, 1, nivel)
-                resultado = actualizar_nivel(nivel, j)
+                acumulado += min(reloj.tick(60), MAX_ATRASO)            # ms reales desde el frame anterior (tope: despues de un menu no corre de golpe)
+                resultado = None
+                while acumulado >= PASO and not resultado:              # la logica avanza siempre 60 veces por segundo real:
+                    acumulado -= PASO                                   # si la pc dibuja a 30 fps, hace 2 pasos por dibujo
+                    resultado = actualizar_nivel(nivel, j)
                 dibujar_objetos(nivel, j, rec)
                 if resultado == 'siguiente':
                     puerta = nivel['salida']
@@ -1852,7 +1858,6 @@ def main():
                     destino, entrada = puerta['destino'], generacion.OPUESTO[puerta['lado']]   # salis por el norte: entras por el sur
                     break
                 if resultado == 'muerte': return 'juego_terminado', j['nombre']
-                reloj.tick(60)
 
     equipo_menu = []                                     # vacio: se elige el inicial. El debug (F1 + Konami) puede armar uno
     ui = {'ventana': ventana, 'W': W, 'H': H, 'presentar': pantalla.presentar, 'raton': pantalla.raton, 'a_logico': pantalla.a_logico,
