@@ -1,0 +1,18 @@
+Como van los assets (el juego busca los archivos en estas carpetas; si falta alguno, dibuja una forma basica)
+
+assets/
+  sprites/pokemones/sprite_<nombre>/   sprites de cada pokemon (formato PMDCollab: AnimData.xml + <Anim>-Anim.png). Los baja descargar_assets.py
+  mundo/
+    objetos/<nombre>.png               objetos del mundo para todas las eras (arbol.png, barril.png...). Nombres: mundos.OBJETOS
+    terrenos/<nombre>.png              una casilla de terreno (agua.png, hierba.png, suelo.png...). Nombres: mundos.TERRENOS
+    <era>/objetos/ y <era>/terrenos/   igual pero solo para esa era (glaciacion, piedra, metales, medieval, moderna, origen)
+                                       ej: mundo/glaciacion/terrenos/suelo.png = piso de la Era Glacial
+  efectos/<nombre>.png                 efectos animados: una tira horizontal de frames cuadrados (alto = ancho de cada frame)
+                                       nombres: golpe, golpe_<tipo> (golpe_fuego, golpe_agua...), romper, explosion, nivel, evolucion
+  interfaz/
+    fondos/menu.png                    fondo del titulo y del menu principal (se estira a 1000x600)
+    objetos/<clave>.png                (para mas adelante) iconos de la tienda y la mochila: claves de tienda.ITEMS
+  hojas/                               hojas originales sin recortar (el juego no las usa; para recortar con recortar_assets.py)
+  sonido/musica/ y sonido/efectos/     (para mas adelante)
+
+Para recortar de una hoja: python recortar_assets.py assets/hojas/la_hoja.png

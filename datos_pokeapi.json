@@ -124,9 +124,14 @@
    "zap-cannon",
    "zen-headbutt"
   ],
+  "experiencia_base": 187,
   "descripcion": "Nada sin problema en aguas heladas gracias a la soberbia resistencia al frío que posee. Su tersa piel es ligeramente fría al tacto.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "sneasel": {
   "altura": 9,
@@ -258,11 +263,31 @@
    "whirlpool",
    "x-scissor"
   ],
+  "experiencia_base": 86,
   "descripcion": "Es un Pokémon de naturaleza astuta y fiera. Se cuela en los nidos de otros Pokémon cuando no están y roba sus huevos.",
+  "ratio_captura": 60,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "weavile",
    "sneasler"
+  ],
+  "evoluciones": [
+   {
+    "a": "weavile",
+    "disparador": "level-up",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   },
+   {
+    "a": "sneasler",
+    "disparador": "level-up",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "weavile": {
@@ -393,9 +418,14 @@
    "whirlpool",
    "x-scissor"
   ],
+  "experiencia_base": 179,
   "descripcion": "Se comunican mediante marcas que tallan con sus garras. Se cree que tienen un repertorio de más de 500.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "sneasel",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "snorunt": {
   "altura": 7,
@@ -472,11 +502,31 @@
    "water-pulse",
    "weather-ball"
   ],
+  "experiencia_base": 60,
   "descripcion": "Las regiones frías son su hábitat natural. Se encuentra a sus anchas incluso en lugares donde la temperatura alcanza los -100 °C.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "glalie",
    "froslass"
+  ],
+  "evoluciones": [
+   {
+    "a": "glalie",
+    "disparador": "level-up",
+    "nivel": 42,
+    "objeto": null,
+    "amistad": null
+   },
+   {
+    "a": "froslass",
+    "disparador": "use-item",
+    "nivel": null,
+    "objeto": "dawn-stone",
+    "amistad": null
+   }
   ]
  },
  "glalie": {
@@ -574,9 +624,14 @@
    "water-pulse",
    "weather-ball"
   ],
+  "experiencia_base": 168,
   "descripcion": "Congela a sus presas helando en un momento la humedad contenida en el aire que lo rodea.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "snorunt",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "froslass": {
   "altura": 13,
@@ -691,9 +746,14 @@
    "weather-ball",
    "will-o-wisp"
   ],
+  "experiencia_base": 168,
   "descripcion": "Expulsa un vaho gélido a -50 °C con el que congela a sus presas para luego llevarlas a su morada y colocarlas como adorno.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "snorunt",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "spheal": {
   "altura": 8,
@@ -776,10 +836,23 @@
    "whirlpool",
    "yawn"
   ],
+  "experiencia_base": 58,
   "descripcion": "Flota entre las olas para examinar el océano. Si encuentra una presa, avisa enseguida a los Walrein de su manada.",
+  "ratio_captura": 255,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "sealeo"
+  ],
+  "evoluciones": [
+   {
+    "a": "sealeo",
+    "disparador": "level-up",
+    "nivel": 32,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "sealeo": {
@@ -855,10 +928,23 @@
    "waterfall",
    "whirlpool"
   ],
+  "experiencia_base": 144,
   "descripcion": "Tiene la costumbre de hacer girar en la punta del morro cualquier objeto redondeado, ya sea una Poké Ball o un Spheal.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "spheal",
   "evoluciona_a": [
    "walrein"
+  ],
+  "evoluciones": [
+   {
+    "a": "walrein",
+    "disparador": "level-up",
+    "nivel": 44,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "walrein": {
@@ -947,9 +1033,14 @@
    "waterfall",
    "whirlpool"
   ],
+  "experiencia_base": 239,
   "descripcion": "Sus colmillos nunca dejan de crecer. Aunque los pierda en un combate, al cabo de un año ya los habrá regenerado por completo.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "sealeo",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "vanillite": {
   "altura": 4,
@@ -1016,10 +1107,23 @@
    "uproar",
    "water-pulse"
   ],
+  "experiencia_base": 61,
   "descripcion": "Este Pokémon nació a partir de un carámbano. Exhala un vaho a -50 °C con el que congela el ambiente para adaptarlo a sus necesidades.",
+  "ratio_captura": 255,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "vanillish"
+  ],
+  "evoluciones": [
+   {
+    "a": "vanillish",
+    "disparador": "level-up",
+    "nivel": 35,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "vanillish": {
@@ -1081,10 +1185,23 @@
    "uproar",
    "water-pulse"
   ],
+  "experiencia_base": 138,
   "descripcion": "Congela a sus enemigos con un vaho a -100 °C, pero no llega a arrebatarles la vida debido a su carácter benévolo.",
+  "ratio_captura": 120,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": "vanillite",
   "evoluciona_a": [
    "vanilluxe"
+  ],
+  "evoluciones": [
+   {
+    "a": "vanilluxe",
+    "disparador": "level-up",
+    "nivel": 47,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "vanilluxe": {
@@ -1157,9 +1274,14 @@
    "water-pulse",
    "weather-ball"
   ],
+  "experiencia_base": 241,
   "descripcion": "Su temperatura corporal ronda los -6 °C. Se dice que nace de la fusión de dos Vanillish.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": "vanillish",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "rookidee": {
   "altura": 2,
@@ -1221,10 +1343,23 @@
    "u-turn",
    "work-up"
   ],
+  "experiencia_base": 49,
   "descripcion": "Su pequeño cuerpo le permite volar a gran velocidad para golpear los puntos débiles de rivales mucho más grandes que él.",
+  "ratio_captura": 255,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "corvisquire"
+  ],
+  "evoluciones": [
+   {
+    "a": "corvisquire",
+    "disparador": "level-up",
+    "nivel": 18,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "corvisquire": {
@@ -1284,10 +1419,23 @@
    "u-turn",
    "work-up"
   ],
+  "experiencia_base": 128,
   "descripcion": "Tras haber librado combates muy duros, ha desarrollado la habilidad de determinar con precisión la fuerza de su adversario.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "rookidee",
   "evoluciona_a": [
    "corviknight"
+  ],
+  "evoluciones": [
+   {
+    "a": "corviknight",
+    "disparador": "level-up",
+    "nivel": 38,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "corviknight": {
@@ -1372,9 +1520,14 @@
    "u-turn",
    "work-up"
   ],
+  "experiencia_base": 248,
   "descripcion": "Debido a su excelente capacidad de vuelo y a su gran inteligencia, ejerce de taxi volador en Galar.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "corvisquire",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "hawlucha": {
   "altura": 8,
@@ -1498,9 +1651,14 @@
    "x-scissor",
    "zen-headbutt"
   ],
+  "experiencia_base": 175,
   "descripcion": "Siempre se exhibe con alguna pose justo antes de propinar el golpe de gracia, momento que algunos rivales aprovechan para contraatacar.",
+  "ratio_captura": 100,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "natu": {
   "altura": 2,
@@ -1608,10 +1766,23 @@
    "wish",
    "zen-headbutt"
   ],
+  "experiencia_base": 64,
   "descripcion": "Se desplaza dando saltitos porque sus alas no han crecido lo suficiente. Siempre está mirando algo fijamente.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "xatu"
+  ],
+  "evoluciones": [
+   {
+    "a": "xatu",
+    "disparador": "level-up",
+    "nivel": 25,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "xatu": {
@@ -1718,9 +1889,14 @@
    "wish",
    "zen-headbutt"
   ],
+  "experiencia_base": 165,
   "descripcion": "Este extraño Pokémon puede ver el pasado y el futuro. Se pasa el día mirando al sol.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "natu",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "drifloon": {
   "altura": 4,
@@ -1831,10 +2007,23 @@
    "weather-ball",
    "will-o-wisp"
   ],
+  "experiencia_base": 70,
   "descripcion": "Está formado por una aglomeración de espíritus. Suele aparecer en grandes números durante las estaciones húmedas.",
+  "ratio_captura": 125,
+  "crecimiento": "fast-then-very-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "drifblim"
+  ],
+  "evoluciones": [
+   {
+    "a": "drifblim",
+    "disparador": "level-up",
+    "nivel": 28,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "drifblim": {
@@ -1948,9 +2137,14 @@
    "weather-ball",
    "will-o-wisp"
   ],
+  "experiencia_base": 174,
   "descripcion": "Agarra a gente y a Pokémon para llevárselos a algún sitio, aunque nadie sabe exactamente adónde.",
+  "ratio_captura": 60,
+  "crecimiento": "fast-then-very-slow",
+  "legendario": false,
   "evoluciona_de": "drifloon",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "magnemite": {
   "altura": 3,
@@ -2039,10 +2233,23 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 65,
   "descripcion": "Se nutre de electricidad. Puede flotar en el aire gracias a las ondas electromagnéticas que emite a través de las unidades de sus extremidades.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "magneton"
+  ],
+  "evoluciones": [
+   {
+    "a": "magneton",
+    "disparador": "level-up",
+    "nivel": 30,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "magneton": {
@@ -2136,10 +2343,23 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 163,
   "descripcion": "Emite de forma constante una potente fuerza magnética que causa estragos en prácticamente cualquier ordenador al que se acerque.",
+  "ratio_captura": 60,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "magnemite",
   "evoluciona_a": [
    "magnezone"
+  ],
+  "evoluciones": [
+   {
+    "a": "magnezone",
+    "disparador": "level-up",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "magnezone": {
@@ -2236,9 +2456,14 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 241,
   "descripcion": "Se piensa que estuvo expuesto a un campo magnético especial que alteró su estructura molecular e hizo que evolucionara.",
+  "ratio_captura": 30,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "magneton",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "pichu": {
   "altura": 3,
@@ -2339,10 +2564,23 @@
    "wish",
    "zap-cannon"
   ],
+  "experiencia_base": 41,
   "descripcion": "Las bolsas de electricidad de sus mejillas son muy pequeñas y, a poco que se desborden, recibe una fuerte descarga.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "pikachu"
+  ],
+  "evoluciones": [
+   {
+    "a": "pikachu",
+    "disparador": "level-up",
+    "nivel": null,
+    "objeto": null,
+    "amistad": 220
+   }
   ]
  },
  "pikachu": {
@@ -2467,10 +2705,23 @@
    "wish",
    "zap-cannon"
   ],
+  "experiencia_base": 112,
   "descripcion": "Los miembros de esta especie se saludan entre sí uniendo sus colas y transmitiéndose corriente eléctrica.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "pichu",
   "evoluciona_a": [
    "raichu"
+  ],
+  "evoluciones": [
+   {
+    "a": "raichu",
+    "disparador": "use-item",
+    "nivel": null,
+    "objeto": "thunder-stone",
+    "amistad": null
+   }
   ]
  },
  "raichu": {
@@ -2602,9 +2853,14 @@
    "wish",
    "zap-cannon"
   ],
+  "experiencia_base": 218,
   "descripcion": "Cuando ha descargado las bolsas de las mejillas, levanta la cola y absorbe la carga eléctrica que hay en el ambiente.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "pikachu",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "mareep": {
   "altura": 6,
@@ -2690,10 +2946,23 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 56,
   "descripcion": "Su lana acumula electricidad estática con la fricción. Al ser tan adorable, la gente se acerca para acariciarlo y se lleva un doloroso chispazo.",
+  "ratio_captura": 235,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "flaaffy"
+  ],
+  "evoluciones": [
+   {
+    "a": "flaaffy",
+    "disparador": "level-up",
+    "nivel": 15,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "flaaffy": {
@@ -2792,10 +3061,23 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 128,
   "descripcion": "Su lana sedosa acumula tanta electricidad que algunas partes de su cuerpo se han quedado desprovistas de pelo.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "mareep",
   "evoluciona_a": [
    "ampharos"
+  ],
+  "evoluciones": [
+   {
+    "a": "ampharos",
+    "disparador": "level-up",
+    "nivel": 30,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "ampharos": {
@@ -2915,9 +3197,14 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 230,
   "descripcion": "Su cola emite un brillo claro e intenso. Se lo venera desde tiempos remotos como guía de los marineros.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "flaaffy",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "shinx": {
   "altura": 5,
@@ -3004,10 +3291,23 @@
    "volt-switch",
    "wild-charge"
   ],
+  "experiencia_base": 53,
   "descripcion": "Su pelaje brilla gracias a la electricidad. Envía señales a sus semejantes agitando la punta luminosa de la cola.",
+  "ratio_captura": 235,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "luxio"
+  ],
+  "evoluciones": [
+   {
+    "a": "luxio",
+    "disparador": "level-up",
+    "nivel": 15,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "luxio": {
@@ -3091,10 +3391,23 @@
    "volt-switch",
    "wild-charge"
   ],
+  "experiencia_base": 127,
   "descripcion": "Cuando encuentra a un adversario, se prepara para combatir sacando las garras, que emiten una corriente eléctrica de un millón de voltios.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "shinx",
   "evoluciona_a": [
    "luxray"
+  ],
+  "evoluciones": [
+   {
+    "a": "luxray",
+    "disparador": "level-up",
+    "nivel": 30,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "luxray": {
@@ -3189,9 +3502,14 @@
    "volt-switch",
    "wild-charge"
   ],
+  "experiencia_base": 235,
   "descripcion": "Duerme durante largos períodos para recuperar la enorme cantidad de electricidad que consume al usar su capacidad para ver a través de objetos.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "luxio",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "electrike": {
   "altura": 6,
@@ -3271,10 +3589,23 @@
    "volt-switch",
    "wild-charge"
   ],
+  "experiencia_base": 59,
   "descripcion": "Almacena electricidad estática en su pelaje. En estaciones secas, suelta chispas por todo el cuerpo.",
+  "ratio_captura": 120,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "manectric"
+  ],
+  "evoluciones": [
+   {
+    "a": "manectric",
+    "disparador": "level-up",
+    "nivel": 26,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "manectric": {
@@ -3365,9 +3696,14 @@
    "volt-switch",
    "wild-charge"
   ],
+  "experiencia_base": 166,
   "descripcion": "Rara vez aparece ante la gente. Dicen que suele colocar su madriguera donde caen rayos.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": "electrike",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "sandshrew": {
   "altura": 6,
@@ -3481,10 +3817,23 @@
    "work-up",
    "x-scissor"
   ],
+  "experiencia_base": 60,
   "descripcion": "Excava madrigueras profundas en las que vive. Parte con sus afiladas garras cualquier roca, por dura que sea, que le entorpezca el camino.",
+  "ratio_captura": 255,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "sandslash"
+  ],
+  "evoluciones": [
+   {
+    "a": "sandslash",
+    "disparador": "level-up",
+    "nivel": 22,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "sandslash": {
@@ -3603,9 +3952,14 @@
    "work-up",
    "x-scissor"
   ],
+  "experiencia_base": 158,
   "descripcion": "Trepa a los árboles con sus afiladas garras y deja caer bayas para los Sandshrew que esperan debajo.",
+  "ratio_captura": 90,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "sandshrew",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "geodude": {
   "altura": 4,
@@ -3706,10 +4060,23 @@
    "toxic",
    "wide-guard"
   ],
+  "experiencia_base": 60,
   "descripcion": "Se suele encontrar en senderos de montaña y sitios parecidos. Conviene andar con cuidado para no pisarlo sin querer y provocar su enfado.",
+  "ratio_captura": 255,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "graveler"
+  ],
+  "evoluciones": [
+   {
+    "a": "graveler",
+    "disparador": "level-up",
+    "nivel": 25,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "graveler": {
@@ -3815,10 +4182,23 @@
    "toxic",
    "wide-guard"
   ],
+  "experiencia_base": 137,
   "descripcion": "Se le suele ver rodando montaña abajo. No evita los obstáculos, sino que los arrolla.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "geodude",
   "evoluciona_a": [
    "golem"
+  ],
+  "evoluciones": [
+   {
+    "a": "golem",
+    "disparador": "trade",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "golem": {
@@ -3930,9 +4310,14 @@
    "toxic",
    "wide-guard"
   ],
+  "experiencia_base": 223,
   "descripcion": "Nada más mudar la piel, su cuerpo se vuelve blando y blanquecino, pero se endurece al poco tiempo de entrar en contacto con el aire.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "graveler",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "cubone": {
   "altura": 4,
@@ -4043,10 +4428,23 @@
    "uproar",
    "water-gun"
   ],
+  "experiencia_base": 64,
   "descripcion": "Lleva puesto el cráneo de su difunta madre. A veces llora en sueños, pero cada lágrima vertida le hace más fuerte.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "marowak"
+  ],
+  "evoluciones": [
+   {
+    "a": "marowak",
+    "disparador": "level-up",
+    "nivel": 28,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "marowak": {
@@ -4161,9 +4559,14 @@
    "uproar",
    "water-gun"
   ],
+  "experiencia_base": 149,
   "descripcion": "Al evolucionar, se ha fusionado con el cráneo de su madre y, además, ha adquirido un carácter agresivo.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "cubone",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "wooper": {
   "altura": 4,
@@ -4270,11 +4673,31 @@
    "whirlpool",
    "yawn"
   ],
+  "experiencia_base": 42,
   "descripcion": "Cuando se desplaza en tierra firme, cubre su cuerpo con una membrana mucosa y venenosa para mantener hidratada la piel.",
+  "ratio_captura": 255,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "quagsire",
    "clodsire"
+  ],
+  "evoluciones": [
+   {
+    "a": "quagsire",
+    "disparador": "level-up",
+    "nivel": 20,
+    "objeto": null,
+    "amistad": null
+   },
+   {
+    "a": "clodsire",
+    "disparador": "level-up",
+    "nivel": 20,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "quagsire": {
@@ -4392,9 +4815,14 @@
    "whirlpool",
    "yawn"
   ],
+  "experiencia_base": 151,
   "descripcion": "Su cuerpo siempre resulta escurridizo al tacto. Suele chocarse contra el lecho del río al nadar, pero no le importa demasiado.",
+  "ratio_captura": 90,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "wooper",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "gible": {
   "altura": 7,
@@ -4486,10 +4914,23 @@
    "toxic",
    "twister"
   ],
+  "experiencia_base": 60,
   "descripcion": "Ataca indiscriminadamente a cualquier cosa que se mueva y la arrastra a su agujero. Pese a tener una boca enorme, su estómago es pequeño.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "gabite"
+  ],
+  "evoluciones": [
+   {
+    "a": "gabite",
+    "disparador": "level-up",
+    "nivel": 24,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "gabite": {
@@ -4586,10 +5027,23 @@
    "toxic",
    "twister"
   ],
+  "experiencia_base": 144,
   "descripcion": "Entierra gemas en la cueva que le sirve de nido y hace trizas con sus garras y colmillos a cualquier intruso.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": "gible",
   "evoluciona_a": [
    "garchomp"
+  ],
+  "evoluciones": [
+   {
+    "a": "garchomp",
+    "disparador": "level-up",
+    "nivel": 48,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "garchomp": {
@@ -4699,9 +5153,14 @@
    "twister",
    "whirlpool"
   ],
+  "experiencia_base": 270,
   "descripcion": "Se mueve a gran velocidad incluso por tierra. Es capaz de cazar una presa en una montaña nevada y volver a su guarida sin llegar a pasar frío.",
+  "ratio_captura": 45,
+  "crecimiento": "slow",
+  "legendario": false,
   "evoluciona_de": "gabite",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "golett": {
   "altura": 10,
@@ -4805,10 +5264,23 @@
    "thunder-punch",
    "toxic"
   ],
+  "experiencia_base": 61,
   "descripcion": "Fue creado a partir del barro para emplearlo como sirviente. Todavía acata las órdenes que le dio su amo hace milenios.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "golurk"
+  ],
+  "evoluciones": [
+   {
+    "a": "golurk",
+    "disparador": "level-up",
+    "nivel": 43,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "golurk": {
@@ -4931,9 +5403,14 @@
    "trick",
    "zen-headbutt"
   ],
+  "experiencia_base": 169,
   "descripcion": "Se dice que su cuerpo alberga un móvil perpetuo que genera energía, pero no se ha constatado la veracidad de tamaña afirmación.",
+  "ratio_captura": 90,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "golett",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "mankey": {
   "altura": 5,
@@ -5066,10 +5543,23 @@
    "vacuum-wave",
    "work-up"
   ],
+  "experiencia_base": 61,
   "descripcion": "Este ágil Pokémon vive en los árboles. Se enfada con facilidad y, cuando lo hace, se abalanza contra todo lo que se encuentre a su alrededor.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "primeape"
+  ],
+  "evoluciones": [
+   {
+    "a": "primeape",
+    "disparador": "level-up",
+    "nivel": 28,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "primeape": {
@@ -5200,10 +5690,23 @@
    "vacuum-wave",
    "work-up"
   ],
+  "experiencia_base": 159,
   "descripcion": "Solo se calma cuando no hay nadie cerca, por lo que llegar a ver ese momento resulta verdaderamente difícil.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "mankey",
   "evoluciona_a": [
    "annihilape"
+  ],
+  "evoluciones": [
+   {
+    "a": "annihilape",
+    "disparador": "use-move",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "annihilape": {
@@ -5301,9 +5804,14 @@
    "uproar",
    "vacuum-wave"
   ],
+  "experiencia_base": 268,
   "descripcion": "It imbues its fists with the power of the rage that it kept hidden in its heart. Opponents struck by these imbued fists will be shattered to their core.",
+  "ratio_captura": 45,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "primeape",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "machop": {
   "altura": 8,
@@ -5417,10 +5925,23 @@
    "wake-up-slap",
    "work-up"
   ],
+  "experiencia_base": 61,
   "descripcion": "Siempre rebosante de energía, pasa el tiempo levantando piedras para hacerse aún más fuerte.",
+  "ratio_captura": 180,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "machoke"
+  ],
+  "evoluciones": [
+   {
+    "a": "machoke",
+    "disparador": "level-up",
+    "nivel": 28,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "machoke": {
@@ -5530,10 +6051,23 @@
    "wake-up-slap",
    "work-up"
   ],
+  "experiencia_base": 142,
   "descripcion": "Tiene una complexión tan fuerte que nunca se cansa. Suele ayudar a la gente a cargar objetos pesados.",
+  "ratio_captura": 90,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "machop",
   "evoluciona_a": [
    "machamp"
+  ],
+  "evoluciones": [
+   {
+    "a": "machamp",
+    "disparador": "trade",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "machamp": {
@@ -5658,9 +6192,14 @@
    "wide-guard",
    "work-up"
   ],
+  "experiencia_base": 227,
   "descripcion": "Puede dar varios puñetazos de una sola vez gracias a sus cuatro brazos. Golpea más rápido de lo que piensa.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "machoke",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "torchic": {
   "altura": 4,
@@ -5757,10 +6296,23 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 62,
   "descripcion": "Torchic tiene un lugar en el interior de su organismo en el que guarda la llama que posee. Si le das un abrazo, arderá encantado. Este Pokémon está recubierto totalmente de sedoso plumón.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "combusken"
+  ],
+  "evoluciones": [
+   {
+    "a": "combusken",
+    "disparador": "level-up",
+    "nivel": 16,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "combusken": {
@@ -5877,10 +6429,23 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 142,
   "descripcion": "Combusken lucha haciendo uso de las abrasadoras llamas que expulsa por el pico y de unas patadas fulminantes. Este Pokémon emite un sonido muy fuerte y molesto.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "torchic",
   "evoluciona_a": [
    "blaziken"
+  ],
+  "evoluciones": [
+   {
+    "a": "blaziken",
+    "disparador": "level-up",
+    "nivel": 36,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "blaziken": {
@@ -6018,9 +6583,14 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 239,
   "descripcion": "Blaziken tiene unas piernas tan fuertes que puede saltar por encima de un edificio de 30 pisos con facilidad. Además, da unos puñetazos fulminantes que dejan al oponente chamuscado y lleno de tizne.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "combusken",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "riolu": {
   "altura": 7,
@@ -6132,10 +6702,23 @@
    "work-up",
    "zen-headbutt"
   ],
+  "experiencia_base": 57,
   "descripcion": "Percibe los sentimientos de quienes lo rodean, así como las condiciones del entorno, mediante unas ondas conocidas como auras.",
+  "ratio_captura": 75,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "lucario"
+  ],
+  "evoluciones": [
+   {
+    "a": "lucario",
+    "disparador": "level-up",
+    "nivel": null,
+    "objeto": null,
+    "amistad": 160
+   }
   ]
  },
  "lucario": {
@@ -6270,9 +6853,14 @@
    "work-up",
    "zen-headbutt"
   ],
+  "experiencia_base": 184,
   "descripcion": "Puede leer los pensamientos de la gente, por lo que establece lazos afectivos únicamente con Entrenadores de corazón noble.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "riolu",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "timburr": {
   "altura": 6,
@@ -6367,10 +6955,23 @@
    "wide-guard",
    "work-up"
   ],
+  "experiencia_base": 61,
   "descripcion": "Cuando logra transportar una viga de madera que triplica su altura y peso, es señal de que va a evolucionar.",
+  "ratio_captura": 180,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "gurdurr"
+  ],
+  "evoluciones": [
+   {
+    "a": "gurdurr",
+    "disparador": "level-up",
+    "nivel": 25,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "gurdurr": {
@@ -6463,10 +7064,23 @@
    "wide-guard",
    "work-up"
   ],
+  "experiencia_base": 142,
   "descripcion": "Blande vigas de acero con gran destreza, pero la construcción no se le da muy bien; de hecho, su especialidad es la demolición.",
+  "ratio_captura": 90,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "timburr",
   "evoluciona_a": [
    "conkeldurr"
+  ],
+  "evoluciones": [
+   {
+    "a": "conkeldurr",
+    "disparador": "trade",
+    "nivel": null,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "conkeldurr": {
@@ -6568,9 +7182,14 @@
    "wide-guard",
    "work-up"
   ],
+  "experiencia_base": 227,
   "descripcion": "Cuando decide ponerse en serio, suelta sus pilares de hormigón y se abalanza sobre el rival con solo un puño como arma.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "gurdurr",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "mudkip": {
   "altura": 4,
@@ -6670,10 +7289,23 @@
    "work-up",
    "yawn"
   ],
+  "experiencia_base": 62,
   "descripcion": "En el agua, Mudkip usa las branquias que tiene en los mofletes para respirar. Cuando tiene que enfrentarse a una situación delicada en combate, desata una fuerza asombrosa con la que puede destruir rocas incluso mayores que él.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "marshtomp"
+  ],
+  "evoluciones": [
+   {
+    "a": "marshtomp",
+    "disparador": "level-up",
+    "nivel": 16,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "marshtomp": {
@@ -6785,10 +7417,23 @@
    "work-up",
    "yawn"
   ],
+  "experiencia_base": 142,
   "descripcion": "Marshtomp se desplaza más rápido por el lodo que por el agua. Los cuartos traseros de este Pokémon muestran un desarrollo más que evidente, lo que le permite andar solo sobre las patas traseras.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "mudkip",
   "evoluciona_a": [
    "swampert"
+  ],
+  "evoluciones": [
+   {
+    "a": "swampert",
+    "disparador": "level-up",
+    "nivel": 36,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "swampert": {
@@ -6923,9 +7568,14 @@
    "work-up",
    "yawn"
   ],
+  "experiencia_base": 241,
   "descripcion": "Swampert puede predecir tormentas al percibir con las aletas los sutiles cambios que producen las olas y las corrientes. Si está a punto de estallar una tormenta, empezará a apilar piedras para resguardarse.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "marshtomp",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "squirtle": {
   "altura": 5,
@@ -7045,10 +7695,23 @@
    "yawn",
    "zen-headbutt"
   ],
+  "experiencia_base": 63,
   "descripcion": "Cuando se siente en peligro, se esconde en su caparazón y escupe chorros de agua por la boca.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "wartortle"
+  ],
+  "evoluciones": [
+   {
+    "a": "wartortle",
+    "disparador": "level-up",
+    "nivel": 16,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "wartortle": {
@@ -7165,10 +7828,23 @@
    "yawn",
    "zen-headbutt"
   ],
+  "experiencia_base": 142,
   "descripcion": "Utiliza hábilmente sus peludas orejas y la cola para mantener el equilibrio al nadar.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "squirtle",
   "evoluciona_a": [
    "blastoise"
+  ],
+  "evoluciones": [
+   {
+    "a": "blastoise",
+    "disparador": "level-up",
+    "nivel": 36,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "blastoise": {
@@ -7305,9 +7981,14 @@
    "yawn",
    "zen-headbutt"
   ],
+  "experiencia_base": 239,
   "descripcion": "Dispara chorros de agua a través de los cañones de su caparazón, capaces de agujerear incluso el acero.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "wartortle",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "froakie": {
   "altura": 3,
@@ -7399,10 +8080,23 @@
    "waterfall",
    "work-up"
   ],
+  "experiencia_base": 63,
   "descripcion": "Protege su piel cubriendo el cuerpo con una fina capa de burbujas. Aunque parezca despreocupado, no deja de vigilar con astucia lo que le rodea.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "frogadier"
+  ],
+  "evoluciones": [
+   {
+    "a": "frogadier",
+    "disparador": "level-up",
+    "nivel": 16,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "frogadier": {
@@ -7495,10 +8189,23 @@
    "waterfall",
    "work-up"
   ],
+  "experiencia_base": 142,
   "descripcion": "Su agilidad no tiene parangón. De hecho, es capaz de escalar una torre de más de 600 metros en tan solo un minuto.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "froakie",
   "evoluciona_a": [
    "greninja"
+  ],
+  "evoluciones": [
+   {
+    "a": "greninja",
+    "disparador": "level-up",
+    "nivel": 36,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "greninja": {
@@ -7609,9 +8316,14 @@
    "weather-ball",
    "work-up"
   ],
+  "experiencia_base": 239,
   "descripcion": "Aparece y desaparece de improvisto, cual ninja. Marea al oponente con su soberbia agilidad y lo hace trizas con sus Shuriken de Agua.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "frogadier",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "mareanie": {
   "altura": 4,
@@ -7692,10 +8404,23 @@
    "water-pulse",
    "wide-guard"
   ],
+  "experiencia_base": 61,
   "descripcion": "A diferencia de sus congéneres de Alola, los ejemplares de Galar aún no saben lo deliciosas que están las ramas de Corsola.",
+  "ratio_captura": 190,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "toxapex"
+  ],
+  "evoluciones": [
+   {
+    "a": "toxapex",
+    "disparador": "level-up",
+    "nivel": 38,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "toxapex": {
@@ -7787,9 +8512,14 @@
    "water-pulse",
    "wide-guard"
   ],
+  "experiencia_base": 173,
   "descripcion": "La bolsa de veneno en el interior de su cuerpo contiene toxinas tan potentes que provocarían tres días de dolores intensos hasta a un Wailord.",
+  "ratio_captura": 75,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "mareanie",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "oshawott": {
   "altura": 5,
@@ -7882,10 +8612,23 @@
    "work-up",
    "x-scissor"
   ],
+  "experiencia_base": 62,
   "descripcion": "Ataca con la vieira de su ombligo. En cuanto para un ataque, pasa al contraataque sin dilación.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "dewott"
+  ],
+  "evoluciones": [
+   {
+    "a": "dewott",
+    "disparador": "level-up",
+    "nivel": 17,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "dewott": {
@@ -7978,10 +8721,23 @@
    "work-up",
    "x-scissor"
   ],
+  "experiencia_base": 145,
   "descripcion": "Tras un exhaustivo entrenamiento, Dewott puede dominar diversas técnicas para usar con sus vieiras.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "oshawott",
   "evoluciona_a": [
    "samurott"
+  ],
+  "evoluciones": [
+   {
+    "a": "samurott",
+    "disparador": "level-up",
+    "nivel": 36,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "samurott": {
@@ -8093,9 +8849,14 @@
    "work-up",
    "x-scissor"
   ],
+  "experiencia_base": 238,
   "descripcion": "Derriba a su rival con un solo tajo del sable que lleva en su coraza. Acalla al enemigo con una simple mirada.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "dewott",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "clodsire": {
   "altura": 18,
@@ -8168,9 +8929,14 @@
    "yawn",
    "zen-headbutt"
   ],
+  "experiencia_base": 151,
   "descripcion": "It lives at the bottom of ponds and swamps. It will carry Wooper on its back and ferry them across water from one shore to the other.",
+  "ratio_captura": 90,
+  "crecimiento": "medium",
+  "legendario": false,
   "evoluciona_de": "wooper",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "samurott_hisui": {
   "altura": 15,
@@ -8263,9 +9029,14 @@
    "whirlpool",
    "x-scissor"
   ],
+  "experiencia_base": 238,
   "descripcion": "Derriba a su rival con un solo tajo del sable que lleva en su coraza. Acalla al enemigo con una simple mirada.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "dewott",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "fletchling": {
   "altura": 3,
@@ -8338,10 +9109,23 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 56,
   "descripcion": "Su temperatura corporal aumenta de repente cuando se exalta y puede causar quemaduras al contacto con la piel.",
+  "ratio_captura": 255,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "fletchinder"
+  ],
+  "evoluciones": [
+   {
+    "a": "fletchinder",
+    "disparador": "level-up",
+    "nivel": 17,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "fletchinder": {
@@ -8420,10 +9204,23 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 134,
   "descripcion": "Defienden su territorio con suma agresividad. Se pelean entre sí por el control de las áreas de caza.",
+  "ratio_captura": 120,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "fletchling",
   "evoluciona_a": [
    "talonflame"
+  ],
+  "evoluciones": [
+   {
+    "a": "talonflame",
+    "disparador": "level-up",
+    "nivel": 35,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "talonflame": {
@@ -8512,9 +9309,14 @@
    "will-o-wisp",
    "work-up"
   ],
+  "experiencia_base": 175,
   "descripcion": "Arremete contra sus presas a una velocidad de 500 km/h y les asesta el golpe de gracia con una patada muy potente, sin dejarles escapatoria.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": "fletchinder",
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "regigigas": {
   "altura": 37,
@@ -8614,9 +9416,14 @@
    "wide-guard",
    "zen-headbutt"
   ],
+  "experiencia_base": 302,
   "descripcion": "Dicen que creó a otros Pokémon a partir de distintos materiales y que, después, colocó los continentes en su posición actual.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "regice": {
   "altura": 18,
@@ -8714,9 +9521,14 @@
    "toxic",
    "zap-cannon"
   ],
+  "experiencia_base": 261,
   "descripcion": "Todo su cuerpo está compuesto de hielo. Se dice que surgió bajo una gruesa placa de hielo durante alguna glaciación.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "regirock": {
   "altura": 17,
@@ -8818,9 +9630,14 @@
    "toxic",
    "zap-cannon"
   ],
+  "experiencia_base": 261,
   "descripcion": "Su cuerpo rocoso ha sido examinado con las técnicas científicas más avanzadas, pero no se han encontrado ni su cerebro ni su corazón.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "registeel": {
   "altura": 19,
@@ -8924,9 +9741,14 @@
    "toxic",
    "zap-cannon"
   ],
+  "experiencia_base": 261,
   "descripcion": "Dicen que se formó en el manto terrestre y ascendió a la superficie hace aproximadamente diez mil años.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "regieleki": {
   "altura": 12,
@@ -8988,9 +9810,14 @@
    "wild-charge",
    "zap-cannon"
   ],
+  "experiencia_base": 290,
   "descripcion": "Todo su cuerpo es un órgano electrógeno, cuya potencia sería suficiente para abastecer la región de Galar por completo.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "regidrago": {
   "altura": 21,
@@ -9048,9 +9875,14 @@
    "twister",
    "vice-grip"
   ],
+  "experiencia_base": 290,
   "descripcion": "Todo su cuerpo es una gema de energía dragón cristalizada. Se cree que posee los poderes de todos los Pokémon dragón.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "chikorita": {
   "altura": 9,
@@ -9141,10 +9973,23 @@
    "worry-seed",
    "wring-out"
   ],
+  "experiencia_base": 64,
   "descripcion": "Al luchar, Chikorita agita la hoja que tiene para mantener a raya al rival. Pero, al mismo tiempo, libera una suave fragancia que apacigua el encuentro y crea un ambiente agradable y de amistad.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": false,
   "evoluciona_de": null,
   "evoluciona_a": [
    "bayleef"
+  ],
+  "evoluciones": [
+   {
+    "a": "bayleef",
+    "disparador": "level-up",
+    "nivel": 16,
+    "objeto": null,
+    "amistad": null
+   }
   ]
  },
  "celebi": {
@@ -9264,9 +10109,14 @@
    "worry-seed",
    "zen-headbutt"
   ],
+  "experiencia_base": 270,
   "descripcion": "Vino del futuro haciendo un viaje en el tiempo. Además de curar las heridas, posee la capacidad de revitalizar la hierba y los árboles.",
+  "ratio_captura": 45,
+  "crecimiento": "medium-slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  },
  "arceus": {
   "altura": 32,
@@ -9454,8 +10304,13 @@
    "x-scissor",
    "zen-headbutt"
   ],
+  "experiencia_base": 324,
   "descripcion": "La mitología cuenta que este Pokémon nació antes de que el Universo existiera.",
+  "ratio_captura": 3,
+  "crecimiento": "slow",
+  "legendario": true,
   "evoluciona_de": null,
-  "evoluciona_a": []
+  "evoluciona_a": [],
+  "evoluciones": []
  }
 }

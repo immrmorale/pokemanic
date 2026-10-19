@@ -68,8 +68,8 @@ class AnimacionHoja:
 
 class AnimadorPokemon:
     FACTOR_VELOCIDAD = 2.0
-    FACTOR_IDLE = 4.5
-    FACTOR_CAMINAR = 3.6
+    FACTOR_IDLE = 1.6                # idle y caminar usan las duraciones del AnimData.xml (en frames a 60 fps) por este factor
+    FACTOR_CAMINAR = 1.4
     VELOCIDAD_REFERENCIA = 5.0
     SUAVIZADO = False
     nombres_ataque = ('attack', 'strike', 'stricke', 'quickstrike', 'quick_strike', 'kick', 'punch', 'slash', 'body', 'melee', 'hit')
@@ -143,11 +143,12 @@ class AnimadorPokemon:
                 continue
             duraciones = []
             dur_node = nodo.find('Durations')
-            if dur_node is not None and dur_node.text:
-                for valor in dur_node.text.replace(',', ' ').split():
+            if dur_node is not None:
+                textos = [d.text for d in dur_node.findall('Duration')] or (dur_node.text or '').replace(',', ' ').split()   # <Duration> sueltos (formato del PMD)
+                for valor in textos:
                     try:
                         duraciones.append(int(valor))
-                    except ValueError:
+                    except (TypeError, ValueError):
                         pass
             self.animaciones[nombre.lower()] = AnimacionHoja(
                 nombre,
@@ -308,12 +309,15 @@ class AnimadorPokemon:
         encontrada = self._buscar_animacion(animacion)
         if encontrada is None:
             return False
-        if self.animacion_actual != encontrada or self.direccion != direccion:
+        if self.animacion_actual != encontrada:
             self.animacion_actual = encontrada
             self.direccion = max(0, min(7, direccion))
             self.indice_frame = 0
             self.acumulado = 0.0
             self.terminada = False
+        elif self.direccion != direccion:                # solo gira: sigue en el mismo frame (no reinicia la animacion)
+            self.direccion = max(0, min(7, direccion))
+            self.indice_frame = min(self.indice_frame, max(0, len(self._frames_actuales()) - 1))
         else:
             self.terminada = False if repetir else self.terminada
         self.repetir = repetir
@@ -363,6 +367,8 @@ class AnimadorPokemon:
             anim = self.animaciones.get(self.animacion_actual)
             if not anim or not anim.duraciones:
                 return 1
+            if self.animacion_actual not in ('idle', 'walk'):    # los ataques mantienen su ritmo de antes
+                return max(1, math.ceil(factor))
             duracion = anim.duraciones[min(self.indice_frame, len(anim.duraciones) - 1)]
             return max(1, math.ceil(duracion * factor))
         return max(1, round(6 * factor))
