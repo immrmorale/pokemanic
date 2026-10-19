@@ -370,22 +370,22 @@ def armar_animaciones():
         return str(nombre).strip().lower().replace(' ', '_').replace('-', '_')
 
 
+    _CARPETAS = {}                                   # nombre -> carpeta (o None): se busca en el disco una sola vez por nombre
+
+
     def _buscar_carpeta(nombre):
-        base = os.path.join('assets', 'sprites', 'pokemones')
         objetivo = _normalizar_nombre(nombre)
-        candidatos = [
-            os.path.join(base, 'sprite_' + objetivo),
-            os.path.join(base, objetivo),
-        ]
-        for ruta in candidatos:
-            if os.path.isdir(ruta):
-                return ruta
-        if os.path.isdir(base):
+        if objetivo in _CARPETAS: return _CARPETAS[objetivo]
+        base = os.path.join('assets', 'sprites', 'pokemones')
+        encontrada = None
+        for ruta in (os.path.join(base, 'sprite_' + objetivo), os.path.join(base, objetivo)):
+            if os.path.isdir(ruta): encontrada = ruta; break
+        if not encontrada and os.path.isdir(base):
             for entrada in os.listdir(base):
                 ruta = os.path.join(base, entrada)
-                if os.path.isdir(ruta) and _normalizar_nombre(entrada) in ('sprite_' + objetivo, objetivo):
-                    return ruta
-        return None
+                if _normalizar_nombre(entrada) in ('sprite_' + objetivo, objetivo) and os.path.isdir(ruta): encontrada = ruta; break
+        _CARPETAS[objetivo] = encontrada
+        return encontrada
 
 
     _CACHE_CARGA = {}
