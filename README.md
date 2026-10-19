@@ -448,18 +448,18 @@ Además de la tabla de tipos, cada tipo cambia cómo te va en el mundo:
 - **Materiales:** planta x2; no le hace nada al hielo.
 - **Especial:** Esquirla Helada (velocista), Viento Hielo ralentiza en área (estratega) · **Asistencia:** Ventisca (atacante), Viento Hielo masivo (estratega) · **Objeto:** Antiderretir.
 
-### 🥊 Lucha
+###  Lucha
 - **Sus ataques:** **empujan** cajas, barriles y bloques de hielo; lo que se desliza le pega a los enemigos.
 - **Materiales:** piedra x3; madera, vidrio, hielo, cerámica y hueso x2; metal x1,5. Es el mejor para romper cosas.
 - **Especial de velocista:** Patada Salto Alta · **Asistencia de atacante:** Onda Certera · **Objeto:** Cinturón Negro.
 
-### ☠️ Veneno
+###  Veneno
 - **Terreno:** en tóxico +30% daño y +15% velocidad (a los demás los envenena).
 - **Sus ataques:** vuelven **tóxica** el agua y los charcos.
 - **Materiales:** basura x0,2.
 - **Asistencia:** Bomba Lodo (atacante), Canto duerme a toda la sala (estratega) · **Objeto:** Flecha Venenosa.
 
-### 🌍 Tierra
+###  Tierra
 - **Terreno:** en arena +15% velocidad y en lodo +20% (a los demás los frenan); los cables no lo lastiman.
 - **Máquinas:** monolito (−15% daño recibido).
 - **Sus ataques:** desactivan los cables (los vuelven suelo).
@@ -468,7 +468,7 @@ Además de la tabla de tipos, cada tipo cambia cómo te va en el mundo:
 - **Materiales:** piedra, metal, cerámica y hueso x2.
 - **Especial de velocista:** Taladradora · **Asistencia de atacante:** Terremoto · **Objeto:** Arena Fina.
 
-### 🪶 Volador
+###  Volador
 - **Terreno:**
   - vuela por encima de casi todo: **cruza agua y lava**;
   - no resbala en hielo ni aceite;
@@ -479,49 +479,49 @@ Además de la tabla de tipos, cada tipo cambia cómo te va en el mundo:
 - **Materiales:** planta y tela x2.
 - **Especial de velocista:** Pájaro Osado · **Asistencia de atacante:** Vendaval · **Objeto:** Pico Afilado.
 
-### 🔮 Psíquico
+###  Psíquico
 - **Máquinas:** altar (recargas −20%, +15% daño).
 - **Sus ataques:** **empujan** objetos, más fuerte que lucha.
 - **Materiales:** vidrio x1,5.
 - **Especial de velocista:** Cabezazo Zen · **Asistencia:** Psíquico (atacante), Desvanecer (estratega) · **Objeto:** Cuchara Torcida.
 
-### 🪨 Roca
+###  Roca
 - **Terreno:** no lo frena la arena; en roca volcánica −10% daño recibido.
 - **Máquinas:** monolito (−25% daño recibido, +15% daño).
 - **Clima:** x1,3 con tormenta de arena (y no lo lastima).
 - **Materiales:** vidrio x3; piedra, hielo y cerámica x2; madera y hueso x1,5.
 - **Especial de velocista:** Rodar · **Asistencia de atacante:** Avalancha · **Objeto:** Piedra Dura.
 
-### 👻 Fantasma
+###  Fantasma
 - **Terreno:** en sombra **queda escondido** y +15% velocidad. **Atraviesa los objetos** (no lo frenan cajas, rocas ni barriles).
 - **Máquinas:** altar (+20% daño).
 - **Clima:** x1,2 con niebla.
 - **Especial de velocista:** Sombra Vil · **Asistencia:** Bola Sombra (atacante, trae niebla), Desvanecer (estratega) · **Objeto:** Hechizo.
 
-### 🐉 Dragón
+###  Dragón
 - **Terreno:** **cruza la lava** y en ella +15% daño; el fuego no lo lastima.
 - **Máquinas:** cristal dragónico (+30% daño, +10% velocidad).
 - **Especial de velocista:** Carga Dragón · **Asistencia de atacante:** Cometa Draco · **Objeto:** Colmillo Dragón.
 
-### 🌑 Siniestro
+###  Siniestro
 - **Terreno:** en sombra **queda escondido** y +25% daño.
 - **Sus ataques:** a veces llenan de sombra el suelo (25%).
 - **Clima:** x1,2 con niebla.
 - **Especial de velocista:** Persecución · **Asistencia de atacante:** Pulso Umbrío (trae niebla) · **Objeto:** Gafas de Sol.
 
-### ⚙️ Acero
+###  Acero
 - **Terreno:** no resbala en aceite, no lo frena la arena, el tóxico no lo lastima, y las cintas lo llevan menos (pesa más).
 - **Máquinas:** imán (−25% daño recibido), forja (−20% daño recibido, +15% daño), horno (−15% daño recibido).
 - **Clima:** la tormenta de arena no lo lastima.
 - **Materiales:** piedra, vidrio y hielo x2; metal x0,5.
 - **Especial de velocista:** Puño Bala · **Asistencia de atacante:** Foco Resplandor · **Objeto:** Revestimiento Metálico.
 
-### ⚪ Normal
+###  Normal
 - **Terreno:** no lo frenan nieve, arena ni lodo.
 - **Máquinas:** fogata (energía x1,5).
 - **Especial de velocista:** Velocidad Extrema · **Asistencia de atacante:** Hiperrayo · **Objeto:** Pañuelo Seda.
 
-### 🐛 Bicho y 🧚 Hada
+###  Bicho y  Hada
 No hay pokemon de estos tipos todavía.
 - **Bicho:** se esconde en la hierba (+20% velocidad) y hace x2 a planta y tela.
 - **Hada:** el altar le acelera las recargas un 20%.
