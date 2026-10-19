@@ -656,7 +656,7 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Kecleon en el mostrador, un estante arriba a la derecha,
+        """Salon de la tienda del tamaño de la pantalla: Chikorita en el mostrador, un estante arriba a la derecha,
         otro abajo a la izquierda (asi el HUD no tapa nada) y dos mesas con los objetos destacados."""
         tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
@@ -666,7 +666,7 @@ def armar_generacion():
         ancho = columnas * tam
         alto = filas * tam
         objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('kecleon', (ancho // 2, 62)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('chikorita', (ancho // 2, 62)), crear_objeto('mostrador', (ancho // 2, 105)),
                    crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
                    crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
         for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
@@ -1372,11 +1372,12 @@ def armar_entorno():
             r = o['rect'].move(-cx, -cy)
             if not r.colliderect(ventana.get_rect()): continue
             img = imagen('objetos', o['nombre'], ent['era']['clave'])
-            if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Kecleon en la tienda): animado
+            if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Chikorita en la tienda): animado
                 if 'animador' not in o:
                     o['animador'] = AnimadorPokemon(o['nombre'], pygame.Rect(0, 0, 10, 10), max(o['rect'].size) + 30); o['animador'].cambiar('idle', 0, True)
                 o['animador'].rect.center = r.center
                 o['animador'].actualizar()
+                if o['animador'].esta_terminada(): o['animador'].cambiar('idle', 0, True)   # termino un gesto (asentir): vuelve a estar quieto
                 if o['animador'].dibujar(ventana): continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
                 sprite = _escalada(img, r.width)

@@ -401,6 +401,46 @@ def armar_animaciones():
         return int(encontrados[-1]) if encontrados else None
 
 
+    # Animaciones especiales de los sprites (relevadas de los AnimData.xml de los 91 pokemon).
+    # Todos tienen Walk, Attack, Sleep, Hurt, Idle, Swing, Double, Hop, Charge y Rotate; el resto depende de cada uno
+    # (Shock: pikachu, raichu, pichu, electrike, manectric; Kick: blaziken, hawlucha, machop...; Bite: glalie; Sing: pichu; etc).
+    # Se busca por pedazo del nombre del movimiento y se usa la primera que el pokemon tenga.
+    ANIM_MOVIMIENTO = (
+        ('puño', ('punch', 'jab', 'strike')), ('golpe_karate', ('chop', 'punch', 'strike')), ('demolicion', ('punch', 'slam', 'strike')),
+        ('patada', ('kick', 'strike')), ('mordisco', ('bite', 'attack')), ('colmillo', ('bite', 'attack')),
+        ('garra', ('multiscratch', 'multistrike', 'strike')), ('tajo', ('multiscratch', 'chop', 'strike')), ('hoja_afilada', ('swing', 'shoot')),
+        ('picotazo', ('jab', 'quickstrike', 'strike')), ('ataque_ala', ('flaparound', 'hover', 'swing')), ('vuelo', ('hover', 'flaparound', 'leapforth')),
+        ('ataque_rapido', ('quickstrike', 'strike')), ('velocidad_extrema', ('quickstrike', 'strike')), ('acua_jet', ('quickstrike', 'strike')),
+        ('cola', ('tailwhip', 'swing')), ('latigo', ('tailwhip', 'swing')), ('cabeza', ('head', 'slam', 'strike')),
+        ('golpe_cuerpo', ('slam', 'tumble', 'strike')), ('placaje', ('slam', 'strike')), ('rodar', ('ricochet', 'tumble', 'rotate')),
+        ('terremoto', ('rumble', 'slam', 'rearup')), ('excavar', ('sink', 'rumble')), ('romperrocas', ('slam', 'punch')),
+        ('lanzarrocas', ('rearup', 'shoot')), ('pedrada', ('shoot', 'rearup')), ('avalancha', ('rearup', 'rumble')),
+        ('surf', ('ricochet', 'rumble', 'swing')), ('hidrobomba', ('spattack', 'shoot')), ('ventisca', ('spattack', 'emit', 'shoot')),
+        ('hiper_rayo', ('spattack', 'emit', 'shoot')), ('rayo_solar', ('spattack', 'charge')), ('enfado', ('rearup', 'rumble')),
+        ('psiquico', ('emit', 'spattack', 'charge')), ('premonicion', ('emit', 'charge')), ('confusion', ('emit', 'charge')),
+        ('lenguetazo', ('eat', 'attack')), ('infortunio', ('twirl', 'emit')), ('finta', ('quickstrike', 'twirl')),
+        ('danza', ('dance', 'twirl', 'rotate')), ('agilidad', ('twirl', 'hop')), ('corpulencia', ('pose', 'rearup', 'deepbreath')),
+        ('paz_mental', ('deepbreath', 'nod', 'charge')), ('defensa_ferrea', ('withdraw', 'pose')), ('pulimento', ('rotate', 'shake')),
+        ('descanso', ('laying', 'sleep')), ('respiro', ('deepbreath', 'pose')), ('recuperacion', ('deepbreath', 'pose')), ('sintesis', ('lookup', 'pose')),
+        ('proteccion', ('withdraw', 'pose')), ('deteccion', ('lookup', 'pose')), ('ataque_arena', ('swing', 'rumble')),
+    )
+    # Si el nombre no dice nada: por tipo y forma del movimiento.
+    ANIM_TIPO = {
+        'electrico': {'proyectil': ('shock', 'emit', 'shoot'), 'cuerpo': ('shock', 'strike'), 'area': ('shock', 'emit', 'rotate')},
+        'lucha': {'cuerpo': ('punch', 'kick', 'chop', 'strike'), 'proyectil': ('punch', 'spattack', 'shoot')},
+        'fantasma': {'proyectil': ('twirl', 'spattack', 'shoot'), 'cuerpo': ('twirl', 'strike')},
+        'psiquico': {'proyectil': ('emit', 'spattack', 'shoot'), 'area': ('emit', 'rotate')},
+        'volador': {'proyectil': ('hover', 'flaparound', 'shoot'), 'cuerpo': ('quickstrike', 'jab', 'strike')},
+        'tierra': {'proyectil': ('rumble', 'shoot'), 'area': ('rumble', 'slam', 'swing')},
+        'roca': {'cuerpo': ('slam', 'strike'), 'proyectil': ('rearup', 'shoot')},
+        'dragon': {'proyectil': ('spattack', 'rearup', 'shoot'), 'cuerpo': ('strike', 'slam')},
+        'hielo': {'proyectil': ('spattack', 'shoot'), 'area': ('twirl', 'rotate')},
+        'acero': {'cuerpo': ('slam', 'strike'), 'proyectil': ('spattack', 'shoot')},
+        'siniestro': {'cuerpo': ('bite', 'multiscratch', 'strike'), 'proyectil': ('multiscratch', 'shoot')},
+        'agua': {'area': ('ricochet', 'rumble', 'swing')},
+    }
+
+
     class AnimacionHoja:
         def __init__(self, nombre, indice, ancho, alto, duraciones, rush=None, hit=None, retorno=None, copia=None):
             self.nombre = nombre.lower()
@@ -419,6 +459,7 @@ def armar_animaciones():
         FACTOR_IDLE = 1.6                # idle y caminar usan las duraciones del AnimData.xml (en frames a 60 fps) por este factor
         FACTOR_CAMINAR = 1.4
         VELOCIDAD_REFERENCIA = 5.0
+        RITMO_XML = ('sleep', 'eventsleep', 'wake', 'hurt', 'nod', 'pose', 'sit', 'laying', 'eat', 'lookup', 'deepbreath', 'faint', 'cringe', 'float', 'hover')   # estas van con las duraciones del AnimData.xml
         SUAVIZADO = False
         nombres_ataque = ('attack', 'strike', 'stricke', 'quickstrike', 'quick_strike', 'kick', 'punch', 'slash', 'body', 'melee', 'hit')
         nombres_forma = {
@@ -650,6 +691,17 @@ def armar_animaciones():
                     return nombre
             return self.buscar_ataque()
 
+        def buscar_movimiento(self, movimiento, tipo=None, forma=None):
+            # primero por el nombre del movimiento (puño -> Punch), despues por tipo y forma (electrico -> Shock), si no la de la forma
+            nombre = _normalizar_nombre(movimiento or '')
+            for clave, anims in ANIM_MOVIMIENTO:
+                if clave in nombre:
+                    for anim in anims:
+                        if anim in self.sprites: return anim
+            for anim in ANIM_TIPO.get(tipo, {}).get(forma, ()):
+                if anim in self.sprites: return anim
+            return self.buscar_para(forma)
+
         def disponibles(self):
             return sorted(self.sprites)
 
@@ -715,7 +767,8 @@ def armar_animaciones():
                 anim = self.animaciones.get(self.animacion_actual)
                 if not anim or not anim.duraciones:
                     return 1
-                if self.animacion_actual not in ('idle', 'walk'):    # los ataques mantienen su ritmo de antes
+                if self.animacion_actual in self.RITMO_XML: factor = 1.0      # dormir, despertar, asentir...: ritmo del juego original
+                elif self.animacion_actual not in ('idle', 'walk'):           # los ataques mantienen su ritmo rapido
                     return max(1, math.ceil(factor))
                 duracion = anim.duraciones[min(self.indice_frame, len(anim.duraciones) - 1)]
                 return max(1, math.ceil(duracion * factor))

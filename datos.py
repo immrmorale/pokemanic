@@ -4,7 +4,7 @@ datos.py - Todo lo que es informacion del juego (no dibuja nada):
     ataques     habilidades y sinergias de ataques.py
     pokemones   especies, movimientos, tabla de tipos, roles, asistencias (antes pokemones.py)
     mts         Maquinas Tecnicas que se compran y se enseñan
-    tienda      objetos de Kecleon, inventario y lo que hace cada cosa comprada
+    tienda      objetos de Chikorita, inventario y lo que hace cada cosa comprada
     mundos      eras, terrenos, objetos, piezas, climas y el plan de salas de la partida
 
     from datos import pokemones, mundos, mts, tienda, ataques
@@ -756,7 +756,7 @@ def armar_mundos():
         # tienda (no se rompen)
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
-        'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
+        'chikorita': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 220, 110)},   # la que atiende la tienda
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
     }

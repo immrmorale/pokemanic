@@ -81,6 +81,79 @@ def armar_menus():
         ventana.blit(fuente(tam).render(texto, True, color), (x, y))
 
 
+    # ---------- logo: POKE con la letra de pokemon y MANIC en Unown ----------
+    FUENTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'fuentes')
+    # trazos de cada letra Unown (puntos de 0 a 1 dentro de la casilla) y donde va el ojo; el ancho es relativo al alto
+    UNOWN = {'M': {'ancho': 0.9, 'trazos': [[(0, 1), (0.08, 0.1), (0.5, 0.55), (0.92, 0.1), (1, 1)]], 'ojo': (0.5, 0.5)},
+             'A': {'ancho': 0.8, 'trazos': [[(0, 1), (0.5, 0.02), (1, 1)]], 'ojo': (0.5, 0.62)},
+             'N': {'ancho': 0.75, 'trazos': [[(0.08, 1), (0.08, 0), (0.92, 1), (0.92, 0)]], 'ojo': (0.5, 0.5)},
+             'I': {'ancho': 0.35, 'trazos': [[(0.5, 0), (0.5, 1)]], 'ojo': (0.5, 0.45)},
+             'C': {'ancho': 0.75, 'trazos': [[(0.55 + 0.45 * math.cos(math.radians(a)), 0.5 - 0.48 * math.sin(math.radians(a))) for a in range(45, 316, 15)]],
+                   'ojo': (0.1, 0.5)}}
+    _logo = {}
+
+
+    def _ttf(nombre, tam):
+        ruta = os.path.join(FUENTES, nombre)
+        return pygame.font.Font(ruta, tam) if os.path.isfile(ruta) else None
+
+
+    def _contorno(sup, color, grosor):
+        """La misma superficie con un borde de color alrededor de la silueta."""
+        sil = pygame.mask.from_surface(sup).to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+        nueva = pygame.Surface((sup.get_width() + grosor * 2, sup.get_height() + grosor * 2), pygame.SRCALPHA)
+        for ang in range(0, 360, 30): nueva.blit(sil, (grosor + round(math.cos(math.radians(ang)) * grosor), grosor + round(math.sin(math.radians(ang)) * grosor)))
+        nueva.blit(sup, (grosor, grosor))
+        return nueva
+
+
+    def _letra_unown(letra, alto):
+        """Una letra Unown: con unown.ttf si esta, si no dibujada (trazo negro con el ojo en el medio)."""
+        f = _ttf('unown.ttf', alto)
+        if f: return _contorno(f.render(letra, True, (20, 20, 20)), (235, 235, 235), max(2, alto // 18))
+        d = UNOWN[letra]
+        g = max(4, alto // 6)
+        ancho = round(alto * d['ancho']) + g * 2
+        sup = pygame.Surface((ancho, alto + g * 2), pygame.SRCALPHA)
+        a_px = lambda p: (g + round(p[0] * (ancho - g * 2)), g + round(p[1] * alto))
+        for trazo in d['trazos']:
+            puntos = [a_px(p) for p in trazo]
+            for (x1, y1), (x2, y2) in zip(puntos, puntos[1:]):         # circulitos pegados a lo largo del trazo: bordes redondos y parejos
+                pasos = max(1, round(math.hypot(x2 - x1, y2 - y1) / 2))
+                for k in range(pasos + 1): pygame.draw.circle(sup, (20, 20, 20), (x1 + (x2 - x1) * k / pasos, y1 + (y2 - y1) * k / pasos), g / 2)
+        ojo, r = a_px(d['ojo']), max(5, round(alto * 0.21))
+        pygame.draw.circle(sup, (20, 20, 20), ojo, r + g // 2)
+        pygame.draw.circle(sup, (245, 245, 245), ojo, r)
+        pygame.draw.circle(sup, (20, 20, 20), ojo, max(2, r // 2))
+        return _contorno(sup, (235, 235, 235), max(2, alto // 18))
+
+
+    def _texto_pokemon(texto, alto):
+        """Amarillo con borde azul y sombra, como el logo de pokemon (pokemon.ttf si esta)."""
+        f = _ttf('pokemon.ttf', alto)
+        if not f: f = pygame.font.Font(None, round(alto * 1.35)); f.set_bold(True)
+        sup = _contorno(f.render(texto, True, (255, 203, 5)), (50, 85, 165), max(3, alto // 11))
+        sombra = pygame.mask.from_surface(sup).to_surface(setcolor=(25, 40, 90), unsetcolor=(0, 0, 0, 0))
+        final = pygame.Surface((sup.get_width() + 4, sup.get_height() + 6), pygame.SRCALPHA)
+        final.blit(sombra, (4, 6)); final.blit(sup, (0, 0))
+        return final
+
+
+    def dibujar_logo(ventana, alto, ahora, **donde):
+        """Dibuja POKEMANIC (las letras Unown flotan un poco). donde: como en get_rect (center=..., topright=...)."""
+        if alto not in _logo: _logo[alto] = (_texto_pokemon('POKE', alto), [_letra_unown(l, round(alto * 0.8)) for l in 'MANIC'])
+        poke, letras = _logo[alto]
+        sep = alto // 8
+        caja = pygame.Rect(0, 0, poke.get_width() + sep + sum(l.get_width() + sep // 2 for l in letras), poke.get_height())
+        for clave, valor in donde.items(): setattr(caja, clave, valor)
+        ventana.blit(poke, caja.topleft)
+        x = caja.x + poke.get_width() + sep
+        for i, l in enumerate(letras):
+            y = caja.centery - l.get_height() // 2 + round(math.sin(ahora / 450 + i * 1.3) * alto * 0.05)
+            ventana.blit(l, (x, y)); x += l.get_width() + sep // 2
+        return caja
+
+
     def chip_tipo(ventana, tipo, x, y):
         t = fuente(20).render(tipo, True, 'black')
         r = pygame.Rect(x, y, t.get_width() + 14, 22)
@@ -406,7 +479,7 @@ def armar_menus():
             ['  ' + mat + ': ' + ', '.join(t + ' x' + str(v) for t, v in tabla.items()) for mat, tabla in entorno.MATERIALES.items()] + \
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
-        s['Tienda'] = ['Aparece cada 5 a 10 salas. Kecleon vende objetos: acercate y apreta ' + tecla('interactuar') + '. Nada cura.', ''] + \
+        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '. Nada cura.', ''] + \
             [it['nombre'] + ' (' + str(it['precio']) + ' $): ' + it['desc'] for k, it in tienda.ITEMS.items() if not it.get('mt')]
         s['Niveles y stats'] = [
             'Ganas experiencia derrotando pokemon, rompiendo cosas, completando salas y comprando. Los de la banca ganan la mitad.',

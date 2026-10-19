@@ -180,7 +180,7 @@ def main():
         """Pantalla de titulo, menu principal y menu de pausa."""
         def pantalla_titulo():
             pygame.mouse.set_visible(True)
-            f_grande, f_med, f_peq = pygame.font.Font(None, 96), pygame.font.Font(None, 30), pygame.font.Font(None, 18)
+            f_med, f_peq = pygame.font.Font(None, 30), pygame.font.Font(None, 18)
             reloj_t = pygame.time.Clock()
             while True:
                 for e in controles.eventos():
@@ -194,9 +194,7 @@ def main():
                     if e.type == pygame.MOUSEBUTTONDOWN:
                         return 'menu'
                 menus.fondo_menu(ui, pygame.time.get_ticks())
-                t = f_grande.render('POKEMANIC', True, 'white')
-                ventana.blit(f_grande.render('POKEMANIC', True, (20, 40, 25)), t.get_rect(center=(W // 2 + 4, 134)))
-                ventana.blit(t, t.get_rect(center=(W // 2, 130)))
+                menus.dibujar_logo(ventana, 90, pygame.time.get_ticks(), center=(W // 2, 130))
                 p = f_med.render('presione cualquier tecla para empezar', True, 'white')
                 ventana.blit(p, p.get_rect(center=(W // 2, H - 85)))
                 s = f_peq.render('(menos esc, es para salir)', True, 'white')
@@ -209,7 +207,7 @@ def main():
             botones = {o: pygame.Rect(100, 170 + i * 80, 300, 60) for i, o in enumerate(orden[:4])}
             botones['salir'] = pygame.Rect(0, 0, 84, 84)
             botones['salir'].center = (W - 100, H - 80)
-            f_titulo, f_boton, f_info = pygame.font.Font(None, 64), pygame.font.Font(None, 44), pygame.font.Font(None, 24)
+            f_boton, f_info = pygame.font.Font(None, 44), pygame.font.Font(None, 24)
             seleccion = 0
             reloj_m = pygame.time.Clock()
             while True:
@@ -235,8 +233,7 @@ def main():
                             if botones[o].collidepoint(pantalla.a_logico(e.pos)): elegido = o
                 if elegido: return elegido
                 menus.fondo_menu(ui, pygame.time.get_ticks())
-                t = f_titulo.render('POKEMANIC', True, 'white')
-                ventana.blit(t, t.get_rect(topright=(W - 60, 50)))
+                menus.dibujar_logo(ventana, 56, pygame.time.get_ticks(), topright=(W - 50, 45))
                 for o in orden[:4]:
                     velo = pygame.Surface(botones[o].size, pygame.SRCALPHA); velo.fill((0, 0, 0, 110)); ventana.blit(velo, botones[o])
                     pygame.draw.rect(ventana, 'white', botones[o], 3)
@@ -796,9 +793,9 @@ def main():
                 if trucos.get('sin_enfriamiento'): return 0
                 return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento'))
 
-            def iniciar_ataque(j, forma, enfriamiento):
+            def iniciar_ataque(j, forma, enfriamiento, movimiento=None, tipo=None):
                 a = j['animador']
-                anim = a.buscar_para(forma)
+                anim = a.buscar_movimiento(movimiento, normalizar_tipo(tipo), forma)   # Punch, Kick, Shock... si el sprite la tiene
                 if not anim: return
                 a.ritmo = max(0.8, min(1.6, 450.0 / max(1, enfriamiento)))
                 j['atacando'] = True; j['anim_ataque'] = anim; j['dir_ataque'] = direcciones.index(j['direccion'])
@@ -891,7 +888,7 @@ def main():
                 clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
                 if j['atacando'] or j['embestida'] or ahora - j[clave] < enfriamiento: return
                 j[clave] = ahora
-                iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento)
+                iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento, nombre, datos['tipo'])
                 if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
                 else: golpear(j, datos, objetivos_de(nivel), nivel['efectos'])
 
@@ -902,7 +899,7 @@ def main():
                 ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
                 if j['atacando'] or j['embestida'] or ahora - j['esp_ultimo'][indice] < enfriamiento: return
                 j['esp_ultimo'][indice] = ahora
-                iniciar_ataque(j, forma, enfriamiento)
+                iniciar_ataque(j, forma, enfriamiento, nombre, datos['tipo'])
                 entorno.al_usar_movimiento(nivel['ent'], nombre, ahora)     # ej. viento hielo trae granizo
                 objetivos = objetivos_de(nivel)
                 if forma == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
@@ -981,6 +978,7 @@ def main():
                 daño = daño_con_tipo(daño_base, ataque_tipo, defensa_tipo)
                 obj['vida'] = max(0, obj['vida'] - daño)
                 efecto = datos.get('efecto'); ahora = tiempo()
+                obj['golpe_hasta'] = ahora + 280                       # pone la animacion Hurt un ratito
                 try: probabilidad = max(0, min(100, float(efecto.get('probabilidad', 100)))) if efecto else 0
                 except (TypeError, ValueError): probabilidad = 100 if efecto else 0
                 if efecto and random.randint(1, 100) <= probabilidad:
@@ -1037,8 +1035,25 @@ def main():
                     e['camina'] = 8                                 # sigue caminando unos frames aunque no se mueva un pixel
                     a.ritmo = max(0.5, min(1.6, rapidez / 3.0))     # el paso de la animacion acompaña la velocidad real
                 else: e['camina'] = e.get('camina', 0) - 1
-                a.cambiar('walk' if e['camina'] > 0 else 'idle', direcciones.index(e['direccion']), True)
+                d = direcciones.index(e['direccion'])
+                especial = anim_especial_enemigo(e, a)
+                if especial: a.ritmo = 1.0; a.cambiar(especial[0], d, especial[1])
+                elif e.get('amigable') and e['camina'] <= 0: a.cambiar('sit', 0, True) or a.cambiar('idle', d, True)   # el que se quiere unir se sienta
+                else: a.cambiar('walk' if e['camina'] > 0 else 'idle', d, True)
                 a.actualizar()
+
+            def anim_especial_enemigo(e, a):
+                """(animacion, repetir) si el enemigo esta dormido, golpeado o atacando; None si solo camina."""
+                ahora = tiempo()
+                if e['estado'] == 'dormir' and e['estado_hasta'] > ahora: return 'sleep', True
+                if e.get('golpe_hasta', 0) > ahora: return 'hurt', False
+                clase = (e.get('aviso') or {}).get('clase') or ('embestida' if e.get('embestida_ia') else None)
+                if not clase: return None
+                cache = e.setdefault('anims', {})                     # se busca una sola vez por clase de ataque
+                if clase not in cache:
+                    forma = {'golpe': 'cuerpo', 'disparo': 'proyectil', 'rafaga': 'proyectil', 'pisoton': 'area'}.get(clase, clase)
+                    cache[clase] = a.buscar_movimiento(None, e['tipo'], forma)
+                return (cache[clase], False) if cache[clase] else None
 
             def dibujar_enemigo(e, cx, cy):
                 r = e['rect']
@@ -1236,7 +1251,7 @@ def main():
                     necesita = {r['objeto'] for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r}
                     items = tienda.surtido(random, tipos_equipo, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
                     nivel['vitrinas'] = [dict(v, item=i, vendido=False) for v, i in zip(sala['vitrinas'], items)]
-                    titulo = 'Tienda de Kecleon'
+                    titulo = 'Tienda de Chikorita'
                 elif tipo in ('jefe', 'regi', 'final'):
                     nombre = mundos.jefe_de(era, tipo)
                     nv = nivel['nivel_enemigos']
@@ -1326,7 +1341,10 @@ def main():
                 if not v: return False
                 precio = tienda.ITEMS[v['item']]['precio']
                 mensaje = tienda.comprar(j, v['item'])
-                if mensaje.startswith('Compraste'): v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
+                if mensaje.startswith('Compraste'):
+                    v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
+                    for o in nivel['ent']['objetos']:                    # Chikorita asiente cuando le compras
+                        if o['nombre'] == 'chikorita' and 'animador' in o: o['animador'].cambiar('nod', 0, False)
                 cartel(nivel, mensaje)
                 return True
 
