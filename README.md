@@ -301,6 +301,32 @@ La vida base se multiplica según el nivel del jefe.
 - Todo se avisa antes: una línea con mira para la ráfaga y un círculo rojo que se llena para el pisotón.
 - También tienen un anillo de balas y piedras verdes.
 
+**Los 5 Regis** (Regice, Regirock, Registeel, Regidrago y Regieleki): cuando pierden **un cuarto de su vida** llaman a **5 pokemon de su mismo tipo**. Primero aparecen las marcas rojas donde van a salir.
+
+**Regigigas** pelea distinto:
+- **Terremoto:** un anillo marrón con grietas se llena alrededor suyo y después pega a todo lo que esté adentro. Es de tipo tierra, así que a los voladores casi no les hace nada. La pantalla tiembla.
+- **Puñetazos grandes:** una mira roja aparece donde estás parado, se cierra y cae el puño. Vienen de a 3 seguidos, cada uno apuntado a donde te moviste.
+- **Regis chiquitos:** cada 11 s llama a 2 versiones chicas de los Regis (con menos vida y daño que los de verdad), como mucho 4 a la vez. Regieleki embiste, Regice y Regidrago disparan de lejos y los demás pegan de cerca.
+- No tira piedras verdes.
+
+**Arceus** tiene la barra de vida partida en **3 fases** (un tercio cada una), y avisa con un cartel cuando cambia:
+1. **Rayos e Hiperrayo:** caen rayos de tipo normal en cualquier lugar del mapa (uno siempre cerca tuyo). Primero se marca un círculo en el piso y, al caer, cada rayo se abre en 4 balas: arriba, abajo, izquierda y derecha. Además tira **Hiperrayo**: una línea fija hacia donde estabas que se va engrosando; salí de la línea antes de que dispare.
+2. **Multitipo y Sentencia:** cada golpe que le das le cambia el tipo (y con eso sus debilidades). Tira **Sentencia** como los puñetazos de Regigigas pero más grande, de a 3 seguidas: aparece el **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) del color de su tipo, girando y llenándose hasta que cae.
+3. **Todo junto:** rayos, Hiperrayo, Multitipo y Sentencia, más seguido. **Cada Sentencia rompe el piso** y deja un **vacío** que nadie puede cruzar, ni volando (los ataques sí pasan por arriba). Nunca aparece debajo de nadie ni delante de las puertas.
+
+Arceus no tira el anillo de balas ni las piedras verdes.
+
+**Arceus Beta:** cuando vencés a Arceus, desaparece y empiezan a caer Sentencias por toda la mitad de arriba de la arena hasta que queda vacía. Si estabas arriba, te pasa a la mitad de abajo. Ahí aparece **Arceus Beta**, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
+1. **Tablas:** cada 2,2 s invoca la tabla del tipo que sigue (las 17, todas menos normal; como mucho 6 a la vez). Las tablas dan vueltas a su alrededor, brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
+   - eléctrico, tierra, roca, psíquico, fantasma, hada y dragón: una marca grande que cae donde estás;
+   - fuego, volador, veneno, bicho, lucha y siniestro: 3 balas grandes en abanico;
+   - agua, planta, hielo y acero: una bala grande apuntada.
+2. y 3. **Por definir** (por ahora sigue con las tablas).
+
+Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
+
+**Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
+
 **Premios:**
 - **Monedas:** 120 el semijefe, 250 el Regi.
 - **Una MT** que alguien de tu equipo pueda aprender.
@@ -318,7 +344,7 @@ La atiende Kecleon. Acercate a una vitrina y apretá E para comprar.
 - **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
 - **Mesas:** objetos permanentes. Uno suele ser del tipo de tu equipo o el objeto de evolución que alguien necesita.
 
-**Curas (pocas, a proposito):** la Baya Oran de la tienda (70 $, 25% a todo el equipo) y la que a veces suelta un enemigo (6%, 12% al que pelea). Al pasar de sala los que siguen en pie recuperan 6%. Recuperacion, Respiro, Sintesis y Descanso curan al que pelea y la mitad a la banca. Nada revive.
+**Nada cura.**
 
 | Tipo de objeto | Ejemplos |
 |---|---|

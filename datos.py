@@ -4,7 +4,7 @@ datos.py - Todo lo que es informacion del juego (no dibuja nada):
     ataques     habilidades y sinergias de ataques.py
     pokemones   especies, movimientos, tabla de tipos, roles, asistencias (antes pokemones.py)
     mts         Maquinas Tecnicas que se compran y se enseñan
-    tienda      objetos de Chikorita, inventario y lo que hace cada cosa comprada
+    tienda      objetos de Kecleon, inventario y lo que hace cada cosa comprada
     mundos      eras, terrenos, objetos, piezas, climas y el plan de salas de la partida
 
     from datos import pokemones, mundos, mts, tienda, ataques
@@ -474,7 +474,7 @@ mts = armar_mts()
 # ==================== tienda ====================
 
 def armar_tienda():
-    """Objetos de la tienda (lo unico que cura es la Baya Oran) y lo que hacen sobre el jugador.
+    """Objetos de la tienda (nada cura) y lo que hacen sobre el jugador.
 
         j['inventario'] = tienda.inventario_nuevo()
         tienda.mult(j['inventario'], 'daño')       # multiplicador de todo lo comprado para esa clave
@@ -529,7 +529,6 @@ def armar_tienda():
         'garra_afilada': {'nombre': 'Garra Afilada', 'precio': 220, 'color': (200, 200, 220), 'objeto': True, 'desc': 'hace evolucionar a Sneasel'},
         'cordon_union': {'nombre': 'Cordon Union', 'precio': 240, 'color': (240, 140, 60), 'objeto': True,
                          'desc': 'evoluciona a los que en los juegos evolucionan por intercambio (Graveler, Machoke, Gurdurr)'},
-        'baya_oran': {'nombre': 'Baya Oran', 'precio': 70, 'color': (60, 110, 220), 'cura': 0.25, 'desc': 'cura 25% de la vida a todo el equipo (no revive)'},
         'lazo_amistad': {'nombre': 'Lazo Amistad', 'precio': 110, 'color': (250, 120, 170), 'temporal': ('amistad', 2.0, SALAS_X),
                          'desc': 'el doble de chance de que un pokemon quiera unirse por 3 salas'},
     })
@@ -538,7 +537,7 @@ def armar_tienda():
                          'desc': 'enseña ' + _mt['nombre'][3:] + ' (tipo ' + _mt['tipo'] + ') en una casilla desde el menu de equipo'}
     EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union')
 
-    COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad', 'baya_oran')
+    COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad')
     DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda')
     DE_TIPO = tuple(k for k, v in ITEMS.items() if 'tipo' in v)
 
@@ -612,10 +611,6 @@ def armar_tienda():
         inv['comprados'].append(clave)
         if item.get('objeto'): inv['objetos'][clave] = inv['objetos'].get(clave, 0) + 1   # a la mochila
         if 'repelente' in item: inv['repelente'] += item['repelente']
-        if 'cura' in item:                                    # Baya Oran: cura en el momento a todos los que siguen en pie
-            j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * item['cura'])
-            for i, m in enumerate(j['equipo']):
-                if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * item['cura'])
         if 'temporal' in item: inv['temporal'].append(list(item['temporal']))
         if 'critico' in item: inv['critico'] = [item['critico'][0], inv['critico'][1] + item['critico'][1]]
         for c, v in item.get('permanente', {}).items(): inv['permanente'][c] = inv['permanente'].get(c, 1.0) * v
@@ -693,6 +688,8 @@ def armar_mundos():
         'cristal_dragonico': {'color': (120, 60, 250), 'bloquea': True, 'solido': True, 'maquina': True},
         'iman': {'color': (170, 175, 200), 'bloquea': True, 'solido': True, 'maquina': True},
         'monolito': {'color': (150, 130, 90), 'bloquea': True, 'solido': True, 'maquina': True},
+        # lo que deja la Sentencia de Arceus en su ultima fase: no se cruza (ni volando), pero los ataques pasan por arriba
+        'vacio': {'color': (12, 6, 24), 'bloquea': True},
     }
 
     # objetos: tamaño en pixeles, material, vida (None = no se rompe), forma y color del dibujo provisorio
@@ -761,7 +758,7 @@ def armar_mundos():
         # tienda (no se rompen)
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
-        'chikorita': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 220, 110)},   # la que atiende la tienda
+        'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
     }
@@ -934,9 +931,10 @@ def armar_mundos():
              'templo de los titanes': {'forma': {'columnas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('sombra', (2, 4), (5, 9))], 'maquinas': [('monolito', (1, 2))],
                                        'piezas': {'santuario': 2, 'ruinas': 2}, 'num_piezas': (2, 3), 'objetos': {'pilar_de_cristal': 2, 'columna_rota': 2, 'estatua_de_titan': 1}, 'cantidad': (2, 4)},
          },
-         'arena': {'forma': {'columnas': 1}, 'simetria': {'hv': 1}, 'maquinas': [('altar', (2, 2)), ('monolito', (2, 2))], 'piezas': {'ruinas': 1}, 'num_piezas': (1, 2),
-                   'objetos': {}, 'cantidad': (0, 0)}},
+         'arena': {'forma': {'circulo': 1}, 'tamaño': (23, 23), 'simetria': {'hv': 1}, 'maquinas': [('altar', (2, 2)), ('monolito', (2, 2))],
+                   'piezas': {'ruinas': 1}, 'num_piezas': (1, 2), 'objetos': {}, 'cantidad': (0, 0)}},   # Regigigas y Arceus: arena redonda y mas grande
     ]
+    REGIS = tuple(e['regi'] for e in ERAS if 'plan_fijo' not in e)     # los 5 Regis de las eras (no Regigigas)
 
 
     def planificar(azar):

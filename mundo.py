@@ -29,7 +29,7 @@ def armar_generacion():
         sala = generacion.generar_arena(era)
 
     Como se arma una sala (por capas, y despues se valida):
-        1. silueta      rectangulo, esquinas cortadas, cruz, columnas o cueva (automata celular)
+        1. silueta      rectangulo, esquinas cortadas, cruz, columnas, circulo o cueva (automata celular)
         2. simetria     a veces la sala se espeja (izq/der, arriba/abajo o las dos) para que se vea diseñada
         3. especiales   rio que serpentea con puentes, laguna, foso, costa, cintas, cables
         4. terreno      manchas organicas (crecen y se suavizan) de hierba, hielo, lodo, sombra...
@@ -159,6 +159,9 @@ def armar_generacion():
                 for c in range(3 + (columnas - 7) % paso // 2, columnas - 3, paso):
                     tapar.add((f, c))
                     if largo: tapar.add((f - 1 if f < fc else f + 1, c))
+        elif forma == 'circulo':                                    # arena redonda: lo que queda afuera del circulo es pared
+            radio = min(fc, cc) - 0.5
+            tapar = {(f, c) for f in range(1, filas - 1) for c in range(1, columnas - 1) if math.hypot(f - fc, c - cc) > radio}
         elif forma == 'cueva':                                      # automata celular: bordes rocosos e irregulares
             abiertas = set(libres) | _pasillos(m, azar, libres)
             roca = {(f, c) for f in range(1, filas - 1) for c in range(1, columnas - 1)
@@ -648,15 +651,17 @@ def armar_generacion():
 
 
     def generar_arena(era, salidas=('norte',), semilla=None, tipo='jefe'):
-        """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados."""
+        """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas))."""
         azar = random.Random(semilla)
-        est = _generar(mundos.ERAS[era]['arena'], 'sur', list(salidas), azar, radio_centro=3)
+        datos = mundos.ERAS[era]['arena']
+        columnas, filas = datos.get('tamaño', (COLUMNAS, FILAS))
+        est = _generar(datos, 'sur', list(salidas), azar, columnas, filas, radio_centro=3)
         return _armar(est['m'], est['objetos'], TAM_CASILLA, 'sur', salidas,
                       {'tipo': tipo, 'era': era, 'variante': 'arena', 'piezas': est['piezas'], 'simetria': est['sim'], 'forma': est['forma']})
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Chikorita en el mostrador, un estante arriba a la derecha,
+        """Salon de la tienda del tamaño de la pantalla: Kecleon en el mostrador, un estante arriba a la derecha,
         otro abajo a la izquierda (asi el HUD no tapa nada) y dos mesas con los objetos destacados."""
         tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
@@ -666,7 +671,7 @@ def armar_generacion():
         ancho = columnas * tam
         alto = filas * tam
         objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('chikorita', (ancho // 2, 62)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('kecleon', (ancho // 2, 62)), crear_objeto('mostrador', (ancho // 2, 105)),
                    crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
                    crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
         for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
@@ -860,7 +865,7 @@ def armar_entorno():
         ent = {'sala': sala, 'm': sala['matriz'], 'tam': sala['tam'], 'objetos': sala['objetos'], 'era': mundos.ERAS[sala['era']],
                'version': 0, 'cache': {}, 'electrico': {}, 'fuego': {}, 'reaccion': {}, 'ocupadas': set(),
                'clima': None, 'clima_hasta': None, 'clima_base': None if sala.get('interior') else clima, 'prox_clima': 0, 'prox_fuego': 0, 'charcos_lluvia': 0, 'ahora': ahora,
-               'pendientes': [], 'visuales': [], 'eventos': [], 'fondo': None, 'maquinas': []}
+               'pendientes': [], 'visuales': [], 'eventos': [], 'fondo': None, 'maquinas': [], 'vacios': 0, 'celdas_vacio': set()}
         _buscar_maquinas(ent)
         ent['clima'] = ent['clima_base']
         return ent
@@ -1076,6 +1081,36 @@ def armar_entorno():
             if m[casilla_[0]][casilla_[1]] in CONDUCEN: ent['electrico'][casilla_] = ahora + DURACION_ELECTRICO
 
 
+    def abrir_vacio(ent, x, y, radio, maximo):
+        """El piso se rompe y queda un vacio. Nunca debajo de alguien ni delante de las puertas, y como mucho 'maximo' casillas por sala."""
+        cerca_puerta = [p['rect'].inflate(ent['tam'] * 4, ent['tam'] * 4) for p in ent['sala']['puertas']]
+        entrada = ent['sala'].get('inicio')
+        for f, c in _casillas_circulo(ent, x, y, radio):
+            if ent['vacios'] >= maximo: return
+            r = rect_casilla(ent, f, c)
+            if ent['m'][f][c] not in generacion.PISABLES or r.collidelist(cerca_puerta) != -1: continue
+            if entrada and r.inflate(ent['tam'] * 2, ent['tam'] * 2).collidepoint(entrada): continue
+            if cambiar(ent, f, c, 'vacio'): ent['vacios'] += 1; ent['celdas_vacio'].add((f, c))
+
+
+    def vaciar_franja(ent, y_hasta):
+        """Todo el piso por encima de y_hasta se vuelve vacio (menos debajo de alguien) y los objetos de ahi caen."""
+        tam = ent['tam']
+        for f in range(int(y_hasta // tam)):
+            for c in range(len(ent['m'][0])):
+                if ent['m'][f][c] not in ('pared', 'puerta', 'entrada', 'vacio') and cambiar(ent, f, c, 'vacio'): ent['celdas_vacio'].add((f, c))
+        caen = [o for o in ent['objetos'] if o['rect'].centery < y_hasta]
+        for o in caen: ent['objetos'].remove(o)
+        if caen: ent['version'] += 1
+
+
+    def cerrar_vacios(ent):
+        """El piso vuelve a donde habia vacios."""
+        for f, c in ent['celdas_vacio']:
+            if ent['m'][f][c] == 'vacio': cambiar(ent, f, c, 'suelo')
+        ent['celdas_vacio'].clear(); ent['vacios'] = 0
+
+
     def encender(ent, f, c, ahora=None):
         if ent['m'][f][c] in ('hierba', 'aceite', 'suelo', 'ceniza', 'fuego') and cambiar(ent, f, c, 'fuego'):
             ent['fuego'][(f, c)] = (ent['ahora'] if ahora is None else ahora) + random.randint(*DURACION_FUEGO)
@@ -1227,11 +1262,6 @@ def armar_entorno():
         """
         j = ctx['jugador']
         ent['ahora'] = ahora
-        for o in ent['objetos']:                                    # pokemon puestos como objeto (Chikorita): se animan con la logica, no con el dibujo
-            a = o.get('animador')
-            if a:
-                a.actualizar()
-                if a.esta_terminada(): a.cambiar('idle', 0, True)   # termino un gesto (asentir): vuelve a estar quieto
         vivos = [e for e in ctx['enemigos'] if e['vida'] > 0]
         ent['ocupadas'] = set()
         for e in [j] + vivos: ent['ocupadas'] |= _casillas_rect(ent, e['rect'])
@@ -1314,6 +1344,9 @@ def armar_entorno():
             for _ in range(3): pygame.draw.circle(fondo, color, (x + azar.randint(8, tam - 8), y + azar.randint(8, tam - 8)), azar.randint(3, 6), 2)
         elif t in ('arena', 'lodo', 'ceniza'):                       # granitos
             for _ in range(6): fondo.set_at((x + azar.randint(2, tam - 3), y + azar.randint(2, tam - 3)), (90, 70, 40) if t != 'ceniza' else (40, 40, 40))
+        elif t == 'vacio':                                           # estrellitas en el negro
+            pygame.draw.rect(fondo, (70, 40, 110), r, 2)
+            for _ in range(4): fondo.set_at((x + azar.randint(4, tam - 5), y + azar.randint(4, tam - 5)), (200, 180, 255))
         elif t == 'puente':                                          # tablones
             for k in range(1, 4): pygame.draw.line(fondo, (90, 60, 30), (x, y + tam * k // 4), (x + tam, y + tam * k // 4), 2)
 
@@ -1327,8 +1360,6 @@ def armar_entorno():
             for c, t in enumerate(fila):
                 r = pygame.Rect(c * tam, f * tam, tam, tam)
                 img = imagen('terrenos', t, era['clave'])               # si hay sprite del terreno se usa ese
-                variante = (f * 31 + c * 17) % 9                         # 2 de cada 9 casillas usan una variante (suelo_2, suelo_3) si existe
-                if img and variante < 2: img = imagen('terrenos', t + '_' + str(variante + 2), era['clave']) or img
                 if img:
                     fondo.blit(_escalada(img, tam, tam), r); con_sprite.add(t); continue
                 if t == 'suelo': color = _aclarar(era['suelo'], 8 if (f + c) % 2 else -4)   # piso del color de la era
@@ -1346,7 +1377,7 @@ def armar_entorno():
         vistos = set()                                                  # un cartel por cada mancha de terreno
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
-                if t in ('suelo', 'pared') or t in con_sprite or (f, c) in vistos: continue
+                if t in ('suelo', 'pared', 'vacio') or t in con_sprite or (f, c) in vistos: continue
                 grupo, pendientes = [(f, c)], [(f, c)]; vistos.add((f, c))
                 while pendientes:
                     a, b = pendientes.pop()
@@ -1379,10 +1410,11 @@ def armar_entorno():
             r = o['rect'].move(-cx, -cy)
             if not r.colliderect(ventana.get_rect()): continue
             img = imagen('objetos', o['nombre'], ent['era']['clave'])
-            if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Chikorita en la tienda): animado
+            if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Kecleon en la tienda): animado
                 if 'animador' not in o:
                     o['animador'] = AnimadorPokemon(o['nombre'], pygame.Rect(0, 0, 10, 10), max(o['rect'].size) + 30); o['animador'].cambiar('idle', 0, True)
-                o['animador'].rect.center = r.center                    # avanza en actualizar(), aca solo se dibuja
+                o['animador'].rect.center = r.center
+                o['animador'].actualizar()
                 if o['animador'].dibujar(ventana): continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
                 sprite = _escalada(img, r.width)
@@ -1547,14 +1579,6 @@ def armar_efectos():
         if _animacion(ef, 'evolucion', x, y, 120): return
         chispas(ef, x, y, (255, 255, 255), 40, 6, 50, 5)
         chispas(ef, x, y, (180, 230, 255), 30, 3, 60, 4)
-
-
-    def cura(ef, x, y):
-        """Crucecitas verdes que suben cuando te curas."""
-        if _animacion(ef, 'cura', x, y, 80): return
-        for i in range(14):
-            ef['parts'].append({'x': x + random.uniform(-24, 24), 'y': y + random.uniform(-6, 24), 'vx': 0, 'vy': -random.uniform(0.8, 1.8),
-                                'vida': 34 + i, 'max': 48, 'color': (90, 235, 110), 'tam': 4, 'g': 0, 'forma': 'estrella'})
 
 
     def corazones(ef, x, y):

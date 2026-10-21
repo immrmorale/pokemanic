@@ -180,7 +180,7 @@ def main():
         """Pantalla de titulo, menu principal y menu de pausa."""
         def pantalla_titulo():
             pygame.mouse.set_visible(True)
-            f_med, f_peq = pygame.font.Font(None, 30), pygame.font.Font(None, 18)
+            f_grande, f_med, f_peq = pygame.font.Font(None, 96), pygame.font.Font(None, 30), pygame.font.Font(None, 18)
             reloj_t = pygame.time.Clock()
             while True:
                 for e in controles.eventos():
@@ -194,7 +194,9 @@ def main():
                     if e.type == pygame.MOUSEBUTTONDOWN:
                         return 'menu'
                 menus.fondo_menu(ui, pygame.time.get_ticks())
-                menus.dibujar_logo(ventana, 90, pygame.time.get_ticks(), center=(W // 2, 130))
+                t = f_grande.render('POKEMANIC', True, 'white')
+                ventana.blit(f_grande.render('POKEMANIC', True, (20, 40, 25)), t.get_rect(center=(W // 2 + 4, 134)))
+                ventana.blit(t, t.get_rect(center=(W // 2, 130)))
                 p = f_med.render('presione cualquier tecla para empezar', True, 'white')
                 ventana.blit(p, p.get_rect(center=(W // 2, H - 85)))
                 s = f_peq.render('(menos esc, es para salir)', True, 'white')
@@ -207,7 +209,7 @@ def main():
             botones = {o: pygame.Rect(100, 170 + i * 80, 300, 60) for i, o in enumerate(orden[:4])}
             botones['salir'] = pygame.Rect(0, 0, 84, 84)
             botones['salir'].center = (W - 100, H - 80)
-            f_boton, f_info = pygame.font.Font(None, 44), pygame.font.Font(None, 24)
+            f_titulo, f_boton, f_info = pygame.font.Font(None, 64), pygame.font.Font(None, 44), pygame.font.Font(None, 24)
             seleccion = 0
             reloj_m = pygame.time.Clock()
             while True:
@@ -233,7 +235,8 @@ def main():
                             if botones[o].collidepoint(pantalla.a_logico(e.pos)): elegido = o
                 if elegido: return elegido
                 menus.fondo_menu(ui, pygame.time.get_ticks())
-                menus.dibujar_logo(ventana, 56, pygame.time.get_ticks(), topright=(W - 50, 45))
+                t = f_titulo.render('POKEMANIC', True, 'white')
+                ventana.blit(t, t.get_rect(topright=(W - 60, 50)))
                 for o in orden[:4]:
                     velo = pygame.Surface(botones[o].size, pygame.SRCALPHA); velo.fill((0, 0, 0, 110)); ventana.blit(velo, botones[o])
                     pygame.draw.rect(ventana, 'white', botones[o], 3)
@@ -312,7 +315,7 @@ def main():
                     partes.append('sprint sin gasto' if clave == 'sprint' else etiquetas.get(clave, clave + ' x') + str(valor))
                 partes.append('durante ' + str(round(num('duracion') / 1000, 1)) + ' s')
             elif forma == 'curar':
-                partes.append('cura ' + str(int(num('porcentaje'))) + '% de la vida (la mitad a los de la banca)')
+                partes.append('cura ' + str(int(num('porcentaje'))) + '% de la vida')
             else:
                 partes.append({'cuerpo': 'cuerpo a cuerpo', 'proyectil': 'proyectil', 'area': 'de área', 'embestida': 'embestida'}.get(forma, str(forma)))
                 partes.append('daño ' + str(int(num('daño'))))
@@ -329,7 +332,7 @@ def main():
             if mec == 'escudo': return 'el activo recibe solo el 25% del daño durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'furia': return 'daño x1.6 y recargas x0.7 durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'carrera': return 'velocidad x1.6 y sprint sin gasto durante ' + str(a['duracion'] // 1000) + ' s'
-            if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo y la mitad a los demas'
+            if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo'
             if mec == 'desvanecer': return 'elimina enemigos comunes en un radio de ' + str(a['area']) + ' y le quita el ' + str(a['porcentaje_jefe']) + '% a un jefe'
             return 'aplica ' + str((a.get('efecto') or {}).get('tipo')) + ' a todos los enemigos cercanos'
 
@@ -520,7 +523,6 @@ def main():
         def pausado(f, *args):
             t0 = pygame.time.get_ticks()
             controles.contexto('menu')
-            pygame.mouse.set_visible(True)                       # en la partida el cursor se esconde (se apunta con la mira); en los menus se ve
             r = f(*args)
             controles.contexto('juego')
             pausa['total'] += pygame.time.get_ticks() - t0
@@ -530,9 +532,6 @@ def main():
         AREA = generacion.crear_area(ESC)
         mundo = {'ent': None, 'ef': efectos.crear()}  # entorno de la sala actual (terrenos, objetos, clima) y las particulas
         RESTAURAR_VIDA_ENTRE_SALAS = False          # True: como antes, cada sala empieza con la vida llena
-        CURA_SALA = 0.06                            # al pasar de sala los que siguen en pie recuperan esta parte de su vida
-        CURA_BANCA = 0.5                            # los movimientos que curan: el que pelea todo, los de la banca la mitad
-        PROB_BAYA, CURA_BAYA = 0.06, 0.12           # a veces un enemigo suelta una Baya Oran: cura al que pelea al agarrarla
         DURACION_CARTEL = 1200                      # ms que se ve un cartel ("sala completada", "conseguiste la llave"...)
         BASICO_DISTANCIA = {'daño': 0.65, 'enfriamiento': 1.5, 'distancia': 0.85}   # el ataque a distancia basico es mas flojo que el de cerca
         DURACION_ENTRADA = 450                      # ms que el pokemon camina solo al entrar a una sala
@@ -549,6 +548,13 @@ def main():
         DAÑO_JEFE, DAÑO_PIEDRA = 35, 15
         VIDA_JEFE, VIDA_REGI = 600, 1000
         MONEDAS_ENEMIGO, MONEDAS_SALA, MONEDAS_JEFE, MONEDAS_REGI = 4, 10, 120, 250
+        REFUERZOS_REGI = {'umbral': 0.75, 'cantidad': 5, 'niveles_menos': 3}   # al perder un cuarto de vida, el Regi llama a 5 de su tipo
+        MINI_REGI = {'cada': 11000, 'primera': 4000, 'de_a': 2, 'max': 4, 'vida': 1.6, 'daño': 0.8, 'tam': 58, 'niveles_menos': 4}   # Regigigas invoca Regis chiquitos
+        FASES_ARCEUS = {2: 'Multitipo: cambia de tipo con cada golpe', 3: 'Cada Sentencia rompe el piso'}
+        FASES_BETA = {2: 'Fase 2', 3: 'Fase 3'}
+        # cuando cae Arceus: caen Sentencias sobre la mitad de arriba (queda vacia) y aparece Arceus Beta flotando ahi
+        LLEGADA_BETA = {'espera': 1500, 'cada': 160, 'aviso': 900, 'paso': 260, 'radio': 130, 'vida': 2.0, 'nivel_mas': 4}
+        ESTILO_MINI = {'regieleki': 'rapido', 'regidrago': 'tirador', 'regice': 'tirador'}               # los demas pegan de cerca
 
         def armar_reglas():
             """Reglas generales del combate: choques, tipos, modificadores y a quien se le puede pegar."""
@@ -679,11 +685,10 @@ def main():
                 actualizar_sinergia(j)
 
             def reiniciar_jugador(j, centro):
-                """Al entrar a una sala: te pone en la entrada. La vida sigue como estaba, mas un poquito para los que siguen en pie."""
+                """Al entrar a una sala: te pone en la entrada. La vida sigue como estaba (sin curas, como en Hades)."""
                 guardar_activo(j)
                 for m in j['equipo']:
                     if RESTAURAR_VIDA_ENTRE_SALAS: m['vida'] = m['max_vida']
-                    elif m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * CURA_SALA)
                     reiniciar_asistencia(m)
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
                           'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False})
@@ -798,9 +803,9 @@ def main():
                 if trucos.get('sin_enfriamiento'): return 0
                 return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento'))
 
-            def iniciar_ataque(j, forma, enfriamiento, movimiento=None, tipo=None):
+            def iniciar_ataque(j, forma, enfriamiento):
                 a = j['animador']
-                anim = a.buscar_movimiento(movimiento, normalizar_tipo(tipo), forma)   # Punch, Kick, Shock... si el sprite la tiene
+                anim = a.buscar_para(forma)
                 if not anim: return
                 a.ritmo = max(0.8, min(1.6, 450.0 / max(1, enfriamiento)))
                 j['atacando'] = True; j['anim_ataque'] = anim; j['dir_ataque'] = direcciones.index(j['direccion'])
@@ -893,7 +898,7 @@ def main():
                 clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
                 if j['atacando'] or j['embestida'] or ahora - j[clave] < enfriamiento: return
                 j[clave] = ahora
-                iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento, nombre, datos['tipo'])
+                iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento)
                 if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
                 else: golpear(j, datos, objetivos_de(nivel), nivel['efectos'])
 
@@ -904,7 +909,7 @@ def main():
                 ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
                 if j['atacando'] or j['embestida'] or ahora - j['esp_ultimo'][indice] < enfriamiento: return
                 j['esp_ultimo'][indice] = ahora
-                iniciar_ataque(j, forma, enfriamiento, nombre, datos['tipo'])
+                iniciar_ataque(j, forma, enfriamiento)
                 entorno.al_usar_movimiento(nivel['ent'], nombre, ahora)     # ej. viento hielo trae granizo
                 objetivos = objetivos_de(nivel)
                 if forma == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
@@ -918,14 +923,7 @@ def main():
                 elif forma == 'curar':
                     try: porcentaje = float(datos.get('porcentaje', 25))
                     except (TypeError, ValueError): porcentaje = 25
-                    curar_equipo(j, porcentaje / 100)
-
-            def curar_equipo(j, parte, banca=CURA_BANCA):
-                """Cura al que pelea esa parte de su vida y a los de la banca que siguen en pie 'banca' veces eso. Los debilitados no vuelven."""
-                j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * parte)
-                for i, m in enumerate(j['equipo']):
-                    if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * parte * banca)
-                efectos.cura(mundo['ef'], *j['rect'].center)
+                    j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * porcentaje / 100)
 
             def usar_asistencia(j, k, nivel):
                 ahora = tiempo()
@@ -944,7 +942,7 @@ def main():
                     for clave, valor in a['buffs'].items(): j['buffs'][clave] = (valor, ahora + a['duracion'])
                     nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': a['tipo'], 'inicio': ahora, 'hasta': ahora + 500})
                 elif mec == 'curar':
-                    curar_equipo(j, a['porcentaje'] / 100)
+                    j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * a['porcentaje'] / 100)
                     nivel['efectos'].append({'x': j['rect'].centerx, 'y': j['rect'].centery, 'radio': 45, 'tipo': 'planta', 'inicio': ahora, 'hasta': ahora + 500})
                 elif mec == 'desvanecer':
                     centro = pygame.Vector2(punto_apuntado(j, a['alcance']))
@@ -990,7 +988,6 @@ def main():
                 daño = daño_con_tipo(daño_base, ataque_tipo, defensa_tipo)
                 obj['vida'] = max(0, obj['vida'] - daño)
                 efecto = datos.get('efecto'); ahora = tiempo()
-                obj['golpe_hasta'] = ahora + 280                       # pone la animacion Hurt un ratito
                 try: probabilidad = max(0, min(100, float(efecto.get('probabilidad', 100)))) if efecto else 0
                 except (TypeError, ValueError): probabilidad = 100 if efecto else 0
                 if efecto and random.randint(1, 100) <= probabilidad:
@@ -1004,10 +1001,10 @@ def main():
                     entorno.mover(mundo['ent'], obj['rect'], round(vx * retroceso), round(vy * retroceso), entorno.tipos_de(obj)); obj['rect'].clamp_ip(AREA)
 
             return (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-                    recibir_ataque, curar_equipo)
+                    recibir_ataque)
 
         (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-         recibir_ataque, curar_equipo) = armar_ataques()
+         recibir_ataque) = armar_ataques()
 
         def armar_enemigos():
             """Enemigos, proyectiles y jefes."""
@@ -1016,20 +1013,66 @@ def main():
                 pool = [n for n in mundos.ERAS[era]['enemigos'] if n in pokemones]
                 return random.choice([n for n in pool if tiene_sprites(n)] or pool or list(JUGABLES))
 
-            def crear_enemigo(nivel, punto=None, cazando=None):
-                """Enemigo de la era de la sala, mas fuerte cuanto mas avanzas."""
-                nombre = elegir_pokemon_enemigo(nivel['sala']['era'])
+            def pokemon_de_tipo(tipo, era):
+                """Pokemon (no jefes) que tienen ese tipo: primero los de la era, despues cualquiera."""
+                tiene = lambda n: tipo in [normalizar_tipo(t) for t in pokemones[n].get('tipo', [])]
+                de_la_era = [n for n in mundos.ERAS[era]['enemigos'] if n in pokemones and tiene(n)]
+                todos = [n for n in JUGABLES if tiene(n)]
+                pool = de_la_era or todos
+                return [n for n in pool if tiene_sprites(n)] or pool or list(JUGABLES)
+
+            def crear_enemigo(nivel, punto=None, cazando=None, nombre=None, nv=None, estilo=None):
+                """Enemigo de la era de la sala, mas fuerte cuanto mas avanzas (o el pokemon y nivel que se pidan)."""
+                nombre = nombre or elegir_pokemon_enemigo(nivel['sala']['era'])
                 tipo = normalizar_tipo((pokemones[nombre].get('tipo') or ['normal'])[0])
                 r = pygame.Rect(0, 0, 50, 50)
                 r.center = punto or entorno.punto_libre(nivel['ent'], random, nivel['sala']['inicio'], 450)
                 visual = max(34, min(70, datos_juego(nombre)['tamaño'] + 8))
-                nv = max(1, nivel['nivel_enemigos'] + random.randint(-1, 1))   # nivel del enemigo: mas vida y mas daño cuanto mas alto
+                nv = max(1, (nv or nivel['nivel_enemigos']) + random.randint(-1, 1))   # nivel del enemigo: mas vida y mas daño cuanto mas alto
                 vida = round(100 * progreso.crecimiento(nombre, nv, 'hp'))
                 e = {'tipo': tipo, 'nombre': nombre, 'nivel': nv, 'animador': AnimadorPokemon(nombre, r, visual), 'direccion': 'sur', 'prev': r.center, 'rect': r,
                      'vida': vida, 'max_vida': vida, 'daño': round(DAÑO_ENEMIGO * progreso.crecimiento(nombre, nv, 'attack')), 'color': COLORES_TIPO.get(tipo, (150, 150, 150)), 'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'entorno': {}}
-                ia.preparar(e)
+                ia.preparar(e, estilo)
                 if cazando: e['estado_ia'] = 'caza'; e['ultima_vista'] = cazando     # las oleadas ya saben donde estas
                 return e
+
+            def crear_mini_regi(nivel, nombre, punto, cazando):
+                """Regi chiquito de Regigigas: un enemigo comun un poco mas fuerte, mucho mas flojo que el Regi de verdad."""
+                e = crear_enemigo(nivel, punto, cazando, nombre, nivel['nivel_enemigos'] - MINI_REGI['niveles_menos'], ESTILO_MINI.get(nombre))
+                e['vida'] = e['max_vida'] = round(e['vida'] * MINI_REGI['vida']); e['vida_ant'] = e['vida']
+                e['daño'] = round(e['daño'] * MINI_REGI['daño'])
+                e['animador'] = AnimadorPokemon(nombre, e['rect'], MINI_REGI['tam'])
+                e['mini'] = True
+                return e
+
+            def crear_aparicion(nivel, a, j):
+                """La marca de aparicion se cumplio: sale el enemigo (comun, refuerzo de un Regi o Regi chiquito)."""
+                if a.get('mini'): return crear_mini_regi(nivel, a['nombre'], a['pos'], j['rect'].center)
+                return crear_enemigo(nivel, a['pos'], j['rect'].center, a.get('nombre'), a.get('nv'))
+
+            def invocaciones_jefe(nivel, j, jefe):
+                """Los Regis llaman refuerzos de su tipo al perder un cuarto de vida; Regigigas invoca Regis chiquitos cada tanto; Arceus avisa cada fase."""
+                ahora = tiempo()
+                if jefe['estilo'] in ('arceus', 'beta') and jefe['fase'] != jefe.setdefault('fase_vista', 1):
+                    jefe['fase_vista'] = jefe['fase']
+                    textos = FASES_ARCEUS if jefe['estilo'] == 'arceus' else FASES_BETA
+                    cartel(nivel, jefe['nombre'].replace('_', ' ').title() + ' - Fase ' + str(jefe['fase']), 2400, textos.get(jefe['fase']), grande=True)
+                    efectos.explosion(mundo['ef'], *jefe['rect'].center, 200); nivel['temblor'] = ahora + 700
+                marcar = lambda **extra: nivel['apariciones'].append(dict({'pos': entorno.punto_libre(nivel['ent'], random, j['rect'].center, 260), 'hasta': ahora + 900}, **extra))
+                if jefe['nombre'] in mundos.REGIS and not jefe.get('refuerzos') and jefe['vida'] <= jefe['max_vida'] * REFUERZOS_REGI['umbral']:
+                    jefe['refuerzos'] = True
+                    pool = pokemon_de_tipo(jefe['tipo'], nivel['sala']['era'])
+                    for _ in range(REFUERZOS_REGI['cantidad']): marcar(nombre=random.choice(pool), nv=nivel['nivel_enemigos'] - REFUERZOS_REGI['niveles_menos'])
+                    cartel(nivel, jefe['nombre'].title() + ' llamo refuerzos!', 1800)
+                if jefe['nombre'] == 'regigigas':
+                    jefe.setdefault('prox_mini', ahora + MINI_REGI['primera'])
+                    vivos = sum(1 for e in nivel['enemigos'] if e.get('mini')) + sum(1 for a in nivel['apariciones'] if a.get('mini'))
+                    if ahora >= jefe['prox_mini'] and vivos < MINI_REGI['max']:
+                        jefe['prox_mini'] = ahora + MINI_REGI['cada']
+                        for _ in range(min(MINI_REGI['de_a'], MINI_REGI['max'] - vivos)):
+                            jefe['mini_i'] = jefe.get('mini_i', -1) + 1                # va pasando por los 5 Regis
+                            marcar(nombre=mundos.REGIS[jefe['mini_i'] % len(mundos.REGIS)], mini=True)
+                        cartel(nivel, 'Regigigas llama a los Regis!', 1600)
 
             def actualizar_animacion_enemigo(e):
                 a = e['animador']
@@ -1047,25 +1090,8 @@ def main():
                     e['camina'] = 8                                 # sigue caminando unos frames aunque no se mueva un pixel
                     a.ritmo = max(0.5, min(1.6, rapidez / 3.0))     # el paso de la animacion acompaña la velocidad real
                 else: e['camina'] = e.get('camina', 0) - 1
-                d = direcciones.index(e['direccion'])
-                especial = anim_especial_enemigo(e, a)
-                if especial: a.ritmo = 1.0; a.cambiar(especial[0], d, especial[1])
-                elif e.get('amigable') and e['camina'] <= 0: a.cambiar('sit', 0, True) or a.cambiar('idle', d, True)   # el que se quiere unir se sienta
-                else: a.cambiar('walk' if e['camina'] > 0 else 'idle', d, True)
+                a.cambiar('walk' if e['camina'] > 0 else 'idle', direcciones.index(e['direccion']), True)
                 a.actualizar()
-
-            def anim_especial_enemigo(e, a):
-                """(animacion, repetir) si el enemigo esta dormido, golpeado o atacando; None si solo camina."""
-                ahora = tiempo()
-                if e['estado'] == 'dormir' and e['estado_hasta'] > ahora: return 'sleep', True
-                if e.get('golpe_hasta', 0) > ahora: return 'hurt', False
-                clase = (e.get('aviso') or {}).get('clase') or ('embestida' if e.get('embestida_ia') else None)
-                if not clase: return None
-                cache = e.setdefault('anims', {})                     # se busca una sola vez por clase de ataque
-                if clase not in cache:
-                    forma = {'golpe': 'cuerpo', 'disparo': 'proyectil', 'rafaga': 'proyectil', 'pisoton': 'area'}.get(clase, clase)
-                    cache[clase] = a.buscar_movimiento(None, e['tipo'], forma)
-                return (cache[clase], False) if cache[clase] else None
 
             def dibujar_enemigo(e, cx, cy):
                 r = e['rect']
@@ -1082,9 +1108,9 @@ def main():
                     e['vida'] = max(0, e['vida'] - 3); e['proximo_estado'] = ahora + 700
                 if ahora >= e['estado_hasta']: e['estado'] = None
 
-            def crear_proyectil(x, y, dx, dy, daño, jefe=False, tipo=None, vel=VEL_P_ENEMIGO, alcance=DIST_P_ENEMIGO):
+            def crear_proyectil(x, y, dx, dy, daño, jefe=False, tipo=None, vel=VEL_P_ENEMIGO, alcance=DIST_P_ENEMIGO, tam=16):
                 return {'x': float(x), 'y': float(y), 'dx': dx, 'dy': dy, 'daño': daño, 'jefe': jefe, 'tipo': tipo, 'distancia': 0, 'activo': True,
-                        'vel': vel, 'alcance': alcance, 'rect': pygame.Rect(int(x)-8, int(y)-8, 16, 16)}
+                        'vel': vel, 'alcance': alcance, 'tam': tam, 'rect': pygame.Rect(int(x) - tam // 2, int(y) - tam // 2, tam, tam)}
 
             def actualizar_proyectil(proyectil, j, piedras):
                 v = proyectil['vel']
@@ -1114,15 +1140,16 @@ def main():
                 if proyectil['distancia'] >= distancia_maxima or not ESC.colliderect(proyectil['rect']) or proyectil['rect'].collidelist(piedras) != -1:
                     proyectil['activo'] = False
 
-            def crear_jefe(nivel, nombre, vida, nv):
-                """Jefe, Regi o Arceus: aparece arriba del centro de la arena."""
-                r = pygame.Rect(0, 0, TAM_JEFE, TAM_JEFE)
-                r.center = (ESC.centerx, ESC.centery - nivel['sala']['tam'] * 2)
+            def crear_jefe(nivel, nombre, vida, nv, tam=None, centro=None):
+                """Jefe, Regi o Arceus: aparece arriba del centro de la arena (o donde se pida)."""
+                r = pygame.Rect(0, 0, *(tam or (TAM_JEFE, TAM_JEFE)))
+                r.center = centro or (ESC.centerx, ESC.centery - nivel['sala']['tam'] * 2)
                 tipo = normalizar_tipo((pokemones.get(nombre, {}).get('tipo') or ['normal'])[0])
                 ahora = tiempo()
+                sprite = nombre if tiene_sprites(nombre) else nombre.split('_')[0]        # sin sprites de Arceus Beta usa los de Arceus
                 jefe = {'rect': r, 'nombre': nombre, 'nivel': nv, 'jefe': True, 'vida': vida, 'max_vida': vida, 'daño': round(DAÑO_JEFE * progreso.crecimiento(nombre, nv, 'attack')), 'tipo': tipo,
                         'color': COLORES_TIPO.get(tipo, (255, 140, 0)), 'ultimo_golpe': 0, 'ultimo_disparo': ahora, 'ultimo_poder': ahora,
-                        'animador': AnimadorPokemon(nombre, r, TAM_JEFE), 'direccion': 'sur', 'prev': r.center, 'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'entorno': {}}
+                        'animador': AnimadorPokemon(sprite, r, ia.BETA['tam'] if tam else TAM_JEFE), 'direccion': 'sur', 'prev': r.center, 'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'entorno': {}}
                 ia.preparar_jefe(jefe)
                 return jefe
 
@@ -1141,21 +1168,22 @@ def main():
                 ahora = tiempo()
                 if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora): ia.actualizar_jefe(jefe, contexto)
                 jefe['rect'].clamp_ip(AREA)
-                if ahora - jefe['ultimo_disparo'] >= CD_JEFE:
+                if ahora - jefe['ultimo_disparo'] >= CD_JEFE and jefe['estilo'] not in ('arceus', 'beta'):   # Arceus ya tiene sus rayos y Beta sus tablas
                     for i in range(BALAS_JEFE):
                         a = i * math.tau / BALAS_JEFE; dx, dy = math.cos(a), math.sin(a); r = TAM_JEFE//2+10
                         proyectiles.append(crear_proyectil(jefe['rect'].centerx+dx*r, jefe['rect'].centery+dy*r, dx, dy, round(jefe['daño'] * 0.7), True, jefe['tipo']))
                     jefe['ultimo_disparo'] = ahora
-                if ahora - jefe['ultimo_poder'] >= CD_PIEDRA:
+                if ahora - jefe['ultimo_poder'] >= CD_PIEDRA and jefe['estilo'] == 'jefe':       # Regigigas y Arceus usan sus propios ataques
                     verdes.extend(crear_piedras_verdes(jefe)); jefe['ultimo_poder'] = ahora
                 if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700:
                     dañar_jugador(j, jefe['daño'], jefe['tipo']); jefe['ultimo_golpe'] = ahora
+                jefe['color'] = COLORES_TIPO.get(jefe['tipo'], jefe['color'])     # Arceus cambia de tipo (Multitipo)
 
-            return (crear_enemigo, actualizar_animacion_enemigo, dibujar_enemigo, actualizar_estado, crear_proyectil, actualizar_proyectil,
-                    actualizar_proyectil_pokemon, crear_jefe, actualizar_jefe)
+            return (crear_enemigo, crear_aparicion, invocaciones_jefe, actualizar_animacion_enemigo, dibujar_enemigo, actualizar_estado, crear_proyectil,
+                    actualizar_proyectil, actualizar_proyectil_pokemon, crear_jefe, actualizar_jefe)
 
-        (crear_enemigo, actualizar_animacion_enemigo, dibujar_enemigo, actualizar_estado, crear_proyectil, actualizar_proyectil,
-         actualizar_proyectil_pokemon, crear_jefe, actualizar_jefe) = armar_enemigos()
+        (crear_enemigo, crear_aparicion, invocaciones_jefe, actualizar_animacion_enemigo, dibujar_enemigo, actualizar_estado, crear_proyectil,
+         actualizar_proyectil, actualizar_proyectil_pokemon, crear_jefe, actualizar_jefe) = armar_enemigos()
 
         def armar_salas():
             """Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame."""
@@ -1254,16 +1282,16 @@ def main():
                 tienda.nueva_sala(j['inventario'], tipo)
                 esc = mundos.escala(era, rec['sala'])
                 nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': esc, 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [], 'proyectiles_enemigos': [],
-                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda', 'monedas': [], 'bayas': [], 'carteles': [],
+                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda', 'monedas': [], 'carteles': [],
                          'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, rec['sala'], tipo),
-                         'amigo': None, 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0}
+                         'amigo': None, 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None}
                 mundo['ef']['parts'], mundo['ef']['anims'] = [], []
                 if tipo == 'tienda':
                     tipos_equipo = {normalizar_tipo(t) for m in j['equipo'] for t in pokemones[m['nombre']].get('tipo', [])}
                     necesita = {r['objeto'] for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r}
                     items = tienda.surtido(random, tipos_equipo, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
                     nivel['vitrinas'] = [dict(v, item=i, vendido=False) for v, i in zip(sala['vitrinas'], items)]
-                    titulo = 'Tienda de Chikorita'
+                    titulo = 'Tienda de Kecleon'
                 elif tipo in ('jefe', 'regi', 'final'):
                     nombre = mundos.jefe_de(era, tipo)
                     nv = nivel['nivel_enemigos']
@@ -1281,6 +1309,48 @@ def main():
                 sub = datos_era['nombre'] + '  -  Sala ' + str(rec['sala'] + 1) + '/' + str(mundos.salas_de(rec)) + '  -  ' + clima_txt
                 cartel(nivel, titulo, 2800, sub, grande=True)
                 return nivel
+
+            def impacto(nivel, x, y, radio, temblor):
+                """Golpe fuerte de un jefe contra el piso: polvo, piedritas y la pantalla tiembla un rato."""
+                efectos.explosion(mundo['ef'], x, y, radio * 0.6)
+                efectos.romper(mundo['ef'], x, y, (140, 100, 60))
+                nivel['temblor'] = max(nivel['temblor'], tiempo() + temblor)
+
+            def empezar_llegada_beta(nivel, j, arceus):
+                """Arceus desaparece y se preparan las Sentencias que van a vaciar la mitad de arriba de la arena."""
+                ahora, tam, ll = tiempo(), nivel['sala']['tam'], LLEGADA_BETA
+                nivel['jefe'] = None; nivel['proyectiles_enemigos'] = []
+                efectos.evolucion(mundo['ef'], *arceus['rect'].center)
+                cartel(nivel, 'Arceus desaparecio...', 2400, 'algo cae del cielo', grande=True)
+                linea = nivel['sala']['filas'] // 2 * tam
+                puntos = [(x + random.randint(-40, 40), y + random.randint(-30, 30)) for y in range(tam * 2, linea - ll['radio'] - 30, ll['paso'])
+                          for x in range(tam * 2, ESC.width - tam, ll['paso'])]
+                random.shuffle(puntos)
+                golpes = [{'pos': p, 'inicio': ahora + ll['espera'] + i * ll['cada']} for i, p in enumerate(puntos)]
+                nivel['llegada'] = {'golpes': golpes, 'linea': linea, 'fin': ahora + ll['espera'] + len(golpes) * ll['cada'] + ll['aviso'] + 500,
+                                    'movido': False, 'nv': arceus['nivel'] + ll['nivel_mas'], 'vida': round(arceus['max_vida'] * ll['vida'])}
+
+            def actualizar_llegada_beta(nivel, j):
+                """Caen las Sentencias; si quedaste arriba te pasa abajo; se vacia toda la mitad de arriba y aparece Arceus Beta flotando ahi."""
+                ahora, ent, ll = tiempo(), nivel['ent'], nivel['llegada']
+                for g in ll['golpes'][:]:
+                    if ahora < g['inicio'] + LLEGADA_BETA['aviso']: continue
+                    ll['golpes'].remove(g)
+                    entorno.abrir_vacio(ent, *g['pos'], LLEGADA_BETA['radio'], 10 ** 6)
+                    impacto(nivel, *g['pos'], LLEGADA_BETA['radio'] * 0.5, 200)
+                if ahora < ll['fin']: return
+                if not ll['movido']:
+                    ll['movido'] = True
+                    if j['rect'].centery < ll['linea'] + nivel['sala']['tam']:
+                        j['rect'].center = (ESC.centerx, ll['linea'] + nivel['sala']['tam'] * 3.5)
+                        efectos.evolucion(mundo['ef'], *j['rect'].center)
+                    return                                            # un cuadro despues, asi el entorno ya sabe donde estas
+                entorno.vaciar_franja(ent, ll['linea'])
+                beta = ia.BETA
+                nivel['jefe'] = crear_jefe(nivel, 'arceus_beta', ll['vida'], ll['nv'], (beta['ancho'], beta['alto']), (ESC.centerx, ll['linea'] - beta['alto'] // 2 + 60))
+                nivel['llegada'] = None
+                cartel(nivel, 'Arceus Beta', 2800, 'flota sobre el vacio: pegale desde abajo', grande=True)
+                impacto(nivel, ESC.centerx, ll['linea'], 250, 900)
 
             def soltar_monedas(nivel, j, x, y, cantidad):
                 cantidad = max(1, round(cantidad * tienda.mult(j['inventario'], 'monedas')))
@@ -1304,7 +1374,7 @@ def main():
 
             def quiza_amigo(nivel, j, e):
                 """A veces un pokemon derrotado quiere unirse a vos (no se captura: se hace tu amigo). Uno por sala como mucho."""
-                if nivel['amigo'] or e.get('jefe'): return
+                if nivel['amigo'] or e.get('jefe') or e.get('mini'): return
                 if random.random() >= progreso.prob_unirse(e['nombre'], e['nivel'], j['nivel'], tienda.mult(j['inventario'], 'amistad')): return
                 e['vida'] = 1; e['amigable'] = True; e['aviso'] = None; e['embestida_ia'] = None
                 if not e['animador'].cambiar('sit', 0, True): e['animador'].cambiar('idle', 0, True)
@@ -1353,10 +1423,7 @@ def main():
                 if not v: return False
                 precio = tienda.ITEMS[v['item']]['precio']
                 mensaje = tienda.comprar(j, v['item'])
-                if mensaje.startswith('Compraste'):
-                    v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
-                    for o in nivel['ent']['objetos']:                    # Chikorita asiente cuando le compras
-                        if o['nombre'] == 'chikorita' and 'animador' in o: o['animador'].cambiar('nod', 0, False)
+                if mensaje.startswith('Compraste'): v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
                 cartel(nivel, mensaje)
                 return True
 
@@ -1382,7 +1449,8 @@ def main():
                 contexto = {'ent': ent, 'jugador': j, 'enemigos': enemigos + ([jefe] if jefe else []), 'ahora': ahora,
                             'dañar_jugador': lambda d, t: dañar_jugador(j, d, t),
                             'dañar_enemigo': lambda e, d, t, ef: recibir_ataque(e, {'tipo': t, 'daño': d, 'efecto': ef, 'retroceso': 0}),
-                            'disparar': lambda x, y, dx, dy, d, t, v, dist: nivel['proyectiles_enemigos'].append(crear_proyectil(x, y, dx, dy, round(d), False, t, v, dist))}
+                            'disparar': lambda x, y, dx, dy, d, t, v, dist, tam=16: nivel['proyectiles_enemigos'].append(crear_proyectil(x, y, dx, dy, round(d), False, t, v, dist, tam)),
+                            'impacto': lambda x, y, r, ms: impacto(nivel, x, y, r, ms)}
                 entorno.actualizar(ent, contexto, ahora)                 # terreno, maquinas, fuego, clima, objetos empujados, explosiones
                 for ev in ent['eventos']:                                # lo que paso en el entorno: monedas, cosas rotas, explosiones
                     if ev[0] == 'monedas': soltar_monedas(nivel, j, ev[1], ev[2], ev[3])
@@ -1400,7 +1468,6 @@ def main():
                 for e in enemigos:                                      # los que caen: monedas, experiencia y a veces quieren ser tus amigos
                     if e['vida'] <= 0:
                         soltar_monedas(nivel, j, *e['rect'].center, MONEDAS_ENEMIGO + nivel['sala']['era'])
-                        if random.random() < PROB_BAYA: nivel['bayas'].append({'x': e['rect'].centerx + 18, 'y': e['rect'].centery})
                         ganar_xp(nivel, j, progreso.xp_por_derrota(e['nombre'], e['nivel'], j['nivel']))
                         efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
                         quiza_amigo(nivel, j, e)
@@ -1412,13 +1479,17 @@ def main():
                     for _ in range(nivel['oleadas'].pop(0)):
                         nivel['apariciones'].append({'pos': entorno.punto_libre(ent, random, j['rect'].center, 320), 'hasta': ahora + 900})
                 for a in nivel['apariciones'][:]:
-                    if ahora >= a['hasta']: nivel['enemigos'].append(crear_enemigo(nivel, a['pos'], j['rect'].center)); nivel['apariciones'].remove(a)
+                    if ahora >= a['hasta']: nivel['enemigos'].append(crear_aparicion(nivel, a, j)); nivel['apariciones'].remove(a)
                 if jefe:
                     actualizar_estado(jefe)
                     actualizar_jefe(jefe, j, nivel['proyectiles_enemigos'], nivel['verdes'], contexto)
+                    if jefe['vida'] > 0: invocaciones_jefe(nivel, j, jefe)
                     actualizar_animacion_enemigo(jefe)
-                    if jefe['vida'] <= 0:
+                    if jefe['vida'] <= 0 and jefe['estilo'] == 'arceus' and nivel['tipo'] == 'final':
+                        empezar_llegada_beta(nivel, j, jefe)
+                    elif jefe['vida'] <= 0:
                         nivel['jefe'] = None
+                        if jefe['estilo'] == 'beta': entorno.cerrar_vacios(ent); cartel(nivel, 'El piso vuelve...', 2000)
                         soltar_monedas(nivel, j, *jefe['rect'].center, MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
                         cartel(nivel, jefe['nombre'].title() + ' fue derrotado!', 2000)
                         efectos.explosion(mundo['ef'], *jefe['rect'].center, 160)
@@ -1434,10 +1505,8 @@ def main():
                     d = math.hypot(dx, dy)
                     if d < 40: j['monedas'] += moneda['valor']; nivel['monedas'].remove(moneda); continue
                     if nivel['completado'] or d < 110: moneda['x'] += dx / d * 9; moneda['y'] += dy / d * 9
-                for baya in nivel['bayas'][:]:                           # las bayas no vienen solas: hay que ir a buscarlas
-                    if math.hypot(j['rect'].centerx - baya['x'], j['rect'].centery - baya['y']) < 36:
-                        nivel['bayas'].remove(baya); curar_equipo(j, CURA_BAYA, 0); cartel(nivel, 'Baya Oran! +' + str(round(CURA_BAYA * 100)) + '% de vida', 1400)
-                derrotados = not nivel['enemigos'] and nivel['jefe'] is None and not nivel['oleadas'] and not nivel['apariciones']
+                if nivel['llegada']: actualizar_llegada_beta(nivel, j)
+                derrotados = not nivel['enemigos'] and nivel['jefe'] is None and not nivel['oleadas'] and not nivel['apariciones'] and not nivel['llegada']
                 if derrotados and not nivel['completado']:
                     nivel['completado'] = True
                     cartel(nivel, 'Sala completada!')
@@ -1516,29 +1585,15 @@ def main():
                     pygame.draw.circle(velo, (0, 0, 0, 150), (radio, radio), radio)
                     ventana.blit(velo, (centro[0] - radio, centro[1] - radio))
 
-            barras = {}                                              # vida que muestra cada barra (persigue a la real para que se note el cambio)
-
-            def barra_hud(rect, vida, max_vida, clave=None):
-                """Barra de vida. Si baja queda un pedazo naranja que se va achicando; si sube se llena en verde y despues se pone roja."""
-                x, y, w, h = rect
-                real = max(0, vida) / max(1, max_vida)
-                b = barras.setdefault(clave, {'vista': real, 't': tiempo()})
-                ahora = tiempo(); dt = min(100, ahora - b['t']); b['t'] = ahora
-                paso = dt * 0.0006 if abs(real - b['vista']) < 0.5 else dt * 0.0015      # ritmo por tiempo real: igual en cualquier pc
-                b['vista'] = max(real, b['vista'] - paso) if b['vista'] > real else min(real, b['vista'] + paso)
+            def barra_hud(rect, vida, max_vida):
                 pygame.draw.rect(ventana, 'white', rect)
-                if b['vista'] > real:                                # daño: rojo hasta la vida real y naranja hasta lo que tenia
-                    pygame.draw.rect(ventana, (255, 150, 40), (x, y, int(w * b['vista']), h))
-                    pygame.draw.rect(ventana, (130, 0, 20), (x, y, int(w * real), h))
-                else:                                                # cura: rojo hasta lo que se ve y verde hasta lo nuevo
-                    pygame.draw.rect(ventana, (60, 210, 90), (x, y, int(w * real), h))
-                    pygame.draw.rect(ventana, (130, 0, 20), (x, y, int(w * b['vista']), h))
+                pygame.draw.rect(ventana, (130, 0, 20), (rect[0], rect[1], int(max(0, vida) * rect[2] // max(1, max_vida)), rect[3]))
                 pygame.draw.rect(ventana, 'black', rect, 3)
 
             def dibujar_hud(j, nivel, rec):
                 ahora = tiempo()
                 circulo_poke((44, 86), 34, j['nombre'])
-                barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'], ('hud', j['nombre']))
+                barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'])
                 t = f_hud.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
                 ventana.blit(t, t.get_rect(center=(200, 86)))
                 pygame.draw.rect(ventana, (60, 60, 60), (80, 108, 240, 6))
@@ -1559,7 +1614,7 @@ def main():
                     cy = 14 + k * 30
                     circulo_poke((86, cy), 11, m['nombre'], esperando or m['vida'] <= 0)
                     ventana.blit(f_hud.render(str(i + 1), True, 'black'), (68, cy - 6))
-                    barra_hud((100, cy - 8, 100, 16), m['vida'], m['max_vida'], ('banca', m['nombre']))
+                    barra_hud((100, cy - 8, 100, 16), m['vida'], m['max_vida'])
                     ventana.blit(f_hud.render(m['nombre'].replace('_', ' '), True, 'black'), (103, cy + 9))
                     resto = max(0, m['asist_listo'] - ahora)
                     listo = resto == 0 and m['vida'] > 0
@@ -1587,8 +1642,11 @@ def main():
                 ventana.blit(lugar, lugar.get_rect(midtop=(W // 2, 6)))
                 if nivel['jefe']:
                     b = nivel['jefe']
-                    ventana.blit(f_hud.render(b['nombre'].title() + ' - ' + b['tipo'], True, 'white'), (W - 300, 4))
+                    ventana.blit(f_hud.render(b['nombre'].replace('_', ' ').title() + ' - ' + b['tipo'], True, 'white'), (W - 300, 4))
                     barra_hud((W - 300, 22, 280, 20), b['vida'], b['max_vida'])
+                    if b['estilo'] in ('arceus', 'beta'):                # la barra de Arceus (y de Beta) se parte en sus 3 fases
+                        for k in ia.ARCEUS['fases']: pygame.draw.line(ventana, 'black', (W - 300 + round(280 * k), 20), (W - 300 + round(280 * k), 43), 4)
+                        ventana.blit(f_hud.render('Fase ' + str(b['fase']) + '/3', True, 'white'), (W - 300, 45))
 
             ZONAS_HUD = [pygame.Rect(0, 0, 340, 200), pygame.Rect(W - 310, 0, 310, 50), pygame.Rect(W - 230, H - 125, 230, 125),
                          pygame.Rect(W // 2 - 110, 0, 220, 44)]                                      # donde no van las flechas
@@ -1655,11 +1713,8 @@ def main():
                     item = tienda.ITEMS[v['item']]
                     x, y = v['pos'][0] - cx, v['pos'][1] - cy
                     caja = pygame.Rect(0, 0, 30, 30); caja.center = (x, y - 4)
-                    icono = None if v['vendido'] else menus.icono_objeto(v['item'], 32)   # el icono del BW si esta, si no el cuadradito de color
-                    if icono: ventana.blit(icono, icono.get_rect(center=caja.center))
-                    else:
-                        pygame.draw.rect(ventana, (60, 60, 60) if v['vendido'] else item['color'], caja, border_radius=6)
-                        pygame.draw.rect(ventana, (20, 20, 20), caja, 2, border_radius=6)
+                    pygame.draw.rect(ventana, (60, 60, 60) if v['vendido'] else item['color'], caja, border_radius=6)
+                    pygame.draw.rect(ventana, (20, 20, 20), caja, 2, border_radius=6)
                     nombre = f_tipo.render('VENDIDO' if v['vendido'] else item['nombre'], True, 'white')
                     ventana.blit(nombre, nombre.get_rect(midtop=(x, y + 14)))
                     if not v['vendido']:
@@ -1677,6 +1732,9 @@ def main():
             def dibujar_objetos(nivel, j, rec):
                 cx, cy = camara(j)
                 ahora = tiempo()
+                if ahora < nivel['temblor']:                              # terremotos y puñetazos de Regigigas
+                    fuerza = min(10, 2 + (nivel['temblor'] - ahora) // 40)
+                    cx += random.randint(-fuerza, fuerza); cy += random.randint(-fuerza, fuerza)
                 ventana.fill('black')
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
                 for puerta in nivel['puertas']:                           # puertas con el cartel de lo que hay detras
@@ -1695,8 +1753,9 @@ def main():
                     pygame.draw.circle(ventana, (230, 60, 60), (round(a['pos'][0] - cx), round(a['pos'][1] - cy)), round(10 + 20 * k), 3)
                 for proyectil in nivel['proyectiles_enemigos']:
                     color = COLORES_TIPO.get(normalizar_tipo(proyectil.get('tipo')), (255, 150, 0))
-                    pygame.draw.circle(ventana, color, (round(proyectil['x']-cx),round(proyectil['y']-cy)), 9 if proyectil['jefe'] else 8)
-                    pygame.draw.circle(ventana, (40, 0, 0), (round(proyectil['x']-cx),round(proyectil['y']-cy)), 9 if proyectil['jefe'] else 8, 2)
+                    radio_p = max(9 if proyectil['jefe'] else 8, proyectil['tam'] // 2)
+                    pygame.draw.circle(ventana, color, (round(proyectil['x']-cx),round(proyectil['y']-cy)), radio_p)
+                    pygame.draw.circle(ventana, (40, 0, 0), (round(proyectil['x']-cx),round(proyectil['y']-cy)), radio_p, 2)
                 for ef in nivel['efectos']:
                     color_ef = COLORES_TIPO.get(normalizar_tipo(ef['tipo']), (255,255,255))
                     if 'linea' in ef: pygame.draw.line(ventana, color_ef, (round(ef['x']-cx), round(ef['y']-cy)), (round(ef['linea'][0]-cx), round(ef['linea'][1]-cy)), ef['radio'])
@@ -1708,11 +1767,6 @@ def main():
                 for moneda in nivel['monedas']:
                     pygame.draw.circle(ventana, (250, 210, 50), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8)
                     pygame.draw.circle(ventana, (150, 110, 20), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8, 2)
-                for baya in nivel['bayas']:                              # Baya Oran: bolita azul con una hojita
-                    bx, by = round(baya['x'] - cx), round(baya['y'] - cy + math.sin(tiempo() / 250) * 2)
-                    pygame.draw.circle(ventana, (60, 110, 220), (bx, by), 9); pygame.draw.circle(ventana, (20, 40, 90), (bx, by), 9, 2)
-                    pygame.draw.circle(ventana, (170, 210, 255), (bx - 3, by - 3), 3)
-                    pygame.draw.ellipse(ventana, (70, 170, 60), (bx - 2, by - 15, 10, 6))
                 dibujar_jugador(j,cx,cy)
                 if j['oculto']: pygame.draw.circle(ventana, (200, 200, 255), (j['rect'].centerx - cx, j['rect'].top - cy - 8), 5, 2)   # escondido
                 if j['uso'] == 'mouse': mx, my = pantalla.raton()
@@ -1735,7 +1789,11 @@ def main():
                     b = nivel['jefe']
                     if not dibujar_enemigo(b, cx, cy): dibujar_rect(b['rect'],cx,cy,b.get('color',(255,140,0)))
                     barra((b['rect'].x-cx,b['rect'].y-cy-12,b['rect'].width,8),b['vida'],b['max_vida'],8)
-                ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b)
+                ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b, COLORES_TIPO)
+                for g in (nivel['llegada'] or {}).get('golpes', ()):       # las Sentencias que vacian la mitad de arriba
+                    if ahora >= g['inicio']:
+                        k = min(1.0, (ahora - g['inicio']) / LLEGADA_BETA['aviso'])
+                        ia.dibujar_sello(ventana, (round(g['pos'][0] - cx), round(g['pos'][1] - cy)), LLEGADA_BETA['radio'], (245, 240, 220), k, ahora)
                 if nivel['llave']: dibujar_rect(nivel['llave'],cx,cy,'yellow')
                 if nivel['tipo'] == 'tienda': dibujar_tienda(nivel, j, cx, cy)
                 efectos.dibujar(mundo['ef'], ventana, cx, cy)              # chispas, pedazos, explosiones, brillitos
@@ -1826,8 +1884,6 @@ def main():
         rec = mundos.nuevo_recorrido()                               # plan de la partida: eras, salas, tiendas, jefes y clima
         destino, entrada = None, 'sur'
         reloj = pygame.time.Clock()
-        PASO, MAX_ATRASO = 1000 / 60, 250                            # un paso de logica (ms) y lo maximo que se recupera por frame
-        acumulado = PASO
         while True:
             nivel = crear_nivel(rec, destino, entrada, j)
             reiniciar_jugador(j, nivel['sala']['inicio'])
@@ -1883,11 +1939,7 @@ def main():
                 if controles.hay_control():                          # con control se puede dejar apretado el ataque
                     if controles._boton(controles.perfil('control').get('basico1', '')): usar_basico(j, 0, nivel)
                     if controles._boton(controles.perfil('control').get('basico2', '')): usar_basico(j, 1, nivel)
-                acumulado += min(reloj.tick(60), MAX_ATRASO)            # ms reales desde el frame anterior (tope: despues de un menu no corre de golpe)
-                resultado = None
-                while acumulado >= PASO and not resultado:              # la logica avanza siempre 60 veces por segundo real:
-                    acumulado -= PASO                                   # si la pc dibuja a 30 fps, hace 2 pasos por dibujo
-                    resultado = actualizar_nivel(nivel, j)
+                resultado = actualizar_nivel(nivel, j)
                 dibujar_objetos(nivel, j, rec)
                 if resultado == 'siguiente':
                     puerta = nivel['salida']
@@ -1896,6 +1948,7 @@ def main():
                     destino, entrada = puerta['destino'], generacion.OPUESTO[puerta['lado']]   # salis por el norte: entras por el sur
                     break
                 if resultado == 'muerte': return 'juego_terminado', j['nombre']
+                reloj.tick(60)
 
     equipo_menu = []                                     # vacio: se elige el inicial. El debug (F1 + Konami) puede armar uno
     ui = {'ventana': ventana, 'W': W, 'H': H, 'presentar': pantalla.presentar, 'raton': pantalla.raton, 'a_logico': pantalla.a_logico,
