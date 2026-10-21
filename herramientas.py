@@ -4,6 +4,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py descargar           baja los sprites y retratos del PMD (SpriteCollab)
     python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI
     python herramientas.py recortar hoja.png   recorta sprites de una hoja y los deja en assets/mundo
+    python herramientas.py hojas               baja todas las hojas (menos pokemon) de BW y los PMD a assets/hojas (via archive.org)
     python herramientas.py tiles               recorta los tiles de las mazmorras del PMD y los pone como terrenos de cada era
     python herramientas.py efectos             arma los efectos de golpes, cura, nivel... con los Attack Effects del PMD
     python herramientas.py salas               muestra en texto algunas salas generadas
@@ -533,6 +534,89 @@ def herramienta_verificar():
 
 # ==================== pruebas ====================
 
+# ==================== bajar las hojas de spriters-resource ====================
+
+def herramienta_hojas():
+    """Baja todas las hojas (menos los pokemon) de los 4 juegos a assets/hojas/<juego>/<seccion>/.
+    spriters-resource tiene un Cloudflare que no deja bajar nada automatico, asi que se usa la copia del Wayback Machine (archive.org)."""
+    import gzip, html, re
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    destino = os.path.join(raiz, 'assets', 'hojas')
+    ARCHIVO = 'https://web.archive.org/web/2026id_/https://www.spriters-resource.com'      # id_: la imagen original tal cual
+    PAGINAS = 'https://web.archive.org/web/2026/https://www.spriters-resource.com'         # las paginas sin id_: el archivo las guarda en zstd y asi las da ya abiertas
+    JUEGOS = {'blanco_negro': '/ds_dsi/pokemonblackwhite/', 'red_rescue': '/game_boy_advance/pokemonmysterydungeonredrescueteam/',
+              'time_darkness': '/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/', 'sky': '/ds_dsi/pokemonmysterydungeonexplorersofsky/'}
+
+    def pedir(url, intentos=4):
+        for i in range(intentos):
+            try:
+                pedido = urllib.request.Request(url, headers={'User-Agent': 'pokemanic-hojas', 'Accept-Encoding': 'gzip'})
+                with urllib.request.urlopen(pedido, timeout=60) as r:
+                    datos = r.read()
+                    return gzip.decompress(datos) if r.headers.get('Content-Encoding') == 'gzip' else datos
+            except urllib.error.HTTPError as e:
+                if e.code == 404: return None
+            except Exception:
+                pass
+            time.sleep(3 * (i + 1))                                       # archive.org a veces corta: espera y reintenta
+        return None
+
+    def limpio(texto):
+        return re.sub(r'[<>:"/\\|?*]', '', texto).strip()[:80]
+
+    def catalogo(pagina):
+        """[(seccion, id, nombre, carpeta)] de la pagina del juego, sin las secciones de pokemon."""
+        s = pedir(PAGINAS + pagina).decode('utf-8', 'replace')
+        s = s[s.find('<div id="asset-display">'):]
+        salida = []
+        for parte in re.split(r'<div class="section text-shadow[^"]*" id="section-\d+">', s)[1:]:
+            seccion = html.unescape(re.sub(r'<[^>]+>|arrow_drop_down|\[\d+\]', '', parte.split('</div>', 1)[0]).strip())
+            if seccion.lower().startswith('pok') and 'mon' in seccion.lower() and 'square' not in seccion.lower(): continue   # los pokemon salen del PMDCollab
+            for i, nombre, carpeta in re.findall(r'/asset/(\d+)/" class="iconlink">.*?title="([^"]*)".*?/media/asset_icons/(\d+)/', parte, re.S):
+                salida.append((seccion, i, html.unescape(nombre), carpeta))
+        return salida
+
+    def guardada(ruta, crudo=True):
+        """Direccion de la copia que tiene archive.org (o None). Se pregunta a su API antes de bajar: asi no se le pide de mas."""
+        r = pedir('https://archive.org/wayback/available?url=spriters-resource.com' + ruta)
+        try: copia = json.loads(r)['archived_snapshots'].get('closest') if r else None
+        except ValueError: copia = None
+        if not copia or copia.get('status') != '200': return None
+        return re.sub(r'/web/(\d+)/', r'/web/\1id_/', copia['url'], count=1) if crudo else copia['url']
+
+    def bajar(juego, pagina, seccion, i, nombre, carpeta):
+        lugar = os.path.join(destino, juego, limpio(seccion))
+        for ext in ('.png', '.zip', '.gif'):
+            if os.path.isfile(os.path.join(lugar, limpio(nombre) + ext)): return 'ya estaba'
+        url, ext = guardada('/media/assets/' + carpeta + '/' + i + '.png'), '.png'
+        if not url:                                                       # no es png (zip, gif): el link real esta en la pagina del asset
+            p = guardada(pagina + 'asset/' + i + '/', crudo=False)
+            p = pedir(p) if p else None
+            m = re.search(r'/media/assets/\d+/' + i + r'\.(\w+)', p.decode('utf-8', 'replace')) if p else None
+            if m: url, ext = guardada(m.group(0)), '.' + m.group(1)
+        datos = pedir(url) if url else None
+        if not datos or datos[:15].lower().startswith(b'<!doctype'): return 'no esta en el archivo'
+        os.makedirs(lugar, exist_ok=True)
+        with open(os.path.join(lugar, limpio(nombre) + ext), 'wb') as f: f.write(datos)
+        return 'ok'
+
+    def main():
+        faltan = []
+        for juego, pagina in JUEGOS.items():
+            lista = catalogo(pagina)
+            print('==', juego, len(lista), 'hojas')
+            for seccion, i, nombre, carpeta in lista:                     # de a una y con pausa: es un servicio gratis
+                r = bajar(juego, pagina, seccion, i, nombre, carpeta)
+                if r == 'ya estaba': continue
+                print('  ', seccion, '/', nombre, '->', r)
+                if r != 'ok': faltan.append(juego + ' | ' + seccion + ' | ' + nombre + ' | https://www.spriters-resource.com' + pagina + 'asset/' + i + '/')
+                time.sleep(1.5)
+        with open(os.path.join(destino, 'faltan.txt'), 'w', encoding='utf-8') as f: f.write('\n'.join(faltan))   # para bajarlas a mano
+        print('listo:', destino, '- faltan', len(faltan), '(lista en faltan.txt)')
+
+    main()
+
+
 # ==================== tiles de las mazmorras del PMD ====================
 
 def herramienta_tiles():
@@ -661,6 +745,7 @@ if __name__ == '__main__':
     if orden == 'descargar': herramienta_descargar()
     elif orden == 'datos': herramienta_datos()
     elif orden == 'recortar' and len(sys.argv) > 2: herramienta_recortar(sys.argv[2])
+    elif orden == 'hojas': herramienta_hojas()
     elif orden == 'tiles': herramienta_tiles()
     elif orden == 'efectos': herramienta_efectos()
     elif orden == 'salas': ver_salas()

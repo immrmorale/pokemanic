@@ -1,0 +1,375 @@
+blanco_negro | Friendly Characters | Hero (M/F) Overworld | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34024/
+blanco_negro | Friendly Characters | Overworld Entites | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34109/
+blanco_negro | Friendly Characters | Trainers (Back) | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34020/
+blanco_negro | Trainers | Trainer Vs. Faces | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34019/
+blanco_negro | Trainers | Trainers | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34021/
+blanco_negro | Miscellaneous | Accessories | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/38862/
+blanco_negro | Miscellaneous | Box Backgrounds | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34025/
+blanco_negro | Miscellaneous | Dream World Sync | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/46250/
+blanco_negro | Miscellaneous | Eggs | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/42880/
+blanco_negro | Miscellaneous | Game Icons | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34077/
+blanco_negro | Miscellaneous | Items | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/39874/
+blanco_negro | Miscellaneous | Key Items | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/43811/
+blanco_negro | Miscellaneous | Large Mugs | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34022/
+blanco_negro | Miscellaneous | Mail BGs | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34023/
+blanco_negro | Miscellaneous | Mic Test | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/36436/
+blanco_negro | Miscellaneous | Miscellaneous Icons | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/255185/
+blanco_negro | Miscellaneous | N Mugshot | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/46251/
+blanco_negro | Miscellaneous | Opening Lecture | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34008/
+blanco_negro | Miscellaneous | Options Screen | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/133051/
+blanco_negro | Miscellaneous | Party Screen | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/157163/
+blanco_negro | Miscellaneous | Poké Balls | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/39327/
+blanco_negro | Miscellaneous | Poké Transfer | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/46252/
+blanco_negro | Miscellaneous | Pokédex | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/47641/
+blanco_negro | Miscellaneous | Pokédex Completion | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/36445/
+blanco_negro | Miscellaneous | Pokémart Screen Rip | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/158806/
+blanco_negro | Miscellaneous | Ribbons | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/39916/
+blanco_negro | Miscellaneous | Starter Selection Screen | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/36444/
+blanco_negro | Miscellaneous | Text Entry (JPN) | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/34010/
+blanco_negro | Miscellaneous | Trainer Card | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/135288/
+blanco_negro | Miscellaneous | Trainer Card Portraits | https://www.spriters-resource.com/ds_dsi/pokemonblackwhite/asset/41994/
+red_rescue | Huts | Bulbasaur Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5332/
+red_rescue | Huts | Charmander Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5333/
+red_rescue | Huts | Chikorita Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5341/
+red_rescue | Huts | Cubone Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5339/
+red_rescue | Huts | Cyndaquil Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5342/
+red_rescue | Huts | Eevee Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5340/
+red_rescue | Huts | Fire Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5316/
+red_rescue | Huts | Fire Hut (Construction) | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5317/
+red_rescue | Huts | Grass Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5318/
+red_rescue | Huts | Grass Hut (Construction) | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5319/
+red_rescue | Huts | Machop Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5338/
+red_rescue | Huts | Meowth Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5336/
+red_rescue | Huts | Mudkip Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5346/
+red_rescue | Huts | Pikachu Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5335/
+red_rescue | Huts | Plant Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5320/
+red_rescue | Huts | Plant Hut (Construction) | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5321/
+red_rescue | Huts | Psyduck Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5337/
+red_rescue | Huts | Rock Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5322/
+red_rescue | Huts | Rock Hut (Construction) | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5323/
+red_rescue | Huts | Skitty Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5347/
+red_rescue | Huts | Squirtle Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5334/
+red_rescue | Huts | Torchic Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5345/
+red_rescue | Huts | Totodile Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5343/
+red_rescue | Huts | Treecko Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5344/
+red_rescue | Huts | Water Hut | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/26282/
+red_rescue | Huts | Water Hut (Construction) | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5324/
+red_rescue | Pokémon Square | Luminous Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5329/
+red_rescue | Pokémon Square | Makuhita Dojo | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75103/
+red_rescue | Pokémon Square | Pelipper Post Office | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5328/
+red_rescue | Pokémon Square | Pelipper Post Office Interior | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5416/
+red_rescue | Pokémon Square | Pokémon Square | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5327/
+red_rescue | Pokémon Square | Whiscash Pond | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5325/
+red_rescue | Friend Areas | Aged Chamber AN | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/68168/
+red_rescue | Friend Areas | Aged Chamber O? | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/68169/
+red_rescue | Friend Areas | Ancient Relic | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5348/
+red_rescue | Friend Areas | Beau Plains | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5349/
+red_rescue | Friend Areas | Boulder Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5350/
+red_rescue | Friend Areas | Bountiful Sea | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5351/
+red_rescue | Friend Areas | Crater | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5352/
+red_rescue | Friend Areas | Cryptic Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5353/
+red_rescue | Friend Areas | Darkness Ridge | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5354/
+red_rescue | Friend Areas | Decrepit Lab | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5355/
+red_rescue | Friend Areas | Deep-Sea Current | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5356/
+red_rescue | Friend Areas | Deep-Sea Floor | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5357/
+red_rescue | Friend Areas | Dragon Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5358/
+red_rescue | Friend Areas | Echo Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5359/
+red_rescue | Friend Areas | Enclosed Island | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5360/
+red_rescue | Friend Areas | Energetic Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5361/
+red_rescue | Friend Areas | Final Island | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5362/
+red_rescue | Friend Areas | Flyaway Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5363/
+red_rescue | Friend Areas | Frigid Cavern | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5364/
+red_rescue | Friend Areas | Furnace Desert | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5365/
+red_rescue | Friend Areas | Healing Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5366/
+red_rescue | Friend Areas | Ice Floe Beach | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5367/
+red_rescue | Friend Areas | Jungle | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5368/
+red_rescue | Friend Areas | Legendary Island | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5369/
+red_rescue | Friend Areas | Magnetic Quarry | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5370/
+red_rescue | Friend Areas | Mist-Rise Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5371/
+red_rescue | Friend Areas | Mt. Cleft | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5372/
+red_rescue | Friend Areas | Mt. Deepgreen | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5373/
+red_rescue | Friend Areas | Mt. Discipline | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5374/
+red_rescue | Friend Areas | Mt. Moonview | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5375/
+red_rescue | Friend Areas | Mushroom Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5376/
+red_rescue | Friend Areas | Mystic Lake | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5377/
+red_rescue | Friend Areas | Overgrown Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5378/
+red_rescue | Friend Areas | Peanut Swamp | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5379/
+red_rescue | Friend Areas | Poison Swamp | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5380/
+red_rescue | Friend Areas | Power Plant | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5381/
+red_rescue | Friend Areas | Rainbow Peak | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5382/
+red_rescue | Friend Areas | Ravaged Field | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5383/
+red_rescue | Friend Areas | Rub-a-Dub River | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75101/
+red_rescue | Friend Areas | Sacred Field | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5384/
+red_rescue | Friend Areas | Safari | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5385/
+red_rescue | Friend Areas | Scorched Plains | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5386/
+red_rescue | Friend Areas | Seafloor Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5387/
+red_rescue | Friend Areas | Secretive Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5388/
+red_rescue | Friend Areas | Serene Sea | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5389/
+red_rescue | Friend Areas | Shallow Beach | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75102/
+red_rescue | Friend Areas | Sky Blue Plains | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5390/
+red_rescue | Friend Areas | Southern Island | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5391/
+red_rescue | Friend Areas | Stratos Lookout | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5392/
+red_rescue | Friend Areas | Tadpole Pond | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5393/
+red_rescue | Friend Areas | Thunder Meadow | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5394/
+red_rescue | Friend Areas | Transform Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5395/
+red_rescue | Friend Areas | Treasure Sea | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5396/
+red_rescue | Friend Areas | Turtleshell Pond | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5397/
+red_rescue | Friend Areas | Volcanic Pit | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/65101/
+red_rescue | Friend Areas | Waterfall Lake | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75104/
+red_rescue | Friend Areas | Wild Plains | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5398/
+red_rescue | Events | Dreams | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/113178/
+red_rescue | Events | Frosty Forest Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221085/
+red_rescue | Events | Great Canyon Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221084/
+red_rescue | Events | Hill of the Ancients | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/112438/
+red_rescue | Events | Lapis Cave Entrance & Exit | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221083/
+red_rescue | Events | Magma Cavern Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221082/
+red_rescue | Events | Meteor | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5412/
+red_rescue | Events | Mt. Blaze Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221081/
+red_rescue | Events | Mt. Freeze Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221080/
+red_rescue | Events | Mt. Freeze Summit | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/135342/
+red_rescue | Events | Mt. Steel Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221079/
+red_rescue | Events | Mt. Thunder Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221078/
+red_rescue | Events | Pitfall Valley | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/135343/
+red_rescue | Events | Silent Chasm Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221077/
+red_rescue | Events | Sinister Woods Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221076/
+red_rescue | Events | Thunderwave Cave Entrance | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/221075/
+red_rescue | Events | Wake Up Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/41377/
+red_rescue | Dungeon Tiles | Buried Relic B21F - B50F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85416/
+red_rescue | Dungeon Tiles | Buried Relic B51F - B99F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85417/
+red_rescue | Dungeon Tiles | Darknight Relic | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/40730/
+red_rescue | Dungeon Tiles | Desert Region | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/84846/
+red_rescue | Dungeon Tiles | Electric Maze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85451/
+red_rescue | Dungeon Tiles | Frosty Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85202/
+red_rescue | Dungeon Tiles | Great Canyon | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/84826/
+red_rescue | Dungeon Tiles | Howling Forest 07F - 15F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85278/
+red_rescue | Dungeon Tiles | Ice Maze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85201/
+red_rescue | Dungeon Tiles | Lapis Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85134/
+red_rescue | Dungeon Tiles | Magma Cavern B08F - B17F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85205/
+red_rescue | Dungeon Tiles | Magma Cavern B18F - B23F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85239/
+red_rescue | Dungeon Tiles | Mt. Blaze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85187/
+red_rescue | Dungeon Tiles | Mt. Faraway 10F - 20F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85295/
+red_rescue | Dungeon Tiles | Mt. Faraway 30F - 39F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85306/
+red_rescue | Dungeon Tiles | Mt. Freeze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85204/
+red_rescue | Dungeon Tiles | Mt. Steel 01F - 05F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5330/
+red_rescue | Dungeon Tiles | Mt. Steel 06F - 08F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/19787/
+red_rescue | Dungeon Tiles | Mt. Thunder | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/19788/
+red_rescue | Dungeon Tiles | Normal Maze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85431/
+red_rescue | Dungeon Tiles | Purity Forest 13F-20F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85664/
+red_rescue | Dungeon Tiles | Purity Forest 44F-60F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85718/
+red_rescue | Dungeon Tiles | Purity Forest 61F-79F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85731/
+red_rescue | Dungeon Tiles | Purity Forest 80F-99F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85720/
+red_rescue | Dungeon Tiles | Rock Path | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85158/
+red_rescue | Dungeon Tiles | Silver Trench B70F - B98F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/86839/
+red_rescue | Dungeon Tiles | Sinister Woods | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/19789/
+red_rescue | Dungeon Tiles | Sky Tower | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85221/
+red_rescue | Dungeon Tiles | Snow Path | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85186/
+red_rescue | Dungeon Tiles | Southern Cavern B01F - B23F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85103/
+red_rescue | Dungeon Tiles | Stormy Sea B16F - B39F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85455/
+red_rescue | Dungeon Tiles | Water Maze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85482/
+red_rescue | Dungeon Tiles | Western Cave B1F - B27F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85297/
+red_rescue | Dungeon Tiles | Western Cave B28F - B39F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/85296/
+red_rescue | Dungeon Tiles | Wyvern Hill | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/84825/
+red_rescue | Dungeons (Randomized) | Thunderwave Cave B1F | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5409/
+red_rescue | Dungeons (Randomized) | Tiny Woods BF1 | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5402/
+red_rescue | Dungeons (Randomized) | Tiny Woods BF2 | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5404/
+red_rescue | Dungeons (Randomized) | Tiny Woods BF3 / BF4 | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5407/
+red_rescue | Dungeon Boss Rooms | Fiery Field | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75120/
+red_rescue | Dungeon Boss Rooms | Frosty Grotto | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75099/
+red_rescue | Dungeon Boss Rooms | Lightning Field | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75142/
+red_rescue | Dungeon Boss Rooms | Magma Cavern | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75098/
+red_rescue | Dungeon Boss Rooms | Meteor Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75105/
+red_rescue | Dungeon Boss Rooms | Mt. Blaze | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/65097/
+red_rescue | Dungeon Boss Rooms | Mt. Faraway | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75222/
+red_rescue | Dungeon Boss Rooms | Mt. Steel | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/65102/
+red_rescue | Dungeon Boss Rooms | Mt. Thunder | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75100/
+red_rescue | Dungeon Boss Rooms | Northern Range | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75116/
+red_rescue | Dungeon Boss Rooms | Northwind Field | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75221/
+red_rescue | Dungeon Boss Rooms | Silver Trench | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/68167/
+red_rescue | Dungeon Boss Rooms | Sinister Woods | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75115/
+red_rescue | Dungeon Boss Rooms | Sky Tower | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75106/
+red_rescue | Dungeon Boss Rooms | Stormy Sea | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/65103/
+red_rescue | Dungeon Boss Rooms | Uproar Forest | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75114/
+red_rescue | Dungeon Boss Rooms | Western Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75220/
+red_rescue | Dungeon Boss Rooms | Wish Cave | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/75208/
+red_rescue | Attacks | Dark-Type Moves | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/41323/
+red_rescue | Attacks | Fire-Type Moves | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/40562/
+red_rescue | Attacks | Ghost-Type Moves | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/39320/
+red_rescue | Attacks | Poison-Type Moves | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/163902/
+red_rescue | Attacks | Rock-Type Moves | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/41326/
+red_rescue | Weather | Embers | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/565138/
+red_rescue | Weather | Fog | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/534321/
+red_rescue | Weather | Hail | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/566451/
+red_rescue | Weather | Miscellaneous Weather Effects | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/534320/
+red_rescue | Weather | Rain | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/534323/
+red_rescue | Weather | Sunny | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/534322/
+red_rescue | Miscellaneous | Debug Room | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5331/
+red_rescue | Miscellaneous | Effects | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/19786/
+red_rescue | Miscellaneous | Flag Designs | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5424/
+red_rescue | Miscellaneous | Font | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5422/
+red_rescue | Miscellaneous | Friend Area Map | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/81433/
+red_rescue | Miscellaneous | HUD | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/18617/
+red_rescue | Miscellaneous | Intro Scenes | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5413/
+red_rescue | Miscellaneous | Items & Objects | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5426/
+red_rescue | Miscellaneous | Menu Font | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/180912/
+red_rescue | Miscellaneous | NPC Portraits | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5421/
+red_rescue | Miscellaneous | Starter Portraits | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/5419/
+red_rescue | Miscellaneous | Status Effects | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/69118/
+red_rescue | Miscellaneous | World Map | https://www.spriters-resource.com/game_boy_advance/pokemonmysterydungeonredrescueteam/asset/81435/
+time_darkness | Backgrounds | 1st Floor of Guild & Outside | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5962/
+time_darkness | Backgrounds | 2nd Floor of Guild | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5963/
+time_darkness | Backgrounds | Base Camp | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5973/
+time_darkness | Backgrounds | Beach & Path to Beach | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/14797/
+time_darkness | Backgrounds | The Crossroads | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5972/
+time_darkness | Backgrounds | Crystal Cave Puzzle | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/14988/
+time_darkness | Backgrounds | Dusk Forest Entrance | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5976/
+time_darkness | Backgrounds | Jail (Outside) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/74506/
+time_darkness | Backgrounds | Jail Cell | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5977/
+time_darkness | Backgrounds | Marowak's Dojo | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5966/
+time_darkness | Backgrounds | Sharpedo Bluff | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5970/
+time_darkness | Backgrounds | Temporal Tower Summit | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/114536/
+time_darkness | Backgrounds | Treasure Town | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5979/
+time_darkness | Backgrounds | Treasure Town | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/81003/
+time_darkness | Dungeons | Amp Plains | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85781/
+time_darkness | Dungeons | Apple Woods | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84820/
+time_darkness | Dungeons | Beach Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84831/
+time_darkness | Dungeons | Bottomless Sea | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85536/
+time_darkness | Dungeons | Brine Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85956/
+time_darkness | Dungeons | Chasm Cave B01F - B04F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84816/
+time_darkness | Dungeons | Chasm Cave B05F - B08F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84815/
+time_darkness | Dungeons | Concealed Ruins | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85985/
+time_darkness | Dungeons | Craggy Coast | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85412/
+time_darkness | Dungeons | Crystal Cave B01F - B05F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85897/
+time_darkness | Dungeons | Crystal Cave B06F - B11F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85914/
+time_darkness | Dungeons | Crystal Crossing | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85915/
+time_darkness | Dungeons | Dark Crater | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86117/
+time_darkness | Dungeons | Dark Hill 01F - 06F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84799/
+time_darkness | Dungeons | Dark Hill 07F - 15F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84798/
+time_darkness | Dungeons | Deep Dark Crater | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86118/
+time_darkness | Dungeons | Deep Dusk Forest 01F - 06F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85129/
+time_darkness | Dungeons | Deep Dusk Forest 07F - 12F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85132/
+time_darkness | Dungeons | Deep Sealed Ruin | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84970/
+time_darkness | Dungeons | Drenched Bluff | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84890/
+time_darkness | Dungeons | Dusk Forest 01F - 04F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85098/
+time_darkness | Dungeons | Dusk Forest 05F - 08F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85099/
+time_darkness | Dungeons | Far Amp Plains | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85789/
+time_darkness | Dungeons | Final Maze B23F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86285/
+time_darkness | Dungeons | Foggy Forest | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85771/
+time_darkness | Dungeons | Forest Path | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85768/
+time_darkness | Dungeons | Golden Chamber | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84873/
+time_darkness | Dungeons | Hidden Highland | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84827/
+time_darkness | Dungeons | Hidden Land | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84828/
+time_darkness | Dungeons | Ice Aegis Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85991/
+time_darkness | Dungeons | Lower Brine Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85970/
+time_darkness | Dungeons | Lush Prairie | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86284/
+time_darkness | Dungeons | Miracle Sea | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85996/
+time_darkness | Dungeons | Mt. Bristle | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84830/
+time_darkness | Dungeons | Mt. Horn | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85752/
+time_darkness | Dungeons | Mt. Travail | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86058/
+time_darkness | Dungeons | Mystery Jungle 01F - 15F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84968/
+time_darkness | Dungeons | Mystery Jungle 16F - 30F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84969/
+time_darkness | Dungeons | Mystifying Forest | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5980/
+time_darkness | Dungeons | The Nightmare | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86065/
+time_darkness | Dungeons | Northern Desert 01F - 07F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/37112/
+time_darkness | Dungeons | Northern Desert 08F - 15F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85146/
+time_darkness | Dungeons | Quicksand Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85828/
+time_darkness | Dungeons | Quicksand Pit | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85896/
+time_darkness | Dungeons | Rock Aegis Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85980/
+time_darkness | Dungeons | Rock Path | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85753/
+time_darkness | Dungeons | Sealed Ruin | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84874/
+time_darkness | Dungeons | Shimmer Desert | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/37303/
+time_darkness | Dungeons | Side Path | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85430/
+time_darkness | Dungeons | Spacial Rift B01F - B14F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86088/
+time_darkness | Dungeons | Spacial Rift B15F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86304/
+time_darkness | Dungeons | Steam Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85777/
+time_darkness | Dungeons | Steel Aegis Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85992/
+time_darkness | Dungeons | Surrounded Sea | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85993/
+time_darkness | Dungeons | Temporal Spire | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84823/
+time_darkness | Dungeons | Temporal Tower | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84824/
+time_darkness | Dungeons | Test Dungeon | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85988/
+time_darkness | Dungeons | Tiny Meadow | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86283/
+time_darkness | Dungeons | Treeshroud Forest 01F - 08F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84829/
+time_darkness | Dungeons | Treeshroud Forest 09F - 21F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/84817/
+time_darkness | Dungeons | Unused: Tileset ID #13 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85790/
+time_darkness | Dungeons | Unused: Tileset ID #21 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85895/
+time_darkness | Dungeons | Unused: Tileset ID #32 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85955/
+time_darkness | Dungeons | Unused: Tileset ID #41 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85971/
+time_darkness | Dungeons | Unused: Tileset ID #44 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85978/
+time_darkness | Dungeons | Unused: Tileset ID #47 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85824/
+time_darkness | Dungeons | Unused: Tileset ID #86 | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86295/
+time_darkness | Dungeons | Waterfall Cave | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/37304/
+time_darkness | Dungeons | World Abyss B16F - B30F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86145/
+time_darkness | Dungeons | Zero Isle East B15F - B25F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86152/
+time_darkness | Dungeons | Zero Isle East B26F - B40F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/86156/
+time_darkness | Dungeons | Zero Isle South B01F - B03F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85926/
+time_darkness | Dungeons | Zero Isle South B04F - B07F | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/85787/
+time_darkness | Attacks | Dragon Attack Effects | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/14966/
+time_darkness | Attacks | Poison Attack Effects | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/14793/
+time_darkness | Miscellaneous | Dimensional Hole | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/158011/
+time_darkness | Miscellaneous | Dimensional Scream | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/26230/
+time_darkness | Miscellaneous | Font | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/19950/
+time_darkness | Miscellaneous | Font (Korean) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/111447/
+time_darkness | Miscellaneous | Grovyle | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5984/
+time_darkness | Miscellaneous | Items | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/15903/
+time_darkness | Miscellaneous | Logos | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/137409/
+time_darkness | Miscellaneous | Main Introduction | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/127921/
+time_darkness | Miscellaneous | Map Sprites | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/19951/
+time_darkness | Miscellaneous | Nature Test | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/5986/
+time_darkness | Miscellaneous | Sentry Duty | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/14991/
+time_darkness | Miscellaneous | Time Gears | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/255186/
+time_darkness | Miscellaneous | Various Graphics | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/19952/
+time_darkness | Miscellaneous | World Map | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/asset/279868/
+sky | Maps | Barren Valley (Entrance) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/74542/
+sky | Maps | Hidden Land | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/151837/
+sky | Maps | Igglybuff Plain | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59194/
+sky | Maps | Igglybuff's House | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59189/
+sky | Maps | Mountains (Intro) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59195/
+sky | Maps | Murky Forest & Armaldo House | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59171/
+sky | Maps | Secret Bazaar | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/36376/
+sky | Maps | Sky Peak 8th Station | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/113041/
+sky | Maps | Spinda Cafe | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/27765/
+sky | Maps | Temporal Tower | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/146840/
+sky | Dungeon Tiles | 4th Station Pass | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86307/
+sky | Dungeon Tiles | 7th Station Pass | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86310/
+sky | Dungeon Tiles | Barren Valley | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86329/
+sky | Dungeon Tiles | Dark Ice Mountain | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101867/
+sky | Dungeon Tiles | Dark Ice Mountain Peak | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101866/
+sky | Dungeon Tiles | Dark Wasteland | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86330/
+sky | Dungeon Tiles | Deep Boulder Quarry | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86311/
+sky | Dungeon Tiles | Deep Limestone Cavern | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86324/
+sky | Dungeon Tiles | Icicle Forest | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101865/
+sky | Dungeon Tiles | Limestone Cavern | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86313/
+sky | Dungeon Tiles | Murky Forest | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/61817/
+sky | Dungeon Tiles | Spacial Cliffs | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101868/
+sky | Dungeon Tiles | Temporal Spire (In the Future of Darkness) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86345/
+sky | Dungeon Tiles | Temporal Tower (In the Future of Darkness) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/86331/
+sky | Dungeon Tiles | Vast Ice Mountain | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101864/
+sky | Dungeon Tiles | Vast Ice Mountain Peak | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/101862/
+sky | Miscellaneous | Antic Wall (Intro) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59196/
+sky | Miscellaneous | Attack Effects | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/85692/
+sky | Miscellaneous | Boards & Wanted Posters | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/233234/
+sky | Miscellaneous | Clear Markers | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232717/
+sky | Miscellaneous | Concealed Ruins | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232320/
+sky | Miscellaneous | Dungeon Title Font | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/84937/
+sky | Miscellaneous | Fogbound Lake (Vista) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232024/
+sky | Miscellaneous | Fortune Ravine Ruins | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232237/
+sky | Miscellaneous | Frozen Island | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232323/
+sky | Miscellaneous | The Future | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232317/
+sky | Miscellaneous | Igglybuff Map | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59188/
+sky | Miscellaneous | Lapras (Intro) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59198/
+sky | Miscellaneous | Maps (Future) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/146839/
+sky | Miscellaneous | Menu Backgrounds | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/47829/
+sky | Miscellaneous | Moonlight | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59280/
+sky | Miscellaneous | Plains (Intro) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59282/
+sky | Miscellaneous | Pokémon Exploration Team Kit | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232322/
+sky | Miscellaneous | Portraits | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/24968/
+sky | Miscellaneous | Relic Fragment | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232321/
+sky | Miscellaneous | Skies | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59281/
+sky | Miscellaneous | Skies (Dusk) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232235/
+sky | Miscellaneous | Sky Jukebox | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232924/
+sky | Miscellaneous | Sky Peak | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232233/
+sky | Miscellaneous | Sky Peak Summit | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232234/
+sky | Miscellaneous | Statues | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/175670/
+sky | Miscellaneous | Substitute | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/131094/
+sky | Miscellaneous | Time Travel | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/232715/
+sky | Miscellaneous | Title Screen | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59170/
+sky | Miscellaneous | Treasure Town (Intro) | https://www.spriters-resource.com/ds_dsi/pokemonmysterydungeonexplorersofsky/asset/59197/
