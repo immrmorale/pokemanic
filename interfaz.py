@@ -35,14 +35,68 @@ def armar_menus():
                     'acero': (183, 183, 206), 'normal': (168, 167, 122), 'hada': (214, 133, 173)}
     GRIS, OSCURO, PANEL = (128, 128, 128), (35, 35, 35), (32, 32, 32)
     FONDOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'fondos')
+    PANELES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'paneles')
+    HAY_FONDO = os.path.isfile(os.path.join(PANELES, 'fondo.png'))
+    TINTA = 'white' if HAY_FONDO else (25, 25, 25)            # texto suelto sobre el fondo de los menus: sobre el gris va oscuro, sobre el de BW blanco
+    ALERTA = (255, 130, 130) if HAY_FONDO else (120, 30, 30)
+    BORDES = {'boton': 8, 'boton_elegido': 8, 'panel': 6, 'miembro': 10, 'miembro_activo': 10, 'miembro_debil': 10}
     INICIALES = ('electrike', 'sandshrew', 'mareanie')
     SUEÑO = 8000                                     # ms sin tocar nada para que los pokemon del escenario se duerman
     _fuentes = {}
+    _paneles = {}
 
 
     def fuente(tam):
         if tam not in _fuentes: _fuentes[tam] = pygame.font.Font(None, tam)
         return _fuentes[tam]
+
+
+    # ---------- piezas de BW (assets/interfaz/paneles, las recorta: python herramientas.py paneles) ----------
+
+    def pieza(nombre):
+        """assets/interfaz/paneles/<nombre>.png o None."""
+        if nombre not in _paneles:
+            ruta = os.path.join(PANELES, nombre + '.png')
+            try: _paneles[nombre] = pygame.image.load(ruta).convert_alpha() if os.path.isfile(ruta) else None
+            except pygame.error: _paneles[nombre] = None
+        return _paneles[nombre]
+
+
+    def caja(ventana, rect, nombre, color=OSCURO, borde=0, color_borde='white'):
+        """Una pieza de BW estirada al rect sin deformar las esquinas (las esquinas se copian, los bordes y el medio se estiran).
+        Si no esta la pieza, el rectangulo de siempre: color y un borde de 'borde' px."""
+        rect = pygame.Rect(rect)
+        img = pieza(nombre)
+        if not img:
+            pygame.draw.rect(ventana, color, rect)
+            if borde: pygame.draw.rect(ventana, color_borde, rect, borde)
+            return
+        clave = (nombre, rect.size)
+        if clave not in _paneles:
+            w, h, b = img.get_width(), img.get_height(), BORDES.get(nombre, 6)
+            e = max(1, min(2, rect.width // (b * 2), rect.height // (b * 2)))     # los pixeles al doble, si entran
+            B = b * e
+            sup = pygame.Surface(rect.size, pygame.SRCALPHA)
+            xs = ((0, b, 0, B), (b, w - b, B, rect.width - B), (w - b, w, rect.width - B, rect.width))
+            ys = ((0, b, 0, B), (b, h - b, B, rect.height - B), (h - b, h, rect.height - B, rect.height))
+            for x0, x1, dx0, dx1 in xs:
+                for y0, y1, dy0, dy1 in ys:
+                    if dx1 > dx0 and dy1 > dy0: sup.blit(pygame.transform.scale(img.subsurface((x0, y0, x1 - x0, y1 - y0)), (dx1 - dx0, dy1 - dy0)), (dx0, dy0))
+            _paneles[clave] = sup
+        ventana.blit(_paneles[clave], rect)
+
+
+    def fondo(ventana, nombre='fondo', color=GRIS, estirar=False):
+        """Fondo de BW: repetido al doble (o estirado a la pantalla si no se puede repetir). Si no esta, el color. Devuelve si habia pieza."""
+        img = pieza(nombre)
+        if not img: ventana.fill(color); return False
+        W, H = ventana.get_size()
+        clave = (nombre, 'estirado' if estirar else 'doble')
+        if clave not in _paneles: _paneles[clave] = pygame.transform.scale(img, (W, H) if estirar else (img.get_width() * 2, img.get_height() * 2))
+        t = _paneles[clave]
+        for x in range(0, W, t.get_width()):
+            for y in range(0, H, t.get_height()): ventana.blit(t, (x, y))
+        return True
 
 
     def ajustar_texto(texto, f, ancho):
@@ -65,9 +119,8 @@ def armar_menus():
 
 
     def boton(ventana, rect, texto, elegido=False, tam=34, valor=None):
-        """Boton oscuro con borde blanco (como el menu de pausa). valor: texto a la derecha con < >."""
-        pygame.draw.rect(ventana, OSCURO, rect)
-        pygame.draw.rect(ventana, 'white', rect, 3)
+        """Barra de opciones de BW (si no esta, boton oscuro con borde blanco como el menu de pausa). valor: texto a la derecha con < >."""
+        caja(ventana, rect, 'boton_elegido' if elegido else 'boton', OSCURO, 3)
         t = fuente(tam).render(texto, True, 'white')
         if valor is None: ventana.blit(t, t.get_rect(center=rect.center))
         else:
@@ -77,8 +130,8 @@ def armar_menus():
         if elegido: dibujar_esquinas(ventana, rect.inflate(10, 10))
 
 
-    def titulo(ventana, texto, x=60, y=40, tam=72, color=(25, 25, 25)):
-        ventana.blit(fuente(tam).render(texto, True, color), (x, y))
+    def titulo(ventana, texto, x=60, y=40, tam=72, color=None):
+        ventana.blit(fuente(tam).render(texto, True, color or TINTA), (x, y))
 
 
     # ---------- logo: POKE con la letra de pokemon y MANIC en Unown ----------
@@ -244,8 +297,8 @@ def armar_menus():
         elegido = 0
         reloj = pygame.time.Clock()
         while True:
-            caja = pygame.Rect(0, 0, 620, 150 + 56 * len(opciones_)); caja.center = (W // 2, H // 2)
-            botones = [pygame.Rect(caja.x + 60, caja.y + 120 + i * 56, caja.width - 120, 44) for i in range(len(opciones_))]
+            cuadro = pygame.Rect(0, 0, 620, 150 + 56 * len(opciones_)); cuadro.center = (W // 2, H // 2)
+            botones = [pygame.Rect(cuadro.x + 60, cuadro.y + 120 + i * 56, cuadro.width - 120, 44) for i in range(len(opciones_))]
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
                 if e.type == pygame.KEYDOWN:
@@ -261,10 +314,10 @@ def armar_menus():
                         if b.collidepoint(ui['a_logico'](e.pos)): return i
             ventana.blit(fondo, (0, 0))
             velo = pygame.Surface((W, H), pygame.SRCALPHA); velo.fill((0, 0, 0, 150)); ventana.blit(velo, (0, 0))
-            pygame.draw.rect(ventana, OSCURO, caja); pygame.draw.rect(ventana, (220, 220, 220), caja, 2)
-            for i, linea in enumerate(ajustar_texto(texto, fuente(32), caja.width - 60)[:2]):
-                ventana.blit(fuente(32).render(linea, True, 'white'), (caja.x + 30, caja.y + 22 + i * 30))
-            if detalle: ventana.blit(fuente(22).render(detalle, True, (200, 200, 200)), (caja.x + 30, caja.y + 88))
+            caja(ventana, cuadro, 'panel', OSCURO, 2, (220, 220, 220))
+            for i, linea in enumerate(ajustar_texto(texto, fuente(32), cuadro.width - 60)[:2]):
+                ventana.blit(fuente(32).render(linea, True, 'white'), (cuadro.x + 30, cuadro.y + 22 + i * 30))
+            if detalle: ventana.blit(fuente(22).render(detalle, True, (200, 200, 200)), (cuadro.x + 30, cuadro.y + 88))
             for i, b in enumerate(botones): boton(ventana, b, opciones_[i], i == elegido, 30)
             ui['presentar'](); reloj.tick(60)
 
@@ -318,7 +371,7 @@ def armar_menus():
             if accion == 'controles' and menu_controles(ui) == 'salir': return 'salir'
             if accion == 'glosario' and glosario(ui) == 'salir': return 'salir'
             if accion in ('modo', 'resolucion', 'pantalla_completa', 'estilo_equipo', 'volumen'): cambiar(accion, 1)
-            ventana.fill(GRIS)
+            fondo(ventana)
             titulo(ventana, 'AJUSTES', 100, 40)
             valores = {'volumen': config['volumen'], 'modo': config['modo'].title(), 'resolucion': config['resolucion'],
                        'pantalla_completa': 'Si' if config['pantalla_completa'] else 'No', 'estilo_equipo': config['estilo_equipo'].title()}
@@ -379,10 +432,10 @@ def armar_menus():
                     ventana.blit(fuente(24).render('ESC para cancelar', True, (200, 200, 200)), (W // 2 - 70, H // 2 + 40))
                 nueva = controles.esperar_entrada(dispositivo, ui['presentar'], dibujar_espera)
                 if nueva: perfil_actual[accion] = nueva
-            ventana.fill(GRIS)
+            fondo(ventana)
             titulo(ventana, 'CONTROLES', 100, 36, 60)
             if dispositivo == 'control' and not controles.hay_control():
-                ventana.blit(fuente(24).render('(no hay ningun control conectado)', True, (40, 40, 40)), (440, 56))
+                ventana.blit(fuente(24).render('(no hay ningun control conectado)', True, TINTA), (440, 56))
             for i, b in botones.items():
                 clave = filas[i]
                 if clave == 'dispositivo': boton(ventana, b, 'Dispositivo', i == elegido, 28, dispositivo.title())
@@ -390,7 +443,7 @@ def armar_menus():
                 elif clave == 'restaurar': boton(ventana, b, 'Restaurar preset de este perfil', i == elegido, 28)
                 elif clave == 'volver': boton(ventana, b, 'Volver', i == elegido, 28)
                 else:
-                    pygame.draw.rect(ventana, OSCURO, b); pygame.draw.rect(ventana, 'white', b, 2)
+                    caja(ventana, b, 'boton_elegido' if i == elegido else 'boton', OSCURO, 2)
                     ventana.blit(fuente(28).render(nombres[clave], True, 'white'), (b.x + 16, b.y + 8))
                     tecla = fuente(28).render(str(perfil_actual.get(clave, '-')).upper(), True, (240, 220, 120))
                     ventana.blit(tecla, tecla.get_rect(midright=(b.right - 16, b.centery)))
@@ -543,10 +596,10 @@ def armar_menus():
                 if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                     for i, b in enumerate(botones):
                         if b.collidepoint(ui['a_logico'](e.pos)): elegido = i; scroll = 0
-            ventana.fill(GRIS)
+            fondo(ventana)
             titulo(ventana, 'GLOSARIO', 40, 26, 60)
             for i, b in enumerate(botones): boton(ventana, b, nombres[i], i == elegido, 26)
-            pygame.draw.rect(ventana, PANEL, panel)
+            caja(ventana, panel, 'panel', PANEL)
             ventana.set_clip(panel.inflate(-10, -10))
             for i, linea in enumerate(lineas):
                 y = panel.y + 14 + i * 22 - scroll
@@ -585,6 +638,7 @@ def armar_menus():
                     for i, c in enumerate(cajas):
                         if c.collidepoint(ui['a_logico'](e.pos)): return INICIALES[i]
             fondo_menu(ui, pygame.time.get_ticks(), False)
+            velo = pygame.Surface((W, 90), pygame.SRCALPHA); velo.fill((0, 0, 0, 120)); ventana.blit(velo, (0, 36))   # que el titulo se lea sobre el fondo
             titulo(ventana, 'Elegi tu compañero', 60, 50, 64, 'white')
             for i, (n, a) in enumerate(zip(INICIALES, animadores)):
                 c = cajas[i]
@@ -657,14 +711,18 @@ def armar_menus():
     def _dibujar_clasico(ui, j, sel, escena):
         """Como el menu de equipo de los juegos: el activo grande a la izquierda y los demas en lista."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
-        ventana.fill((60, 110, 90))
-        for y in range(0, H, 24): pygame.draw.line(ventana, (70, 125, 100), (0, y), (W, y), 1)
+        if not fondo(ventana, 'fondo_equipo', (60, 110, 90), estirar=True):        # el de BW tiene un degrade: se estira, no se repite
+            for y in range(0, H, 24): pygame.draw.line(ventana, (70, 125, 100), (0, y), (W, y), 1)
         zonas = {}
         for i, m in enumerate(j['equipo']):
             r = pygame.Rect(40, 60, 380, 200) if i == 0 else pygame.Rect(460, 40 + (i - 1) * 120, 500, 108)
             zonas[i] = r
-            pygame.draw.rect(ventana, (40, 90, 150) if i == j['activo'] else (50, 70, 90), r, border_radius=14)
-            pygame.draw.rect(ventana, 'white', r, 3, border_radius=14)
+            vida = j['vida'] if i == j['activo'] else m['vida']
+            nombre = 'miembro_debil' if vida <= 0 else 'miembro_activo' if i == j['activo'] else 'miembro'
+            if pieza(nombre): caja(ventana, r, nombre)
+            else:
+                pygame.draw.rect(ventana, (40, 90, 150) if i == j['activo'] else (50, 70, 90), r, border_radius=14)
+                pygame.draw.rect(ventana, 'white', r, 3, border_radius=14)
             img = ui['retrato'](m['nombre'], 70 if i == 0 else 56)
             if img: ventana.blit(img, (r.x + 14, r.y + 14))
             _info_corta(ventana, m, j, r.x + (100 if i == 0 else 84), r.y + 14, r.width - (120 if i == 0 else 100), i == j['activo'])
@@ -760,8 +818,8 @@ def armar_menus():
                     mt = elegir_mt(ui, j, m)
                     if mt == 'salir': return 'salir'
                     if mt: acc['enseñar'](i, valor, mt)
-            ventana.fill(GRIS)
-            pygame.draw.rect(ventana, PANEL, (20, 20, 300, H - 40))
+            fondo(ventana)
+            caja(ventana, (20, 20, 300, H - 40), 'panel', PANEL)
             animador.actualizar()
             if not animador.dibujar(ventana): pygame.draw.circle(ventana, (200, 200, 200), (170, 190), 50)
             ventana.blit(fuente(40).render(m['nombre'].replace('_', ' ').title(), True, 'white'), (40, 280))
@@ -777,16 +835,16 @@ def armar_menus():
             ventana.blit(fuente(20).render('izq/der: otro miembro', True, (200, 200, 200)), (40, H - 50))
             ficha_zonas = {}
             y = 30
-            ventana.blit(fuente(30).render('Stats', True, (25, 25, 25)), (350, y))
-            ventana.blit(fuente(22).render('Puntos EV para repartir: ' + str(m['puntos']), True, (25, 25, 25) if not m['puntos'] else (120, 30, 30)), (560, y + 6))
+            ventana.blit(fuente(30).render('Stats', True, TINTA), (350, y))
+            ventana.blit(fuente(22).render('Puntos EV para repartir: ' + str(m['puntos']), True, TINTA if not m['puntos'] else ALERTA), (560, y + 6))
             y += 34
             for k, (clase, valor) in enumerate(filas):
                 if clase == 'mov' and valor == 0:
-                    y += 10; ventana.blit(fuente(30).render('Movimientos (ENTER para enseñar una MT)', True, (25, 25, 25)), (350, y)); y += 34
+                    y += 10; ventana.blit(fuente(30).render('Movimientos (ENTER para enseñar una MT)', True, TINTA), (350, y)); y += 34
                 if clase == 'evo' and filas[k - 1][0] != 'evo': y += 10
                 r = pygame.Rect(350, y, W - 380, 30)
                 ficha_zonas[k] = r
-                pygame.draw.rect(ventana, OSCURO, r); pygame.draw.rect(ventana, 'white', r, 2)
+                caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
                 if clase == 'stat':
                     total = progreso.stat(m['nombre'], valor, m['nivel'], m['ivs'][valor], m['evs'][valor])
                     ventana.blit(fuente(24).render(progreso.NOMBRE_STAT[valor], True, 'white'), (r.x + 10, r.y + 7))
@@ -828,16 +886,16 @@ def armar_menus():
                 if e.type == pygame.QUIT: return 'salir'
                 if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_TAB, pygame.K_RETURN): return None
                 if e.type == pygame.MOUSEBUTTONDOWN: return None
-            ventana.fill(GRIS)
+            fondo(ventana)
             titulo(ventana, 'Mochila', 40, 30, 60)
             inv = j['inventario']
             lineas = [(k, tienda.ITEMS[k]['nombre'] + '  x' + str(n), tienda.ITEMS[k]['desc'], tienda.ITEMS[k]['color']) for k, n in inv['objetos'].items() if n > 0]
             lineas += [(k, tienda.ITEMS[k]['nombre'], tienda.ITEMS[k].get('desc', ''), tienda.ITEMS[k]['color']) for k in dict.fromkeys(inv['comprados'])
                        if 'permanente' in tienda.ITEMS[k] or 'tipo' in tienda.ITEMS[k]]
-            if not lineas: ventana.blit(fuente(30).render('Vacia. Las cosas se consiguen en la tienda y de los jefes.', True, (30, 30, 30)), (40, 120))
+            if not lineas: ventana.blit(fuente(30).render('Vacia. Las cosas se consiguen en la tienda y de los jefes.', True, TINTA), (40, 120))
             for k, (clave, nombre, desc, color) in enumerate(lineas[:12]):
                 r = pygame.Rect(40, 110 + k * 38, W - 80, 32)
-                pygame.draw.rect(ventana, OSCURO, r)
+                caja(ventana, r, 'boton')
                 icono = icono_objeto(clave, 24)
                 if icono: ventana.blit(icono, (r.x + 4, r.y + 4))
                 else: pygame.draw.rect(ventana, color, (r.x + 6, r.y + 6, 20, 20), border_radius=4)

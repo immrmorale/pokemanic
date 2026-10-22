@@ -21,5 +21,7 @@ Spriters Resource no deja bajar nada automatico: las hojas se bajan a mano y van
 Comandos para pasar las hojas al juego:
   python herramientas.py tiles      'Dungeon Tiles' del Explorers of Sky -> mundo/<era>/terrenos (suelo, pared, agua + variantes suelo_2, suelo_3)
   python herramientas.py efectos    zip 'Attack Effects' del Explorers of Sky -> efectos/ (golpe de cada tipo, cura, nivel, explosion...)
+  python herramientas.py objetos    hoja 'Items' de Blanco/Negro -> interfaz/objetos (iconos de la tienda y la mochila, mt_<tipo> para las MT)
+  python herramientas.py paneles    hojas 'Options Screen' y 'Party Screen' de Blanco/Negro -> interfaz/paneles (fondos, botones y paneles de los menus)
   python herramientas.py recortar assets/hojas/la_hoja.png    recortar a mano cualquier otra hoja
 Iconos de objetos (de Blanco/Negro): interfaz/objetos/<clave>.png (las MT pueden usar mt_<tipo>.png). Cursor: interfaz/cursor.png
