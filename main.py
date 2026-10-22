@@ -196,6 +196,8 @@ def main():
                 menus.fondo_menu(ui, pygame.time.get_ticks())
                 menus.dibujar_logo(ventana, 90, pygame.time.get_ticks(), center=(W // 2, 130))
                 p = f_med.render('presione cualquier tecla para empezar', True, 'white')
+                franja = p.get_rect(center=(W // 2, H - 75)).inflate(40, 42)      # franja oscura para que se lea sobre el fondo
+                velo = pygame.Surface(franja.size, pygame.SRCALPHA); velo.fill((0, 0, 0, 120)); ventana.blit(velo, franja)
                 ventana.blit(p, p.get_rect(center=(W // 2, H - 85)))
                 s = f_peq.render('(menos esc, es para salir)', True, 'white')
                 ventana.blit(s, s.get_rect(center=(W // 2, H - 58)))

@@ -7,6 +7,8 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py hojas               baja todas las hojas (menos pokemon) de BW y los PMD a assets/hojas (via archive.org)
     python herramientas.py tiles               recorta los tiles de las mazmorras del PMD y los pone como terrenos de cada era
     python herramientas.py efectos             arma los efectos de golpes, cura, nivel... con los Attack Effects del PMD
+    python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
+    python herramientas.py paneles             recorta fondos, botones y paneles de los menus de BW a assets/interfaz/paneles
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
@@ -718,6 +720,116 @@ def herramienta_efectos():
     main()
 
 
+# ==================== iconos de objetos de BW ====================
+
+def herramienta_objetos():
+    """De la hoja 'Items' de Blanco/Negro recorta los iconos de la tienda a assets/interfaz/objetos/<clave>.png (como los lee interfaz.icono_objeto).
+    La hoja es una grilla de 12 columnas con casillas de 40 px y una linea de 1 px; los numeros (fila * 12 + columna) se eligieron mirandola.
+    Las MT usan un disco por tipo: mt_<tipo>.png (BW no tiene MT de tipo hada)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    ELEGIDOS = {'repelente': 73, 'superrepelente': 70, 'maxirepelente': 71, 'ataque_x': 62, 'defensa_x': 63, 'velocidad_x': 64, 'especial_x': 66,
+                'directo': 61, 'eter': 33, 'cinta_fuerte': 295, 'garra_rapida': 148, 'polvo_veloz': 188, 'amuleto_moneda': 153,
+                'agua_mistica': 173, 'carbon': 179, 'iman': 172, 'antiderretir': 176, 'cinturon_negro': 171, 'arena_fina': 167, 'pico_afilado': 174,
+                'piedra_dura': 168, 'colmillo_dragon': 180, 'gafas_de_sol': 170, 'hechizo': 177, 'cuchara_torcida': 178, 'flecha_venenosa': 175,
+                'revestimiento_metalico': 163, 'semilla_milagro': 169, 'pañuelo_seda': 181,
+                'piedra_trueno': 77, 'piedra_alba': 291, 'garra_afilada': 321, 'baya_oran': 106,
+                'mt_normal': 228, 'mt_lucha': 224, 'mt_volador': 239, 'mt_veneno': 237, 'mt_tierra': 238, 'mt_roca': 235, 'mt_bicho': 231,
+                'mt_fantasma': 229, 'mt_acero': 234, 'mt_fuego': 232, 'mt_agua': 226, 'mt_planta': 231, 'mt_electrico': 236, 'mt_psiquico': 227,
+                'mt_hielo': 230, 'mt_dragon': 225, 'mt_siniestro': 233}
+    FONDO = ((211, 211, 211), (255, 0, 255))                        # gris de la casilla y las rayitas magenta de la grilla
+
+    def buscar_hoja():
+        for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas'), assets):
+            if not os.path.isdir(carpeta): continue
+            for archivo in os.listdir(carpeta):
+                if 'Black _ White' in archivo and archivo.endswith(' - Items.png'): return os.path.join(carpeta, archivo)
+        return None
+
+    def icono(hoja, numero):
+        """La casilla sin el fondo, recortada al dibujo y centrada en un cuadrado."""
+        fila, col = divmod(numero, 12)
+        c = hoja.subsurface((1 + col * 41, 1 + fila * 41, 40, 40)).copy()
+        for x in range(40):
+            for y in range(40):
+                if tuple(c.get_at((x, y)))[:3] in FONDO: c.set_at((x, y), (0, 0, 0, 0))
+        dibujo = c.get_bounding_rect()
+        lado = max(dibujo.size)
+        sup = pygame.Surface((lado, lado), pygame.SRCALPHA)
+        sup.blit(c, ((lado - dibujo.width) // 2, (lado - dibujo.height) // 2), dibujo)
+        return sup
+
+    def main():
+        pygame.init(); pygame.display.set_mode((1, 1))
+        ruta = buscar_hoja()
+        if not ruta: print('falta la hoja (spriters-resource, Black/White > Miscellaneous > Items) en assets/hojas/blanco_negro'); return
+        hoja = pygame.image.load(ruta).convert_alpha()
+        carpeta = os.path.join(assets, 'interfaz', 'objetos')
+        os.makedirs(carpeta, exist_ok=True)
+        for clave, numero in ELEGIDOS.items(): pygame.image.save(icono(hoja, numero), os.path.join(carpeta, clave + '.png'))
+        print(len(ELEGIDOS), 'iconos en assets/interfaz/objetos')
+
+    main()
+
+
+# ==================== paneles de los menus de BW ====================
+
+def herramienta_paneles():
+    """De las hojas 'Options Screen' y 'Party Screen' de Blanco/Negro recorta las piezas de los menus a assets/interfaz/paneles
+    (como las leen interfaz.caja y interfaz.fondo). Las coordenadas se midieron en las hojas.
+    Lo que rodea a cada pieza (el color de fondo de la hoja) queda transparente, menos en los fondos."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    # pieza -> (hoja, rect, recortar el borde). Las barras de opciones: la de arriba es la elegida y la gris la normal
+    PIEZAS = {'fondo': ('Options Screen', (0, 0, 256, 192), False),
+              'boton': ('Options Screen', (0, 282, 256, 19), True),
+              'boton_elegido': ('Options Screen', (0, 210, 256, 19), True),
+              'panel': ('Options Screen', (0, 321, 256, 46), True),         # sin la raya verde de la hoja que va de lado a lado
+              'fondo_equipo': ('Party Screen', (2, 2, 256, 192), False),
+              'miembro': ('Party Screen', (5, 201, 126, 46), True),
+              'miembro_activo': ('Party Screen', (133, 201, 126, 46), True),
+              'miembro_debil': ('Party Screen', (5, 249, 126, 46), True)}
+    FONDO_HOJA = {(57, 57, 74), (0, 0, 0), (160, 234, 0), (191, 143, 0)}      # franja detras de las barras, negro, verde y naranja de la hoja
+
+    def buscar_hoja(nombre):
+        for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas'), assets):
+            if not os.path.isdir(carpeta): continue
+            for archivo in os.listdir(carpeta):
+                if 'Black _ White' in archivo and archivo.endswith(' - ' + nombre + '.png'): return os.path.join(carpeta, archivo)
+        return None
+
+    def sin_borde(sup):
+        """Vuelve transparente el fondo de la hoja que toca las esquinas (relleno desde las 4 esquinas, sin pasar el marco de la pieza)."""
+        w, h = sup.get_size()
+        pendientes = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
+        while pendientes:
+            x, y = pendientes.pop()
+            if not (0 <= x < w and 0 <= y < h): continue
+            c = sup.get_at((x, y))
+            if c.a == 0 or tuple(c)[:3] not in FONDO_HOJA: continue
+            sup.set_at((x, y), (0, 0, 0, 0))
+            pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        return sup
+
+    def main():
+        pygame.init(); pygame.display.set_mode((1, 1))
+        hojas, hechos, faltan = {}, 0, set()
+        carpeta = os.path.join(assets, 'interfaz', 'paneles')
+        for pieza, (hoja, rect, recortar) in PIEZAS.items():
+            if hoja not in hojas:
+                ruta = buscar_hoja(hoja)
+                hojas[hoja] = pygame.image.load(ruta).convert_alpha() if ruta else None
+            if not hojas[hoja]: faltan.add(hoja); continue
+            img = hojas[hoja].subsurface(rect).copy()
+            if recortar: img = sin_borde(img)
+            os.makedirs(carpeta, exist_ok=True)
+            pygame.image.save(img, os.path.join(carpeta, pieza + '.png')); hechos += 1
+        print(hechos, 'piezas en assets/interfaz/paneles')
+        if faltan: print('faltan las hojas (spriters-resource, Black/White > Miscellaneous):', ', '.join(sorted(faltan)))
+
+    main()
+
+
 def ver_salas():
     """Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego)."""
     letras = {'suelo': '.', 'pared': '#', 'puerta': 'D', 'entrada': 'E', 'agua': '~', 'puente': '=', 'hierba': '"', 'lava': '%', 'sombra': 's'}
@@ -748,6 +860,8 @@ if __name__ == '__main__':
     elif orden == 'hojas': herramienta_hojas()
     elif orden == 'tiles': herramienta_tiles()
     elif orden == 'efectos': herramienta_efectos()
+    elif orden == 'objetos': herramienta_objetos()
+    elif orden == 'paneles': herramienta_paneles()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()
