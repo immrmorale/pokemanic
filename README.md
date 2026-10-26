@@ -303,6 +303,27 @@ La vida base se multiplica según el nivel del jefe.
 
 **Los 5 Regis** (Regice, Regirock, Registeel, Regidrago y Regieleki): cuando pierden **un cuarto de su vida** llaman a **5 pokemon de su mismo tipo**. Primero aparecen las marcas rojas donde van a salir.
 
+**Sala de los Regis:** redonda, grande (25 × 25 casillas) y vacía. Cuando cae el Regi se van los muros, rocas y torres que haya armado.
+
+**Regice:**
+- **Rayo Hielo** cada 7 s: una línea celeste fija que se va engrosando y después dispara un rayo ancho y muy largo. El piso por donde pasa queda **escarcha**: resbala.
+- **Barra de congelamiento:** mientras pisás escarcha se carga una barra celeste (se dibuja arriba de tu barra de vida); fuera de la escarcha se descarga sola. Llena, **te congelás 3 s**. Congelado no podés moverte ni atacar, salvo con un **movimiento de hielo**, que te descongela.
+- **Muro de hielo** cada 5 s: 3 bloques de hielo entre él y vos que **solo se rompen con fuego** (el fuego también derrite la escarcha).
+
+**Regirock:**
+- **Roca Afilada:** una fila de rocas que sale hacia vos y se frena al chocar con otra roca o con la pared. Si no te pegó, deja una roca al final.
+- **Fuerza Bruta** (desde la mitad de su vida): una franja roja marca hacia dónde va a embestir. Si choca contra una roca (la rompe) o una pared, **queda aturdido 3 s**.
+
+**Registeel:**
+- **Minas:** pone 3 minas (una donde estás) que explotan al rato y largan balas en 8 direcciones.
+- **Sierras:** tira 2 sierras que rebotan en las paredes durante 5 s o hasta que te pegan.
+- **Imán:** se queda quieto y te tira hacia él durante 5 s.
+
+**Regieleki:**
+- Su sala tiene **6 torres eléctricas** (cuadrados grises). Tira **5 rayos** en abanico.
+- Al perder un cuarto de vida **se mete en una torre** (se pone amarilla) y no se le puede pegar. Pegarle a esa torre le pega a él. Si le pegaste, a los 3 s se pasa a otra torre y la anterior queda **marrón** (no puede volver); si no le pegaste, a los 8 s se cambia igual y la torre vuelve a gris. En el camino deja una **línea amarilla** que lastima, y al llegar tira los 5 rayos.
+- Sin torres: **se teletransporta** cada 2 s y larga **Alto Voltaje**, una onda que crece durante 3 s.
+
 **Regigigas** pelea distinto:
 - **Terremoto:** un anillo marrón con grietas se llena alrededor suyo y después pega a todo lo que esté adentro. Es de tipo tierra, así que a los voladores casi no les hace nada. La pantalla tiembla.
 - **Puñetazos grandes:** una mira roja aparece donde estás parado, se cierra y cae el puño. Vienen de a 3 seguidos, cada uno apuntado a donde te moviste.
@@ -325,7 +346,7 @@ Arceus no tira el anillo de balas ni las piedras verdes.
 
 Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
 
-**Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
+**Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15). Regidrago todavía pelea como los demás jefes.
 
 **Premios:**
 - **Monedas:** 120 el semijefe, 250 el Regi.

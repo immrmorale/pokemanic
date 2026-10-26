@@ -653,7 +653,7 @@ def armar_generacion():
     def generar_arena(era, salidas=('norte',), semilla=None, tipo='jefe'):
         """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas))."""
         azar = random.Random(semilla)
-        datos = mundos.ERAS[era]['arena']
+        datos = mundos.ARENA_REGI if tipo == 'regi' and 'plan_fijo' not in mundos.ERAS[era] else mundos.ERAS[era]['arena']
         columnas, filas = datos.get('tamaño', (COLUMNAS, FILAS))
         est = _generar(datos, 'sur', list(salidas), azar, columnas, filas, radio_centro=3)
         return _armar(est['m'], est['objetos'], TAM_CASILLA, 'sur', salidas,
@@ -740,6 +740,7 @@ def armar_entorno():
         ('suelo', 'siniestro'): ('convertir', 'sombra', 0.25),
         ('cable', 'tierra'): ('convertir', 'suelo'), ('cable', 'agua'): ('electrificar',), ('cinta', 'electrico'): ('invertir',),
         ('cascada', 'hielo'): ('convertir', 'cascada_helada'), ('cascada_helada', 'fuego'): ('convertir', 'cascada'),
+        ('escarcha', 'fuego'): ('convertir', 'suelo'),
         ('cascada', 'electrico'): ('electrificar',),
         ('brasero', 'agua'): ('convertir', 'brasero_apagado'), ('brasero_apagado', 'fuego'): ('convertir', 'brasero'),
         ('fogata', 'agua'): ('convertir', 'fogata_apagada'), ('fogata', 'hielo'): ('convertir', 'fogata_apagada'), ('fogata_apagada', 'fuego'): ('convertir', 'fogata'),
@@ -769,6 +770,7 @@ def armar_entorno():
         'roca_volcanica': {'fuego': {'regen': 1.5}, 'roca': {'defensa': 0.9}},
         'ceniza': {'fuego': {'regen': 1.5}},
     }
+    PISADAS['escarcha'] = {'todos': {'resbala': True}, 'hielo': {'velocidad': 1.3}, 'volador': {}}
     for _lado, _v in {'n': (0, -2.2), 's': (0, 2.2), 'e': (2.2, 0), 'o': (-2.2, 0)}.items():   # cintas: te llevan (acero pesa mas, volador ni las toca)
         PISADAS['cinta_' + _lado] = {'todos': {'empuje': _v}, 'acero': {'empuje': (_v[0] * 0.4, _v[1] * 0.4)}, 'volador': {}}
 
@@ -799,6 +801,7 @@ def armar_entorno():
         'tela': {'fuego': 4.0, 'volador': 2.0, 'bicho': 2.0},
         'ceramica': {'lucha': 2.0, 'roca': 2.0, 'tierra': 2.0},
         'hueso': {'lucha': 2.0, 'tierra': 2.0, 'roca': 1.5, 'fuego': 0.5},
+        'hielo_eterno': {'fuego': 4.0, 'otros': 0.0},
     }
 
     # climas: multiplican el daño de cada tipo, cambian velocidades y algunos lastiman (chip) a los que no son inmunes
@@ -1104,6 +1107,35 @@ def armar_entorno():
         if caen: ent['version'] += 1
 
 
+    def congelar_linea(ent, a, b, radio):
+        """El rayo hielo de Regice deja escarcha (resbala) a lo largo de su camino."""
+        pasos = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) // (ent['tam'] / 2)))
+        for i in range(pasos + 1):
+            for f, c in _casillas_circulo(ent, a[0] + (b[0] - a[0]) * i / pasos, a[1] + (b[1] - a[1]) * i / pasos, radio):
+                if ent['m'][f][c] in generacion.PISABLES: cambiar(ent, f, c, 'escarcha')
+
+
+    def poner_objeto(ent, nombre, centro, evitar=()):
+        """Pone un objeto en la sala si entra (piso libre, lejos de las puertas y sin pisar a nadie). Devuelve el objeto o None."""
+        m, tam = ent['m'], ent['tam']
+        celdas = generacion._celdas_de(nombre, centro, tam)
+        ocupadas = {c for o in ent['objetos'] for c in o['celdas']}
+        for f, c in celdas:
+            if not (0 <= f < len(m) and 0 <= c < len(m[0])) or mundos.TERRENOS[m[f][c]]['bloquea'] or (f, c) in ocupadas: return None
+        o = generacion.crear_objeto(nombre, (round(centro[0]), round(centro[1])), celdas)
+        puertas = [p['rect'].inflate(tam * 4, tam * 4) for p in ent['sala']['puertas']]
+        if o['rect'].collidelist(list(evitar) + puertas) != -1: return None
+        o['de_regi'] = True
+        ent['objetos'].append(o); ent['version'] += 1
+        return o
+
+
+    def sacar_de_regi(ent):
+        """Cuando cae el Regi se van sus muros, rocas y torres."""
+        ent['objetos'][:] = [o for o in ent['objetos'] if not o.get('de_regi')]
+        ent['version'] += 1
+
+
     def cerrar_vacios(ent):
         """El piso vuelve a donde habia vacios."""
         for f, c in ent['celdas_vacio']:
@@ -1130,7 +1162,7 @@ def armar_entorno():
         try: base = float(datos.get('daño', 0))
         except (TypeError, ValueError): base = 0
         d = mundos.OBJETOS[obj['nombre']]
-        mult = 99 if d.get('arde') and tipo == 'fuego' else MATERIALES.get(obj['material'], {}).get(tipo, 1.0)
+        mult = 99 if d.get('arde') and tipo == 'fuego' else _mult_material(obj['material'], tipo)
         obj['vida'] -= base * mult; obj['golpe'] = ahora
         if tipo == 'electrico' and obj['material'] == 'metal' and ahora >= obj.get('chispa', 0):   # el metal conduce
             obj['chispa'] = ahora + 600
@@ -1141,6 +1173,11 @@ def armar_entorno():
             vx, vy = direccion_vector[direccion]; n = math.hypot(vx, vy) or 1
             obj['vel'] = [vx / n * fuerza, vy / n * fuerza]
         if obj['vida'] <= 0: romper(ent, obj, tipo)
+
+
+    def _mult_material(material, tipo):
+        tabla = MATERIALES.get(material, {})
+        return tabla.get(tipo, tabla.get('otros', 1.0))
 
 
     def romper(ent, obj, tipo=None):
@@ -1324,7 +1361,7 @@ def armar_entorno():
         """Dibujito simple para que cada terreno se distinga del piso (hasta que lleguen los sprites)."""
         azar = random.Random(f * 131 + c)
         x, y, tam = r.x, r.y, r.width
-        if t in ('hielo', 'cascada_helada'):                         # brillos en diagonal
+        if t in ('hielo', 'cascada_helada', 'escarcha'):                         # brillos en diagonal
             for k in (0.25, 0.6):
                 pygame.draw.line(fondo, (255, 255, 255), (x + tam * k, y + tam * 0.15), (x + tam * (k + 0.25), y + tam * 0.4), 2)
         elif t in ('agua', 'charco', 'cascada'):                     # olitas
@@ -1421,7 +1458,7 @@ def armar_entorno():
                 ventana.blit(sprite, sprite.get_rect(midbottom=r.midbottom))
                 if ahora - o['golpe'] < 90: pygame.draw.rect(ventana, (255, 255, 255), sprite.get_rect(midbottom=r.midbottom), 2)
             else:                                                       # sin sprite: forma basica con el nombre
-                color = (255, 255, 255) if ahora - o['golpe'] < 90 else d['color']
+                color = (255, 255, 255) if ahora - o['golpe'] < 90 else o.get('color', d['color'])
                 (pygame.draw.ellipse if d.get('forma') == 'circulo' else pygame.draw.rect)(ventana, color, r)
                 (pygame.draw.ellipse if d.get('forma') == 'circulo' else pygame.draw.rect)(ventana, (15, 15, 15), r, 2)
                 if d.get('explota'): pygame.draw.circle(ventana, (230, 40, 30), r.center, 5)   # punto rojo = explota

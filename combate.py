@@ -493,14 +493,36 @@ def armar_ia():
     TIPOS_TABLA = tuple(t for t in TIPOS_ARCEUS if t != 'normal')        # en los juegos no hay tabla de tipo normal
     FORMA_TABLA = {t: 'marca' for t in ('electrico', 'tierra', 'roca', 'psiquico', 'fantasma', 'hada', 'dragon')}   # cae donde estas
     FORMA_TABLA.update({t: 'abanico' for t in ('fuego', 'volador', 'veneno', 'bicho', 'lucha', 'siniestro')})        # 3 balas en abanico
-    ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta'}
+    ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta', 'regice': 'regice', 'regirock': 'regirock',
+                   'registeel': 'registeel', 'regieleki': 'regieleki'}
+
+    # Regice: rayo hielo largo que deja escarcha (resbala y congela al que la pisa) y muros de hielo que solo se derriten con fuego
+    REGICE = {'vel': 1.2, 'rayo': 7000, 'aviso_rayo': 1100, 'largo_rayo': 1600, 'ancho_rayo': 26, 'daño_rayo': 1.3, 'haz': 400,
+              'muro': 5000, 'bloques': 3, 'max_bloques': 12}
+    # Regirock: roca afilada (fila de rocas que deja una roca al final) y desde la mitad de su vida fuerza bruta (se aturde si choca)
+    REGIROCK = {'vel': 1.3, 'roca': 3200, 'aviso_roca': 600, 'paso_roca': 48, 'cada_roca': 55, 'radio_roca': 26, 'largo_roca': 20,
+                'dura_roca': 700, 'daño_roca': 1.1, 'max_rocas': 8,
+                'fuerza': 5000, 'aviso_fuerza': 900, 'largo_fuerza': 750, 'ancho_fuerza': 90, 'vel_fuerza': 15, 'daño_fuerza': 1.6, 'aturdido': 3000}
+    # Registeel: minas que explotan en 8 balas, sierras que rebotan y un iman que te tira hacia el
+    REGISTEEL = {'vel': 1.0, 'mina': 4200, 'minas_de_a': 3, 'espera_mina': 1300, 'radio_mina': 60, 'daño_mina': 1.0,
+                 'daño_bala_mina': 0.5, 'vel_bala_mina': 6, 'dist_bala_mina': 450,
+                 'sierra': 3600, 'sierras_de_a': 2, 'vel_sierra': 7, 'dura_sierra': 5000, 'radio_sierra': 20, 'daño_sierra': 0.9,
+                 'iman': 12000, 'dura_iman': 5000, 'fuerza_iman': 2.4}
+    # Regieleki: 5 rayos; al perder un cuarto de vida se mete en las torres; sin torres se teletransporta con alto voltaje
+    REGIELEKI = {'vel': 2.6, 'rayos': 2600, 'aviso_rayos': 500, 'balas': 5, 'abanico': 0.6, 'vel_bala': 10, 'dist_bala': 700, 'daño_bala': 0.55,
+                 'umbral': 0.75, 'torres': 6, 'radio_torres': 7, 'cambio': 3000, 'quedarse': 8000, 'vel_viaje': 22,
+                 'linea': 2500, 'ancho_linea': 14, 'daño_linea': 0.5, 'tele': 2000, 'onda': 3000, 'radio_onda': 330, 'daño_onda': 1.1}
+    COLOR_TORRE = {'gris': (130, 130, 130), 'cargada': (250, 220, 40), 'rota': (120, 75, 35)}
 
 
     def preparar_jefe(b):
         b.update({'aviso': None, 'prox_rafaga': 0, 'prox_pisoton': 0, 'resto_ia': [0.0, 0.0], 'estilo': ESTILO_JEFE.get(b['nombre'], 'jefe'),
                   'prox_terremoto': None, 'prox_puño': None, 'serie': 0,
                   'fase': 1, 'rayos': [], 'haz': None, 'prox_rayos': None, 'prox_hiperrayo': None, 'prox_sentencia': None, 'vida_tipo': b['vida'], 'prox_cambio': 0,
-                  'tablas': [], 'marcas': [], 'n_tabla': 0, 'prox_tabla': None, 'inicio_beta': None, 'centro_beta': None})
+                  'tablas': [], 'marcas': [], 'n_tabla': 0, 'prox_tabla': None, 'inicio_beta': None, 'centro_beta': None,
+                  'prox': {}, 'muros': [], 'filas_roca': [], 'circulos': [], 'dash': None, 'aturdido_hasta': 0, 'minas': [], 'sierras': [],
+                  'iman_hasta': 0, 'iman_a': None, 'torres': None, 'torre': None, 'modo': 'libre', 'viaje': None, 'lineas': [], 'ondas': [],
+                  'escondido': False, 'vida_guardada': b['vida'], 'prox_linea': 0})
 
 
     def actualizar_regigigas(b, ctx):
@@ -658,11 +680,296 @@ def armar_ia():
             ctx['impacto'](x, y, BETA['radio_marca'], 150)
 
 
+    # ---------- Regis ----------
+
+    def _dir(desde, hacia):
+        dx, dy = hacia[0] - desde[0], hacia[1] - desde[1]
+        n = math.hypot(dx, dy) or 1
+        return dx / n, dy / n
+
+
+    def _muro_hielo(b, ctx):
+        """Pared de 3 bloques de hielo entre Regice y vos, de costado."""
+        ent, j = ctx['ent'], ctx['jugador']
+        b['muros'] = [o for o in b['muros'] if o in ent['objetos']]
+        if len(b['muros']) >= REGICE['max_bloques']: return
+        (bx, by), (jx, jy) = b['rect'].center, j['rect'].center
+        dx, dy = _dir((bx, by), (jx, jy))
+        cx, cy = bx + (jx - bx) * 0.55, by + (jy - by) * 0.55
+        for k in range(-(REGICE['bloques'] // 2), REGICE['bloques'] // 2 + 1):
+            o = entorno.poner_objeto(ent, 'muro_de_hielo', (cx - dy * k * 64, cy + dx * k * 64), [j['rect'].inflate(30, 30), b['rect']])
+            if o: b['muros'].append(o)
+
+
+    def actualizar_regice(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        jx, jy = j['rect'].center
+        bx, by = b['rect'].center
+        dist = math.hypot(jx - bx, jy - by)
+        p = b['prox']
+        if not p: p.update(rayo=ahora + 2500, muro=ahora + 1500)
+        if b['haz'] and ahora >= b['haz']['hasta']: b['haz'] = None
+        if ahora >= p['muro']: p['muro'] = ahora + REGICE['muro']; _muro_hielo(b, ctx)
+        a = b['aviso']
+        if a:
+            if ahora < a['hasta']: return
+            b['aviso'] = None
+            if _dist_segmento((jx, jy), (bx, by), a['fin']) <= REGICE['ancho_rayo'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * REGICE['daño_rayo'], 'hielo')
+            b['haz'] = {'desde': (bx, by), 'fin': a['fin'], 'hasta': ahora + REGICE['haz'], 'ancho': REGICE['ancho_rayo'], 'color': ((120, 200, 255), (235, 250, 255))}
+            entorno.congelar_linea(ent, (bx, by), a['fin'], REGICE['ancho_rayo'] * 1.6)
+            return
+        if ahora >= p['rayo']:
+            p['rayo'] = ahora + REGICE['rayo']
+            dx, dy = _dir((bx, by), (jx, jy))
+            b['aviso'] = {'hasta': ahora + REGICE['aviso_rayo'], 'clase': 'rayo_hielo', 'inicio': ahora,
+                          'fin': (bx + dx * REGICE['largo_rayo'], by + dy * REGICE['largo_rayo'])}; return
+        if dist > 220: _ir_a(ent, b, (jx, jy), REGICE['vel'], [])
+
+
+    def _poner_roca(b, ctx, puntos):
+        ent, j = ctx['ent'], ctx['jugador']
+        if sum(1 for o in ent['objetos'] if o.get('de_regi') and o['nombre'] == 'roca') >= REGIROCK['max_rocas']: return
+        for punto in reversed(puntos[-3:]):
+            if entorno.poner_objeto(ent, 'roca', punto, [j['rect'].inflate(10, 10), b['rect']]): ctx['impacto'](*punto, 30, 120); return
+
+
+    def _avanzar_filas(b, ctx):
+        """Roca afilada: las rocas van saliendo una detras de otra hasta chocar con algo; si no te pegaron, queda una roca al final."""
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        R = REGIROCK
+        for fila in b['filas_roca'][:]:
+            while ahora >= fila['prox']:
+                fila['prox'] += R['cada_roca']; fila['paso'] += 1
+                d = fila['inicio'] + fila['paso'] * R['paso_roca']
+                punto = (fila['x'] + fila['dir'][0] * d, fila['y'] + fila['dir'][1] * d)
+                r = pygame.Rect(0, 0, R['radio_roca'] * 2, R['radio_roca'] * 2); r.center = punto
+                if r.collidelist(entorno.solidos_proyectil(ent)) != -1 or fila['paso'] > R['largo_roca']:
+                    if fila['puntos']: _poner_roca(b, ctx, fila['puntos'])
+                    b['filas_roca'].remove(fila); break
+                b['circulos'].append({'pos': punto, 'inicio': ahora, 'hasta': ahora + R['dura_roca']})
+                fila['puntos'].append(punto)
+                if r.colliderect(j['rect']):
+                    ctx['dañar_jugador'](b['daño'] * R['daño_roca'], 'roca'); b['filas_roca'].remove(fila); break
+        b['circulos'] = [c for c in b['circulos'] if ahora < c['hasta']]
+
+
+    def _dash_regirock(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        d = b['dash']
+        paso = min(REGIROCK['vel_fuerza'], d['restante'])
+        d['resto'][0] += d['dir'][0] * paso; d['resto'][1] += d['dir'][1] * paso
+        px, py = int(d['resto'][0]), int(d['resto'][1])
+        d['resto'][0] -= px; d['resto'][1] -= py
+        quiero = b['rect'].move(px, py)
+        golpeados = [o for o in ent['objetos'] if o['solido'] and quiero.colliderect(o['rect'])]
+        entorno.mover(ent, b['rect'], px, py, [b['tipo']])
+        d['restante'] -= paso
+        if not d['pego'] and b['rect'].colliderect(j['rect']): ctx['dañar_jugador'](b['daño'] * REGIROCK['daño_fuerza'], 'lucha'); d['pego'] = True
+        if (px or py) and b['rect'].topleft != quiero.topleft:            # choco contra una roca o una pared
+            for o in golpeados:
+                if o['vida'] is not None: entorno.romper(ent, o, 'lucha')
+            b['dash'] = None; b['aturdido_hasta'] = ahora + REGIROCK['aturdido']
+            ctx['impacto'](*b['rect'].center, 120, 500)
+        elif d['restante'] <= 0: b['dash'] = None
+
+
+    def actualizar_regirock(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        jx, jy = j['rect'].center
+        bx, by = b['rect'].center
+        dist = math.hypot(jx - bx, jy - by)
+        p = b['prox']
+        if not p: p.update(roca=ahora + 1500, fuerza=ahora + 2500)
+        _avanzar_filas(b, ctx)
+        if ahora < b['aturdido_hasta']: return
+        if b['dash']: _dash_regirock(b, ctx); return
+        a = b['aviso']
+        if a:
+            if ahora < a['hasta']: return
+            b['aviso'] = None
+            if a['clase'] == 'fuerza_bruta': b['dash'] = {'dir': a['dir'], 'restante': REGIROCK['largo_fuerza'], 'pego': False, 'resto': [0.0, 0.0]}
+            else: b['filas_roca'].append({'x': bx, 'y': by, 'dir': a['dir'], 'paso': 0, 'prox': ahora, 'puntos': [], 'inicio': max(b['rect'].size) / 2})
+            return
+        if b['vida'] <= b['max_vida'] / 2 and ahora >= p['fuerza']:
+            p['fuerza'] = ahora + REGIROCK['fuerza']
+            b['aviso'] = {'hasta': ahora + REGIROCK['aviso_fuerza'], 'clase': 'fuerza_bruta', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
+        if ahora >= p['roca']:
+            p['roca'] = ahora + REGIROCK['roca']
+            b['aviso'] = {'hasta': ahora + REGIROCK['aviso_roca'], 'clase': 'roca_afilada', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
+        if dist > 240: _ir_a(ent, b, (jx, jy), REGIROCK['vel'], [])
+
+
+    def _actualizar_minas(b, ctx):
+        j, ahora = ctx['jugador'], ctx['ahora']
+        R = REGISTEEL
+        for m in b['minas'][:]:
+            if ahora < m['hasta']: continue
+            b['minas'].remove(m)
+            x, y = m['pos']
+            if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_mina'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * R['daño_mina'], 'acero')
+            ctx['impacto'](x, y, R['radio_mina'], 150)
+            for i in range(8):
+                ang = i * math.tau / 8
+                ctx['disparar'](x, y, math.cos(ang), math.sin(ang), b['daño'] * R['daño_bala_mina'], 'acero', R['vel_bala_mina'], R['dist_bala_mina'])
+
+
+    def _actualizar_sierras(b, ctx):
+        """Las sierras rebotan en las paredes hasta que se les acaba el tiempo o te pegan."""
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        R = REGISTEEL
+        duros = entorno.solidos_proyectil(ent)
+        for s in b['sierras'][:]:
+            r = pygame.Rect(0, 0, R['radio_sierra'] * 2, R['radio_sierra'] * 2)
+            for i in (0, 1):
+                nuevo = [s['x'], s['y']]; nuevo[i] += s['v'][i]
+                r.center = nuevo
+                if r.collidelist(duros) != -1: s['v'][i] = -s['v'][i]
+                else: s['x'], s['y'] = nuevo
+            r.center = (s['x'], s['y'])
+            if r.colliderect(j['rect']): ctx['dañar_jugador'](b['daño'] * R['daño_sierra'], 'acero'); b['sierras'].remove(s)
+            elif ahora >= s['hasta']: b['sierras'].remove(s)
+
+
+    def actualizar_registeel(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        jx, jy = j['rect'].center
+        bx, by = b['rect'].center
+        dist = math.hypot(jx - bx, jy - by)
+        R, p = REGISTEEL, b['prox']
+        if not p: p.update(mina=ahora + 1500, sierra=ahora + 2500, iman=ahora + 7000)
+        _actualizar_minas(b, ctx)
+        _actualizar_sierras(b, ctx)
+        if ahora < b['iman_hasta']:                                 # iman: se queda quieto y te tira hacia el
+            b['iman_a'] = (jx, jy)
+            dx, dy = _dir((jx, jy), (bx, by))
+            resto = j.setdefault('resto_iman', [0.0, 0.0])
+            resto[0] += dx * R['fuerza_iman']; resto[1] += dy * R['fuerza_iman']
+            px, py = int(resto[0]), int(resto[1])
+            resto[0] -= px; resto[1] -= py
+            entorno.mover(ent, j['rect'], px, py, j['tipos'])
+            return
+        b['iman_a'] = None
+        if ahora >= p['iman']:
+            p['iman'] = ahora + R['iman']; b['iman_hasta'] = ahora + R['dura_iman']; return
+        if ahora >= p['mina']:
+            p['mina'] = ahora + R['mina']
+            for i in range(R['minas_de_a']):
+                pos = (jx, jy) if i == 0 else (jx + random.randint(-220, 220), jy + random.randint(-220, 220))
+                b['minas'].append({'pos': pos, 'inicio': ahora, 'hasta': ahora + R['espera_mina'] + i * 150})
+        if ahora >= p['sierra']:
+            p['sierra'] = ahora + R['sierra']
+            base = math.atan2(jy - by, jx - bx)
+            for i in range(R['sierras_de_a']):
+                ang = base + (i - (R['sierras_de_a'] - 1) / 2) * 0.5
+                b['sierras'].append({'x': float(bx), 'y': float(by), 'v': [math.cos(ang) * R['vel_sierra'], math.sin(ang) * R['vel_sierra']], 'hasta': ahora + R['dura_sierra']})
+        if dist > 260: _ir_a(ent, b, (jx, jy), R['vel'], [])
+
+
+    def _crear_torres(b, ctx):
+        ent, j = ctx['ent'], ctx['jugador']
+        sala, tam = ent['sala'], ent['tam']
+        cx, cy = sala['columnas'] * tam / 2, sala['filas'] * tam / 2
+        b['torres'] = []
+        for i in range(REGIELEKI['torres']):
+            ang = i * math.tau / REGIELEKI['torres']
+            punto = (cx + math.cos(ang) * REGIELEKI['radio_torres'] * tam, cy + math.sin(ang) * REGIELEKI['radio_torres'] * tam)
+            o = entorno.poner_objeto(ent, 'torre_electrica', punto, [j['rect'], b['rect']])
+            if o: o['color'] = COLOR_TORRE['gris']; b['torres'].append({'obj': o, 'estado': 'gris', 'entro': 0, 'atacada': False})
+
+
+    def _rayos5(b, ctx):
+        j, R = ctx['jugador'], REGIELEKI
+        bx, by = b['rect'].center
+        base = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        for i in range(R['balas']):
+            ang = base + (i - (R['balas'] - 1) / 2) * R['abanico'] / 2
+            ctx['disparar'](bx + math.cos(ang) * 60, by + math.sin(ang) * 60, math.cos(ang), math.sin(ang), b['daño'] * R['daño_bala'], 'electrico', R['vel_bala'], R['dist_bala'])
+
+
+    def _ir_a_torre(b, ctx, torre):
+        ahora = ctx['ahora']
+        desde = b['rect'].center
+        b['modo'], b['viaje'], b['escondido'] = 'viaje', torre, False
+        b['lineas'].append({'a': desde, 'b': torre['obj']['rect'].center, 'hasta': ahora + REGIELEKI['linea']})
+
+
+    def _salir_de_torre(b, ctx):
+        t = b['torre']
+        t['estado'] = 'rota' if t['atacada'] else 'gris'
+        t['obj']['color'] = COLOR_TORRE[t['estado']]
+        libres = [o for o in b['torres'] if o['estado'] == 'gris' and o is not t]
+        if not libres:
+            if not t['atacada']: t['estado'] = 'cargada'; t['obj']['color'] = COLOR_TORRE['cargada']; t['entro'] = ctx['ahora']; return
+            b['torre'], b['modo'], b['escondido'] = None, 'tele', False
+            b['prox']['tele'] = ctx['ahora']
+            return
+        b['torre'] = None
+        _ir_a_torre(b, ctx, random.choice(libres))
+
+
+    def actualizar_regieleki(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        jx, jy = j['rect'].center
+        bx, by = b['rect'].center
+        mitad = max(j['rect'].size) / 2
+        R, p = REGIELEKI, b['prox']
+        if b['torres'] is None: _crear_torres(b, ctx)
+        if not p: p.update(rayos=ahora + 1500)
+        if b['modo'] in ('viaje', 'torre'): b['vida'] = b['vida_guardada']          # adentro de las torres no se le puede pegar
+        for t in b['torres']:                                       # pegarle a la torre donde esta le pega a el
+            o = t['obj']
+            daño = o['max_vida'] - o['vida']
+            if daño > 0 and t is b['torre'] and b['modo'] == 'torre': b['vida'] -= daño; t['atacada'] = True
+            o['vida'] = o['max_vida']
+        b['lineas'] = [l for l in b['lineas'] if ahora < l['hasta']]
+        if ahora >= b['prox_linea'] and any(_dist_segmento((jx, jy), l['a'], l['b']) <= R['ancho_linea'] + mitad for l in b['lineas']):
+            ctx['dañar_jugador'](b['daño'] * R['daño_linea'], 'electrico'); b['prox_linea'] = ahora + 500
+        for o in b['ondas'][:]:
+            if ahora >= o['hasta']: b['ondas'].remove(o); continue
+            radio = R['radio_onda'] * (ahora - o['inicio']) / R['onda']
+            if not o['pego'] and abs(math.hypot(jx - o['pos'][0], jy - o['pos'][1]) - radio) <= 22 + mitad:
+                ctx['dañar_jugador'](b['daño'] * R['daño_onda'], 'electrico'); o['pego'] = True
+        a = b['aviso']
+        if a and ahora >= a['hasta']: b['aviso'] = None; _rayos5(b, ctx)
+        if b['modo'] == 'libre':
+            if b['vida'] <= b['max_vida'] * R['umbral'] and any(t['estado'] == 'gris' for t in b['torres']):
+                b['aviso'] = None
+                _ir_a_torre(b, ctx, random.choice([t for t in b['torres'] if t['estado'] == 'gris']))
+            elif not b['aviso']:
+                if ahora >= p['rayos']:
+                    p['rayos'] = ahora + R['rayos']
+                    b['aviso'] = {'hasta': ahora + R['aviso_rayos'], 'clase': 'rafaga', 'inicio': ahora, 'mira': (jx, jy)}
+                elif math.hypot(jx - bx, jy - by) > 280: _ir_a(ent, b, (jx, jy), R['vel'], [])
+        elif b['modo'] == 'viaje':
+            tx, ty = b['viaje']['obj']['rect'].center
+            d = math.hypot(tx - bx, ty - by)
+            if d <= R['vel_viaje']:
+                b['rect'].center = (tx, ty)
+                t = b['torre'] = b['viaje']
+                t.update(estado='cargada', entro=ahora, atacada=False); t['obj']['color'] = COLOR_TORRE['cargada']
+                b['modo'], b['viaje'], b['escondido'] = 'torre', None, True
+                b['aviso'] = {'hasta': ahora + R['aviso_rayos'], 'clase': 'rafaga', 'inicio': ahora, 'mira': (jx, jy)}
+            else: b['rect'].center = (round(bx + (tx - bx) / d * R['vel_viaje']), round(by + (ty - by) / d * R['vel_viaje']))
+        elif b['modo'] == 'torre':
+            t = b['torre']
+            if (t['atacada'] and ahora - t['entro'] >= R['cambio']) or ahora - t['entro'] >= R['quedarse']: _salir_de_torre(b, ctx)
+        elif ahora >= p['tele']:                                    # sin torres: se teletransporta con alto voltaje
+            p['tele'] = ahora + R['tele']
+            b['rect'].center = entorno.punto_libre(ent, random, (jx, jy), 220)
+            b['ondas'].append({'pos': b['rect'].center, 'inicio': ahora, 'hasta': ahora + R['onda'], 'pego': False})
+            ctx['impacto'](*b['rect'].center, 60, 150)
+        b['vida_guardada'] = b['vida']
+
+
     def actualizar_jefe(b, ctx):
         """Te sigue por el mapa de flujo, tira rafagas en abanico apuntadas y si estas cerca pisotea (todo avisado)."""
         if b['estilo'] == 'regigigas': actualizar_regigigas(b, ctx); return
         if b['estilo'] == 'beta': actualizar_beta(b, ctx); return
         if b['estilo'] == 'arceus': actualizar_arceus(b, ctx); return
+        if b['estilo'] == 'regice': actualizar_regice(b, ctx); return
+        if b['estilo'] == 'regirock': actualizar_regirock(b, ctx); return
+        if b['estilo'] == 'registeel': actualizar_registeel(b, ctx); return
+        if b['estilo'] == 'regieleki': actualizar_regieleki(b, ctx); return
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -760,6 +1067,21 @@ def armar_ia():
                     fx, fy = a['fin'][0] - cx, a['fin'][1] - cy
                     pygame.draw.line(ventana, (255, 240, 180), (x, y), (fx, fy), 2 + round(ARCEUS['ancho_hiperrayo'] * k * 0.6))
                     pygame.draw.line(ventana, (255, 90, 40), (x, y), (fx, fy), 2)
+                elif a['clase'] == 'rayo_hielo':                    # linea celeste fija que se va engrosando
+                    fx, fy = a['fin'][0] - cx, a['fin'][1] - cy
+                    pygame.draw.line(ventana, (200, 240, 255), (x, y), (fx, fy), 2 + round(REGICE['ancho_rayo'] * k * 0.8))
+                    pygame.draw.line(ventana, (60, 140, 230), (x, y), (fx, fy), 2)
+                elif a['clase'] == 'roca_afilada':                  # por donde van a salir las rocas
+                    for i in range(1, REGIROCK['largo_roca'] + 1, 2):
+                        d = max(e['rect'].size) / 2 + i * REGIROCK['paso_roca']
+                        pygame.draw.circle(ventana, (150, 110, 60), (round(x + a['dir'][0] * d), round(y + a['dir'][1] * d)), 6, 2)
+                elif a['clase'] == 'fuerza_bruta':                  # franja roja por donde va a embestir
+                    W, H = ventana.get_size()
+                    velo = pygame.Surface((W, H), pygame.SRCALPHA)
+                    fin = (x + a['dir'][0] * REGIROCK['largo_fuerza'], y + a['dir'][1] * REGIROCK['largo_fuerza'])
+                    pygame.draw.line(velo, (230, 30, 30, 70 + round(90 * k)), (x, y), fin, REGIROCK['ancho_fuerza'])
+                    ventana.blit(velo, (0, 0))
+                    pygame.draw.line(ventana, (255, 60, 40), (x, y), fin, 2)
                 elif a['clase'] == 'sentencia':                     # el sello de Arceus del color de su tipo
                     centro = (round(a['mira'][0] - cx), round(a['mira'][1] - cy))
                     dibujar_sello(ventana, centro, ARCEUS['radio_sentencia'], (colores or {}).get(a['tipo'], (255, 255, 255)), k, ahora)
@@ -775,8 +1097,51 @@ def armar_ia():
             haz = e.get('haz')
             if haz:
                 a0, a1 = (haz['desde'][0] - cx, haz['desde'][1] - cy), (haz['fin'][0] - cx, haz['fin'][1] - cy)
-                pygame.draw.line(ventana, (255, 200, 80), a0, a1, ARCEUS['ancho_hiperrayo'] * 2)
-                pygame.draw.line(ventana, (255, 255, 240), a0, a1, ARCEUS['ancho_hiperrayo'])
+                ancho = haz.get('ancho', ARCEUS['ancho_hiperrayo'])
+                afuera, adentro = haz.get('color', ((255, 200, 80), (255, 255, 240)))
+                pygame.draw.line(ventana, afuera, a0, a1, ancho * 2)
+                pygame.draw.line(ventana, adentro, a0, a1, ancho)
+            for c in e.get('circulos', ()):                         # roca afilada
+                k = min(1.0, (ahora - c['inicio']) / 120)
+                pos = (round(c['pos'][0] - cx), round(c['pos'][1] - cy))
+                pygame.draw.circle(ventana, (140, 115, 80), pos, max(2, round(REGIROCK['radio_roca'] * k)))
+                pygame.draw.circle(ventana, (60, 45, 30), pos, max(2, round(REGIROCK['radio_roca'] * k)), 3)
+            for m in e.get('minas', ()):                            # minas de Registeel: titilan mas rapido antes de explotar
+                k = min(1.0, (ahora - m['inicio']) / max(1, m['hasta'] - m['inicio']))
+                pos = (round(m['pos'][0] - cx), round(m['pos'][1] - cy))
+                pygame.draw.circle(ventana, (255, 60, 40), pos, REGISTEEL['radio_mina'], 1)
+                pygame.draw.circle(ventana, (255, 60, 40), pos, max(1, round(REGISTEEL['radio_mina'] * k)), 2)
+                pygame.draw.circle(ventana, (70, 70, 80), pos, 14)
+                pygame.draw.circle(ventana, (255, 40, 30) if (ahora // max(40, round(250 * (1 - k)))) % 2 else (90, 20, 20), pos, 6)
+            for s in e.get('sierras', ()):                          # sierras que giran
+                pos = (round(s['x'] - cx), round(s['y'] - cy))
+                rs = REGISTEEL['radio_sierra']
+                pygame.draw.circle(ventana, (190, 190, 205), pos, rs)
+                for i in range(8):
+                    ang = ahora / 60 + i * math.tau / 8
+                    pygame.draw.line(ventana, (90, 90, 100), (pos[0] + math.cos(ang) * rs * 0.5, pos[1] + math.sin(ang) * rs * 0.5),
+                                     (pos[0] + math.cos(ang) * (rs + 6), pos[1] + math.sin(ang) * (rs + 6)), 3)
+                pygame.draw.circle(ventana, (60, 60, 70), pos, 5)
+            if e.get('iman_a') and e.get('iman_hasta', 0) > ahora:   # iman: lineas que te tiran hacia Registeel
+                ix, iy = e['iman_a'][0] - cx, e['iman_a'][1] - cy
+                for i in range(3):
+                    k = ((ahora / 400) + i / 3) % 1
+                    pygame.draw.circle(ventana, (170, 120, 255), (round(ix + (x - ix) * k), round(iy + (y - iy) * k)), 6, 2)
+                pygame.draw.circle(ventana, (170, 120, 255), (x, y), round(max(e['rect'].size) / 2 + 20 + math.sin(ahora / 100) * 8), 3)
+            for l in e.get('lineas', ()):                           # camino de Regieleki entre torres
+                pygame.draw.line(ventana, (255, 240, 80), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), REGIELEKI['ancho_linea'])
+                pygame.draw.line(ventana, (255, 255, 220), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), 3)
+            for o in e.get('ondas', ()):                            # alto voltaje
+                radio = round(REGIELEKI['radio_onda'] * (ahora - o['inicio']) / REGIELEKI['onda'])
+                if radio > 2:
+                    pygame.draw.circle(ventana, (255, 230, 50), (round(o['pos'][0] - cx), round(o['pos'][1] - cy)), radio, 6)
+                    pygame.draw.circle(ventana, (255, 255, 200), (round(o['pos'][0] - cx), round(o['pos'][1] - cy)), radio, 2)
+            if e.get('aturdido_hasta', 0) > ahora:                  # aturdido: estrellitas arriba de la cabeza
+                for i in range(3):
+                    ang = ahora / 200 + i * math.tau / 3
+                    sx, sy = x + math.cos(ang) * 40, e['rect'].top - cy - 12 + math.sin(ang) * 10
+                    pygame.draw.line(ventana, (255, 230, 60), (sx - 7, sy), (sx + 7, sy), 3)
+                    pygame.draw.line(ventana, (255, 230, 60), (sx, sy - 7), (sx, sy + 7), 3)
             for m in e.get('marcas', ()):                           # ataques de las tablas que caen donde estas
                 k = min(1.0, (ahora - m['inicio']) / max(1, m['hasta'] - m['inicio']))
                 color = (colores or {}).get(m['tipo'], (255, 255, 255))

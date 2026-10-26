@@ -690,6 +690,7 @@ def armar_mundos():
         'monolito': {'color': (150, 130, 90), 'bloquea': True, 'solido': True, 'maquina': True},
         # lo que deja la Sentencia de Arceus en su ultima fase: no se cruza (ni volando), pero los ataques pasan por arriba
         'vacio': {'color': (12, 6, 24), 'bloquea': True},
+        'escarcha': {'color': (200, 238, 255), 'bloquea': False},                 # piso que congela el rayo hielo de Regice
     }
 
     # objetos: tamaño en pixeles, material, vida (None = no se rompe), forma y color del dibujo provisorio
@@ -755,6 +756,9 @@ def armar_mundos():
         'pilar_de_cristal': {'tam': (50, 50), 'material': 'vidrio', 'vida': 90, 'color': (200, 150, 255), 'cobertura': True},
         'columna_rota': {'tam': (56, 46), 'material': 'piedra', 'vida': 120, 'forma': 'circulo', 'color': (190, 180, 210), 'cobertura': True},
         'estatua_de_titan': {'tam': (80, 90), 'material': 'piedra', 'vida': None, 'color': (160, 150, 190)},
+        # lo que arman los Regis en su sala (se va cuando caen)
+        'muro_de_hielo': {'tam': (62, 62), 'material': 'hielo_eterno', 'vida': 60, 'color': (150, 215, 245), 'al_romper': 'charco'},
+        'torre_electrica': {'tam': (64, 64), 'material': 'torre', 'vida': 100000, 'color': (130, 130, 130)},
         # tienda (no se rompen)
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
@@ -935,6 +939,8 @@ def armar_mundos():
                    'piezas': {'ruinas': 1}, 'num_piezas': (1, 2), 'objetos': {}, 'cantidad': (0, 0)}},   # Regigigas y Arceus: arena redonda y mas grande
     ]
     REGIS = tuple(e['regi'] for e in ERAS if 'plan_fijo' not in e)     # los 5 Regis de las eras (no Regigigas)
+    ARENA_REGI = {'forma': {'circulo': 1}, 'tamaño': (25, 25), 'simetria': {'no': 1}, 'paredes': (0, 0),   # sala de los 5 Regis: redonda, grande y vacia
+                  'piezas': {}, 'num_piezas': (0, 0), 'objetos': {}, 'cantidad': (0, 0)}
 
 
     def planificar(azar):

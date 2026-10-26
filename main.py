@@ -556,6 +556,7 @@ def main():
         FASES_BETA = {2: 'Fase 2', 3: 'Fase 3'}
         # cuando cae Arceus: caen Sentencias sobre la mitad de arriba (queda vacia) y aparece Arceus Beta flotando ahi
         LLEGADA_BETA = {'espera': 1500, 'cada': 160, 'aviso': 900, 'paso': 260, 'radio': 130, 'vida': 2.0, 'nivel_mas': 4}
+        FRIO_MAX, CARGA_FRIO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 0.9, 0.5, 3000   # barra de congelamiento (escarcha de Regice)
         ESTILO_MINI = {'regieleki': 'rapido', 'regidrago': 'tirador', 'regice': 'tirador'}               # los demas pegan de cerca
 
         def armar_reglas():
@@ -644,7 +645,8 @@ def main():
                 equipo = [n for n in dict.fromkeys(nombres) if n in pokemones][:3] or ['electrike']
                 j = {'modo': modo, 'uso': 'teclas' if modo == 'teclas' else 'mouse', 't_mouse': 0, 'pos_mouse': pantalla.raton(), 'ultimo_dir': (0, 1), 'direccion': 'sur', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
                      'resto': [0.0, 0.0], 'aim': (0.0, 1.0), 'dir_ataque': 0, 'ultimo_cambio': -10000, 'equipo': [crear_miembro(n) for n in equipo], 'activo': 0, 'sinergia': {},
-                     'monedas': 0, 'inventario': tienda.inventario_nuevo(), 'entorno': {}, 'oculto': False, 'inercia': [0.0, 0.0], 'reserva': []}
+                     'monedas': 0, 'inventario': tienda.inventario_nuevo(), 'entorno': {}, 'oculto': False, 'inercia': [0.0, 0.0], 'reserva': [],
+                     'frio': 0.0, 'congelado_hasta': 0, 'resto_iman': [0.0, 0.0]}
                 aplicar_pokemon(j, equipo[0], centro=centro)
                 actualizar_sinergia(j)
                 return j
@@ -657,7 +659,7 @@ def main():
                 if not 0 <= indice < len(j['equipo']) or indice == j['activo']: return False
                 m = j['equipo'][indice]
                 if m['vida'] <= 0: return False
-                if not forzar and (j['atacando'] or j['embestida'] or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO): return False
+                if not forzar and (j['atacando'] or j['embestida'] or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO or ahora < j['congelado_hasta']): return False
                 guardar_activo(j)
                 j['activo'] = indice; j['ultimo_cambio'] = ahora; j['buffs'] = {}
                 aplicar_pokemon(j, m['nombre'], m['vida'])
@@ -693,7 +695,7 @@ def main():
                     if RESTAURAR_VIDA_ENTRE_SALAS: m['vida'] = m['max_vida']
                     reiniciar_asistencia(m)
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
-                          'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False})
+                          'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False, 'frio': 0.0, 'congelado_hasta': 0})
                 aplicar_pokemon(j, j['nombre'], j['equipo'][j['activo']]['vida'], centro=centro)
                 actualizar_sinergia(j)
 
@@ -713,6 +715,8 @@ def main():
         def armar_movimiento():
             """Mover al jugador, la camara y hacia donde apunta."""
             def mover_jugador(j, piedras):
+                if tiempo() < j['congelado_hasta']:
+                    j['moviendose'] = j['corriendo'] = False; j['inercia'] = [0.0, 0.0]; return
                 dx, dy = controles.direccion()                   # teclas del perfil, palanca o cruz del control
                 j['moviendose'] = bool(dx or dy)
                 if j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
@@ -886,6 +890,13 @@ def main():
                 entorno.reaccionar(mundo['ent'], j['rect'].centerx, j['rect'].centery, area + max(j['rect'].size) / 2, e['datos'].get('tipo'), tiempo())
                 if e['restante'] <= 0: j['embestida'] = None
 
+            def descongelar(j, tipo):
+                """Congelado solo se puede usar un movimiento de hielo, y te descongela."""
+                if tiempo() >= j['congelado_hasta']: return True
+                if normalizar_tipo(tipo) != 'hielo': return False
+                j['congelado_hasta'] = 0; j['frio'] = 0.0
+                return True
+
             def usar_basico(j, indice, nivel):
                 nombre = j['juego']['basicos'][indice]
                 base = datos_mov(nombre) if nombre else None
@@ -896,6 +907,7 @@ def main():
                         try: base[clave] = float(base.get(clave, 0)) * k
                         except (TypeError, ValueError): pass
                 datos = preparar(j, base)
+                if not descongelar(j, datos.get('tipo')): return
                 ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
                 clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
                 if j['atacando'] or j['embestida'] or ahora - j[clave] < enfriamiento: return
@@ -907,6 +919,7 @@ def main():
             def usar_especial(j, indice, nivel):
                 nombre, base = j['juego']['especiales'][indice]
                 datos = preparar(j, base)
+                if not descongelar(j, datos.get('tipo')): return
                 forma = datos.get('forma', 'proyectil')
                 ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
                 if j['atacando'] or j['embestida'] or ahora - j['esp_ultimo'][indice] < enfriamiento: return
@@ -932,7 +945,7 @@ def main():
                 reserva = [m for i, m in enumerate(j['equipo']) if i != j['activo']]
                 if k >= len(reserva): return
                 m = reserva[k]
-                if m['vida'] <= 0 or ahora < m['asist_listo']: return
+                if m['vida'] <= 0 or ahora < m['asist_listo'] or not descongelar(j, m['asist']['tipo']): return
                 a = m['asist']; mec = a['mecanica']
                 objetivos = objetivos_de(nivel, mec != 'desvanecer')        # desvanecer no borra objetos
                 m['asist_listo'] = ahora + a['enfriamiento']
@@ -1168,16 +1181,16 @@ def main():
             def actualizar_jefe(jefe, j, proyectiles, verdes, contexto):
                 """Movimiento y ataques avisados en ia.py; aca el anillo de balas, las piedras verdes y el choque."""
                 ahora = tiempo()
-                if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora): ia.actualizar_jefe(jefe, contexto)
+                if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora) or jefe['estilo'] == 'regieleki': ia.actualizar_jefe(jefe, contexto)
                 jefe['rect'].clamp_ip(AREA)
-                if ahora - jefe['ultimo_disparo'] >= CD_JEFE and jefe['estilo'] not in ('arceus', 'beta'):   # Arceus ya tiene sus rayos y Beta sus tablas
+                if ahora - jefe['ultimo_disparo'] >= CD_JEFE and jefe['estilo'] in ('jefe', 'regigigas'):   # Arceus, Beta y los Regis tienen sus propios ataques
                     for i in range(BALAS_JEFE):
                         a = i * math.tau / BALAS_JEFE; dx, dy = math.cos(a), math.sin(a); r = TAM_JEFE//2+10
                         proyectiles.append(crear_proyectil(jefe['rect'].centerx+dx*r, jefe['rect'].centery+dy*r, dx, dy, round(jefe['daño'] * 0.7), True, jefe['tipo']))
                     jefe['ultimo_disparo'] = ahora
                 if ahora - jefe['ultimo_poder'] >= CD_PIEDRA and jefe['estilo'] == 'jefe':       # Regigigas y Arceus usan sus propios ataques
                     verdes.extend(crear_piedras_verdes(jefe)); jefe['ultimo_poder'] = ahora
-                if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700:
+                if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700 and not jefe.get('escondido'):
                     dañar_jugador(j, jefe['daño'], jefe['tipo']); jefe['ultimo_golpe'] = ahora
                 jefe['color'] = COLORES_TIPO.get(jefe['tipo'], jefe['color'])     # Arceus cambia de tipo (Multitipo)
 
@@ -1454,6 +1467,12 @@ def main():
                             'disparar': lambda x, y, dx, dy, d, t, v, dist, tam=16: nivel['proyectiles_enemigos'].append(crear_proyectil(x, y, dx, dy, round(d), False, t, v, dist, tam)),
                             'impacto': lambda x, y, r, ms: impacto(nivel, x, y, r, ms)}
                 entorno.actualizar(ent, contexto, ahora)                 # terreno, maquinas, fuego, clima, objetos empujados, explosiones
+                if ahora >= j['congelado_hasta']:                        # la escarcha de Regice carga la barra de congelamiento
+                    if entorno.terreno_en(ent, *j['rect'].center) == 'escarcha': j['frio'] = min(FRIO_MAX, j['frio'] + CARGA_FRIO)
+                    else: j['frio'] = max(0.0, j['frio'] - DESCARGA_FRIO)
+                    if j['frio'] >= FRIO_MAX:
+                        j['congelado_hasta'] = ahora + DURACION_CONGELADO; j['frio'] = 0.0
+                        cartel(nivel, 'Te congelaste! (un movimiento de hielo te descongela)', 1600)
                 for ev in ent['eventos']:                                # lo que paso en el entorno: monedas, cosas rotas, explosiones
                     if ev[0] == 'monedas': soltar_monedas(nivel, j, ev[1], ev[2], ev[3])
                     elif ev[0] == 'roto': efectos.romper(mundo['ef'], ev[1], ev[2], ev[3]); ganar_xp(nivel, j, 2 + nivel['nivel_enemigos'] // 3)
@@ -1491,6 +1510,7 @@ def main():
                         empezar_llegada_beta(nivel, j, jefe)
                     elif jefe['vida'] <= 0:
                         nivel['jefe'] = None
+                        entorno.sacar_de_regi(ent)
                         if jefe['estilo'] == 'beta': entorno.cerrar_vacios(ent); cartel(nivel, 'El piso vuelve...', 2000)
                         soltar_monedas(nivel, j, *jefe['rect'].center, MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
                         cartel(nivel, jefe['nombre'].title() + ' fue derrotado!', 2000)
@@ -1550,6 +1570,13 @@ def main():
                 if ok: return
                 r = pygame.Rect(0,0,j['tamaño'],j['tamaño']); r.center = centro[0]-cx, centro[1]-cy; pygame.draw.rect(ventana, (255,50,255), r)
 
+            def dibujar_congelado(j, cx, cy):
+                if tiempo() >= j['congelado_hasta']: return
+                r = j['rect'].inflate(18, 18).move(-cx, -cy)
+                velo = pygame.Surface(r.size, pygame.SRCALPHA); velo.fill((170, 225, 255, 130))
+                ventana.blit(velo, r)
+                pygame.draw.rect(ventana, (230, 250, 255), r, 3)
+
             def barra(rect, vida, max_vida, alto=5):
                 pygame.draw.rect(ventana, (80,0,0), rect)
                 pygame.draw.rect(ventana, (0,200,0), (rect[0], rect[1], int(max(0, vida*rect[2]//max(1,max_vida))), rect[3]))
@@ -1596,6 +1623,10 @@ def main():
                 ahora = tiempo()
                 circulo_poke((44, 86), 34, j['nombre'])
                 barra_hud((80, 68, 240, 36), j['vida'], j['max_vida'])
+                if j['frio'] > 0:                                         # barra de congelamiento arriba de la vida
+                    pygame.draw.rect(ventana, (225, 245, 255), (83, 71, 234, 7))
+                    pygame.draw.rect(ventana, (90, 200, 255), (83, 71, int(234 * j['frio'] / FRIO_MAX), 7))
+                if ahora < j['congelado_hasta']: pygame.draw.circle(ventana, (120, 215, 255), (44, 86), 37, 4)
                 t = f_hud.render(str(int(j['vida'])) + '/' + str(j['max_vida']), True, 'white')
                 ventana.blit(t, t.get_rect(center=(200, 86)))
                 pygame.draw.rect(ventana, (60, 60, 60), (80, 108, 240, 6))
@@ -1770,6 +1801,7 @@ def main():
                     pygame.draw.circle(ventana, (250, 210, 50), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8)
                     pygame.draw.circle(ventana, (150, 110, 20), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8, 2)
                 dibujar_jugador(j,cx,cy)
+                dibujar_congelado(j, cx, cy)
                 if j['oculto']: pygame.draw.circle(ventana, (200, 200, 255), (j['rect'].centerx - cx, j['rect'].top - cy - 8), 5, 2)   # escondido
                 if j['uso'] == 'mouse': mx, my = pantalla.raton()
                 else: mx, my = round(j['rect'].centerx - cx + j['aim'][0] * 90), round(j['rect'].centery - cy + j['aim'][1] * 90)
@@ -1787,7 +1819,7 @@ def main():
                     if math.hypot(e['rect'].centerx - j['rect'].centerx, e['rect'].centery - j['rect'].centery) < 90:
                         t = f_hud_b.render(tecla_de('interactuar') + ': hablar', True, 'white')
                         ventana.blit(t, t.get_rect(midbottom=(e['rect'].centerx - cx, e['rect'].top - cy - 26)))
-                if nivel['jefe']:
+                if nivel['jefe'] and not nivel['jefe'].get('escondido'):     # Regieleki adentro de una torre no se ve
                     b = nivel['jefe']
                     if not dibujar_enemigo(b, cx, cy): dibujar_rect(b['rect'],cx,cy,b.get('color',(255,140,0)))
                     barra((b['rect'].x-cx,b['rect'].y-cy-12,b['rect'].width,8),b['vida'],b['max_vida'],8)
