@@ -47,6 +47,7 @@ def armar_menus():
 
 
     def fuente(tam):
+        """Fuente del tamaño pedido (se crea una sola vez)."""
         if tam not in _fuentes: _fuentes[tam] = pygame.font.Font(None, tam)
         return _fuentes[tam]
 
@@ -100,6 +101,7 @@ def armar_menus():
 
 
     def ajustar_texto(texto, f, ancho):
+        """Corta un texto en lineas que entren en 'ancho' pixeles."""
         lineas, actual = [], ''
         for palabra in str(texto).split():
             prueba = (actual + ' ' + palabra).strip()
@@ -131,6 +133,7 @@ def armar_menus():
 
 
     def titulo(ventana, texto, x=60, y=40, tam=72, color=None):
+        """Titulo grande de un menu."""
         ventana.blit(fuente(tam).render(texto, True, color or TINTA), (x, y))
 
 
@@ -147,6 +150,7 @@ def armar_menus():
 
 
     def _ttf(nombre, tam):
+        """Fuente .ttf de assets/interfaz/fuentes o None si no esta."""
         ruta = os.path.join(FUENTES, nombre)
         return pygame.font.Font(ruta, tam) if os.path.isfile(ruta) else None
 
@@ -224,6 +228,7 @@ def armar_menus():
 
 
     def chip_tipo(ventana, tipo, x, y):
+        """Etiqueta redondeada del color de un tipo. Devuelve el ancho que ocupo (para poner la siguiente al lado)."""
         t = fuente(20).render(tipo, True, 'black')
         r = pygame.Rect(x, y, t.get_width() + 14, 22)
         pygame.draw.rect(ventana, COLORES_TIPO.get(tipo, (150, 150, 150)), r, border_radius=8)
@@ -231,7 +236,33 @@ def armar_menus():
         return r.width + 6
 
 
+    # colores de las barras de vida de Blanco/Negro (hoja Battle HUD): claro arriba y oscuro abajo
+    VIDA_BW = ((0.5, (0, 248, 72), (0, 189, 33)), (0.2, (234, 255, 0), (173, 189, 0)), (0.0, (255, 0, 0), (189, 0, 0)))
+
+
+    def barra_vida(ventana, rect, k, etiqueta=True):
+        """Barra de vida como la de BW: verde, amarilla debajo de la mitad y roja debajo del 20%. Con etiqueta, el 'HP' verde a la izquierda."""
+        rect = pygame.Rect(rect)
+        k = max(0.0, min(1.0, k))
+        if etiqueta:
+            hp = pygame.Rect(rect.x, rect.y, max(26, round(rect.height * 1.4)), rect.height)
+            pygame.draw.rect(ventana, (40, 40, 40), hp, border_radius=3)
+            t = fuente(max(14, min(30, rect.height + 4))).render('HP', True, (0, 248, 72))
+            ventana.blit(t, t.get_rect(center=hp.center))
+            rect = rect.copy(); rect.x += hp.width - 2; rect.width -= hp.width - 2
+        pygame.draw.rect(ventana, (40, 40, 40), rect, border_radius=3)
+        adentro = rect.inflate(-4, -4)
+        pygame.draw.rect(ventana, (248, 248, 248), adentro.inflate(2, 2))
+        pygame.draw.rect(ventana, (80, 80, 80), adentro)
+        claro, oscuro = next((c, o) for limite, c, o in VIDA_BW if k > limite or limite == 0.0)
+        lleno = pygame.Rect(adentro.x, adentro.y, round(adentro.width * k), adentro.height)
+        if lleno.width:
+            pygame.draw.rect(ventana, claro, lleno)
+            pygame.draw.rect(ventana, oscuro, (lleno.x, lleno.y + lleno.height * 2 // 3, lleno.width, lleno.height - lleno.height * 2 // 3))
+
+
     def barra(ventana, rect, k, color, fondo=(60, 60, 60)):
+        """Barra simple (fondo, relleno de 0 a 1 y borde)."""
         pygame.draw.rect(ventana, fondo, rect)
         pygame.draw.rect(ventana, color, (rect[0], rect[1], int(rect[2] * max(0, min(1, k))), rect[3]))
         pygame.draw.rect(ventana, 'black', rect, 2)
@@ -288,6 +319,64 @@ def armar_menus():
             a.actualizar(); a.dibujar(ventana)
 
 
+    # ---------- intro: del cielo a la isla ----------
+
+    def intro(ui, duracion=7000):
+        """Cinematica del principio: arranca en el cielo del Explorers of Sky (assets/interfaz/fondos/cielo.png y nube_<n>.png,
+        los recorta: python herramientas.py cielo), las nubes suben y la camara baja hasta la isla del menu.
+        Cualquier tecla o clic la saltea. Devuelve 'salir' si se cerro la ventana."""
+        ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        cargar = lambda nombre: pygame.image.load(os.path.join(FONDOS, nombre)).convert_alpha() if os.path.isfile(os.path.join(FONDOS, nombre)) else None
+        cielo = cargar('cielo.png')
+        if not cielo: return None
+        ALTO_CIELO = H * 2                                               # el cielo ocupa dos pantallas arriba de la isla
+        cielo = pygame.transform.scale(cielo, (W, ALTO_CIELO + 260))
+        sprites = [n for n in (cargar('nube_' + str(i) + '.png') for i in range(8)) if n]
+        azar = random.Random(11)
+        nubes = []
+        for i in range(18):                                              # mas lejos = mas chicas, mas lentas y mas transparentes
+            lejos = azar.random()
+            img = sprites[i % len(sprites)] if sprites else None
+            if img:
+                img = pygame.transform.scale(img, (round(img.get_width() * (2 + 2.5 * (1 - lejos))), round(img.get_height() * (2 + 2.5 * (1 - lejos)))))
+                if azar.random() < 0.5: img = pygame.transform.flip(img, True, False)
+                img.set_alpha(round(150 + 105 * (1 - lejos)))
+            nubes.append({'img': img, 'x': azar.uniform(-150, W), 'y': azar.uniform(H * 0.3, ALTO_CIELO + H * 0.6), 'paralaje': 1.25 + 0.7 * (1 - lejos),
+                          'deriva': azar.uniform(-0.03, 0.03), 'lejos': lejos})
+        nubes.sort(key=lambda n: -n['lejos'])
+        isla = pygame.Surface((W, H))
+        ui_isla = dict(ui, ventana=isla)
+        borde = pygame.Surface((W, 240), pygame.SRCALPHA)                 # degrade para que el cielo se funda con la isla
+        abajo = cielo.get_at((W // 2, cielo.get_height() - 1))
+        for y in range(240): pygame.draw.line(borde, (abajo.r, abajo.g, abajo.b, round(255 * (1 - y / 240) ** 1.5)), (0, y), (W, y))
+        aviso = fuente(20).render('cualquier tecla para saltar', True, (255, 255, 255))
+        reloj = pygame.time.Clock()
+        inicio = pygame.time.get_ticks()
+        while True:
+            for e in controles.eventos():
+                if e.type == pygame.QUIT: return 'salir'
+                if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.JOYBUTTONDOWN): return None
+            t = pygame.time.get_ticks() - inicio
+            if t >= duracion: return None
+            k = max(0.0, min(1.0, (t - 900) / (duracion - 1800)))
+            camara = ALTO_CIELO * k * k * (3 - 2 * k)                        # baja despacio, acelera y frena al llegar
+            ventana.blit(cielo, (0, -camara))
+            y_isla = ALTO_CIELO - camara
+            if y_isla < H:
+                fondo_menu(ui_isla, pygame.time.get_ticks())
+                ventana.blit(isla, (0, y_isla))
+                final = max(0.0, min(1.0, (t - (duracion - 1200)) / 900))   # el degrade se va al final, asi la isla queda igual que en el titulo
+                if final < 1: borde.set_alpha(round(255 * (1 - final))); ventana.blit(borde, (0, y_isla))
+            for n in nubes:                                              # las nubes suben mas rapido que la camara (parece que bajamos entre ellas)
+                n['x'] += n['deriva'] * reloj.get_time() * 10
+                y = n['y'] - camara * n['paralaje'] - t * 0.04 * n['paralaje']
+                if n['img'] and -n['img'].get_height() < y < H: ventana.blit(n['img'], (n['x'], y))
+            if t < 700:                                                  # aparece desde negro
+                velo = pygame.Surface((W, H)); velo.set_alpha(round(255 * (1 - t / 700))); ventana.blit(velo, (0, 0))
+            ventana.blit(aviso, aviso.get_rect(bottomright=(W - 14, H - 10)))
+            ui['presentar'](); reloj.tick(60)
+
+
     # ---------- dialogos ----------
 
     def preguntar(ui, texto, opciones_, detalle=None):
@@ -337,6 +426,7 @@ def armar_menus():
         reloj = pygame.time.Clock()
 
         def cambiar(clave, paso):
+            """Cambia el valor de una opcion de ajustes hacia un lado (-1 o +1) y lo aplica."""
             if clave == 'volumen': config['volumen'] = max(0, min(100, config['volumen'] + 10 * paso)); ui['aplicar_volumen']()
             elif clave == 'modo': config['modo'] = modos[(modos.index(config['modo']) + paso) % len(modos)]
             elif clave == 'resolucion':
@@ -426,6 +516,7 @@ def armar_menus():
                     controles.restaurar(dispositivo, c['perfil_' + dispositivo])
             if accion in nombres:
                 def dibujar_espera():
+                    """Pantalla de 'apreta una tecla' mientras se reasigna un control."""
                     velo = pygame.Surface((W, H), pygame.SRCALPHA); velo.fill((0, 0, 0, 170)); ventana.blit(velo, (0, 0))
                     t = fuente(40).render(('Apreta una tecla' if dispositivo == 'teclado' else 'Apreta un boton') + ' para: ' + nombres[accion], True, 'white')
                     ventana.blit(t, t.get_rect(center=(W // 2, H // 2)))
@@ -492,6 +583,7 @@ def armar_menus():
     # ---------- glosario ----------
 
     def _efecto_txt(ef):
+        """Texto de un efecto del entorno para el glosario ('daño x1.3', 'resbala'...)."""
         partes = []
         for k, v in ef.items():
             if k == 'velocidad': partes.append(('+' if v > 1 else '') + str(round((v - 1) * 100)) + '% velocidad')
@@ -573,6 +665,7 @@ def armar_menus():
 
 
     def glosario(ui):
+        """Glosario: secciones con terrenos, maquinas, climas, tipos y controles, con scroll."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         secciones = secciones_glosario(ui['config'])
         nombres = list(secciones)

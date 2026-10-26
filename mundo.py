@@ -8,6 +8,7 @@ mundo.py - La sala donde se pelea: como se genera, lo que pasa adentro y las par
     from mundo import generacion, entorno, efectos
 """
 
+import json
 import math
 import os
 import random
@@ -66,6 +67,7 @@ def armar_generacion():
 
 
     def crear_escenario(columnas=COLUMNAS, filas=FILAS, tam=TAM_CASILLA):
+        """Rect del tamaño total de una sala (columnas x filas casillas)."""
         return pygame.Rect(0, 0, columnas * tam, filas * tam)
 
 
@@ -122,6 +124,7 @@ def armar_generacion():
 
 
     def _adentro(m, f, c):
+        """Si (f, c) esta adentro de la matriz."""
         return 1 <= f < len(m) - 1 and 1 <= c < len(m[0]) - 1
 
 
@@ -271,6 +274,7 @@ def armar_generacion():
 
 
     def _cintas(m, azar, libres, sim):
+        """Fabrica: lineas de cintas transportadoras en una misma direccion."""
         def una(azar):
             lado = azar.choice(('n', 's', 'e', 'o'))
             df, dc = {'n': (-1, 0), 's': (1, 0), 'e': (0, 1), 'o': (0, -1)}[lado]
@@ -279,6 +283,7 @@ def armar_generacion():
 
 
     def _cables(m, azar, libres, sim):
+        """Central electrica: lineas de cables en el piso."""
         _lineas(m, azar, libres, sim, lambda azar: azar.choice(((0, 1, 'cable'), (1, 0, 'cable'))), (2, 4), (4, 8))
 
 
@@ -378,6 +383,7 @@ def armar_generacion():
 
 
     def _espejo_punto(x, y, sim, ancho, alto):
+        """Los puntos espejados de (x, y) segun la simetria de la sala (para poner objetos espejados)."""
         lista = {(x, y)}
         if 'h' in sim: lista.add((ancho - x, y))
         if 'v' in sim: lista.add((x, alto - y))
@@ -560,6 +566,7 @@ def armar_generacion():
     # ---------- armado ----------
 
     def _rect_puerta(lado, columnas, filas, tam):
+        """Rect en pixeles de la puerta de ese lado (3 casillas en el medio de la pared)."""
         celdas = _casillas_puerta(lado, columnas, filas)
         f0, c0 = min(f for f, _ in celdas), min(c for _, c in celdas)
         f1, c1 = max(f for f, _ in celdas), max(c for _, c in celdas)
@@ -661,7 +668,7 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Kecleon en el mostrador, un estante arriba a la derecha,
+        """Salon de la tienda del tamaño de la pantalla: Kecleon en el mostrador (con Chikorita rosa al lado), un estante arriba a la derecha,
         otro abajo a la izquierda (asi el HUD no tapa nada) y dos mesas con los objetos destacados."""
         tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
@@ -671,7 +678,7 @@ def armar_generacion():
         ancho = columnas * tam
         alto = filas * tam
         objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('kecleon', (ancho // 2, 62)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('kecleon', (ancho // 2, 62)), crear_objeto('chikorita_rosa', (ancho // 2 - 95, 70)), crear_objeto('mostrador', (ancho // 2, 105)),
                    crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
                    crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
         for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
@@ -846,6 +853,296 @@ def armar_entorno():
         return _imagenes[clave]
 
 
+    # ---------- tilesets del PMD (los arma: python herramientas.py tiles) ----------
+    # Cada terreno con tileset tiene 69 piezas (3 columnas x 23 filas) y una mascara de vecinos por pieza.
+    # Bits de los vecinos: N=1 NE=2 E=4 SE=8 S=16 SO=32 O=64 NO=128. Una esquina solo cuenta si estan los dos lados que la tocan.
+    VECINOS = ((-1, 0, 1), (-1, 1, 2), (0, 1, 4), (1, 1, 8), (1, 0, 16), (1, -1, 32), (0, -1, 64), (-1, -1, 128))
+    ESQUINAS = ((2, 1, 4), (8, 4, 16), (32, 16, 64), (128, 64, 1))
+    MUROS = ('pared', 'puerta', 'entrada')                       # lo que cuenta como pared para los bordes
+    IGUALES = {'pared': MUROS, 'agua': ('agua', 'puente'), 'hielo': ('hielo', 'escarcha'), 'escarcha': ('hielo', 'escarcha')}
+    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
+    MAGENTA = (255, 0, 255)
+    _capas, _por_ruta = {}, {}
+
+
+    def _normalizar(mascara):
+        """Saca de la mascara las esquinas que no cuentan (las que no tienen sus dos lados vecinos)."""
+        for esquina, a, b in ESQUINAS:
+            if not (mascara & a and mascara & b): mascara &= ~esquina
+        return mascara
+
+
+    def capa(terreno, era, variante=None):
+        """Tileset de un terreno o None. Busca de lo mas especifico a lo general:
+        assets/mundo/<era>/<variante>/terrenos, <variante>/terrenos (ej. 'tienda'), <era>/terrenos y terrenos."""
+        clave = (terreno, era, variante)
+        if clave not in _capas:
+            _capas[clave] = None
+            carpetas = ([os.path.join(era, variante), variante] if variante else []) + [era, '']
+            for carpeta in carpetas:
+                ruta = os.path.join(CARPETA_ASSETS, carpeta, 'terrenos', terreno)
+                if os.path.isfile(ruta + '.json') and os.path.isfile(ruta + '.png'):
+                    if ruta not in _por_ruta: _por_ruta[ruta] = _cargar_capa(ruta)
+                    _capas[clave] = _por_ruta[ruta]
+                    break
+        return _capas[clave]
+
+
+    def _cargar_capa(ruta):
+        """Lee un tileset (.png + .json) y arma el indice mascara -> piezas. None si esta roto o vacio."""
+        try:
+            with open(ruta + '.json', encoding='utf-8') as f: d = json.load(f)
+            img = pygame.image.load(ruta + '.png').convert()
+            brillo = pygame.image.load(ruta + '_brillo.png').convert() if d.get('brillo') and os.path.isfile(ruta + '_brillo.png') else None
+        except (OSError, ValueError, pygame.error): return None
+        piezas = {}                                                  # mascara -> piezas que la tienen (puede haber varias)
+        for i, m in enumerate(d['mascaras']):
+            if m >= 0 and d['hay'][i] == '1': piezas.setdefault(_normalizar(m), []).append(i)
+        if not piezas: return None
+        paleta = lambda filas: [[tuple(c) for c in fila] for fila in filas] if filas else None
+        return {'img': img, 'grupo': d.get('grupo'), 'mascaras': d['mascaras'], 'piezas': piezas, 'elegidas': {}, 'variantes': [set(i for i, h in enumerate(v) if h == '1') for v in d['variantes']],
+                'paleta': paleta(d.get('paleta')), 'cada': d.get('cada', 12), 'brillo': brillo, 'hay_brillo': d.get('brillo', ''),
+                'paleta_brillo': paleta(d.get('paleta_brillo')), 'cada_brillo': d.get('cada_brillo', 8), 'cache': {}}
+
+
+    def _pieza(cp, mascara, f, c):
+        """(pieza, variante) del tileset para esa mascara de vecinos. Si no esta exacta, la mas parecida (primero los lados, despues las esquinas).
+        Cuando hay varias o el tileset tiene variantes (flores, piedritas), se elige al azar pero siempre igual para la misma casilla."""
+        m = _normalizar(mascara)
+        if m not in cp['elegidas']:
+            def diferencia(m2):
+                """Que tan distinta es otra mascara: pesan mas los lados que las esquinas."""
+                d = m ^ m2
+                return sum(4 for b in (1, 4, 16, 64) if d & b) + sum(1 for b in (2, 8, 32, 128) if d & b)
+            cp['elegidas'][m] = cp['piezas'].get(m) or cp['piezas'][min(cp['piezas'], key=diferencia)]
+        opciones = cp['elegidas'][m]
+        azar = (f * 7919 + c * 104729) % 977
+        i = opciones[azar % len(opciones)]
+        variantes = [v for v, hay in enumerate(cp['variantes']) if i in hay]
+        if variantes and azar % 7 == 0: return i, variantes[azar // 7 % len(variantes)] + 1
+        return i, 0
+
+
+    def _pintar(sup, desde, hacia):
+        """Cambia los colores de una fila de la paleta por los de otra (como el agua del PMD). En dos pasos para no pisar colores."""
+        pa = pygame.PixelArray(sup)
+        for i, c in enumerate(desde): pa.replace(c, (i, 255 - i, 7))
+        for i, c in enumerate(hacia): pa.replace((i, 255 - i, 7), c)
+        pa.close()
+
+
+    def _tile(cp, i, variante, tam, frame=0, brillo=False):
+        """Pieza i del tileset al tamaño de la casilla, con los colores del frame de su paleta (los brillos con el magenta transparente)."""
+        clave = (i, variante, tam, frame, brillo)
+        if clave not in cp['cache']:
+            if len(cp['cache']) > 1500: cp['cache'].clear()
+            fila, col = divmod(i, 3)
+            t = (cp['brillo'] if brillo else cp['img']).subsurface((variante * 72 + col * 24, fila * 24, 24, 24)).copy()
+            paleta = cp['paleta_brillo'] if brillo else cp['paleta']
+            if frame and paleta: _pintar(t, paleta[0], paleta[frame])
+            t = pygame.transform.scale(t, (tam, tam))
+            if brillo: t.set_colorkey(MAGENTA)
+            cp['cache'][clave] = t
+        return cp['cache'][clave]
+
+
+    def _mancha(cp, i, variante, tam, mascara, frame=0):
+        """La pieza recortada con bordes redondos del lado donde no sigue el mismo terreno (asi un parche de nieve no queda cuadrado)."""
+        clave = ('mancha', i, variante, tam, mascara, frame)
+        if clave not in cp['cache']:
+            n, e, s, o = (bool(mascara & b) for b in (1, 4, 16, 64))
+            radio, borde = tam // 3, tam // 10
+            forma = pygame.Rect(0 if o else borde, 0 if n else borde, 0, 0)
+            forma.width, forma.height = tam - forma.x - (0 if e else borde), tam - forma.y - (0 if s else borde)
+            sup = pygame.Surface((tam, tam), pygame.SRCALPHA)
+            pygame.draw.rect(sup, (255, 255, 255), forma, border_top_left_radius=0 if n or o else radio, border_top_right_radius=0 if n or e else radio,
+                             border_bottom_left_radius=0 if s or o else radio, border_bottom_right_radius=0 if s or e else radio)
+            sup.blit(_tile(cp, i, variante, tam, frame), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            cp['cache'][clave] = sup
+        return cp['cache'][clave]
+
+
+    def _mascara(m, f, c, iguales):
+        """Bits de los vecinos que son del mismo terreno (afuera de la sala cuenta como igual)."""
+        mascara = 0
+        for df, dc, bit in VECINOS:
+            nf, nc = f + df, c + dc
+            if not (0 <= nf < len(m) and 0 <= nc < len(m[0])) or iguales(m[nf][nc]): mascara |= bit
+        return mascara
+
+
+    def _frame(ahora, cada, cantidad):
+        """Frame de una paleta que cambia cada 'cada' frames del juego original (60 por segundo)."""
+        return (ahora * 60 // 1000 // max(1, cada)) % cantidad
+
+
+    # ---------- maquinas y puertas ----------
+    # Cada maquina tiene una base que no cambia (se arma una vez por tamaño) y una parte animada que se dibuja cada frame.
+    # El fuego, las chispas y los brillos usan los efectos del PMD (efectos._frames) si estan; si no, formas simples.
+    _bases = {}
+
+
+    def _loop(ventana, nombre, centro, lado, ahora, ms=70):
+        """Dibuja un efecto de assets/efectos en loop centrado en 'centro'. False si no hay sprite.
+        (efectos se arma mas abajo en este archivo, pero esto se llama recien al dibujar)"""
+        frames = efectos._frames(nombre, lado)
+        if not frames: return False
+        f = frames[(ahora // ms) % len(frames)]
+        ventana.blit(f, f.get_rect(center=centro))
+        return True
+
+
+    def _llama(ventana, centro, lado, ahora, apagada=False):
+        """Fuego de fogatas, braseros y hornos (o un hilito de humo si esta apagado)."""
+        x, y = centro
+        if apagada:
+            for i in range(3):
+                k = ((ahora / 900) + i / 3) % 1
+                pygame.draw.circle(ventana, (120, 120, 120), (round(x + math.sin(k * 6 + i) * 5), round(y - k * lado * 0.6)), max(1, round(lado * 0.08 * (1 - k))))
+            return
+        if _loop(ventana, 'golpe_fuego', (x, y - lado * 0.45), round(lado * 1.3), ahora, 55): return   # la columna de fuego del PMD, en loop
+        for i, (color, esc) in enumerate((((240, 90, 20), 1.0), ((255, 200, 40), 0.6))):   # sin sprite: dos llamas que titilan
+            h = lado * esc * (0.75 + 0.15 * math.sin(ahora / 90 + i))
+            pygame.draw.polygon(ventana, color, [(x - lado * esc * 0.3, y), (x, y - h), (x + lado * esc * 0.3, y)])
+
+
+    def _base_maquina(t, tam, lados=(False, False)):
+        """Lo que no se mueve de cada maquina (piedras, metal, troncos), dibujado una sola vez por tamaño de casilla.
+        lados: si a la izquierda / derecha sigue la misma maquina (las cascadas pegadas no llevan marco entre ellas)."""
+        clave = (t, tam, lados)
+        if clave in _bases: return _bases[clave]
+        sup = pygame.Surface((tam, tam), pygame.SRCALPHA)
+        u = tam / 80                                                # las medidas estan pensadas para casillas de 80 px
+        P = lambda x, y: (round(x * u), round(y * u))
+        R = lambda x, y, w, h: pygame.Rect(round(x * u), round(y * u), round(w * u), round(h * u))
+        piedra, oscuro = (128, 120, 112), (58, 52, 48)
+        if t.startswith('cascada'):                                 # marco de roca a los costados de la caida
+            pygame.draw.rect(sup, oscuro, sup.get_rect())
+            for lado, x in zip(lados, (0, 72)):
+                if not lado: pygame.draw.rect(sup, piedra, R(x, 0, 8, 80), border_radius=round(3 * u))
+        elif t.startswith('fogata'):                                # piedras en ronda y troncos cruzados
+            for k in range(8):
+                a = k * math.tau / 8
+                pygame.draw.circle(sup, piedra, (round(tam / 2 + math.cos(a) * 26 * u), round(tam * 0.62 + math.sin(a) * 14 * u)), round(7 * u))
+            pygame.draw.line(sup, (110, 70, 35), P(22, 42), P(58, 60), round(9 * u))
+            pygame.draw.line(sup, (90, 58, 30), P(22, 60), P(58, 42), round(9 * u))
+        elif t.startswith('brasero'):                               # cuenco de metal sobre un pie
+            pygame.draw.rect(sup, oscuro, R(34, 50, 12, 24))
+            pygame.draw.rect(sup, oscuro, R(24, 70, 32, 6), border_radius=round(3 * u))
+            pygame.draw.polygon(sup, (95, 90, 95), [P(14, 36), P(66, 36), P(56, 54), P(24, 54)])
+            pygame.draw.line(sup, (170, 165, 170), P(14, 36), P(66, 36), round(3 * u))
+        elif t.startswith('forja') or t.startswith('horno'):        # bloque de ladrillos con la boca del fuego
+            ladrillo = (150, 70, 50) if t.startswith('horno') else (110, 105, 100)
+            junta = _aclarar(ladrillo, -40)
+            pygame.draw.rect(sup, ladrillo, R(6, 8, 68, 68), border_radius=round(8 * u))
+            for fila in range(4):
+                y = 8 + fila * 17
+                pygame.draw.line(sup, junta, P(6, y), P(74, y), 2)
+                for col in range(3):
+                    x = 18 + col * 22 + (fila % 2) * 11
+                    pygame.draw.line(sup, junta, P(x, y), P(x, y + 17), 2)
+            pygame.draw.ellipse(sup, (25, 15, 12), R(20, 36, 40, 34))
+            pygame.draw.rect(sup, (25, 15, 12), R(20, 53, 40, 20))
+        elif t.startswith('generador'):                             # caja de metal con el rayo pintado
+            pygame.draw.rect(sup, (70, 72, 80), R(8, 12, 64, 62), border_radius=round(6 * u))
+            pygame.draw.rect(sup, (130, 132, 140), R(8, 12, 64, 62), round(4 * u), border_radius=round(6 * u))
+            for k in range(3): pygame.draw.line(sup, (45, 45, 50), P(16, 22 + k * 8), P(30, 22 + k * 8), 2)
+            pygame.draw.polygon(sup, (250, 210, 0) if t == 'generador' else (90, 85, 60), [P(46, 18), P(34, 46), P(44, 46), P(36, 68), P(56, 38), P(46, 38)])
+        elif t == 'altar':                                          # pedestal de piedra clara
+            pygame.draw.rect(sup, (200, 195, 210), R(18, 44, 44, 30), border_radius=round(4 * u))
+            pygame.draw.rect(sup, (150, 140, 165), R(12, 68, 56, 8), border_radius=round(3 * u))
+            pygame.draw.rect(sup, (230, 120, 200), R(22, 50, 36, 4))
+        elif t == 'cristal_dragonico':                              # cristal violeta con caras
+            puntos = [P(40, 4), P(62, 34), P(52, 74), P(28, 74), P(18, 34)]
+            pygame.draw.polygon(sup, (110, 55, 230), puntos)
+            pygame.draw.polygon(sup, (170, 130, 255), [puntos[0], puntos[1], P(40, 44)])
+            pygame.draw.polygon(sup, (60, 25, 140), puntos, max(1, round(3 * u)))
+        elif t == 'iman':                                           # herradura roja con puntas plateadas
+            pygame.draw.arc(sup, (210, 40, 40), R(14, 10, 52, 52), 0, math.pi, round(14 * u))
+            pygame.draw.rect(sup, (210, 40, 40), R(14, 34, 14, 26)); pygame.draw.rect(sup, (210, 40, 40), R(52, 34, 14, 26))
+            pygame.draw.rect(sup, (220, 220, 230), R(14, 58, 14, 14)); pygame.draw.rect(sup, (220, 220, 230), R(52, 58, 14, 14))
+        elif t == 'monolito':                                       # losa alta de piedra
+            pygame.draw.rect(sup, (120, 110, 85), R(24, 4, 32, 72), border_radius=round(6 * u))
+            pygame.draw.rect(sup, (85, 75, 55), R(24, 4, 32, 72), max(1, round(3 * u)), border_radius=round(6 * u))
+        _bases[clave] = sup
+        return sup
+
+
+    def _maquina(ventana, t, r, ahora, lados=(False, False)):
+        """Una maquina en el rect r de la pantalla: la base y lo que se mueve (agua que cae, llamas, chispas, brillos)."""
+        tam = r.width
+        u = tam / 80
+        x, y = r.center
+        ventana.blit(_base_maquina(t, tam, lados if t.startswith('cascada') else (False, False)), r)
+        izq, der = (round(0 if lados[0] else 8 * u), round(0 if lados[1] else 8 * u)) if t.startswith('cascada') else (0, 0)
+        if t == 'cascada':                                          # agua que cae: rayitas que bajan y espuma abajo
+            agua = pygame.Rect(r.x + izq, r.y, r.width - izq - der, r.height)
+            pygame.draw.rect(ventana, (60, 140, 230), agua)
+            paso = max(4, round(16 * u))
+            bajada = (ahora // 25) % paso
+            for k in range(-1, tam // paso + 1):
+                yy = agua.y + k * paso + bajada
+                a, b = max(agua.y, yy), min(agua.bottom, yy + paso * 9 // 16)
+                if b <= a: continue
+                for xx in range(agua.x + round(4 * u) + (k % 2) * 3, agua.right - 2, max(3, round(10 * u))): pygame.draw.line(ventana, (170, 215, 255), (xx, a), (xx, b), 2)
+            for i in range(5):                                      # espuma que burbujea al pie
+                k = (math.sin(ahora / 140 + i * 1.7) + 1) / 2
+                pygame.draw.circle(ventana, (235, 245, 255), (agua.x + round(i * agua.width / 4), r.bottom - round(4 * u)), round((4 + 4 * k) * u))
+        elif t == 'cascada_helada':                                 # la misma caida, congelada y quieta (con un destello)
+            hielo = pygame.Rect(r.x + izq, r.y, r.width - izq - der, r.height)
+            pygame.draw.rect(ventana, (200, 235, 250), hielo)
+            for xx in range(hielo.x + round(5 * u), hielo.right, max(3, round(11 * u))): pygame.draw.line(ventana, (240, 252, 255), (xx, hielo.y), (xx + 3, hielo.bottom), 3)
+            if (ahora // 400 + x) % 5 == 0: pygame.draw.circle(ventana, (255, 255, 255), (hielo.centerx, hielo.y + round(20 * u)), round(3 * u))
+        elif t in ('fogata', 'fogata_apagada'): _llama(ventana, (x, y + round(14 * u)), round(46 * u), ahora, t.endswith('apagada'))
+        elif t in ('brasero', 'brasero_apagado'): _llama(ventana, (x, y - round(6 * u)), round(44 * u), ahora, t.endswith('apagado'))
+        elif t in ('forja', 'horno'):                               # la boca brilla, late y tiene fuego adentro
+            k = (math.sin(ahora / 200 + x) + 1) / 2
+            boca = pygame.Rect(0, 0, round(36 * u), round(28 * u)); boca.midbottom = (x, r.y + round(72 * u))
+            pygame.draw.ellipse(ventana, (255, round(120 + 80 * k), 30), boca)
+            _llama(ventana, (x, boca.bottom - round(4 * u)), round(30 * u), ahora)
+        elif t in ('forja_apagada', 'horno_apagado'): _llama(ventana, (x, r.y + round(40 * u)), round(30 * u), ahora, True)
+        elif t == 'generador':                                      # chispas que saltan arriba de la caja
+            if not _loop(ventana, 'proyectil_electrico', (x + round(14 * u), r.y + round(14 * u)), round(34 * u), ahora, 50) and (ahora // 100) % 3 == 0:
+                pygame.draw.line(ventana, (255, 250, 120), (x - 10, r.y + 6), (x + 10, r.y + 18), 2)
+        elif t == 'generador_roto': _llama(ventana, (x, r.y + round(16 * u)), round(30 * u), ahora, True)
+        elif t == 'altar':                                          # orbe rosado que flota
+            yy = r.y + round((28 + 4 * math.sin(ahora / 300)) * u)
+            if not _loop(ventana, 'proyectil_psiquico', (x, yy), round(90 * u), ahora, 80): pygame.draw.circle(ventana, (240, 140, 220), (x, yy), round(10 * u))
+        elif t == 'cristal_dragonico':                              # un brillo que late adentro del cristal
+            k = (math.sin(ahora / 350 + x) + 1) / 2
+            ventana.blit(_velo((round(20 * u), round(24 * u)), (round(70 * k), round(35 * k), round(110 * k))), (x - round(6 * u), r.y + round(22 * u)), special_flags=pygame.BLEND_RGB_ADD)
+        elif t == 'monolito':                                       # runas que se prenden y se apagan
+            k = (math.sin(ahora / 350 + x) + 1) / 2
+            for i in range(3): pygame.draw.circle(ventana, (150 + round(100 * k), 140 + round(60 * k), 70), (x, r.y + round((20 + i * 18) * u)), max(2, round(4 * u)), 2)
+        elif t == 'iman':                                           # arquitos de magnetismo debajo de las puntas
+            k = (ahora // 120) % 3
+            pygame.draw.arc(ventana, (180, 200, 255), pygame.Rect(x - round((14 + k * 6) * u), r.y + round((70 - k * 2) * u), round((28 + k * 12) * u), round(10 * u)), math.pi, math.tau, 2)
+
+
+    def _puerta(sup, r, abierta, ahora):
+        """Una puerta en el rect r: marco de piedra y hueco oscuro. Cerrada tiene tablas y candado; con la llave late en verde."""
+        pygame.draw.rect(sup, (20, 16, 26), r, border_radius=6)
+        pygame.draw.rect(sup, (125, 115, 100), r, 6, border_radius=6)
+        pygame.draw.rect(sup, (175, 165, 150), r.inflate(-4, -4), 2, border_radius=5)
+        adentro = r.inflate(-14, -14)
+        if not abierta:
+            vertical = r.height > r.width                           # en las puertas de los costados las tablas van acostadas
+            for k in range(1, 4):
+                if vertical: pygame.draw.line(sup, (120, 80, 40), (adentro.x, adentro.y + adentro.height * k // 4), (adentro.right, adentro.y + adentro.height * k // 4), 6)
+                else: pygame.draw.line(sup, (120, 80, 40), (adentro.x + adentro.width * k // 4, adentro.y), (adentro.x + adentro.width * k // 4, adentro.bottom), 6)
+            pygame.draw.circle(sup, (200, 170, 60), adentro.center, 6)
+            pygame.draw.circle(sup, (80, 60, 20), adentro.center, 6, 2)
+            return
+        k = (math.sin(ahora / 220) + 1) / 2
+        sup.blit(_velo(r.size, (60, 230, 110, round(70 + 90 * k))), r)
+        pygame.draw.rect(sup, (120, 255, 150), r, 3, border_radius=6)
+
+
+    def dibujar_puerta(ventana, rect, abierta, ahora):
+        """Para main: una puerta de salida en la pantalla (cerrada con tablas, o abierta y brillando si tenes la llave)."""
+        _puerta(ventana, rect, abierta, ahora)
+
+
     def _escalada(img, ancho, alto=None):
         """Imagen escalada (pixel art: sin suavizar). Sin alto, mantiene la proporcion."""
         alto = alto or max(1, round(img.get_height() * ancho / img.get_width()))
@@ -868,13 +1165,14 @@ def armar_entorno():
         ent = {'sala': sala, 'm': sala['matriz'], 'tam': sala['tam'], 'objetos': sala['objetos'], 'era': mundos.ERAS[sala['era']],
                'version': 0, 'cache': {}, 'electrico': {}, 'fuego': {}, 'reaccion': {}, 'ocupadas': set(),
                'clima': None, 'clima_hasta': None, 'clima_base': None if sala.get('interior') else clima, 'prox_clima': 0, 'prox_fuego': 0, 'charcos_lluvia': 0, 'ahora': ahora,
-               'pendientes': [], 'visuales': [], 'eventos': [], 'fondo': None, 'maquinas': [], 'vacios': 0, 'celdas_vacio': set()}
+               'pendientes': [], 'visuales': [], 'eventos': [], 'fondo': None, 'animadas': [], 'lava': [], 'maquinas': [], 'vacios': 0, 'celdas_vacio': set()}
         _buscar_maquinas(ent)
         ent['clima'] = ent['clima_base']
         return ent
 
 
     def _buscar_maquinas(ent):
+        """Lista (x, y, maquina) de todas las maquinas de la sala (se rehace si cambia alguna)."""
         tam = ent['tam']
         ent['maquinas'] = [((c + 0.5) * tam, (f + 0.5) * tam, t) for f, fila in enumerate(ent['m']) for c, t in enumerate(fila)
                            if mundos.TERRENOS[t].get('maquina')]
@@ -888,20 +1186,24 @@ def armar_entorno():
     # ---------- casillas ----------
 
     def casilla(ent, x, y):
+        """(fila, columna) de la casilla donde esta el punto (x, y)."""
         return int(y // ent['tam']), int(x // ent['tam'])
 
 
     def terreno_en(ent, x, y):
+        """Terreno en el punto (x, y); afuera de la sala cuenta como pared."""
         f, c = casilla(ent, x, y)
         if 0 <= f < len(ent['m']) and 0 <= c < len(ent['m'][0]): return ent['m'][f][c]
         return 'pared'
 
 
     def rect_casilla(ent, f, c):
+        """Rect en pixeles de la casilla (f, c)."""
         return pygame.Rect(c * ent['tam'], f * ent['tam'], ent['tam'], ent['tam'])
 
 
     def _casillas_rect(ent, r):
+        """Casillas que toca un rect."""
         f0, c0 = casilla(ent, r.left, r.top)
         f1, c1 = casilla(ent, r.right - 1, r.bottom - 1)
         return {(f, c) for f in range(f0, f1 + 1) for c in range(c0, c1 + 1)}
@@ -981,6 +1283,7 @@ def armar_entorno():
     # ---------- efectos sobre pokemon ----------
 
     def _sumar(ef, nuevos):
+        """Junta efectos: los multiplicadores se multiplican, los empujes se suman y lo demas se queda con el primero."""
         for k, v in nuevos.items():
             if k in ('velocidad', 'daño', 'enfriamiento', 'defensa', 'regen'): ef[k] = ef.get(k, 1.0) * v
             elif k == 'empuje': ef[k] = (ef.get(k, (0, 0))[0] + v[0], ef.get(k, (0, 0))[1] + v[1])
@@ -1027,6 +1330,7 @@ def armar_entorno():
 
 
     def mult_clima(ent, tipo):
+        """Cuanto potencia (o debilita) el clima de la sala a un tipo de ataque."""
         clima = CLIMAS.get(ent['clima'])
         return clima['mult'].get(normalizar_tipo(tipo), 1.0) if clima else 1.0
 
@@ -1053,6 +1357,7 @@ def armar_entorno():
 
 
     def _hacer(ent, accion, f, c, ahora):
+        """Aplica la reaccion de un terreno a un ataque (convertir, electrificar, encender, apagar, invertir cintas, generadores)."""
         tam = ent['tam']
         x, y = (c + 0.5) * tam, (f + 0.5) * tam
         if accion[0] == 'convertir':
@@ -1144,6 +1449,7 @@ def armar_entorno():
 
 
     def encender(ent, f, c, ahora=None):
+        """Prende fuego una casilla que puede arder (hierba, aceite, suelo...) por un rato."""
         if ent['m'][f][c] in ('hierba', 'aceite', 'suelo', 'ceniza', 'fuego') and cambiar(ent, f, c, 'fuego'):
             ent['fuego'][(f, c)] = (ent['ahora'] if ahora is None else ahora) + random.randint(*DURACION_FUEGO)
 
@@ -1176,6 +1482,7 @@ def armar_entorno():
 
 
     def _mult_material(material, tipo):
+        """Multiplicador de daño de un tipo de ataque contra un material (la madera arde, el hielo se rompe con fuego...)."""
         tabla = MATERIALES.get(material, {})
         return tabla.get(tipo, tabla.get('otros', 1.0))
 
@@ -1244,6 +1551,7 @@ def armar_entorno():
 
 
     def _casilla_al_azar(ent, terrenos):
+        """Una casilla al azar de esos terrenos (o None si no encontro en 25 intentos)."""
         m = ent['m']
         for _ in range(25):
             f, c = random.randint(1, len(m) - 2), random.randint(1, len(m[0]) - 2)
@@ -1354,6 +1662,7 @@ def armar_entorno():
     # ---------- dibujo ----------
 
     def _aclarar(color, k):
+        """Color mas claro (k > 0) o mas oscuro (k < 0)."""
         return tuple(max(0, min(255, x + k)) for x in color)
 
 
@@ -1388,22 +1697,66 @@ def armar_entorno():
             for k in range(1, 4): pygame.draw.line(fondo, (90, 60, 30), (x, y + tam * k // 4), (x + tam, y + tam * k // 4), 2)
 
 
+    def _poner_tile(ent, fondo, cp, terreno, f, c, r):
+        """Pieza del tileset segun los vecinos. Si el terreno se anima (agua del PMD) queda anotado para redibujarlo cada frame."""
+        grupo = IGUALES.get(terreno, (terreno,))
+        iguales = (lambda t: t not in MUROS) if terreno == 'suelo' else (lambda t: t in grupo)   # el agua y lo demas cuentan como piso
+        mascara = _mascara(ent['m'], f, c, iguales)
+        i, variante = _pieza(cp, mascara, f, c)
+        mancha = mascara if terreno not in ('suelo', 'agua') and cp['grupo'] in ('suelo', 'agua') else None   # parche de otra hoja (nieve, hielo, lodo)
+        fondo.blit(_mancha(cp, i, variante, r.width, mancha) if mancha is not None else _tile(cp, i, variante, r.width), r)
+        brillo = cp['brillo'] is not None and cp['hay_brillo'][i] == '1'
+        if brillo and not cp['paleta_brillo']: fondo.blit(_tile(cp, i, 0, r.width, brillo=True), r)
+        if cp['paleta'] or (brillo and cp['paleta_brillo']) or terreno == 'agua':
+            ent['animadas'].append((r.x, r.y, cp, i, variante, brillo, terreno, mancha))
+
+
     def _armar_fondo(ent):
-        """Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno)."""
+        """Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno).
+        Con tilesets del PMD cada casilla elige su pieza segun los vecinos (bordes, esquinas, orillas); si no, el dibujo provisorio."""
         m, tam, era = ent['m'], ent['tam'], ent['era']
+        variante = ent['sala'].get('variante')
         fondo = pygame.Surface((len(m[0]) * tam, len(m) * tam))
-        con_sprite = set()
+        ent['animadas'], ent['lava'] = [], []
+        con_sprite, entrada = set(), None
+        piso = capa('suelo', era['clave'], variante)
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
                 r = pygame.Rect(c * tam, f * tam, tam, tam)
-                img = imagen('terrenos', t, era['clave'])               # si hay sprite del terreno se usa ese
-                if img:
+                cp = capa(t, era['clave'], variante)
+                if cp:
+                    if piso and t not in ('suelo', 'agua') and cp['grupo'] in ('suelo', 'agua'): _poner_tile(ent, fondo, piso, 'suelo', f, c, r)   # debajo de la mancha
+                    _poner_tile(ent, fondo, cp, t, f, c, r); con_sprite.add(t); continue
+                img = imagen('terrenos', t, era['clave'])               # una casilla suelta (formato viejo)
+                if img and img.get_height() <= 72:
                     fondo.blit(_escalada(img, tam, tam), r); con_sprite.add(t); continue
-                if t == 'suelo': color = _aclarar(era['suelo'], 8 if (f + c) % 2 else -4)   # piso del color de la era
-                elif t == 'pared': color = era['pared']
+                debajo = capa('agua', era['clave'], variante) if t == 'puente' else piso   # el puente va sobre el agua, lo demas sobre el piso
+                if debajo and t != 'pared': _poner_tile(ent, fondo, debajo, 'agua' if t == 'puente' else 'suelo', f, c, r)
+                if t == 'suelo':
+                    if not debajo: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)   # piso del color de la era
+                    continue
+                if t == 'pared': color = era['pared']
                 else: color = mundos.TERRENOS[t]['color']
-                pygame.draw.rect(fondo, color, r)
-                if mundos.TERRENOS[t].get('maquina'): pygame.draw.rect(fondo, (20, 20, 20), r, 3)
+                if t == 'lava': ent['lava'].append(r)
+                if debajo and t == 'puente':                             # tablones sobre el agua
+                    for k in range(4): pygame.draw.rect(fondo, _aclarar(color, 12 if k % 2 else -8), (r.x + 4, r.y + 2 + k * tam // 4, tam - 8, tam // 4 - 3), border_radius=3)
+                    pygame.draw.line(fondo, (70, 45, 25), (r.x + 4, r.y), (r.x + 4, r.bottom), 3)
+                    pygame.draw.line(fondo, (70, 45, 25), (r.right - 5, r.y), (r.right - 5, r.bottom), 3)
+                    continue
+                if t == 'charco' and debajo:                             # charco: mancha de agua sobre el piso
+                    charco = pygame.Surface((tam, tam), pygame.SRCALPHA)
+                    pygame.draw.ellipse(charco, (*color, 170), charco.get_rect().inflate(-8, -tam // 3))
+                    pygame.draw.ellipse(charco, (220, 240, 255, 150), (tam * 0.3, tam * 0.38, tam * 0.25, tam * 0.08))
+                    fondo.blit(charco, r)
+                    continue
+                if t == 'alfombra':                                      # alfombra corrida con bordes dorados donde termina
+                    pygame.draw.rect(fondo, color, r)
+                    for df, dc, a, b in ((-1, 0, r.topleft, r.topright), (1, 0, r.bottomleft, r.bottomright), (0, -1, r.topleft, r.bottomleft), (0, 1, r.topright, r.bottomright)):
+                        if not (0 <= f + df < len(m) and 0 <= c + dc < len(m[0])) or m[f + df][c + dc] != 'alfombra': pygame.draw.line(fondo, (220, 180, 60), a, b, 3)
+                    continue
+                if mundos.TERRENOS[t].get('maquina') or t == 'puerta': continue   # maquinas (animadas) y puertas (cambian con la llave) se dibujan cada frame
+                if t == 'entrada': entrada = r if entrada is None else entrada.union(r); continue   # se dibuja entera al final
+                pygame.draw.rect(fondo, color, r.inflate(-4, -4) if debajo else r, border_radius=8 if debajo else 0)
                 if t.startswith('cinta'):                                # flechitas de las cintas
                     dx, dy = {'n': (0, -1), 's': (0, 1), 'e': (1, 0), 'o': (-1, 0)}[t[-1]]
                     cx, cy = r.center
@@ -1411,10 +1764,11 @@ def armar_entorno():
                     pygame.draw.circle(fondo, (200, 200, 60), (cx + dx * tam // 4, cy + dy * tam // 4), 5)
                 if t == 'cable': pygame.draw.line(fondo, (40, 40, 40), r.topleft, r.bottomright, 4)
                 _dibujar_textura(fondo, t, r, f, c)
+        if entrada: _puerta(fondo, entrada, False, 0)                   # por donde entraste: una sola puerta cerrada
         vistos = set()                                                  # un cartel por cada mancha de terreno
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
-                if t in ('suelo', 'pared', 'vacio') or t in con_sprite or (f, c) in vistos: continue
+                if t in SIN_CARTEL or t.startswith('cinta') or t in con_sprite or mundos.TERRENOS[t].get('maquina') or (f, c) in vistos: continue
                 grupo, pendientes = [(f, c)], [(f, c)]; vistos.add((f, c))
                 while pendientes:
                     a, b = pendientes.pop()
@@ -1433,15 +1787,39 @@ def armar_entorno():
         if ent['fondo'] is None: _armar_fondo(ent)
         ventana.blit(ent['fondo'], (0, 0), pygame.Rect(cx, cy, *ventana.get_size()))
         tam = ent['tam']
+        vista = pygame.Rect(cx - tam, cy - tam, ventana.get_width() + tam, ventana.get_height() + tam)
+        for x, y, cp, i, variante, brillo, terreno, mancha in ent['animadas']:   # agua del PMD: cambia de colores y los brillos titilan
+            if not vista.collidepoint(x, y): continue
+            if cp['paleta']:
+                frame = _frame(ahora, cp['cada'], len(cp['paleta']))
+                ventana.blit(_mancha(cp, i, variante, tam, mancha, frame) if mancha is not None else _tile(cp, i, variante, tam, frame), (x - cx, y - cy))
+            elif terreno == 'agua':                                      # agua sin paleta: un reflejo que va y viene
+                k = (math.sin(ahora / 700 + (x + y) / 170) + 1) / 2
+                ventana.blit(_reflejo(tam), (x - cx + round(tam * 0.2 * k), y - cy), special_flags=pygame.BLEND_RGB_ADD)
+            if brillo and cp['paleta_brillo']:
+                ventana.blit(_tile(cp, i, 0, tam, _frame(ahora, cp['cada_brillo'], len(cp['paleta_brillo'])), True), (x - cx, y - cy))
+        for r in ent['lava']:                                          # la lava late
+            if not vista.colliderect(r): continue
+            k = (math.sin(ahora / 260 + (r.x + r.y) / 90) + 1) / 2
+            ventana.blit(_velo(r.size, (round(40 + 50 * k), round(15 + 25 * k), 0)), r.move(-cx, -cy), special_flags=pygame.BLEND_RGB_ADD)
+        for x, y, maquina in ent['maquinas']:                          # cascadas, fogatas, generadores... animados
+            if not vista.collidepoint(x, y): continue
+            f, c = casilla(ent, x, y)
+            lados = tuple(0 <= c + d < len(ent['m'][0]) and ent['m'][f][c + d] == maquina for d in (-1, 1))   # cascadas pegadas: una sola
+            _maquina(ventana, maquina, pygame.Rect(round(x - cx - tam / 2), round(y - cy - tam / 2), tam, tam), ahora, lados)
         for x, y, maquina in ent['maquinas']:                          # radio de ayuda de las maquinas que te sirven
             if maquina in AURAS and any(t in AURAS[maquina][1] for t in tipos_jugador): pygame.draw.circle(ventana, mundos.TERRENOS[maquina]['color'], (round(x - cx), round(y - cy)), round(AURAS[maquina][0] * tam), 1)
         for (f, c) in ent['fuego']:                                    # fuego que titila
             r = rect_casilla(ent, f, c).move(-cx, -cy)
             pygame.draw.rect(ventana, (255, 200, 40) if (ahora // 120 + f + c) % 2 else (240, 90, 20), r.inflate(-10, -10))
-        for (f, c) in ent['electrico']:                                # agua electrificada
+        for (f, c) in ent['electrico']:                                # agua electrificada: chispas en zigzag que cambian
             r = rect_casilla(ent, f, c).move(-cx, -cy)
-            pygame.draw.line(ventana, (255, 240, 60), r.topleft, r.bottomright, 2)
-            pygame.draw.line(ventana, (255, 240, 60), r.topright, r.bottomleft, 2)
+            azar = random.Random(ahora // 70 + f * 31 + c)
+            ventana.blit(_velo(r.size, (40, 40, 0)), r, special_flags=pygame.BLEND_RGB_ADD)
+            for _ in range(2):
+                puntos = [(r.x + azar.randint(0, r.width), r.y + azar.randint(0, r.height // 4))]
+                while puntos[-1][1] < r.bottom - 6: puntos.append((max(r.x, min(r.right, puntos[-1][0] + azar.randint(-14, 14))), puntos[-1][1] + azar.randint(8, 16)))
+                pygame.draw.lines(ventana, (255, 250, 150), False, puntos, 2)
         for o in ent['objetos']:
             d = mundos.OBJETOS[o['nombre']]
             r = o['rect'].move(-cx, -cy)
@@ -1484,10 +1862,31 @@ def armar_entorno():
 
 
     def _velo(tam, color):
+        """Superficie de un color (con transparencia) de ese tamaño, armada una vez y reusada."""
         clave = (tam, color)
         if clave not in _velos:
             _velos[clave] = pygame.Surface(tam, pygame.SRCALPHA); _velos[clave].fill(color)
         return _velos[clave]
+
+
+    def _reflejo(tam):
+        """Rayitas claras para sumarle al agua que no tiene paleta (se mueven de lado a lado)."""
+        clave = ('reflejo', tam)
+        if clave not in _velos:
+            sup = pygame.Surface((tam, tam))
+            for x, y, largo in ((0.15, 0.25, 0.3), (0.45, 0.6, 0.25), (0.1, 0.8, 0.2)):
+                pygame.draw.line(sup, (45, 55, 60), (tam * x, tam * y), (tam * (x + largo), tam * y), 2)
+            _velos[clave] = sup
+        return _velos[clave]
+
+
+    _semillas = [(random.random(), random.random(), 0.7 + 0.6 * random.random()) for _ in range(120)]   # lugar y velocidad de cada particula
+
+
+    def _particulas(cantidad, W, H, ahora, vx, vy):
+        """Posiciones de las particulas del clima en este momento: cada una arranca en un lugar fijo y avanza con el tiempo
+        (vx, vy en pixeles por ms), dando la vuelta a la pantalla. Mas barato que sortearlas todas en cada frame."""
+        return [(round(px * W + vx * ahora * v) % W, round(py * H + vy * ahora * v) % H) for px, py, v in _semillas[:cantidad]]
 
 
     def dibujar_clima(ent, ventana, ahora):
@@ -1495,20 +1894,15 @@ def armar_entorno():
         clima = ent['clima']
         if not clima: return
         W, H = ventana.get_size()
-        azar = random.Random(ahora // 50)                              # mismo dibujo durante 50 ms
-        if clima == 'lluvia':
+        if clima == 'lluvia':                                          # gotas que caen en diagonal
             ventana.blit(_velo((W, H), (40, 60, 120, 45)), (0, 0))
-            for _ in range(90):
-                x, y = azar.randint(0, W), azar.randint(0, H)
-                pygame.draw.line(ventana, (150, 180, 255), (x, y), (x - 4, y + 14), 1)
-        elif clima == 'granizo':
+            for x, y in _particulas(90, W, H, ahora, -0.25, 1.1): pygame.draw.line(ventana, (150, 180, 255), (x, y), (x - 4, y + 14), 1)
+        elif clima == 'granizo':                                       # piedritas de hielo que caen rapido
             ventana.blit(_velo((W, H), (200, 220, 255, 40)), (0, 0))
-            for _ in range(70): pygame.draw.circle(ventana, (250, 250, 255), (azar.randint(0, W), azar.randint(0, H)), 2)
-        elif clima == 'tormenta_arena':
+            for x, y in _particulas(70, W, H, ahora, 0.1, 0.8): pygame.draw.circle(ventana, (250, 250, 255), (x, y), 2)
+        elif clima == 'tormenta_arena':                                # arena que vuela de costado
             ventana.blit(_velo((W, H), (190, 150, 80, 80)), (0, 0))
-            for _ in range(50):
-                x, y = azar.randint(0, W), azar.randint(0, H)
-                pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
+            for x, y in _particulas(50, W, H, ahora, 1.2, 0.2): pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
         elif clima == 'nieve':
             ventana.blit(_velo((W, H), (220, 230, 255, 30)), (0, 0))
             for i in range(60):                                     # copos que caen despacio
@@ -1550,6 +1944,7 @@ def armar_efectos():
 
 
     def crear():
+        """Estado vacio de las particulas, animaciones y la transicion."""
         return {'parts': [], 'anims': [], 'transicion': None}
 
 
@@ -1567,15 +1962,61 @@ def armar_efectos():
         return _tiras[nombre]
 
 
-    def _animacion(ef, nombre, x, y, tam):
+    _escalados = {}
+
+
+    def _frames(nombre, tam):
+        """Frames del efecto al tamaño pedido (se escalan una sola vez) o None."""
+        clave = (nombre, tam)
+        if clave not in _escalados:
+            frames = _tira(nombre)
+            _escalados[clave] = [pygame.transform.scale(f, (tam, tam)) for f in frames] if frames else None
+        return _escalados[clave]
+
+
+    def _animacion(ef, nombre, x, y, tam, velocidad=0.4):
         """Si hay sprite del efecto lo usa. Devuelve True si lo encontro."""
-        frames = _tira(nombre)
+        frames = _frames(nombre, tam)
         if not frames: return False
-        ef['anims'].append({'frames': [pygame.transform.scale(f, (tam, tam)) for f in frames], 'x': x, 'y': y, 'i': 0.0})
+        ef['anims'].append({'frames': frames, 'x': x, 'y': y, 'i': 0.0, 'v': velocidad})
         return True
 
 
+    def proyectil(ventana, tipo, x, y, radio, ahora):
+        """Dibuja un proyectil animado del tipo (bola de fuego, hoja, roca...) centrado en (x, y) de la pantalla. False si no hay sprite."""
+        tam = max(24, min(72, round(radio * 4)))
+        frames = _frames('proyectil_' + str(tipo), tam)
+        if not frames: return False
+        frame = frames[(ahora // 60) % len(frames)]
+        ventana.blit(frame, frame.get_rect(center=(round(x), round(y))))
+        return True
+
+
+    def cura(ef, x, y):
+        """Brillos verdes al curarse."""
+        if _animacion(ef, 'cura', x, y, 90, 0.3): return
+        for i in range(12):
+            ef['parts'].append({'x': x + random.uniform(-20, 20), 'y': y + random.uniform(-5, 20), 'vx': 0, 'vy': -random.uniform(0.8, 2),
+                                'vida': 30 + i, 'max': 42, 'color': (120, 255, 140), 'tam': 3, 'g': 0, 'forma': 'estrella'})
+
+
+    def cambio(ef, x, y):
+        """Destello al cambiar de pokemon."""
+        if not _animacion(ef, 'cambio', x, y, 110, 0.5): chispas(ef, x, y, (255, 255, 255), 16, 5, 18, 4)
+
+
+    def aparecer(ef, x, y):
+        """Nubecita de BW donde aparece un enemigo."""
+        if not _animacion(ef, 'aparecer', x, y, 96, 0.25): chispas(ef, x, y, (230, 230, 240), 10, 2.5, 24, 6)
+
+
+    def destello(ef, x, y):
+        """Estrellitas (aparece la llave, monedas)."""
+        if not _animacion(ef, 'destello', x, y, 80, 0.25): chispas(ef, x, y, (255, 230, 90), 10, 3, 24, 3)
+
+
     def chispas(ef, x, y, color, cantidad=8, velocidad=4.0, vida=22, tam=4, gravedad=0.0, subir=0.0):
+        """Particulas que salen en todas direcciones desde (x, y)."""
         for _ in range(cantidad):
             a, v = random.uniform(0, math.tau), random.uniform(0.4, 1.0) * velocidad
             ef['parts'].append({'x': x, 'y': y, 'vx': math.cos(a) * v, 'vy': math.sin(a) * v - subir, 'vida': random.randint(vida // 2, vida),
@@ -1584,9 +2025,10 @@ def armar_efectos():
 
     def golpe(ef, x, y, color, tipo=None):
         """Cuando un ataque le pega a algo."""
-        if not _animacion(ef, 'golpe_' + str(tipo), x, y, 64) and not _animacion(ef, 'golpe', x, y, 56):
+        if not _animacion(ef, 'golpe_' + str(tipo), x, y, 72, 0.5) and not _animacion(ef, 'golpe', x, y, 56):
             chispas(ef, x, y, color, 9, 4.5, 16, 4)
-            chispas(ef, x, y, (255, 255, 255), 4, 2.5, 10, 3)
+        chispas(ef, x, y, color, 5, 4.0, 12, 3)                         # unas chispas del color del tipo siempre, para que se sienta el golpe
+        chispas(ef, x, y, (255, 255, 255), 3, 2.5, 8, 2)
 
 
     def romper(ef, x, y, color):
@@ -1599,6 +2041,7 @@ def armar_efectos():
 
 
     def explosion(ef, x, y, radio):
+        """Explosion (animacion del PMD o chispas de fuego y humo)."""
         if _animacion(ef, 'explosion', x, y, int(radio * 2)): return
         chispas(ef, x, y, (255, 160, 40), 22, radio / 14, 30, 6)
         chispas(ef, x, y, (90, 80, 70), 12, radio / 25, 45, 9, subir=0.6)       # humo
@@ -1613,6 +2056,7 @@ def armar_efectos():
 
 
     def evolucion(ef, x, y):
+        """Destello grande al evolucionar o cuando aparece Arceus Beta."""
         if _animacion(ef, 'evolucion', x, y, 120): return
         chispas(ef, x, y, (255, 255, 255), 40, 6, 50, 5)
         chispas(ef, x, y, (180, 230, 255), 30, 3, 60, 4)
@@ -1632,14 +2076,16 @@ def armar_efectos():
 
 
     def actualizar(ef):
+        """Avanza un frame las particulas (con gravedad y friccion) y las animaciones; borra las terminadas."""
         for p in ef['parts']:
             p['x'] += p['vx']; p['y'] += p['vy']; p['vy'] += p['g']; p['vx'] *= 0.94; p['vida'] -= 1
         ef['parts'] = [p for p in ef['parts'] if p['vida'] > 0][-500:]
-        for a in ef['anims']: a['i'] += 0.4
+        for a in ef['anims']: a['i'] += a.get('v', 0.4)
         ef['anims'] = [a for a in ef['anims'] if a['i'] < len(a['frames'])]
 
 
     def dibujar(ef, ventana, cx, cy):
+        """Dibuja particulas y animaciones segun la camara."""
         for p in ef['parts']:
             x, y = round(p['x'] - cx), round(p['y'] - cy)
             t = max(1, round(p['tam'] * (0.5 + 0.5 * p['vida'] / p['max'])))
@@ -1663,11 +2109,13 @@ def armar_efectos():
 
 
     def en_transicion(ef, ahora):
+        """Si la transicion de entrada o salida todavia se esta viendo."""
         t = ef['transicion']
         return bool(t) and ahora < t['hasta']
 
 
     def dibujar_transicion(ef, ventana, ahora):
+        """Pantalla negra con un circulo que se abre (al entrar) o se cierra (al salir) desde la puerta."""
         t = ef['transicion']
         if not t: return
         if ahora >= t['hasta'] and t['clase'] == 'entrar': ef['transicion'] = None; return

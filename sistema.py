@@ -34,6 +34,7 @@ def armar_opciones():
 
 
     def cargar():
+        """Lee config.json sobre los valores por defecto (los trucos siempre arrancan apagados)."""
         config = dict(DEFECTO)
         if os.path.isfile(RUTA):
             try:
@@ -44,6 +45,7 @@ def armar_opciones():
 
 
     def guardar(config):
+        """Guarda la configuracion en config.json (sin los trucos)."""
         try:
             with open(RUTA, 'w', encoding='utf-8') as f: json.dump({k: v for k, v in config.items() if k != 'trucos'}, f, ensure_ascii=False, indent=1)
         except OSError: pass
@@ -68,6 +70,7 @@ def armar_pantalla():
 
 
     def iniciar(W, H, config):
+        """Crea la superficie de 1000x600 donde se dibuja todo y abre la ventana."""
         estado['logica'] = pygame.Surface((W, H))
         aplicar(config)
         return estado['logica']
@@ -86,6 +89,8 @@ def armar_pantalla():
         escala = min(rw / W, rh / H)                         # entra entera, sin deformar
         estado['destino'] = pygame.Rect(0, 0, round(W * escala), round(H * escala))
         estado['destino'].center = (rw // 2, rh // 2)
+        estado['real'].fill((0, 0, 0))                       # las franjas negras se pintan una sola vez
+        estado['marco'] = estado['real'].subsurface(estado['destino']) if estado['destino'].size != (W, H) else None
         poner_cursor()
 
 
@@ -96,6 +101,7 @@ def armar_pantalla():
 
 
     def poner_cursor():
+        """Cursor de manito (assets/interfaz/cursor.png o el dibujo de MANO)."""
         ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'cursor.png')
         if os.path.isfile(ruta): img, punta = pygame.image.load(ruta).convert_alpha(), (0, 0)
         else:
@@ -109,11 +115,10 @@ def armar_pantalla():
 
 
     def presentar():
+        """Pasa lo dibujado a la ventana: si hay que agrandarlo se escala directo sobre la ventana (sin crear una imagen nueva por frame)."""
         real, logica, destino = estado['real'], estado['logica'], estado['destino']
-        if destino.size == logica.get_size(): real.blit(logica, destino)
-        else:
-            real.fill((0, 0, 0))
-            real.blit(pygame.transform.scale(logica, destino.size), destino)
+        if estado.get('marco') is None: real.blit(logica, destino)
+        else: pygame.transform.scale(logica, destino.size, estado['marco'])
         pygame.display.flip()
 
 
@@ -125,6 +130,7 @@ def armar_pantalla():
 
 
     def raton():
+        """Posicion del mouse en coordenadas del juego."""
         return a_logico(pygame.mouse.get_pos())
 
     return SimpleNamespace(**locals())
@@ -202,6 +208,7 @@ def armar_controles():
 
 
     def _abrir(indice):
+        """Abre el control conectado en ese indice (si es un control reconocido por SDL)."""
         try:
             if _sdl.is_controller(indice):
                 mando = _sdl.Controller(indice)
@@ -210,19 +217,23 @@ def armar_controles():
 
 
     def perfil(dispositivo):
+        """Perfil elegido del teclado o del control: {accion: tecla o boton}."""
         c = estado['config']['controles']
         return c[dispositivo][c['perfil_' + dispositivo]]
 
 
     def restaurar(dispositivo, indice):
+        """Vuelve un perfil a las teclas de fabrica."""
         estado['config']['controles'][dispositivo][indice] = dict(PRESET_TECLADO if dispositivo == 'teclado' else PRESET_CONTROL)
 
 
     def nombre_tecla(e):
+        """Nombre de la tecla de un evento ('e', 'left shift'...)."""
         return pygame.key.name(e.key)
 
 
     def hay_control():
+        """Si hay algun control conectado."""
         return bool(estado['mandos'])
 
 
@@ -283,6 +294,7 @@ def armar_controles():
 
 
     def _acciones_boton(boton):
+        """Acciones de juego asignadas a un boton del control (sin las de caminar)."""
         return [a for a, b in perfil('control').items() if b == boton and a not in MOVIMIENTO]
 
 
@@ -309,6 +321,7 @@ def armar_controles():
 
 
     def _boton(nombre):
+        """Si ese boton (o gatillo LT / RT) esta apretado en algun control."""
         for mando in estado['mandos'].values():
             try:
                 if nombre in ('LT', 'RT'):
@@ -322,6 +335,7 @@ def armar_controles():
 
 
     def mantiene(accion):
+        """Si la accion esta apretada ahora, en el teclado o en el control."""
         teclas = pygame.key.get_pressed()
         tecla = perfil('teclado').get(accion)
         try:
@@ -387,6 +401,7 @@ def armar_animaciones():
 
 
     def _normalizar_nombre(nombre):
+        """Nombre en minuscula con guiones bajos ('Samurott Hisui' -> 'samurott_hisui')."""
         return str(nombre).strip().lower().replace(' ', '_').replace('-', '_')
 
 
@@ -394,6 +409,7 @@ def armar_animaciones():
 
 
     def _buscar_carpeta(nombre):
+        """Carpeta de sprites del pokemon en assets/sprites/pokemones (se busca en el disco una sola vez por nombre)."""
         objetivo = _normalizar_nombre(nombre)
         if objetivo in _CARPETAS: return _CARPETAS[objetivo]
         base = os.path.join('assets', 'sprites', 'pokemones')
@@ -410,13 +426,40 @@ def armar_animaciones():
 
     _CACHE_CARGA = {}
     _CACHE_ESCALADO = {}
+    # pokemon con otros colores: nombre -> (pokemon de los sprites, tono nuevo en grados para lo que es verde)
+    TINTES = {'chikorita_rosa': ('chikorita', 330)}
+
+
+    def _base(nombre):
+        """El pokemon del que salen los sprites (chikorita_rosa usa los de chikorita)."""
+        nombre = _normalizar_nombre(nombre)
+        return TINTES[nombre][0] if nombre in TINTES else nombre
+
+
+    def teñir(hoja, tono):
+        """Cambia el tono de los colores verdes de una hoja (los ojos, el contorno y lo demas quedan igual)."""
+        crudo = pygame.image.tobytes(hoja, 'RGBA')
+        colores = set(zip(crudo[0::4], crudo[1::4], crudo[2::4], crudo[3::4]))
+        pa = pygame.PixelArray(hoja)
+        for r, g, b, a in colores:
+            if not a: continue
+            c = pygame.Color(r, g, b, a)
+            h, sat, v, _ = c.hsva
+            if 45 <= h <= 170 and sat > 12:                          # verdes y amarillos verdosos
+                nuevo = pygame.Color(0, 0, 0, a)
+                nuevo.hsva = (tono, min(100, sat * 0.9), min(100, v * 1.02), a / 2.55)
+                pa.replace(c, nuevo)
+        pa.close()
+        return hoja
 
 
     def tiene_sprites(nombre):
-        return _buscar_carpeta(_normalizar_nombre(nombre)) is not None
+        """Si el pokemon (o el pokemon base de un tinte, como chikorita_rosa) tiene sprites."""
+        return _buscar_carpeta(_base(nombre)) is not None
 
 
     def _numero_direccion(nombre):
+        """Ultimo numero en el nombre de un archivo (formato viejo: idle_3.png -> 3)."""
         encontrados = re.findall(r'(\d+)', nombre)
         return int(encontrados[-1]) if encontrados else None
 
@@ -461,8 +504,33 @@ def armar_animaciones():
     }
 
 
+    class _HojasPerezosas(dict):
+        """Diccionario animacion -> frames que lee cada hoja recien la primera vez que se pide.
+        Se sabe de entrada que animaciones hay (asi 'in' funciona igual), pero un pokemon usa 4 o 5 de sus ~40 hojas:
+        cargarlas todas al crearlo trababa el juego un momento cada vez que aparecia una especie nueva."""
+        def __init__(self, cargar):
+            """cargar(nombre) lee la hoja de esa animacion cuando se pide por primera vez."""
+            super().__init__()
+            self._cargar = cargar                        # cargar(nombre) -> frames (o [] si no se pudo leer)
+
+        def __getitem__(self, nombre):
+            """Frames de la animacion: los lee si hace falta (y resuelve las copias)."""
+            valor = dict.__getitem__(self, nombre)
+            if isinstance(valor, tuple):                 # ('copia', base): la animacion usa la hoja de otra (CopyOf del AnimData.xml)
+                valor = self[valor[1]]
+            elif valor is None:                          # todavia no se leyo
+                valor = self._cargar(nombre)
+            dict.__setitem__(self, nombre, valor)
+            return valor
+
+        def get(self, nombre, defecto=None):
+            """Como dict.get, pero leyendo la hoja si hace falta."""
+            return self[nombre] if nombre in self else defecto
+
+
     class AnimacionHoja:
         def __init__(self, nombre, indice, ancho, alto, duraciones, rush=None, hit=None, retorno=None, copia=None):
+            """Datos de una animacion del AnimData.xml: tamaño de cada frame, duracion de cada uno y frames especiales."""
             self.nombre = nombre.lower()
             self.indice = indice
             self.ancho = ancho
@@ -491,10 +559,12 @@ def armar_animaciones():
         }
 
         def __init__(self, pokemon, rect, tamaño=40):
+            """pokemon: nombre (o variante de color), rect: donde se dibuja (el centro), tamaño: alto en pixeles en pantalla."""
             self.pokemon = _normalizar_nombre(pokemon)
             self.rect = rect
             self.tamaño = max(1, int(tamaño or 40))
-            self.carpeta = _buscar_carpeta(self.pokemon)
+            self.carpeta = _buscar_carpeta(_base(self.pokemon))
+            self.tono = TINTES[self.pokemon][1] if self.pokemon in TINTES else None
             self.animaciones = {}
             self.sprites = {}
             self.offsets = {}
@@ -515,6 +585,7 @@ def armar_animaciones():
             self.cache = _CACHE_ESCALADO.setdefault((self.pokemon, self.tamaño), {})
 
         def _cargar_con_cache(self):
+            """Comparte las hojas entre todos los animadores del mismo pokemon (se leen una sola vez)."""
             c = _CACHE_CARGA.get(self.pokemon)
             if c is None:
                 self._cargar()
@@ -523,6 +594,7 @@ def armar_animaciones():
                 self.animaciones, self.sprites, self.offsets, self.sombras, self.usando_hojas, self.altura_base = c
 
         def _cargar(self):
+            """Carga las animaciones: hojas del PMD si hay AnimData.xml, si no el formato viejo de carpetas."""
             if not self.carpeta:
                 return
             xml = os.path.join(self.carpeta, 'AnimData.xml')
@@ -532,6 +604,8 @@ def armar_animaciones():
                 self._cargar_formato_antiguo()
 
         def _cargar_hojas(self, xml):
+            """Lee el AnimData.xml: que animaciones hay, el tamaño de sus frames y sus duraciones.
+            Las hojas no se leen aca: solo se anota cual existe (ver _HojasPerezosas)."""
             try:
                 raiz = ET.parse(xml).getroot()
             except Exception:
@@ -571,23 +645,23 @@ def armar_animaciones():
                     copia,
                 )
             self._resolver_copias()
-            cargadas = 0
+            rutas = {}                                       # animacion -> (archivo, prefijo): solo se fija que exista, no la lee
             for anim in self.animaciones.values():
                 if anim.copia or anim.indice is None:
                     continue
-                if self._cargar_hoja(anim):
-                    cargadas += 1
-            self.usando_hojas = cargadas > 0
+                encontrada = self._ruta_hoja(anim)
+                if encontrada: rutas[anim.nombre] = encontrada
+            self.sprites = _HojasPerezosas(lambda nombre: self._leer_hoja(self.animaciones[nombre], *rutas[nombre]))
+            for nombre in rutas: dict.__setitem__(self.sprites, nombre, None)
+            self.usando_hojas = bool(rutas)
             if self.usando_hojas:
                 for anim in self.animaciones.values():
                     if anim.copia and anim.nombre not in self.sprites and anim.copia.lower() in self.sprites:
-                        base = anim.copia.lower()
-                        self.sprites[anim.nombre] = self.sprites[base]
-                        if base in self.offsets: self.offsets[anim.nombre] = self.offsets[base]
-                        if base in self.sombras: self.sombras[anim.nombre] = self.sombras[base]
-                self.escala = self._calcular_escala_base()
+                        dict.__setitem__(self.sprites, anim.nombre, ('copia', anim.copia.lower()))
+                self.escala = self._calcular_escala_base()       # esto lee idle y walk (las que se usan siempre)
 
         def _resolver_copias(self):
+            """Las animaciones 'CopyOf' toman los datos de la animacion que copian."""
             for anim in self.animaciones.values():
                 if not anim.copia:
                     continue
@@ -601,7 +675,8 @@ def armar_animaciones():
                     anim.hit = base.hit
                     anim.retorno = base.retorno
 
-        def _cargar_hoja(self, anim):
+        def _ruta_hoja(self, anim):
+            """(archivo, prefijo) de la hoja <Anim>-Anim.png de esa animacion, o None si no esta. No la lee."""
             prefijo = anim.nombre.title().replace('_', '')
             candidatos = [
                 prefijo,
@@ -619,28 +694,30 @@ def armar_animaciones():
                     if archivo.lower() == objetivo:
                         rutas.append((os.path.join(self.carpeta, archivo), os.path.splitext(archivo)[0][:-5]))
                         break
-            for ruta, nombre in rutas:
-                try:
-                    hoja = pygame.image.load(ruta).convert_alpha()
-                except Exception:
-                    continue
-                columnas = max(1, hoja.get_width() // anim.ancho)
-                filas = max(1, hoja.get_height() // anim.alto)
-                frames = []
-                for direccion in range(min(8, filas)):
-                    fila = []
-                    for frame in range(columnas):
-                        x = frame * anim.ancho
-                        y = direccion * anim.alto
-                        fila.append(hoja.subsurface((x, y, anim.ancho, anim.alto)).copy())
-                    frames.append(fila)
-                self.sprites[anim.nombre] = frames
-                self._cargar_metadatos(anim, nombre)
-                return True
-            return False
+            return rutas[0] if rutas else None
+
+        def _leer_hoja(self, anim, ruta, nombre):
+            """Lee la hoja de una animacion y la corta en frames: una fila por direccion (hasta 8), una columna por frame.
+            Tambien lee sus offsets (donde va el centro del pokemon en cada frame). Devuelve [] si el archivo no se puede abrir."""
+            try:
+                hoja = pygame.image.load(ruta).convert_alpha()
+            except Exception:
+                return []
+            if self.tono is not None: hoja = teñir(hoja, self.tono)        # chikorita_rosa y otros con otros colores
+            columnas = max(1, hoja.get_width() // anim.ancho)
+            filas = max(1, hoja.get_height() // anim.alto)
+            frames = []
+            for direccion in range(min(8, filas)):
+                fila = []
+                for frame in range(columnas):
+                    fila.append(hoja.subsurface((frame * anim.ancho, direccion * anim.alto, anim.ancho, anim.alto)).copy())
+                frames.append(fila)
+            self._cargar_metadatos(anim, nombre)
+            return frames
 
         def _cargar_metadatos(self, anim, prefijo):
-            for sufijo, destino in (('-Offsets.png', self.offsets), ('-Shadow.png', self.sombras)):
+            """Offsets de la animacion (<Anim>-Offsets.png). Las -Shadow.png no se leen: el juego dibuja sus propias sombras."""
+            for sufijo, destino in (('-Offsets.png', self.offsets),):
                 ruta = os.path.join(self.carpeta, prefijo + sufijo)
                 if os.path.isfile(ruta):
                     try:
@@ -649,6 +726,7 @@ def armar_animaciones():
                         pass
 
         def _cargar_formato_antiguo(self):
+            """Formato viejo: una carpeta por animacion con una imagen por direccion."""
             if not self.carpeta:
                 return
             grupos = {}
@@ -669,6 +747,7 @@ def armar_animaciones():
                 self.usando_hojas = False
 
         def _calcular_escala_base(self):
+            """Cuanto agrandar los sprites para que el pokemon mida 'tamaño' (se mide el dibujo mas alto de idle y walk)."""
             candidatos = []
             for nombre in ('idle', 'walk'):
                 frames = self.sprites.get(nombre)
@@ -686,6 +765,7 @@ def armar_animaciones():
             return self.tamaño / float(altura)
 
         def _buscar_animacion(self, nombre):
+            """Nombre real de una animacion pedida ('attack' busca strike, punch...). None si no tiene ninguna."""
             nombre = _normalizar_nombre(nombre)
             if nombre in self.sprites:
                 return nombre
@@ -700,12 +780,14 @@ def armar_animaciones():
             return None
 
         def buscar_ataque(self):
+            """La primera animacion de ataque que tenga el pokemon."""
             for nombre in self.nombres_ataque:
                 if nombre in self.sprites:
                     return nombre
             return None
 
         def buscar_para(self, forma):
+            """Animacion para una forma de ataque (proyectil -> Shoot, area -> Swing...)."""
             for nombre in self.nombres_forma.get(forma, ()):
                 if nombre in self.sprites:
                     return nombre
@@ -713,6 +795,7 @@ def armar_animaciones():
 
         def buscar_movimiento(self, movimiento, tipo=None, forma=None):
             # primero por el nombre del movimiento (puño -> Punch), despues por tipo y forma (electrico -> Shock), si no la de la forma
+            """Animacion para un movimiento: por su nombre (puño -> Punch), por tipo y forma, o la de la forma."""
             nombre = _normalizar_nombre(movimiento or '')
             for clave, anims in ANIM_MOVIMIENTO:
                 if clave in nombre:
@@ -723,9 +806,11 @@ def armar_animaciones():
             return self.buscar_para(forma)
 
         def disponibles(self):
+            """Nombres de todas las animaciones que tiene el pokemon."""
             return sorted(self.sprites)
 
         def cambiar(self, animacion, direccion=0, repetir=True):
+            """Pasa a otra animacion (o solo gira si es la misma). repetir=False la deja en el ultimo frame y marca terminada."""
             encontrada = self._buscar_animacion(animacion)
             if encontrada is None:
                 return False
@@ -744,6 +829,7 @@ def armar_animaciones():
             return True
 
         def actualizar(self):
+            """Avanza un frame del juego: pasa al siguiente frame de la animacion cuando se cumple su duracion."""
             frames = self._frames_actuales()
             if not frames:
                 if not self.repetir:
@@ -763,6 +849,7 @@ def armar_animaciones():
                     self.terminada = True
 
         def _frames_actuales(self):
+            """Frames de la animacion actual en la direccion actual."""
             if self.usando_hojas:
                 anim = self.animaciones.get(self.animacion_actual)
                 if not anim:
@@ -771,6 +858,7 @@ def armar_animaciones():
 
         def _fila(self):
             # algunas hojas (Sink, Sleep, Laying...) tienen una sola direccion: se usa la ultima fila que haya
+            """Fila de la hoja (direccion); algunas hojas tienen una sola y se usa esa."""
             filas = self.sprites.get(self.animacion_actual) if self.usando_hojas else None
             return min(self.direccion, len(filas) - 1) if filas else self.direccion
             frames = self.sprites.get(self.animacion_actual, [])
@@ -779,6 +867,7 @@ def armar_animaciones():
             return frames
 
         def _factor_actual(self):
+            """Multiplicador de las duraciones: caminar va al ritmo de la velocidad, los ataques al ritmo del ataque."""
             ritmo = max(0.3, self.ritmo)
             if self.animacion_actual == 'idle':
                 return self.FACTOR_IDLE
@@ -787,6 +876,7 @@ def armar_animaciones():
             return self.FACTOR_VELOCIDAD / ritmo
 
         def _duracion_actual(self):
+            """Cuantos frames del juego dura el frame actual de la animacion."""
             factor = self._factor_actual()
             if self.usando_hojas:
                 anim = self.animaciones.get(self.animacion_actual)
@@ -800,9 +890,11 @@ def armar_animaciones():
             return max(1, round(6 * factor))
 
         def esta_terminada(self):
+            """Si la animacion sin repetir llego al final."""
             return self.terminada
 
         def _obtener_offset(self, imagen, animacion, direccion, frame):
+            """Punto del frame que va en el centro del rect (el pixel verde de la hoja de offsets del PMD)."""
             hoja = self.offsets.get(animacion)
             if hoja is None:
                 return imagen.get_width() / 2, imagen.get_height() / 2
@@ -823,11 +915,13 @@ def armar_animaciones():
             return mejor if mejor else (ancho / 2, alto / 2)
 
         def _escalar(self, imagen, ancho, alto):
+            """Agranda un frame (sin suavizar, para que se vean los pixeles)."""
             if self.SUAVIZADO:
                 return pygame.transform.smoothscale(imagen, (ancho, alto))
             return pygame.transform.scale(imagen, (ancho, alto))
 
         def dibujar(self, ventana):
+            """Dibuja el frame actual centrado en el rect (escalado una sola vez y guardado). False si no hay frames."""
             frames = self._frames_actuales()
             if not frames or self.indice_frame >= len(frames):
                 return False
@@ -850,7 +944,8 @@ def armar_animaciones():
 
 
     def cargar_retrato(nombre):
-        carpeta = _buscar_carpeta(_normalizar_nombre(nombre))
+        """Retrato del pokemon (portrait/Normal.png del PMD), teñido si es una variante de color. None si no tiene."""
+        carpeta = _buscar_carpeta(_base(nombre))
         if not carpeta:
             return None
         lugares = [carpeta] + [os.path.join(carpeta, sub) for sub in ('portrait', 'portraits', 'retrato', 'retratos')]
@@ -862,7 +957,8 @@ def armar_animaciones():
                 for ext in ('.png', '.jpg', '.jpeg'):
                     if base + ext in archivos:
                         try:
-                            return pygame.image.load(os.path.join(lugar, archivos[base + ext])).convert_alpha()
+                            img = pygame.image.load(os.path.join(lugar, archivos[base + ext])).convert_alpha()
+                            return teñir(img, TINTES[_normalizar_nombre(nombre)][1]) if _normalizar_nombre(nombre) in TINTES else img
                         except Exception:
                             pass
         return None

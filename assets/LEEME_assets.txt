@@ -8,7 +8,7 @@ assets/
     <era>/objetos/ y <era>/terrenos/   igual pero solo para esa era (glaciacion, piedra, metales, medieval, moderna, origen)
                                        ej: mundo/glaciacion/terrenos/suelo.png = piso de la Era Glacial
   efectos/<nombre>.png                 efectos animados: una tira horizontal de frames cuadrados (alto = ancho de cada frame)
-                                       nombres: golpe, golpe_<tipo> (golpe_fuego, golpe_agua...), romper, explosion, nivel, evolucion
+                                       nombres: golpe, golpe_<tipo>, proyectil_<tipo>, romper, explosion, nivel, evolucion, cura, cambio, aparecer, destello
   interfaz/
     fondos/menu.png                    fondo del titulo y del menu principal (se estira a 1000x600)
     objetos/<clave>.png                (para mas adelante) iconos de la tienda y la mochila: claves de tienda.ITEMS
@@ -19,8 +19,14 @@ Regla: solo assets de Pokemon Blanco/Negro y de los Mystery Dungeon (Red Rescue 
 Spriters Resource no deja bajar nada automatico: las hojas se bajan a mano y van en assets/hojas (o sueltas en assets).
 
 Comandos para pasar las hojas al juego:
-  python herramientas.py tiles      'Dungeon Tiles' del Explorers of Sky -> mundo/<era>/terrenos (suelo, pared, agua + variantes suelo_2, suelo_3)
-  python herramientas.py efectos    zip 'Attack Effects' del Explorers of Sky -> efectos/ (golpe de cada tipo, cura, nivel, explosion...)
+  python herramientas.py tiles      'Dungeon Tiles' (Sky) y 'Dungeons' (Time/Darkness) -> mundo/[<era>/[<variante>/]]terrenos/<terreno>.png + .json
+                                    cada terreno es un tileset de 3x23 piezas con la mascara de vecinos de la leyenda (bordes y esquinas)
+                                    y las paletas del agua (el agua del PMD se anima cambiando colores) + <terreno>_brillo.png (brillos del agua)
+                                    el plan de que hoja va en cada era/variante esta en herramientas.py (PLAN)
+  python herramientas.py decorados  rocas/hielo/pinos (la pieza de pared aislada de cada tileset) y arbustos/arboles (Poke Transfer de BW) -> mundo/objetos
+  python herramientas.py cielo      hoja 'Skies' del Explorers of Sky -> interfaz/fondos/cielo.png y nube_<n>.png (la intro)
+  python herramientas.py efectos    'Attack Effects' del Explorers of Sky (el zip o la carpeta efectos/move_VFX) -> efectos/
+                                    (golpe_<tipo>, proyectil_<tipo>, cura, cambio, nivel, explosion...) + aparecer/destello del Poke Transfer
   python herramientas.py objetos    hoja 'Items' de Blanco/Negro -> interfaz/objetos (iconos de la tienda y la mochila, mt_<tipo> para las MT)
   python herramientas.py paneles    hojas 'Options Screen' y 'Party Screen' de Blanco/Negro -> interfaz/paneles (fondos, botones y paneles de los menus)
   python herramientas.py recortar assets/hojas/la_hoja.png    recortar a mano cualquier otra hoja

@@ -5,8 +5,10 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI
     python herramientas.py recortar hoja.png   recorta sprites de una hoja y los deja en assets/mundo
     python herramientas.py hojas               baja todas las hojas (menos pokemon) de BW y los PMD a assets/hojas (via archive.org)
-    python herramientas.py tiles               recorta los tiles de las mazmorras del PMD y los pone como terrenos de cada era
-    python herramientas.py efectos             arma los efectos de golpes, cura, nivel... con los Attack Effects del PMD
+    python herramientas.py tiles               arma los tilesets con bordes (autotile) y el agua animada del PMD para cada era y variante de sala
+    python herramientas.py decorados           rocas, hielo, pinos (piezas sueltas del PMD) y arbustos/arboles (Poke Transfer de BW) para los objetos
+    python herramientas.py cielo               recorta el cielo y las nubes del Explorers of Sky para la intro
+    python herramientas.py efectos             arma los efectos de golpes, proyectiles por tipo, cura, nivel... con los Attack Effects del PMD
     python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
     python herramientas.py paneles             recorta fondos, botones y paneles de los menus de BW a assets/interfaz/paneles
     python herramientas.py salas               muestra en texto algunas salas generadas
@@ -45,6 +47,7 @@ def herramienta_descargar():
 
 
     def bajar(url, intentos=3):
+        """Baja una URL (reintenta unas veces). None si no se pudo."""
         for i in range(intentos):
             try:
                 pedido = urllib.request.Request(url, headers={'User-Agent': 'pokemanic-descarga'})
@@ -60,6 +63,7 @@ def herramienta_descargar():
 
 
     def guardar(url, ruta):
+        """Baja una URL a un archivo si todavia no esta. True si quedo guardado."""
         if os.path.isfile(ruta):
             return True
         datos = bajar(url)
@@ -72,6 +76,7 @@ def herramienta_descargar():
 
 
     def descargar(nombre, datos):
+        """Baja los sprites (AnimData.xml y hojas) y el retrato de un pokemon desde SpriteCollab."""
         dex = '%04d' % datos['pokedex']
         forma = FORMAS.get(nombre)
         subruta = dex + ('/' + forma if forma else '')
@@ -94,6 +99,7 @@ def herramienta_descargar():
 
 
     def main():
+        """Baja todo lo que falta de todos los pokemon, de a varios a la vez."""
         pendientes = [(n, d) for n, d in pokemones.items() if n not in SALTEAR]
         with ThreadPoolExecutor(max_workers=6) as pool:
             for nombre, cantidad, faltan in pool.map(lambda x: descargar(*x), pendientes):
@@ -114,6 +120,7 @@ def herramienta_datos():
 
 
     def pedir(url):
+        """JSON de la PokeAPI (una URL completa o el nombre de un pokemon)."""
         if not url.startswith('http'):
             url = 'https://pokeapi.co/api/v2/pokemon/' + url
         with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic'}), timeout=20) as r:
@@ -128,6 +135,7 @@ def herramienta_datos():
 
 
     def buscar_cadena(nodo, objetivo, padre=None):
+        """Busca a un pokemon en su cadena evolutiva: (de quien viene, a quienes evoluciona, como)."""
         if nodo['species']['name'] == objetivo:
             return padre, [n['species']['name'] for n in nodo['evolves_to']], [como_evoluciona(n) for n in nodo['evolves_to']]
         for hijo in nodo['evolves_to']:
@@ -138,6 +146,7 @@ def herramienta_datos():
 
 
     def descripcion(especie):
+        """Texto de la pokedex en castellano (o en ingles si no hay)."""
         textos = [t['flavor_text'] for t in especie['flavor_text_entries'] if t['language']['name'] == 'es']
         if not textos:
             textos = [t['flavor_text'] for t in especie['flavor_text_entries'] if t['language']['name'] == 'en']
@@ -145,6 +154,7 @@ def herramienta_datos():
 
 
     def main():
+        """Arma datos_pokeapi.json con stats, movimientos, evoluciones y descripciones de todos los pokemon."""
         salida = {}
         for nombre in pokemones:
             if nombre in SALTAR: continue
@@ -204,6 +214,7 @@ def herramienta_recortar(ruta):
 
 
     def main(ruta):
+        """Ventana para recortar a mano sprites de una hoja y guardarlos como objetos o terrenos del mundo."""
         pygame.init()
         ventana = pygame.display.set_mode((W, H))
         pygame.display.set_caption('Recortar assets - ' + os.path.basename(ruta))
@@ -217,6 +228,7 @@ def herramienta_recortar(ruta):
         reloj = pygame.time.Clock()
 
         def a_hoja(pos):
+            """De pixeles de la ventana a pixeles de la hoja (segun zoom y desplazamiento)."""
             return int((pos[0] + vista[0]) / zoom), int((pos[1] + vista[1]) / zoom)
 
         def recorte():
@@ -230,6 +242,7 @@ def herramienta_recortar(ruta):
             return pedazo.subsurface(borde).copy() if borde.width and borde.height else None
 
         def nombres_conocidos():
+            """Nombres de objetos o terrenos que ya usa el juego (para sugerirlos al guardar)."""
             return sorted(mundos.OBJETOS) if tipo == 'objetos' else sorted(mundos.TERRENOS)
 
         while True:
@@ -341,6 +354,7 @@ def herramienta_visor():
 
 
     def main():
+        """Ventana para mirar salas generadas de cualquier era y variante sin jugar."""
         pygame.init()
         ventana = pygame.display.set_mode((W, H))
         pygame.display.set_caption('Pokemanic - visor de mundos')
@@ -418,6 +432,7 @@ def herramienta_sincronizar():
 
 
     def descargar(nombre):
+        """Datos de un pokemon de la PokeAPI (None para los inventados, como Arceus Beta)."""
         slug = nombre.replace('_', '-')
         if nombre in ('arceus_beta', 'missigno'):
             return None
@@ -427,6 +442,7 @@ def herramienta_sincronizar():
 
 
     def main():
+        """Actualiza stats, tipos y movimientos de datos_pokeapi.json (formato viejo)."""
         if os.path.isfile(DESTINO):
             try:
                 with open(DESTINO, 'r', encoding='utf-8') as archivo:
@@ -487,6 +503,7 @@ def herramienta_verificar():
 
 
     def pedir(ruta):
+        """JSON de la PokeAPI (guardado para no pedir dos veces lo mismo)."""
         if ruta not in cache:
             pedido = urllib.request.Request(API + ruta, headers={'User-Agent': 'pokemanic-verificacion'})
             with urllib.request.urlopen(pedido, timeout=30) as r:
@@ -495,6 +512,7 @@ def herramienta_verificar():
 
 
     def verificar_tipos():
+        """Compara la tabla de tipos del juego con la de la PokeAPI y muestra las diferencias."""
         print('--- tabla de tipos')
         errores = 0
         for tipo, en in TIPOS_EN.items():
@@ -512,6 +530,7 @@ def herramienta_verificar():
 
 
     def verificar_movimientos():
+        """Revisa que cada pokemon pueda aprender en los juegos sus especiales y asistencias."""
         print('--- habilidades y sinergias que cada pokemon puede aprender')
         errores = 0
         for nombre, datos in pokemones.items():
@@ -550,6 +569,7 @@ def herramienta_hojas():
               'time_darkness': '/ds_dsi/pokemonmysterydungeonexplorersoftimedarkness/', 'sky': '/ds_dsi/pokemonmysterydungeonexplorersofsky/'}
 
     def pedir(url, intentos=4):
+        """Baja una URL (con reintentos) por archive.org."""
         for i in range(intentos):
             try:
                 pedido = urllib.request.Request(url, headers={'User-Agent': 'pokemanic-hojas', 'Accept-Encoding': 'gzip'})
@@ -564,6 +584,7 @@ def herramienta_hojas():
         return None
 
     def limpio(texto):
+        """Nombre de archivo sin caracteres que Windows no acepta."""
         return re.sub(r'[<>:"/\\|?*]', '', texto).strip()[:80]
 
     def catalogo(pagina):
@@ -587,6 +608,7 @@ def herramienta_hojas():
         return re.sub(r'/web/(\d+)/', r'/web/\1id_/', copia['url'], count=1) if crudo else copia['url']
 
     def bajar(juego, pagina, seccion, i, nombre, carpeta):
+        """Baja una hoja de spriters-resource (por archive.org) si todavia no esta."""
         lugar = os.path.join(destino, juego, limpio(seccion))
         for ext in ('.png', '.zip', '.gif'):
             if os.path.isfile(os.path.join(lugar, limpio(nombre) + ext)): return 'ya estaba'
@@ -603,6 +625,7 @@ def herramienta_hojas():
         return 'ok'
 
     def main():
+        """Baja todas las hojas de BW y los PMD que faltan a assets/hojas."""
         faltan = []
         for juego, pagina in JUEGOS.items():
             lista = catalogo(pagina)
@@ -622,64 +645,322 @@ def herramienta_hojas():
 # ==================== tiles de las mazmorras del PMD ====================
 
 def herramienta_tiles():
-    """Recorta las hojas 'Dungeon Tiles' del Explorers of Sky (spriters-resource) y deja una casilla por terreno en assets/mundo/<era>/terrenos.
-    Todas las hojas tienen la misma grilla: casillas de 24 px con una linea de 1 px. Grupos de 3 columnas en orden:
-    Legend, Walls, Wall Alt 1, Wall Alt 2, Ground, Ground Alt 1, Ground Alt 2, (Unused Ground) y Water (agua, lava o vacio segun el lugar).
-    De cada grupo se usa el tile del medio del primer bloque de 3x3: el que esta rodeado de lo mismo y se puede repetir."""
+    """Recorta las hojas de tiles de las mazmorras del PMD (Explorers of Sky 'Dungeon Tiles' y Time/Darkness 'Dungeons', de spriters-resource)
+    y arma un tileset con bordes por terreno: assets/mundo/<carpeta>/terrenos/<terreno>.png + <terreno>.json (como los lee mundo.entorno).
+
+    Todas las hojas tienen la misma grilla: casillas de 24 px separadas por una linea de 1 px desde (9, 163), 23 filas,
+    y grupos de 3 columnas: Legend, Walls, Wall Alt 1, Wall Alt 2, Ground, Ground Alt 1, Ground Alt 2, (Unused Ground), Water, (Water Sparkle).
+    La columna Legend dice para cada casilla que vecinos son del mismo terreno (3x3 cuadraditos, negro = igual): es un autotile.
+    El juego mira los 8 vecinos de cada casilla y elige la pieza que coincide, asi salen los bordes, las esquinas y las orillas.
+    El agua del PMD se anima cambiando colores: la grilla 'Water palette' de la hoja tiene una fila de colores por frame,
+    y los brillos ('Water Sparkle', magenta = transparente) son otra capa con su propia paleta.
+
+    Por terreno queda:
+        <terreno>.png         las 3 columnas x 23 filas del grupo (72x552) y a la derecha sus variantes (Alt 1, Alt 2) si tiene
+        <terreno>_brillo.png  los brillos del agua (si la hoja los tiene)
+        <terreno>.json        mascaras de vecinos, que casillas tiene cada variante, paletas y velocidades
+    Carpetas: '' sirve para todas las eras, '<era>' para una era y '<era>/<variante>' para una variante de sala ('tienda' para la tienda)."""
     raiz = os.path.dirname(os.path.abspath(__file__))
     assets = os.path.join(raiz, 'assets')
-    # era -> {terreno: (lugar de la hoja, grupo)}. Grupos: pared, suelo, suelo2, suelo3 (variantes del suelo), agua
+    base = lambda hoja: {'pared': (hoja, 'pared'), 'suelo': (hoja, 'suelo'), 'agua': (hoja, 'agua')}
+    # carpeta -> {terreno: (lugar de la hoja, grupo)}. Grupos: pared, suelo o agua (en algunas hojas el 'agua' es lava o un vacio)
     PLAN = {
-        'glaciacion': {'pared': ('Vast Ice Mountain', 'pared'), 'suelo': ('Vast Ice Mountain', 'suelo'), 'agua': ('Vast Ice Mountain', 'agua'),
-                       'nieve': ('7th Station Pass', 'suelo'), 'hielo': ('7th Station Pass', 'agua')},
-        'piedra': {'pared': ('Barren Valley', 'pared'), 'suelo': ('Barren Valley', 'suelo'), 'agua': ('Barren Valley', 'agua')},
-        'metales': {'pared': ('Deep Boulder Quarry', 'pared'), 'suelo': ('Deep Boulder Quarry', 'suelo')},
-        'medieval': {'pared': ('4th Station Pass', 'pared'), 'suelo': ('4th Station Pass', 'suelo'), 'agua': ('4th Station Pass', 'agua'),
-                     'hierba': ('4th Station Pass', 'suelo')},
-        'moderna': {'pared': ('Temporal Tower (In the Future of Darkness)', 'pared'), 'suelo': ('Temporal Tower (In the Future of Darkness)', 'suelo'),
-                    'agua': ('Temporal Tower (In the Future of Darkness)', 'agua')},
-        'origen': {'pared': ('Temporal Spire (In the Future of Darkness)', 'pared'), 'suelo': ('Temporal Spire (In the Future of Darkness)', 'suelo'),
-                   'agua': ('Temporal Spire (In the Future of Darkness)', 'agua')},
-        '': {'arena': ('Limestone Cavern', 'suelo'), 'agua': ('4th Station Pass', 'agua')},      # para todas las eras (si la era no tiene el suyo)
+        '': {'arena': ('Side Path', 'suelo'), 'nieve': ('7th Station Pass', 'suelo'), 'hielo': ('7th Station Pass', 'agua'),
+             'escarcha': ('7th Station Pass', 'agua'), 'hierba': ('4th Station Pass', 'pared'), 'lodo': ('Deep Dusk Forest 01F - 06F', 'suelo'),
+             'toxico': ('Brine Cave', 'agua'), 'sombra': ('Dark Wasteland', 'suelo'), 'agua': ('4th Station Pass', 'agua')},
+        'glaciacion': dict(base('Vast Ice Mountain'), agua=('Ice Aegis Cave', 'agua')),
+        'glaciacion/cueva de hielo': base('Ice Aegis Cave'),
+        'piedra': base('Tiny Meadow'),
+        'piedra/aldea de cazadores': base('Forest Path'),
+        'piedra/cueva rupestre': base('Limestone Cavern'),
+        'piedra/valle volcanico': base('Barren Valley'),
+        'piedra/rio': base('Lush Prairie'),
+        'metales': base('Deep Boulder Quarry'),
+        'metales/mina de cobre': base('Deep Limestone Cavern'),
+        'metales/mercado': base('Shimmer Desert'),
+        'metales/templo de bronce': base('Temporal Tower'),
+        'metales/puerto antiguo': base('Side Path'),
+        'medieval': base('4th Station Pass'),
+        'medieval/patio del castillo': base('Temporal Tower'),
+        'medieval/bosque encantado': base('Apple Woods'),
+        'medieval/mazmorra': base('Deep Sealed Ruin'),
+        'medieval/foso del castillo': base('Temporal Tower'),
+        'medieval/guarida del dragon': base('Dark Wasteland'),
+        'moderna': base('Temporal Tower (In the Future of Darkness)'),
+        'moderna/fabrica': base('Temporal Spire (In the Future of Darkness)'),
+        'moderna/plaza': base('Lush Prairie'),
+        'moderna/callejon': base('Spacial Cliffs'),
+        'moderna/central electrica': base('Amp Plains'),
+        'moderna/alcantarilla': base('Brine Cave'),
+        'origen': base('The Nightmare'),
+        'tienda': {'pared': ('Temporal Tower', 'pared'), 'suelo': ('Temporal Tower', 'suelo')},
     }
+    # cada cuantos frames (a 60 por segundo) cambian los colores del agua y de los brillos: lo dice cada hoja abajo de la paleta
+    VELOCIDAD = {'Beach Cave': (20, 4), 'Tiny Meadow': (12, 8), '4th Station Pass': (10, 8), '7th Station Pass': (12, 8), 'Ice Aegis Cave': (12, 14),
+                 'Forest Path': (17, 13), 'Limestone Cavern': (13, 8), 'Deep Boulder Quarry': (13, 13), 'Temporal Tower': (18, 8), 'Side Path': (12, 8),
+                 'Apple Woods': (17, 9), 'Lush Prairie': (12, 8), 'Amp Plains': (18, 6), 'Brine Cave': (18, 6), 'Deep Limestone Cavern': (13, 8),
+                 'Shimmer Desert': (12, 8), 'Murky Forest': (16, 8)}
+    BITS = (128, 1, 2, 64, 0, 4, 32, 16, 8)       # cuadraditos de la leyenda (de arriba a la izquierda) -> bit: N=1 NE=2 E=4 SE=8 S=16 SO=32 O=64 NO=128
+    MAGENTA = (255, 0, 255)
 
     def buscar_hoja(lugar):
-        for carpeta in (os.path.join(assets, 'hojas'), assets):          # primero assets/hojas, si no las sueltas en assets
-            if not os.path.isdir(carpeta): continue
-            for archivo in os.listdir(carpeta):
-                if 'Dungeon Tiles' in archivo and archivo.endswith(' - ' + lugar + '.png'): return os.path.join(carpeta, archivo)
+        """Ruta de la hoja de tiles de ese lugar (en assets o cualquier subcarpeta) o None."""
+        for carpeta, _, archivos in os.walk(assets):                      # assets, assets/hojas y sus subcarpetas
+            if 'move_VFX' in carpeta or os.sep + 'sprites' in carpeta: continue
+            for archivo in archivos:
+                if ('Dungeon Tiles' in archivo or ' - Dungeons - ' in archivo) and archivo.endswith(' - ' + lugar + '.png'): return os.path.join(carpeta, archivo)
         return None
 
-    def columna(hoja, grupo):
-        agua = 21 if hoja.get_width() <= 813 else 24                       # las hojas angostas no tienen 'Unused Ground'
-        return {'pared': 4, 'suelo': 13, 'suelo2': 16, 'suelo3': 19, 'agua': agua + 1}[grupo]
+    def casilla(hoja, col, fila):
+        """La casilla (col, fila) de la grilla de la hoja (24x24, sin la linea)."""
+        return hoja.subsurface((9 + 25 * col, 163 + 25 * fila, 24, 24))
 
-    def casilla(hoja, grupo):
-        """3x3 tiles iguales (72 px): el juego la estira al tamaño de la casilla."""
-        x, y = 9 + 25 * columna(hoja, grupo), 163 + 25
-        t = hoja.subsurface((x, y, 24, 24))
-        if t.get_at((12, 12))[:3] in ((255, 0, 255), (0, 128, 128)): return None   # grupo vacio en esa hoja (magenta o el fondo)
-        sup = pygame.Surface((72, 72))
-        for i in range(3):
-            for k in range(3): sup.blit(t, (i * 24, k * 24))
-        return sup
+    def grupos(hoja):
+        """Que grupo de columnas es cada cosa: {'pared': 1, 'suelo': 4, 'agua': n o None, 'brillo': n o None}."""
+        fondo, linea = hoja.get_at((0, 0)), hoja.get_at((8, 300))
+        x = 8                                                           # la linea de arriba de la grilla dice cuantas columnas hay
+        while x + 1 < hoja.get_width() and hoja.get_at((x + 1, 162)) == linea: x += 1
+        columnas = round((x - 8) / 25)
+        llenas = lambda g: sum(casilla(hoja, g * 3 + k, f).get_at((12, 12)) != fondo for k in range(3) for f in range(23))
+        magenta = lambda g: sum(tuple(casilla(hoja, g * 3 + k, f).get_at((2, 2)))[:3] == MAGENTA for k in range(3) for f in range(23))
+        salida = {'pared': 1, 'suelo': 4, 'agua': None, 'brillo': None}
+        for g in range(7, columnas // 3):
+            if magenta(g) >= 10: salida['brillo'] = g if salida['agua'] == g - 1 else salida['brillo']
+            elif llenas(g) >= 15: salida['agua'], salida['brillo'] = g, None
+        return salida
+
+    def leyenda(hoja):
+        """Mascara de vecinos de cada casilla de la leyenda (-1 si esta vacia)."""
+        fondo = hoja.get_at((0, 0))
+        mascaras = []
+        for fila in range(23):
+            for k in range(3):
+                t = casilla(hoja, k, fila)
+                if t.get_at((9, 9)) == fondo: mascaras.append(-1); continue
+                cuadros = [t.get_at((bx * 8 + 1, by * 8 + 1)) for by in range(3) for bx in range(3)]
+                mascaras.append(sum(bit for bit, c in zip(BITS, cuadros) if c.r + c.g + c.b < 30))
+        return mascaras
+
+    def recortar(hoja, g):
+        """Las 3x23 casillas del grupo sin las lineas (72x552) y que casillas tienen dibujo ('1') o estan vacias ('0')."""
+        fondo = hoja.get_at((0, 0))
+        sup = pygame.Surface((72, 552))
+        hay = ''
+        for fila in range(23):
+            for k in range(3):
+                t = casilla(hoja, g * 3 + k, fila)
+                sup.blit(t, (k * 24, fila * 24))
+                hay += '1' if t.get_at((12, 12)) != fondo or t.get_at((3, 3)) != fondo else '0'
+        return sup, hay
+
+    def paletas(hoja):
+        """Grillas de colores a la derecha de las casillas ('Water palette' y 'Water Sparkle palette'): celdas de 10 px con borde de 1 px.
+        Devuelve una lista de bloques, cada uno con sus filas de colores (una fila por frame)."""
+        W, H = hoja.get_size()
+        filas = []                                                     # (y, x) de cada linea de pixeles que cruza una fila de celdas
+        for y in range(150, H):
+            for x in range(W - 30 * 11, W - 11 * 11):
+                if x < 0: continue
+                b = hoja.get_at((x, y))
+                if hoja.get_at((x + 11, y)) != b or hoja.get_at((x + 22, y)) != b or hoja.get_at((x + 5, y)) == b: continue
+                n = 0
+                while x + 11 * (n + 1) < W and hoja.get_at((x + 11 * (n + 1), y)) == b and hoja.get_at((x + 11 * n + 5, y)) != b: n += 1
+                if n >= 8: filas.append((y, x, n)); break
+        bloques, ultima = [], None
+        for y, x, n in filas:
+            if ultima and y == ultima[0] + 1 and x == ultima[1]: ultima = (y, x); continue   # misma fila de celdas
+            ultima = (y, x)
+            colores = [tuple(hoja.get_at((x + 11 * k + 5, y + 4)))[:3] for k in range(n)]
+            if bloques and bloques[-1]['x'] == x and y - bloques[-1]['y'] <= 12: bloques[-1]['filas'].append(colores)
+            else: bloques.append({'x': x, 'filas': [colores]})
+            bloques[-1]['y'] = y
+        return [b['filas'] for b in bloques if len(b['filas']) >= 2]
+
+    def colores_de(img):
+        """Todos los colores de una imagen (menos el magenta transparente)."""
+        return {tuple(img.get_at((x, y)))[:3] for x in range(img.get_width()) for y in range(img.get_height())} - {MAGENTA}
+
+    def repartir(bloques, agua, brillo):
+        """Cada grilla de colores va a la capa cuyos colores cambia (algunas hojas solo tienen la de los brillos). (paleta del agua, de los brillos)."""
+        capas = {'agua': colores_de(agua), 'brillo': colores_de(brillo) if brillo else set()}
+        salida = {'agua': None, 'brillo': None}
+        for filas in bloques:
+            cambian = {fila[k] for fila in filas for k in range(len(fila)) if len({f[k] for f in filas}) > 1}
+            for capa in sorted(('agua', 'brillo'), key=lambda c: -len(cambian & capas[c])):
+                if cambian & capas[capa] and salida[capa] is None: salida[capa] = filas; break
+        return salida['agua'], salida['brillo']
+
+    def ordenar_paleta(filas, img):
+        """Pone primero la fila de colores que tiene el dibujo (la casilla se recorto en ese frame). None si no tiene nada que ver."""
+        colores = colores_de(img)
+        puntos = [sum(c in colores for c in fila) for fila in filas]
+        mejor = max(range(len(filas)), key=lambda i: puntos[i])
+        if puntos[mejor] < 2: return None
+        return [list(map(list, fila)) for fila in filas[mejor:] + filas[:mejor]]
 
     def main():
+        """Arma cada tileset del PLAN: piezas, variantes, paletas del agua y brillos."""
         pygame.init(); pygame.display.set_mode((1, 1))
         hojas, hechos, faltan = {}, 0, set()
-        for era, terrenos in PLAN.items():
-            carpeta = os.path.join(assets, 'mundo', era, 'terrenos') if era else os.path.join(assets, 'mundo', 'terrenos')
+        for destino, terrenos in PLAN.items():
+            carpeta = os.path.join(assets, 'mundo', *destino.split('/'), 'terrenos')
             for terreno, (lugar, grupo) in terrenos.items():
                 if lugar not in hojas:
                     ruta = buscar_hoja(lugar)
-                    hojas[lugar] = pygame.image.load(ruta).convert() if ruta else None
-                if not hojas[lugar]: faltan.add(lugar); continue
+                    hojas[lugar] = None
+                    if ruta:
+                        hoja = pygame.image.load(ruta).convert()
+                        hojas[lugar] = {'hoja': hoja, 'grupos': grupos(hoja), 'leyenda': leyenda(hoja), 'paletas': None}
+                h = hojas[lugar]
+                if not h: faltan.add(lugar); continue
+                g = h['grupos'][grupo]
+                if g is None: continue                                  # esa hoja no tiene agua
+                img, hay = recortar(h['hoja'], g)
+                datos = {'hoja': lugar, 'grupo': grupo, 'mascaras': h['leyenda'], 'hay': hay, 'variantes': []}
+                if grupo != 'agua':                                     # Wall Alt / Ground Alt: la misma casilla con otro dibujo (flores, piedritas)
+                    for alt in (g + 1, g + 2):
+                        a, hay_a = recortar(h['hoja'], alt)
+                        if '1' in hay_a: datos['variantes'].append(hay_a); img = _juntar(img, a)
                 os.makedirs(carpeta, exist_ok=True)
-                for sufijo, g in (('', grupo), ('_2', grupo + '2'), ('_3', grupo + '3')) if grupo == 'suelo' else (('', grupo),):
-                    img = casilla(hojas[lugar], g)
-                    if img: pygame.image.save(img, os.path.join(carpeta, terreno + sufijo + '.png')); hechos += 1
-        print(hechos, 'casillas en assets/mundo')
-        if faltan: print('faltan las hojas (bajalas de spriters-resource, Explorers of Sky > Dungeon Tiles):', ', '.join(sorted(faltan)))
+                if grupo == 'agua':
+                    if h['paletas'] is None: h['paletas'] = paletas(h['hoja'])
+                    cada, cada_brillo = VELOCIDAD.get(lugar, (12, 8))
+                    brillo = None
+                    if h['grupos']['brillo'] is not None:
+                        brillo, hay_b = recortar(h['hoja'], h['grupos']['brillo'])
+                        pygame.image.save(brillo, os.path.join(carpeta, terreno + '_brillo.png'))
+                        datos.update(brillo=hay_b)
+                    filas, filas_b = repartir(h['paletas'], img, brillo)
+                    paleta = ordenar_paleta(filas, img) if filas else None
+                    if paleta: datos.update(paleta=paleta, cada=cada)
+                    paleta_b = ordenar_paleta(filas_b, brillo) if filas_b else None
+                    if paleta_b: datos.update(paleta_brillo=paleta_b, cada_brillo=cada_brillo)
+                pygame.image.save(img, os.path.join(carpeta, terreno + '.png'))
+                with open(os.path.join(carpeta, terreno + '.json'), 'w', encoding='utf-8') as f: json.dump(datos, f)
+                for viejo in (terreno + '_2.png', terreno + '_3.png'):   # restos del formato viejo (una casilla suelta por variante)
+                    if os.path.isfile(os.path.join(carpeta, viejo)): os.remove(os.path.join(carpeta, viejo))
+                hechos += 1
+        print(hechos, 'tilesets en assets/mundo')
+        if faltan: print('faltan las hojas (spriters-resource, Explorers of Sky > Dungeon Tiles o Explorers of Time > Dungeons):', ', '.join(sorted(faltan)))
+
+    def _juntar(a, b):
+        """Pega dos imagenes una al lado de la otra."""
+        sup = pygame.Surface((a.get_width() + b.get_width(), a.get_height()))
+        sup.blit(a, (0, 0)); sup.blit(b, (a.get_width(), 0))
+        return sup
+
+    main()
+
+
+# ==================== objetos del mundo (rocas, hielo, arbustos) ====================
+
+def herramienta_decorados():
+    """Sprites de objetos del mundo (assets/mundo/objetos/<nombre>.png, como los lee mundo.entorno.imagen):
+    - rocas, bloques de hielo, pinos...: la 'pared aislada' de un tileset del PMD (la pieza de la leyenda sin vecinos) es una roca suelta.
+      El fondo se saca comparando con el piso de la misma hoja: lo que es igual al piso queda transparente.
+    - arbustos y arboles: copas y troncos de la hoja 'Poke Transfer' de Blanco/Negro (casillas de 32 px cada 34, fondo celeste)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    DEL_PMD = {'roca': 'Amp Plains', 'roca_nevada': 'Vast Ice Mountain', 'bloque_de_hielo': 'Dark Ice Mountain', 'estalagmita_de_hielo': 'Icicle Forest',
+               'muro_de_hielo': 'Surrounded Sea', 'pino_nevado': 'Deep Dusk Forest 01F - 06F', 'pilar_de_cristal': 'The Nightmare',
+               'menhir': 'Barren Valley', 'columna_rota': 'Limestone Cavern'}
+    # Poke Transfer: (columna, fila) de las casillas; fila 1 copas claras, 2 copas oscuras, 3 troncos
+    TRANSFER = {'arbusto': [(0, 1)], 'arbol': [(1, 2), (1, 3)], 'maceta': [(2, 1)]}
+    CELESTE = (56, 144, 184)
+
+    def buscar(parte):
+        """Ruta de una hoja que termina con ese nombre (en assets o subcarpetas) o None."""
+        for carpeta, _, archivos in os.walk(assets):
+            if 'move_VFX' in carpeta: continue
+            for a in archivos:
+                if a.endswith(parte + '.png'): return os.path.join(carpeta, a)
+        return None
+
+    def casilla(hoja, col, fila):
+        """La casilla (col, fila) de la grilla de una hoja de tiles."""
+        return hoja.subsurface((9 + 25 * col, 163 + 25 * fila, 24, 24))
+
+    def roca(hoja):
+        """Pared sin vecinos sobre el piso, con el piso borrado."""
+        fondo = hoja.get_at((0, 0))
+        aislada = lleno = None
+        for fila in range(23):
+            for k in range(3):
+                t = casilla(hoja, k, fila)
+                if t.get_at((9, 9)) == fondo: continue
+                vecinos = [t.get_at((bx * 8 + 1, by * 8 + 1)) for by in range(3) for bx in range(3) if (bx, by) != (1, 1)]
+                oscuros = sum(c.r + c.g + c.b < 30 for c in vecinos)
+                if oscuros == 0 and aislada is None: aislada = (k, fila)
+                if oscuros == 8 and lleno is None: lleno = (k, fila)
+        if not aislada or not lleno: return None
+        pared = casilla(hoja, 3 + aislada[0], aislada[1]).copy().convert_alpha()
+        piso = casilla(hoja, 12 + lleno[0], lleno[1])
+        colores = {tuple(piso.get_at((x, y)))[:3] for x in range(24) for y in range(24)}
+        pendientes = [(x, y) for x in range(24) for y in (0, 23)] + [(x, y) for x in (0, 23) for y in range(24)]
+        while pendientes:                                              # desde los bordes, todo lo que es color de piso se borra
+            x, y = pendientes.pop()
+            if not (0 <= x < 24 and 0 <= y < 24): continue
+            c = pared.get_at((x, y))
+            if c.a == 0 or tuple(c)[:3] not in colores: continue
+            pared.set_at((x, y), (0, 0, 0, 0))
+            pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        dibujo = pared.get_bounding_rect()
+        return pared.subsurface(dibujo).copy()
+
+    def main():
+        """Recorta todos los objetos de DEL_PMD y TRANSFER a assets/mundo/objetos."""
+        pygame.init(); pygame.display.set_mode((1, 1))
+        carpeta = os.path.join(assets, 'mundo', 'objetos')
+        os.makedirs(carpeta, exist_ok=True)
+        hechos = []
+        for nombre, lugar in DEL_PMD.items():
+            ruta = buscar(' - ' + lugar)
+            img = roca(pygame.image.load(ruta).convert()) if ruta else None
+            if img: pygame.image.save(img, os.path.join(carpeta, nombre + '.png')); hechos.append(nombre)
+        ruta = buscar(' - Poke Transfer')
+        if ruta:
+            hoja = pygame.image.load(ruta).convert_alpha()
+            for nombre, piezas in TRANSFER.items():
+                partes = []
+                for col, fila in piezas:
+                    p = hoja.subsurface((518 + 34 * col, 36 + 34 * fila, 32, 32)).copy()
+                    pa = pygame.PixelArray(p); pa.replace(CELESTE, (0, 0, 0, 0)); pa.close()
+                    partes.append(p.subsurface(p.get_bounding_rect()).copy())
+                alto = sum(p.get_height() for p in partes) - 6 * (len(partes) - 1)   # el tronco asoma debajo de la copa
+                sup = pygame.Surface((max(p.get_width() for p in partes), alto), pygame.SRCALPHA)
+                y = alto
+                for p in reversed(partes):
+                    y -= p.get_height(); sup.blit(p, ((sup.get_width() - p.get_width()) // 2, y)); y += 6
+                pygame.image.save(sup, os.path.join(carpeta, nombre + '.png')); hechos.append(nombre)
+        print(len(hechos), 'objetos en assets/mundo/objetos:', ', '.join(hechos))
+
+    main()
+
+
+# ==================== cielo de la intro ====================
+
+def herramienta_cielo():
+    """De la hoja 'Skies' del Explorers of Sky (4 paneles de 288x216) recorta para la intro (interfaz.menus.intro):
+    assets/interfaz/fondos/cielo.png (el degrade con el sol) y nube_<n>.png (cada nube del panel verde, sin el verde)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    VERDE = (76, 255, 0)
+
+    def main():
+        """Recorta el cielo y separa cada nube del fondo verde."""
+        pygame.init(); pygame.display.set_mode((1, 1))
+        ruta = next((os.path.join(c, a) for c, _, archivos in os.walk(assets) if 'move_VFX' not in c for a in archivos if a.endswith(' - Skies.png')), None)
+        if not ruta: print('falta la hoja (spriters-resource, Explorers of Sky > Miscellaneous > Skies) en assets/hojas'); return
+        hoja = pygame.image.load(ruta).convert_alpha()
+        carpeta = os.path.join(assets, 'interfaz', 'fondos')
+        os.makedirs(carpeta, exist_ok=True)
+        pygame.image.save(hoja.subsurface((290, 0, 288, 216)), os.path.join(carpeta, 'cielo.png'))
+        nubes = hoja.subsurface((0, 0, 288, 216)).copy()
+        pa = pygame.PixelArray(nubes); pa.replace(VERDE, (0, 0, 0, 0)); pa.close()
+        piezas = sorted(pygame.mask.from_surface(nubes).get_bounding_rects(), key=lambda r: -r.width * r.height)
+        piezas = [r for r in piezas if r.width * r.height > 300]
+        for i, r in enumerate(piezas): pygame.image.save(nubes.subsurface(r), os.path.join(carpeta, 'nube_' + str(i) + '.png'))
+        print('cielo y', len(piezas), 'nubes en assets/interfaz/fondos')
 
     main()
 
@@ -687,35 +968,65 @@ def herramienta_tiles():
 # ==================== efectos de ataque del PMD ====================
 
 def herramienta_efectos():
-    """Del zip 'Attack Effects' del Explorers of Sky (move_VFX/<numero>/000/<frame>.png) arma las tiras de assets/efectos:
-    una fila de frames cuadrados (como las lee mundo.efectos). Los numeros no tienen nombre: se eligieron mirandolos."""
+    """De los 'Attack Effects' del Explorers of Sky (move_VFX/<numero>/000/<frame>.png, el zip o la carpeta assets/efectos/move_VFX)
+    arma las tiras de assets/efectos: una fila de frames cuadrados (como las lee mundo.efectos). Los numeros no tienen nombre: se eligieron mirandolos.
+    proyectil_<tipo> son las bolas, hojas y rocas que vuelan (se repiten en loop). aparecer y destello salen de la hoja 'Poke Transfer' de BW."""
     import io, zipfile
     raiz = os.path.dirname(os.path.abspath(__file__))
     assets = os.path.join(raiz, 'assets')
     ELEGIDOS = {'golpe': '0038', 'golpe_normal': '0038', 'golpe_fuego': '0008', 'golpe_agua': '0021', 'golpe_electrico': '0222',
                 'golpe_hielo': '0141', 'golpe_planta': '0076', 'golpe_veneno': '0144', 'golpe_tierra': '0002', 'golpe_roca': '0182',
                 'golpe_lucha': '0221', 'golpe_psiquico': '0171', 'golpe_fantasma': '0046', 'golpe_siniestro': '0122', 'golpe_dragon': '0092',
-                'golpe_acero': '0166', 'golpe_volador': '0149', 'golpe_hada': '0254',
-                'explosion': '0253', 'romper': '0140', 'nivel': '0125', 'evolucion': '0180', 'cura': '0105'}
+                'golpe_acero': '0166', 'golpe_volador': '0149', 'golpe_hada': '0254', 'golpe_bicho': '0154',
+                'explosion': '0253', 'romper': '0140', 'nivel': '0125', 'evolucion': '0180', 'cura': '0105', 'cambio': '0239',
+                'proyectil_fuego': '0024', 'proyectil_agua': '0183', 'proyectil_electrico': '0060', 'proyectil_hielo': '0026',
+                'proyectil_planta': '0129', 'proyectil_veneno': '0029', 'proyectil_tierra': '0117', 'proyectil_roca': '0182',
+                'proyectil_lucha': '0221', 'proyectil_psiquico': '0102', 'proyectil_fantasma': '0092', 'proyectil_siniestro': '0203',
+                'proyectil_dragon': '0240', 'proyectil_acero': '0035', 'proyectil_volador': '0050', 'proyectil_normal': '0134',
+                'proyectil_bicho': '0112', 'proyectil_hada': '0233'}
     MAX_FRAMES = 12                                                 # los largos se recortan salteando frames (un golpe no puede durar 2 segundos)
+    TRANSFER = {'aparecer': 5, 'destello': 7}                       # filas de nubecitas de la hoja Poke Transfer (5 frames de 32 px)
+
+    def tira_de(frames):
+        """Pone frames en una tira horizontal de cuadrados (cada frame centrado en el suyo)."""
+        lado = max(max(f.get_size()) for f in frames)
+        tira = pygame.Surface((lado * len(frames), lado), pygame.SRCALPHA)
+        for i, f in enumerate(frames): tira.blit(f, f.get_rect(center=(i * lado + lado // 2, lado // 2)))   # cada frame centrado en su cuadrado
+        return tira
 
     def main():
+        """Arma las tiras de todos los efectos elegidos (del zip o de la carpeta) y las de la hoja Poke Transfer."""
         pygame.init(); pygame.display.set_mode((1, 1))
         zips = [os.path.join(c, a) for c in (os.path.join(assets, 'hojas'), assets) if os.path.isdir(c) for a in os.listdir(c) if a.endswith('Attack Effects.zip')]
-        if not zips: print('falta el zip (spriters-resource, Explorers of Sky > Miscellaneous > Attack Effects) en assets/hojas'); return
-        z = zipfile.ZipFile(zips[0])
-        nombres = z.namelist()
+        carpetas = [c for c in (os.path.join(assets, 'efectos', 'move_VFX'), os.path.join(assets, 'move_VFX')) if os.path.isdir(c)]
+        if zips:
+            z = zipfile.ZipFile(zips[0])
+            nombres = z.namelist()
+            listar = lambda numero: sorted(n for n in nombres if n.startswith('move_VFX/' + numero + '/000/') and n.endswith('.png'))
+            abrir = lambda r: pygame.image.load(io.BytesIO(z.read(r)), 'f.png')
+        elif carpetas:
+            listar = lambda numero: sorted(os.path.join(carpetas[0], numero, '000', a) for a in os.listdir(os.path.join(carpetas[0], numero, '000'))
+                                           if a.endswith('.png')) if os.path.isdir(os.path.join(carpetas[0], numero, '000')) else []
+            abrir = pygame.image.load
+        else:
+            print('faltan los Attack Effects (spriters-resource, Explorers of Sky > Miscellaneous): el zip en assets/hojas o la carpeta assets/efectos/move_VFX'); return
         os.makedirs(os.path.join(assets, 'efectos'), exist_ok=True)
         for efecto, numero in ELEGIDOS.items():
-            rutas = sorted(n for n in nombres if n.startswith('move_VFX/' + numero + '/000/') and n.endswith('.png'))
+            rutas = listar(numero)
             if not rutas: print('no esta', numero); continue
             rutas = [rutas[round(i * (len(rutas) - 1) / (MAX_FRAMES - 1))] for i in range(MAX_FRAMES)] if len(rutas) > MAX_FRAMES else rutas
-            frames = [pygame.image.load(io.BytesIO(z.read(r)), 'f.png').convert_alpha() for r in rutas]
-            lado = max(max(f.get_size()) for f in frames)
-            tira = pygame.Surface((lado * len(frames), lado), pygame.SRCALPHA)
-            for i, f in enumerate(frames): tira.blit(f, f.get_rect(center=(i * lado + lado // 2, lado // 2)))   # cada frame centrado en su cuadrado
-            pygame.image.save(tira, os.path.join(assets, 'efectos', efecto + '.png'))
-        print(len(ELEGIDOS), 'efectos en assets/efectos')
+            pygame.image.save(tira_de([abrir(r).convert_alpha() for r in rutas]), os.path.join(assets, 'efectos', efecto + '.png'))
+        hoja = next((os.path.join(c, a) for c, _, archivos in os.walk(assets) if 'move_VFX' not in c for a in archivos if a.endswith(' - Poke Transfer.png')), None)
+        if hoja:
+            hoja = pygame.image.load(hoja).convert_alpha()
+            for efecto, fila in TRANSFER.items():
+                frames = []
+                for col in range(5):
+                    f = hoja.subsurface((518 + 34 * col, 36 + 34 * fila, 32, 32)).copy()
+                    pa = pygame.PixelArray(f); pa.replace((56, 144, 184), (0, 0, 0, 0)); pa.close()
+                    frames.append(f)
+                pygame.image.save(tira_de(frames), os.path.join(assets, 'efectos', efecto + '.png'))
+        print(len(ELEGIDOS) + (len(TRANSFER) if hoja else 0), 'efectos en assets/efectos')
 
     main()
 
@@ -740,6 +1051,7 @@ def herramienta_objetos():
     FONDO = ((211, 211, 211), (255, 0, 255))                        # gris de la casilla y las rayitas magenta de la grilla
 
     def buscar_hoja():
+        """Ruta de la hoja 'Items' de BW o None."""
         for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas'), assets):
             if not os.path.isdir(carpeta): continue
             for archivo in os.listdir(carpeta):
@@ -760,6 +1072,7 @@ def herramienta_objetos():
         return sup
 
     def main():
+        """Recorta todos los iconos de ELEGIDOS a assets/interfaz/objetos."""
         pygame.init(); pygame.display.set_mode((1, 1))
         ruta = buscar_hoja()
         if not ruta: print('falta la hoja (spriters-resource, Black/White > Miscellaneous > Items) en assets/hojas/blanco_negro'); return
@@ -792,6 +1105,7 @@ def herramienta_paneles():
     FONDO_HOJA = {(57, 57, 74), (0, 0, 0), (160, 234, 0), (191, 143, 0)}      # franja detras de las barras, negro, verde y naranja de la hoja
 
     def buscar_hoja(nombre):
+        """Ruta de una hoja de BW con ese nombre o None."""
         for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas'), assets):
             if not os.path.isdir(carpeta): continue
             for archivo in os.listdir(carpeta):
@@ -812,6 +1126,7 @@ def herramienta_paneles():
         return sup
 
     def main():
+        """Recorta todas las PIEZAS a assets/interfaz/paneles."""
         pygame.init(); pygame.display.set_mode((1, 1))
         hojas, hechos, faltan = {}, 0, set()
         carpeta = os.path.join(assets, 'interfaz', 'paneles')
@@ -859,6 +1174,8 @@ if __name__ == '__main__':
     elif orden == 'recortar' and len(sys.argv) > 2: herramienta_recortar(sys.argv[2])
     elif orden == 'hojas': herramienta_hojas()
     elif orden == 'tiles': herramienta_tiles()
+    elif orden == 'decorados': herramienta_decorados()
+    elif orden == 'cielo': herramienta_cielo()
     elif orden == 'efectos': herramienta_efectos()
     elif orden == 'objetos': herramienta_objetos()
     elif orden == 'paneles': herramienta_paneles()

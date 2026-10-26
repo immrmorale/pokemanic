@@ -128,12 +128,14 @@ def armar_pokemones():
 
 
     def normalizar_tipo(tipo):
+        """Tipo en minuscula, sin tildes y en castellano ('Psíquico' o 'psychic' -> 'psiquico')."""
         t = unicodedata.normalize('NFD', str(tipo or '').lower())
         t = ''.join(c for c in t if unicodedata.category(c) != 'Mn').strip()
         return TIPOS_INGLES.get(t, t)
 
 
     def multiplicador_tipos(ataque, defensas):
+        """Multiplicador de un tipo de ataque contra uno o dos tipos (x2, x0.5; la inmunidad deja un poco de daño)."""
         fila = TABLA_TIPOS.get(normalizar_tipo(ataque))
         if not fila: return 1.0
         if isinstance(defensas, str): defensas = [defensas]
@@ -217,11 +219,13 @@ def armar_pokemones():
 
 
     def buscar_movimiento(nombre):
+        """Datos de un movimiento (especiales primero, despues los normales). None si no existe."""
         if nombre in ESPECIALES: return ESPECIALES[nombre]
         return movimientos.get(nombre)
 
 
     def _potenciado(nombre):
+        """Version fuerte de un movimiento para el especial de los atacantes: mas daño, area y alcance, y atraviesa."""
         base = dict(movimientos[nombre])
         base['daño'] = round(base['daño'] * 1.6)
         base['area'] = round(base['area'] * 1.4)
@@ -232,6 +236,8 @@ def armar_pokemones():
 
 
     def _especiales_de(nombre, rol, tipos):
+        """Los 2 especiales segun el rol: atacante (potenciado + danza espada), tanque (defensa + onda),
+        estratega (estado + cura) y velocista (embestida de su tipo + agilidad)."""
         datos = pokemones[nombre]
         basicos = (datos.get('ataque_cuerpo'), datos.get('ataque_proyectil'))
         propios = [a for a in datos.get('ataques', []) if a in movimientos]
@@ -258,6 +264,7 @@ def armar_pokemones():
 
 
     def sinergia_de(nombre):
+        """Pasiva que da el pokemon desde la banca segun su rol (mas fuerte cuanto mas vida base tiene)."""
         d = pokemones[nombre]
         rol = ROL_POKEMON.get(nombre)
         fuerza = 0.03 + 0.04 * max(0.0, min(1.0, (float(d.get('vida_base') or 60) - 40) / 70.0))
@@ -266,6 +273,7 @@ def armar_pokemones():
 
 
     def datos_juego(nombre):
+        """Todo lo que el combate necesita de una especie: vida, velocidad, tamaño, hitbox, multiplicadores y movimientos."""
         d = pokemones[nombre]
         rol = ROL_POKEMON.get(nombre, 'atacante')
         r = ROLES[rol]
@@ -317,17 +325,20 @@ def armar_pokemones():
 
 
     def _aprende(nombre, ingles):
+        """Si la especie aprende ese movimiento en los juegos (sin datos de la PokeAPI cuenta como que si)."""
         lista = _oficiales.get(nombre, {}).get('movimientos')
         return lista is None or ingles in lista
 
 
     def _elegir(nombre, candidatos):
+        """El primer movimiento de la lista que la especie aprende de verdad (o el primero si no hay datos)."""
         for c in candidatos:
             if _oficiales.get(nombre, {}).get('movimientos') is not None and _aprende(nombre, c[1]): return c
         return candidatos[0]
 
 
     def asistencia_de(nombre):
+        """Asistencia de un pokemon (lo que hace desde la banca con F / G) segun su rol y sus tipos."""
         rol = ROL_POKEMON.get(nombre, 'atacante')
         tipos = [normalizar_tipo(t) for t in pokemones[nombre].get('tipo', [])] or ['normal']
         if nombre in ASIST_ESPECIE:
@@ -364,10 +375,12 @@ def armar_pokemones():
 
 
     def _limpiar(n):
+        """Nombre con espacios en vez de guiones."""
         return str(n).replace('-', ' ').replace('_', ' ')
 
 
     def evoluciones_de(nombre):
+        """(de quien evoluciona, [a quienes evoluciona]) con los datos de la PokeAPI o la tabla propia."""
         oficial = _oficiales.get(nombre, {})
         if 'evoluciona_a' in oficial or 'evoluciona_de' in oficial:
             de = oficial.get('evoluciona_de')
@@ -380,20 +393,24 @@ def armar_pokemones():
 
 
     def descripcion_de(nombre):
+        """Texto de la pokedex (PokeAPI) o None."""
         return _oficiales.get(nombre, {}).get('descripcion')
 
 
     def stats_oficiales(nombre):
+        """[(etiqueta, valor)] de los stats base oficiales, o None."""
         s = _oficiales.get(nombre, {}).get('stats')
         return [(etiqueta, s[clave]) for clave, etiqueta in NOMBRES_STATS if clave in s] if s else None
 
 
     def aprende_de(nombre):
+        """Movimientos que aprende en los juegos (PokeAPI) o None."""
         lista = _oficiales.get(nombre, {}).get('movimientos')
         return [_limpiar(m) for m in lista] if lista else None
 
 
     def debilidades_de(nombre):
+        """Tipos agrupados por cuanto le pegan: x4, x2, x0.5, x0.25 y x0."""
         tipos = [normalizar_tipo(t) for t in pokemones[nombre].get('tipo', [])]
         res = {'x4': [], 'x2': [], 'x05': [], 'x025': [], 'x0': []}
         for atk, fila in TABLA_TIPOS.items():
@@ -443,6 +460,7 @@ def armar_mts():
 
 
     def _precio(h):
+        """Precio de una MT: las de buff y escudo valen 180, las de ataque segun su daño y si tienen efecto."""
         if h['modo'] in ('buff', 'escudo'): return 180
         return 120 + round(h.get('daño', 20) * 3) + (40 if h.get('efecto') else 0)
 
@@ -452,6 +470,7 @@ def armar_mts():
 
 
     def datos(nombre):
+        """Datos de combate de una MT (como un movimiento) o None si no es una MT."""
         mt = MTS.get(nombre)
         return mt['datos'] if mt else None
 
@@ -463,6 +482,7 @@ def armar_mts():
 
 
     def aprendibles(pokemon):
+        """MT que puede aprender ese pokemon."""
         return [k for k in MTS if puede_aprender(pokemon, k)]
 
     return SimpleNamespace(**locals())
@@ -543,6 +563,7 @@ def armar_tienda():
 
 
     def inventario_nuevo():
+        """Inventario vacio de una partida nueva."""
         return {'permanente': {}, 'temporal': [], 'repelente': 0, 'tipos': {}, 'critico': [0.0, 0], 'comprados': [], 'objetos': {}}
 
 
@@ -555,6 +576,7 @@ def armar_tienda():
 
 
     def mult_tipo(inv, tipo):
+        """Multiplicador de daño de ese tipo por los objetos potenciadores comprados (carbon, agua mistica...)."""
         return inv['tipos'].get(tipo, 1.0)
 
 
@@ -565,6 +587,7 @@ def armar_tienda():
 
 
     def factor_enemigos(inv):
+        """Con un repelente activo aparece el 65% de los enemigos."""
         return 0.65 if inv['repelente'] > 0 else 1.0
 
 
@@ -763,6 +786,7 @@ def armar_mundos():
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
         'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
+        'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # ayudante de Kecleon
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
     }
@@ -966,6 +990,7 @@ def armar_mundos():
 
 
     def clima_inicial(azar, era):
+        """Clima al azar segun lo comun que es en la era."""
         pesos = ERAS[era]['clima']
         return azar.choices(list(pesos), list(pesos.values()))[0]
 
@@ -987,10 +1012,12 @@ def armar_mundos():
 
 
     def tipo_sala(rec, era=None, sala=None):
+        """Que hay en una sala del plan: 'combate', 'tienda', 'jefe', 'regi' o 'final'."""
         return rec['plan'][rec['era'] if era is None else era][rec['sala'] if sala is None else sala]
 
 
     def salas_de(rec, era=None):
+        """Cuantas salas tiene una era."""
         return len(rec['plan'][rec['era'] if era is None else era])
 
 

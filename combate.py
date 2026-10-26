@@ -55,6 +55,7 @@ def armar_progreso():
 
 
     def base(nombre, clave):
+        """Stat base oficial de la especie (de la PokeAPI), o 60 si no hay datos."""
         return ((_oficiales.get(nombre) or {}).get('stats') or {}).get(clave) or 60
 
 
@@ -65,6 +66,7 @@ def armar_progreso():
 
 
     def _curva(nombre):
+        """Curva de crecimiento de la especie (de la PokeAPI; 'medium' si no hay datos)."""
         return (_oficiales.get(nombre) or {}).get('crecimiento') or 'medium'
 
 
@@ -137,6 +139,7 @@ def armar_progreso():
 
 
     def _jugable(nombre):
+        """Si el pokemon existe en el juego y tiene sprites (asi se puede evolucionar a el)."""
         return nombre in pokemones and tiene_sprites(nombre)
 
 
@@ -158,6 +161,7 @@ def armar_progreso():
 
 
     def texto_requisito(req):
+        """Texto de un requisito de evolucion ('nivel 16', 'amistad 220', 'piedra trueno')."""
         if 'nivel' in req: return 'nivel ' + str(req['nivel'])
         if 'amistad' in req: return 'amistad ' + str(req['amistad'])
         return req['objeto'].replace('_', ' ')
@@ -195,6 +199,7 @@ def armar_progreso():
 
 
     def vida_max(m):
+        """Vida maxima de un miembro: la de su especie por el multiplicador de nivel, IV y EV."""
         return max(1, round(datos_juego(m['nombre'])['max_vida'] * multiplicadores(m)['vida']))
 
     return SimpleNamespace(**locals())
@@ -347,13 +352,14 @@ def armar_ia():
     # ---------- cada frame ----------
 
     def _atacando(enemigos):
+        """Cuantos enemigos de cuerpo a cuerpo estan atacando o embistiendo ahora (para que no ataquen todos a la vez)."""
         return sum(1 for o in enemigos if o['vida'] > 0 and o.get('estilo') in ('pegador', 'rapido') and (o.get('aviso') or o.get('embestida_ia')))
 
 
     def actualizar(e, ctx):
         """
         ctx = {'ent': entorno, 'jugador': j, 'enemigos': [...], 'ahora': ms, 'dañar_jugador': f(daño, tipo),
-               'disparar': f(x, y, dx, dy, daño, tipo, vel, distancia)}
+               'disparar': f(x, y, dx, dy, daño, tipo, vel, distancia), 'parry': f(enemigo) -> True si el jugador bloqueo su golpe}
         """
         ent, j, ahora, enemigos = ctx['ent'], ctx['jugador'], ctx['ahora'], ctx['enemigos']
         if e['estado_hasta'] > ahora and e['estado'] in ('paralizar', 'dormir'): e['aviso'] = None; return   # aturdido: pierde el ataque
@@ -384,7 +390,9 @@ def armar_ia():
             _mover_hacia(ent, e, (ex + em['dx'] * 50, ey + em['dy'] * 50), p['vel_embestida'], [])
             em['restante'] -= p['vel_embestida']
             if not em['pego'] and e['rect'].colliderect(j['rect']):
-                ctx['dañar_jugador'](e['daño'] * 1.3, e['tipo']); em['pego'] = True
+                em['pego'] = True
+                if ctx.get('parry', lambda e: False)(e): return              # te choco justo cuando golpeabas: parry
+                ctx['dañar_jugador'](e['daño'] * 1.3, e['tipo'])
             if em['restante'] <= 0 or e['rect'].center == antes: e['embestida_ia'] = None; e['cd_ataque'] = ahora + p['cd']
             return
 
@@ -449,8 +457,9 @@ def armar_ia():
         ex, ey = e['rect'].center
         a = e['aviso']
         if a['clase'] == 'golpe':
-            if math.hypot(jx - ex, jy - ey) <= (p['alcance'] + max(j['rect'].size) / 2) * 1.25: ctx['dañar_jugador'](e['daño'], e['tipo'])
             e['cd_ataque'] = ahora + p['cd']
+            if math.hypot(jx - ex, jy - ey) <= (p['alcance'] + max(j['rect'].size) / 2) * 1.25:
+                if not ctx.get('parry', lambda e: False)(e): ctx['dañar_jugador'](e['daño'], e['tipo'])   # salvo que le hagas parry
         elif a['clase'] == 'disparo':
             vx, vy = j.get('inercia', (0, 0))                        # apunta un poco adelante de donde vas
             tiempo_bala = math.hypot(jx - ex, jy - ey) / p['vel_bala']
@@ -516,6 +525,7 @@ def armar_ia():
 
 
     def preparar_jefe(b):
+        """Pone en un jefe todos los campos que usan sus ataques (avisos, rayos, tablas, minas, torres...) y su estilo."""
         b.update({'aviso': None, 'prox_rafaga': 0, 'prox_pisoton': 0, 'resto_ia': [0.0, 0.0], 'estilo': ESTILO_JEFE.get(b['nombre'], 'jefe'),
                   'prox_terremoto': None, 'prox_puño': None, 'serie': 0,
                   'fase': 1, 'rayos': [], 'haz': None, 'prox_rayos': None, 'prox_hiperrayo': None, 'prox_sentencia': None, 'vida_tipo': b['vida'], 'prox_cambio': 0,
@@ -559,6 +569,7 @@ def armar_ia():
 
 
     def _dist_segmento(p, a, b):
+        """Distancia de un punto a un segmento (para saber si un rayo te toco)."""
         ax, ay = a; bx, by = b
         largo = (bx - ax) ** 2 + (by - ay) ** 2 or 1
         k = max(0.0, min(1.0, ((p[0] - ax) * (bx - ax) + (p[1] - ay) * (by - ay)) / largo))
@@ -566,6 +577,7 @@ def armar_ia():
 
 
     def fase_arceus(b):
+        """Fase de Arceus (1, 2 o 3) segun cuanta vida le queda."""
         k = b['vida'] / max(1, b['max_vida'])
         return 1 if k > ARCEUS['fases'][0] else 2 if k > ARCEUS['fases'][1] else 3
 
@@ -591,6 +603,7 @@ def armar_ia():
 
 
     def actualizar_arceus(b, ctx):
+        """Arceus: fase 1 rayos y Hiperrayo; fase 2 Multitipo y Sentencias; fase 3 todo mas rapido y las Sentencias rompen el piso."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -632,12 +645,14 @@ def armar_ia():
 
 
     def _aviso_sentencia(b, ahora, espera, mira, fase):
+        """Marca de una Sentencia en el piso: donde cae, cuando y de que tipo."""
         return {'hasta': ahora + espera, 'clase': 'sentencia', 'inicio': ahora, 'mira': mira, 'tipo': b['tipo'], 'rompe': fase == 3}
 
 
     # ---------- Arceus Beta ----------
 
     def pos_tabla(b, t, ahora):
+        """Donde esta una tabla de Arceus Beta: gira en ovalo alrededor de el."""
         ang = t['ang'] + (ahora - t['nace']) * BETA['giro']
         return b['rect'].centerx + math.cos(ang) * t['radio'], b['rect'].centery + math.sin(ang) * t['radio'] * 0.75
 
@@ -658,6 +673,7 @@ def armar_ia():
 
 
     def actualizar_beta(b, ctx):
+        """Arceus Beta flota de lado a lado e invoca tablas de cada tipo que lo orbitan y atacan solas."""
         j, ahora = ctx['jugador'], ctx['ahora']
         mitad = max(j['rect'].size) / 2
         if b['inicio_beta'] is None: b['inicio_beta'], b['centro_beta'], b['prox_tabla'] = ahora, b['rect'].center, ahora + 800
@@ -683,6 +699,7 @@ def armar_ia():
     # ---------- Regis ----------
 
     def _dir(desde, hacia):
+        """Vector de largo 1 de 'desde' hacia 'hacia'."""
         dx, dy = hacia[0] - desde[0], hacia[1] - desde[1]
         n = math.hypot(dx, dy) or 1
         return dx / n, dy / n
@@ -702,6 +719,7 @@ def armar_ia():
 
 
     def actualizar_regice(b, ctx):
+        """Regice: levanta muros de hielo entre los dos y tira un rayo hielo avisado que deja escarcha en el piso."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -727,6 +745,7 @@ def armar_ia():
 
 
     def _poner_roca(b, ctx, puntos):
+        """Deja una roca de Regirock al final de una fila (hasta un maximo por sala)."""
         ent, j = ctx['ent'], ctx['jugador']
         if sum(1 for o in ent['objetos'] if o.get('de_regi') and o['nombre'] == 'roca') >= REGIROCK['max_rocas']: return
         for punto in reversed(puntos[-3:]):
@@ -754,6 +773,7 @@ def armar_ia():
 
 
     def _dash_regirock(b, ctx):
+        """Fuerza bruta de Regirock: carga en linea recta, rompe las rocas que toca y queda aturdido si choca."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         d = b['dash']
         paso = min(REGIROCK['vel_fuerza'], d['restante'])
@@ -774,6 +794,7 @@ def armar_ia():
 
 
     def actualizar_regirock(b, ctx):
+        """Regirock: filas de roca afilada que avanzan; con la mitad de vida, ademas, Fuerza bruta."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -800,6 +821,7 @@ def armar_ia():
 
 
     def _actualizar_minas(b, ctx):
+        """Las minas de Registeel que se cumplen explotan y sueltan 8 balas en estrella."""
         j, ahora = ctx['jugador'], ctx['ahora']
         R = REGISTEEL
         for m in b['minas'][:]:
@@ -831,6 +853,7 @@ def armar_ia():
 
 
     def actualizar_registeel(b, ctx):
+        """Registeel: minas, sierras que rebotan y cada tanto un iman que te tira hacia el."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -866,6 +889,7 @@ def armar_ia():
 
 
     def _crear_torres(b, ctx):
+        """Las torres electricas de Regieleki, en ronda alrededor del centro de la arena."""
         ent, j = ctx['ent'], ctx['jugador']
         sala, tam = ent['sala'], ent['tam']
         cx, cy = sala['columnas'] * tam / 2, sala['filas'] * tam / 2
@@ -878,6 +902,7 @@ def armar_ia():
 
 
     def _rayos5(b, ctx):
+        """Regieleki dispara 5 balas electricas en abanico hacia el jugador."""
         j, R = ctx['jugador'], REGIELEKI
         bx, by = b['rect'].center
         base = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
@@ -887,6 +912,7 @@ def armar_ia():
 
 
     def _ir_a_torre(b, ctx, torre):
+        """Regieleki viaja a una torre dejando una linea electrica que lastima."""
         ahora = ctx['ahora']
         desde = b['rect'].center
         b['modo'], b['viaje'], b['escondido'] = 'viaje', torre, False
@@ -894,6 +920,7 @@ def armar_ia():
 
 
     def _salir_de_torre(b, ctx):
+        """Regieleki deja la torre (rota si le pegaron) y pasa a otra; sin torres libres empieza a teletransportarse."""
         t = b['torre']
         t['estado'] = 'rota' if t['atacada'] else 'gris'
         t['obj']['color'] = COLOR_TORRE[t['estado']]
@@ -908,6 +935,8 @@ def armar_ia():
 
 
     def actualizar_regieleki(b, ctx):
+        """Regieleki: rafagas de 5 rayos; con 3/4 de vida se esconde en torres (pegarle a la torre le pega a el);
+        sin torres se teletransporta y suelta ondas electricas."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
