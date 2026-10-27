@@ -860,7 +860,7 @@ def armar_entorno():
     ESQUINAS = ((2, 1, 4), (8, 4, 16), (32, 16, 64), (128, 64, 1))
     MUROS = ('pared', 'puerta', 'entrada')                       # lo que cuenta como pared para los bordes
     IGUALES = {'pared': MUROS, 'agua': ('agua', 'puente'), 'hielo': ('hielo', 'escarcha'), 'escarcha': ('hielo', 'escarcha')}
-    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
+    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'escarcha', 'torre_dragon', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
     MAGENTA = (255, 0, 255)
     _capas, _por_ruta = {}, {}
 
@@ -1439,6 +1439,27 @@ def armar_entorno():
         """Cuando cae el Regi se van sus muros, rocas y torres."""
         ent['objetos'][:] = [o for o in ent['objetos'] if not o.get('de_regi')]
         ent['version'] += 1
+
+
+    def armar_torre(ent, columnas, filas, fila0):
+        """Regidrago te lleva arriba de una torre: queda un rectangulo gris en el medio y todo lo demas es vacio. Devuelve el rectangulo."""
+        m, tam = ent['m'], ent['tam']
+        ent['guardado'] = ([fila[:] for fila in m], ent['objetos'][:], dict(ent['fuego']))
+        c0 = (len(m[0]) - columnas) // 2
+        for f in range(len(m)):
+            for c in range(len(m[0])): m[f][c] = 'torre_dragon' if fila0 <= f < fila0 + filas and c0 <= c < c0 + columnas else 'vacio'
+        ent['objetos'].clear(); ent['fuego'].clear(); ent['electrico'].clear()
+        ent['version'] += 1; ent['fondo'] = None; ent['cache'].clear(); _buscar_maquinas(ent)
+        return pygame.Rect(c0 * tam, fila0 * tam, columnas * tam, filas * tam)
+
+
+    def desarmar_torre(ent):
+        """Se rompe la torre: vuelve la sala como estaba."""
+        if not ent.get('guardado'): return
+        matriz, objetos, fuego = ent.pop('guardado')
+        for f, fila in enumerate(matriz): ent['m'][f][:] = fila
+        ent['objetos'][:] = objetos; ent['fuego'].update(fuego)
+        ent['version'] += 1; ent['fondo'] = None; ent['cache'].clear(); _buscar_maquinas(ent)
 
 
     def cerrar_vacios(ent):

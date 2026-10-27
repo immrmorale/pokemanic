@@ -503,24 +503,37 @@ def armar_ia():
     FORMA_TABLA = {t: 'marca' for t in ('electrico', 'tierra', 'roca', 'psiquico', 'fantasma', 'hada', 'dragon')}   # cae donde estas
     FORMA_TABLA.update({t: 'abanico' for t in ('fuego', 'volador', 'veneno', 'bicho', 'lucha', 'siniestro')})        # 3 balas en abanico
     ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta', 'regice': 'regice', 'regirock': 'regirock',
-                   'registeel': 'registeel', 'regieleki': 'regieleki'}
+                   'registeel': 'registeel', 'regieleki': 'regieleki', 'regidrago': 'regidrago'}
 
     # Regice: rayo hielo largo que deja escarcha (resbala y congela al que la pisa) y muros de hielo que solo se derriten con fuego
-    REGICE = {'vel': 1.2, 'rayo': 7000, 'aviso_rayo': 1100, 'largo_rayo': 1600, 'ancho_rayo': 26, 'daño_rayo': 1.3, 'haz': 400,
+    REGICE = {'vel': 1.2, 'rayo': 7000, 'aviso_rayo': 1100, 'largo_rayo': 1600, 'ancho_rayo': 46, 'daño_rayo': 1.3, 'haz': 400,
               'muro': 5000, 'bloques': 3, 'max_bloques': 12}
     # Regirock: roca afilada (fila de rocas que deja una roca al final) y desde la mitad de su vida fuerza bruta (se aturde si choca)
-    REGIROCK = {'vel': 1.3, 'roca': 3200, 'aviso_roca': 600, 'paso_roca': 48, 'cada_roca': 55, 'radio_roca': 26, 'largo_roca': 20,
-                'dura_roca': 700, 'daño_roca': 1.1, 'max_rocas': 8,
-                'fuerza': 5000, 'aviso_fuerza': 900, 'largo_fuerza': 750, 'ancho_fuerza': 90, 'vel_fuerza': 15, 'daño_fuerza': 1.6, 'aturdido': 3000}
+    REGIROCK = {'vel': 1.3, 'roca': 3200, 'aviso_roca': 600, 'paso_roca': 72, 'cada_roca': 65, 'radio_roca': 40, 'largo_roca': 13,
+                'dura_roca': 700, 'daño_roca': 1.1, 'max_rocas': 6,
+                'fuerza': 5000, 'aviso_fuerza': 900, 'largo_fuerza': 750, 'ancho_fuerza': 180, 'vel_fuerza': 15, 'daño_fuerza': 1.6, 'aturdido': 3000}
     # Registeel: minas que explotan en 8 balas, sierras que rebotan y un iman que te tira hacia el
-    REGISTEEL = {'vel': 1.0, 'mina': 4200, 'minas_de_a': 3, 'espera_mina': 1300, 'radio_mina': 60, 'daño_mina': 1.0,
+    REGISTEEL = {'vel': 1.0, 'mina': 4200, 'minas_de_a': 3, 'espera_mina': 1300, 'radio_mina': 100, 'daño_mina': 1.0,
                  'daño_bala_mina': 0.5, 'vel_bala_mina': 6, 'dist_bala_mina': 450,
-                 'sierra': 3600, 'sierras_de_a': 2, 'vel_sierra': 7, 'dura_sierra': 5000, 'radio_sierra': 20, 'daño_sierra': 0.9,
+                 'sierra': 3600, 'sierras_de_a': 2, 'vel_sierra': 7, 'dura_sierra': 5000, 'radio_sierra': 34, 'daño_sierra': 0.9,
                  'iman': 12000, 'dura_iman': 5000, 'fuerza_iman': 2.4}
     # Regieleki: 5 rayos; al perder un cuarto de vida se mete en las torres; sin torres se teletransporta con alto voltaje
     REGIELEKI = {'vel': 2.6, 'rayos': 2600, 'aviso_rayos': 500, 'balas': 5, 'abanico': 0.6, 'vel_bala': 10, 'dist_bala': 700, 'daño_bala': 0.55,
-                 'umbral': 0.75, 'torres': 6, 'radio_torres': 7, 'cambio': 3000, 'quedarse': 8000, 'vel_viaje': 22,
-                 'linea': 2500, 'ancho_linea': 14, 'daño_linea': 0.5, 'tele': 2000, 'onda': 3000, 'radio_onda': 330, 'daño_onda': 1.1}
+                 'umbral': 0.75, 'torres': 6, 'radio_torres': 5, 'cambio': 1500, 'quedarse': 5000, 'golpes_torre': 3, 'vel_viaje': 26,
+                 'linea': 2500, 'ancho_linea': 14, 'daño_linea': 0.5, 'tele': 2000, 'onda': 3000, 'radio_onda': 330, 'daño_onda': 1.1, 'segunda_onda': 700}
+    # Regidrago: 3 fases (75% y 25%)
+    #   1  Enfado (embiste dejando fuego) y llama 5 de su tipo
+    #   2  te muerde y te sube a su torre: Cometa Draco, bocas que tiran Dragoaliento y al 25% Draco Energia; despues la torre se rompe
+    #   3  en la sala de nuevo, todo junto menos llamar refuerzos
+    REGIDRAGO = {'vel': 1.4, 'fases': (0.75, 0.25), 'refuerzos': 0.9,
+                 'enfado': 4200, 'aviso_enfado': 850, 'largo_enfado': 800, 'ancho_enfado': 170, 'vel_enfado': 15, 'daño_enfado': 1.5, 'fuego_cada': 170,
+                 'aviso_mordida': 800, 'vel_mordida': 16, 'dura_mordida': 1800, 'daño_mordida': 0.8, 'subida': 1500, 'fundido': 700, 'rompe': 900,
+                 'torre': (15, 3, 2), 'vaiven': 380, 'periodo': 1400,
+                 'cometa': 4500, 'aviso_cometa': 1100, 'cada_meteoro': 110, 'radio_meteoro': 70, 'paso_meteoro': 95, 'largo_cometa': 900, 'daño_meteoro': 1.2,
+                 'boca': 3000, 'max_bocas': 4, 'disparos_boca': 3, 'cada_boca': 1700, 'aviso_boca': 650,
+                 'vel_aliento': 7, 'dist_aliento': 950, 'tam_aliento': 30, 'daño_aliento': 0.55, 'abanico_aliento': 0.18,
+                 'carga_draco': 2000, 'dura_draco': 10000, 'giro_draco': 0.018, 'largo_draco': 1800, 'ancho_draco': 40, 'tick_draco': 300, 'daño_draco': 0.35,
+                 'draco': 26000, 'primer_draco': 9000}
     COLOR_TORRE = {'gris': (130, 130, 130), 'cargada': (250, 220, 40), 'rota': (120, 75, 35)}
 
 
@@ -532,7 +545,9 @@ def armar_ia():
                   'tablas': [], 'marcas': [], 'n_tabla': 0, 'prox_tabla': None, 'inicio_beta': None, 'centro_beta': None,
                   'prox': {}, 'muros': [], 'filas_roca': [], 'circulos': [], 'dash': None, 'aturdido_hasta': 0, 'minas': [], 'sierras': [],
                   'iman_hasta': 0, 'iman_a': None, 'torres': None, 'torre': None, 'modo': 'libre', 'viaje': None, 'lineas': [], 'ondas': [],
-                  'escondido': False, 'vida_guardada': b['vida'], 'prox_linea': 0})
+                  'escondido': False, 'vida_guardada': b['vida'], 'prox_linea': 0,
+                  'etapa': None, 'cometas': [], 'bocas': [], 'draco': None, 'invulnerable': False, 'sin_contacto': False, 'sin_estados': False,
+                  'fundido': None, 'plataforma': None, 'mordida': None, 'pedido': None})
 
 
     def actualizar_regigigas(b, ctx):
@@ -747,9 +762,9 @@ def armar_ia():
     def _poner_roca(b, ctx, puntos):
         """Deja una roca de Regirock al final de una fila (hasta un maximo por sala)."""
         ent, j = ctx['ent'], ctx['jugador']
-        if sum(1 for o in ent['objetos'] if o.get('de_regi') and o['nombre'] == 'roca') >= REGIROCK['max_rocas']: return
+        if sum(1 for o in ent['objetos'] if o.get('de_regi') and o['nombre'] == 'roca_afilada') >= REGIROCK['max_rocas']: return
         for punto in reversed(puntos[-3:]):
-            if entorno.poner_objeto(ent, 'roca', punto, [j['rect'].inflate(10, 10), b['rect']]): ctx['impacto'](*punto, 30, 120); return
+            if entorno.poner_objeto(ent, 'roca_afilada', punto, [j['rect'].inflate(10, 10), b['rect']]): ctx['impacto'](*punto, 30, 120); return
 
 
     def _avanzar_filas(b, ctx):
@@ -772,6 +787,11 @@ def armar_ia():
         b['circulos'] = [c for c in b['circulos'] if ahora < c['hasta']]
 
 
+    def _en_franja(b, j, ancho):
+        """El que embiste pega en todo el ancho de su franja, no solo con el cuerpo."""
+        return math.hypot(j['rect'].centerx - b['rect'].centerx, j['rect'].centery - b['rect'].centery) <= max(max(b['rect'].size), ancho) / 2 + max(j['rect'].size) / 2
+
+
     def _dash_regirock(b, ctx):
         """Fuerza bruta de Regirock: carga en linea recta, rompe las rocas que toca y queda aturdido si choca."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
@@ -784,7 +804,7 @@ def armar_ia():
         golpeados = [o for o in ent['objetos'] if o['solido'] and quiero.colliderect(o['rect'])]
         entorno.mover(ent, b['rect'], px, py, [b['tipo']])
         d['restante'] -= paso
-        if not d['pego'] and b['rect'].colliderect(j['rect']): ctx['dañar_jugador'](b['daño'] * REGIROCK['daño_fuerza'], 'lucha'); d['pego'] = True
+        if not d['pego'] and _en_franja(b, j, REGIROCK['ancho_fuerza']): ctx['dañar_jugador'](b['daño'] * REGIROCK['daño_fuerza'], 'lucha'); d['pego'] = True
         if (px or py) and b['rect'].topleft != quiero.topleft:            # choco contra una roca o una pared
             for o in golpeados:
                 if o['vida'] is not None: entorno.romper(ent, o, 'lucha')
@@ -898,7 +918,7 @@ def armar_ia():
             ang = i * math.tau / REGIELEKI['torres']
             punto = (cx + math.cos(ang) * REGIELEKI['radio_torres'] * tam, cy + math.sin(ang) * REGIELEKI['radio_torres'] * tam)
             o = entorno.poner_objeto(ent, 'torre_electrica', punto, [j['rect'], b['rect']])
-            if o: o['color'] = COLOR_TORRE['gris']; b['torres'].append({'obj': o, 'estado': 'gris', 'entro': 0, 'atacada': False})
+            if o: o['color'] = COLOR_TORRE['gris']; b['torres'].append({'obj': o, 'estado': 'gris', 'entro': 0, 'golpes': 0})
 
 
     def _rayos5(b, ctx):
@@ -922,15 +942,16 @@ def armar_ia():
     def _salir_de_torre(b, ctx):
         """Regieleki deja la torre (rota si le pegaron) y pasa a otra; sin torres libres empieza a teletransportarse."""
         t = b['torre']
-        t['estado'] = 'rota' if t['atacada'] else 'gris'
-        t['obj']['color'] = COLOR_TORRE[t['estado']]
+        if t['estado'] != 'rota': t['estado'] = 'gris'; t['obj']['color'] = COLOR_TORRE['gris']
         libres = [o for o in b['torres'] if o['estado'] == 'gris' and o is not t]
         if not libres:
-            if not t['atacada']: t['estado'] = 'cargada'; t['obj']['color'] = COLOR_TORRE['cargada']; t['entro'] = ctx['ahora']; return
+            if t['estado'] == 'gris': t['estado'] = 'cargada'; t['obj']['color'] = COLOR_TORRE['cargada']; t['entro'] = ctx['ahora']; return
             b['torre'], b['modo'], b['escondido'] = None, 'tele', False
             b['prox']['tele'] = ctx['ahora']
+            _rayos5(b, ctx)
             return
         b['torre'] = None
+        _rayos5(b, ctx)
         _ir_a_torre(b, ctx, random.choice(libres))
 
 
@@ -948,13 +969,16 @@ def armar_ia():
         for t in b['torres']:                                       # pegarle a la torre donde esta le pega a el
             o = t['obj']
             daño = o['max_vida'] - o['vida']
-            if daño > 0 and t is b['torre'] and b['modo'] == 'torre': b['vida'] -= daño; t['atacada'] = True
+            if daño > 0 and t is b['torre'] and b['modo'] == 'torre' and t['estado'] == 'cargada':
+                b['vida'] -= daño; t['golpes'] += 1
+                if t['golpes'] >= R['golpes_torre']: t['estado'] = 'rota'; o['color'] = COLOR_TORRE['rota']
             o['vida'] = o['max_vida']
         b['lineas'] = [l for l in b['lineas'] if ahora < l['hasta']]
         if ahora >= b['prox_linea'] and any(_dist_segmento((jx, jy), l['a'], l['b']) <= R['ancho_linea'] + mitad for l in b['lineas']):
             ctx['dañar_jugador'](b['daño'] * R['daño_linea'], 'electrico'); b['prox_linea'] = ahora + 500
         for o in b['ondas'][:]:
             if ahora >= o['hasta']: b['ondas'].remove(o); continue
+            if ahora < o['inicio']: continue
             radio = R['radio_onda'] * (ahora - o['inicio']) / R['onda']
             if not o['pego'] and abs(math.hypot(jx - o['pos'][0], jy - o['pos'][1]) - radio) <= 22 + mitad:
                 ctx['dañar_jugador'](b['daño'] * R['daño_onda'], 'electrico'); o['pego'] = True
@@ -975,19 +999,227 @@ def armar_ia():
             if d <= R['vel_viaje']:
                 b['rect'].center = (tx, ty)
                 t = b['torre'] = b['viaje']
-                t.update(estado='cargada', entro=ahora, atacada=False); t['obj']['color'] = COLOR_TORRE['cargada']
+                t.update(estado='cargada', entro=ahora); t['obj']['color'] = COLOR_TORRE['cargada']
                 b['modo'], b['viaje'], b['escondido'] = 'torre', None, True
                 b['aviso'] = {'hasta': ahora + R['aviso_rayos'], 'clase': 'rafaga', 'inicio': ahora, 'mira': (jx, jy)}
             else: b['rect'].center = (round(bx + (tx - bx) / d * R['vel_viaje']), round(by + (ty - by) / d * R['vel_viaje']))
         elif b['modo'] == 'torre':
             t = b['torre']
-            if (t['atacada'] and ahora - t['entro'] >= R['cambio']) or ahora - t['entro'] >= R['quedarse']: _salir_de_torre(b, ctx)
+            if (t['estado'] == 'rota' and ahora - t['entro'] >= R['cambio']) or ahora - t['entro'] >= R['quedarse']: _salir_de_torre(b, ctx)
         elif ahora >= p['tele']:                                    # sin torres: se teletransporta con alto voltaje
             p['tele'] = ahora + R['tele']
             b['rect'].center = entorno.punto_libre(ent, random, (jx, jy), 220)
-            b['ondas'].append({'pos': b['rect'].center, 'inicio': ahora, 'hasta': ahora + R['onda'], 'pego': False})
+            for espera in (0, R['segunda_onda']):
+                b['ondas'].append({'pos': b['rect'].center, 'inicio': ahora + espera, 'hasta': ahora + espera + R['onda'], 'pego': False})
             ctx['impacto'](*b['rect'].center, 60, 150)
         b['vida_guardada'] = b['vida']
+
+
+    # ---------- Regidrago ----------
+
+    def _dash_regidrago(b, ctx):
+        """Enfado: como Fuerza Bruta pero no se aturde, y va dejando fuego."""
+        ent, j = ctx['ent'], ctx['jugador']
+        R, d = REGIDRAGO, b['dash']
+        paso = min(R['vel_enfado'], d['restante'])
+        d['resto'][0] += d['dir'][0] * paso; d['resto'][1] += d['dir'][1] * paso
+        px, py = int(d['resto'][0]), int(d['resto'][1])
+        d['resto'][0] -= px; d['resto'][1] -= py
+        quiero = b['rect'].move(px, py)
+        entorno.mover(ent, b['rect'], px, py, [b['tipo']])
+        d['restante'] -= paso; d['fuego'] -= paso
+        if d['fuego'] <= 0:
+            d['fuego'] = R['fuego_cada']
+            entorno.encender(ent, *entorno.casilla(ent, *b['rect'].center))
+        if not d['pego'] and _en_franja(b, j, R['ancho_enfado']): ctx['dañar_jugador'](b['daño'] * R['daño_enfado'], 'dragon'); d['pego'] = True
+        if (px or py) and b['rect'].topleft != quiero.topleft: ctx['impacto'](*b['rect'].center, 90, 300); b['dash'] = None
+        elif d['restante'] <= 0: b['dash'] = None
+
+
+    def _cometa(b, ctx, puntos):
+        primero = ctx['ahora'] + REGIDRAGO['aviso_cometa']
+        b['cometas'].append({'puntos': [{'pos': p, 'cae': primero + i * REGIDRAGO['cada_meteoro'], 'cayo': False} for i, p in enumerate(puntos)], 'inicio': ctx['ahora']})
+
+
+    def _cometa_torre(b, ctx):
+        """Banda de meteoritos de punta a punta de la torre, a la altura donde estas."""
+        R, plat, j = REGIDRAGO, b['plataforma'], ctx['jugador']
+        y = max(plat.top + R['radio_meteoro'] // 2, min(plat.bottom - R['radio_meteoro'] // 2, j['rect'].centery))
+        xs = list(range(plat.left + R['radio_meteoro'] // 2, plat.right, R['paso_meteoro']))
+        if random.random() < 0.5: xs.reverse()
+        _cometa(b, ctx, [(x, y) for x in xs])
+
+
+    def _cometa_suelo(b, ctx):
+        """Banda de meteoritos que pasa por donde estas, en cualquier direccion."""
+        R, (jx, jy) = REGIDRAGO, ctx['jugador']['rect'].center
+        ang = random.uniform(0, math.tau)
+        n = R['largo_cometa'] // R['paso_meteoro']
+        _cometa(b, ctx, [(jx + math.cos(ang) * (i - n / 2) * R['paso_meteoro'], jy + math.sin(ang) * (i - n / 2) * R['paso_meteoro']) for i in range(n + 1)])
+
+
+    def _actualizar_cometas(b, ctx):
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
+        for c in b['cometas'][:]:
+            for m in c['puntos']:
+                if m['cayo'] or ahora < m['cae']: continue
+                m['cayo'] = True
+                x, y = m['pos']
+                if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_meteoro'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * R['daño_meteoro'], 'dragon')
+                ctx['impacto'](x, y, R['radio_meteoro'], 120)
+            if all(m['cayo'] for m in c['puntos']): b['cometas'].remove(c)
+
+
+    def _boca(b, ctx, pos):
+        b['bocas'].append({'pos': pos, 'prox': ctx['ahora'] + 600, 'disparos': REGIDRAGO['disparos_boca'], 'mira': None, 'hasta': 0, 'nace': ctx['ahora']})
+
+
+    def _boca_torre(b, ctx):
+        """Las bocas salen del vacio alrededor de la torre (arriba o a los costados)."""
+        plat = b['plataforma']
+        lado = random.choice(('arriba', 'arriba', 'izq', 'der'))
+        if lado == 'arriba': pos = (random.randint(plat.left + 60, plat.right - 60), plat.top - 90)
+        else: pos = (plat.left - 100 if lado == 'izq' else plat.right + 100, random.randint(plat.top + 40, plat.bottom - 40))
+        _boca(b, ctx, pos)
+
+
+    def _actualizar_bocas(b, ctx):
+        """Cada boca apunta a un punto (en la torre, o cerca tuyo) y tira Dragoaliento: 3 llamaradas en abanico."""
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
+        jx, jy = j['rect'].center
+        for boca in b['bocas'][:]:
+            x, y = boca['pos']
+            if boca['mira'] and ahora >= boca['hasta']:
+                base = math.atan2(boca['mira'][1] - y, boca['mira'][0] - x)
+                for k in (-1, 0, 1):
+                    ang = base + k * R['abanico_aliento']
+                    ctx['disparar'](x, y, math.cos(ang), math.sin(ang), b['daño'] * R['daño_aliento'], 'dragon', R['vel_aliento'], R['dist_aliento'], R['tam_aliento'])
+                boca['mira'], boca['prox'] = None, ahora + R['cada_boca']
+                boca['disparos'] -= 1
+                if boca['disparos'] <= 0: b['bocas'].remove(boca)
+            elif not boca['mira'] and ahora >= boca['prox']:
+                plat = b['plataforma']
+                boca['mira'] = (random.randint(plat.left, plat.right), random.randint(plat.top, plat.bottom)) if plat else (jx + random.randint(-140, 140), jy + random.randint(-140, 140))
+                boca['hasta'] = ahora + R['aviso_boca']
+
+
+    def _empezar_draco(b, ctx, volver):
+        """Draco Energia: se queda quieto y no recibe daño; carga 2 s y despues un rayo que te sigue 10 s."""
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
+        bx, by = b['rect'].center
+        b.update(etapa='draco', invulnerable=True, sin_estados=True, aviso=None, dash=None, bocas=[])
+        b['draco'] = {'inicio': ahora, 'dispara': ahora + R['carga_draco'], 'fin': ahora + R['carga_draco'] + R['dura_draco'], 'prox': 0, 'volver': volver,
+                      'ang': math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)}
+
+
+    def _actualizar_draco(b, ctx):
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
+        d = b['draco']
+        bx, by = b['rect'].center
+        quiero = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        if ahora < d['dispara']: d['ang'] = quiero; return
+        dif = (quiero - d['ang'] + math.pi) % math.tau - math.pi
+        d['ang'] += max(-R['giro_draco'], min(R['giro_draco'], dif))
+        d['fin_rayo'] = (bx + math.cos(d['ang']) * R['largo_draco'], by + math.sin(d['ang']) * R['largo_draco'])
+        if ahora >= d['prox'] and _dist_segmento(j['rect'].center, (bx, by), d['fin_rayo']) <= R['ancho_draco'] + max(j['rect'].size) / 2:
+            ctx['dañar_jugador'](b['daño'] * R['daño_draco'], 'dragon'); d['prox'] = ahora + R['tick_draco']
+        if ahora < d['fin']: return
+        b.update(draco=None, invulnerable=False)
+        if d['volver']:                                             # se rompe la torre
+            b.update(etapa='rompe', fin_etapa=ahora + R['rompe'], fundido=(ahora, ahora + R['rompe'], True))
+            ctx['impacto'](bx, by, 300, R['rompe'])
+        else:
+            b.update(etapa='suelo', sin_estados=False); b['prox']['draco'] = ahora + R['draco']
+
+
+    def subir_regidrago(b, plataforma, ahora):
+        """Ya estan arriba de la torre: Regidrago flota delante, moviendose de un lado al otro."""
+        R = REGIDRAGO
+        b.update(plataforma=plataforma, etapa='torre', fase=2, invulnerable=False, sin_contacto=True, sin_estados=True, cometas=[], bocas=[],
+                 inicio_torre=ahora, fundido=(ahora, ahora + R['fundido'], False), centro_torre=(plataforma.centerx, plataforma.bottom + b['rect'].height // 2 + 10))
+        b['rect'].center = b['centro_torre']
+        b['prox'].update(cometa=ahora + 1800, boca=ahora + 1000)
+
+
+    def bajar_regidrago(b, centro, ahora):
+        """La torre se rompio: de vuelta en la sala, tercera fase."""
+        R = REGIDRAGO
+        b['rect'].center = centro
+        b.update(plataforma=None, etapa='suelo', fase=3, invulnerable=False, sin_contacto=False, sin_estados=False, cometas=[], bocas=[],
+                 fundido=(ahora, ahora + R['fundido'], False))
+        b['prox'].update(enfado=ahora + 2500, cometa=ahora + 1500, boca=ahora + 3500, draco=ahora + R['primer_draco'])
+
+
+    def alfa_fundido(b, ahora):
+        """Pantalla blanca al subir y al romperse la torre."""
+        if not b.get('fundido'): return 0
+        inicio, fin, sube = b['fundido']
+        k = max(0.0, min(1.0, (ahora - inicio) / max(1, fin - inicio)))
+        if not sube and k >= 1: b['fundido'] = None
+        return round(255 * (k if sube else 1 - k))
+
+
+    def actualizar_regidrago(b, ctx):
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        jx, jy = j['rect'].center
+        bx, by = b['rect'].center
+        R, p = REGIDRAGO, b['prox']
+        if b['etapa'] is None: b['etapa'] = 'suelo'; p.update(enfado=ahora + 2500)
+        if b['invulnerable']: b['vida'] = b['vida_guardada']
+        if b['fase'] == 1: b['vida'] = max(b['vida'], b['max_vida'] * R['fases'][0])        # cada fase se juega entera
+        elif b['fase'] == 2: b['vida'] = max(b['vida'], b['max_vida'] * R['fases'][1])
+        b['vida_guardada'] = b['vida']
+        _actualizar_cometas(b, ctx)
+        _actualizar_bocas(b, ctx)
+        etapa = b['etapa']
+        if etapa == 'draco': _actualizar_draco(b, ctx); return
+        if etapa == 'rompe':
+            if ahora >= b['fin_etapa']: b['etapa'], b['pedido'] = 'esperando', 'bajar'
+            return
+        if etapa == 'esperando': return
+        if etapa == 'mordida':
+            if b['aviso']:
+                if ahora < b['aviso']['hasta']: return
+                b['aviso'] = None
+            dx, dy = _dir((bx, by), (jx, jy))
+            b['rect'].center = (round(bx + dx * R['vel_mordida']), round(by + dy * R['vel_mordida']))
+            if b['rect'].colliderect(j['rect']) or ahora >= b['mordida']:
+                ctx['dañar_jugador'](b['daño'] * R['daño_mordida'], 'dragon'); ctx['impacto'](jx, jy, 60, 300)
+                b.update(etapa='subida', fin_etapa=ahora + R['subida'], fundido=(ahora, ahora + R['subida'], True), sin_contacto=True)
+                j['atrapado_hasta'] = ahora + 10 ** 7
+            return
+        if etapa == 'subida':                                       # te lleva en la boca y sube
+            b['rect'].y -= 2
+            j['rect'].center = (b['rect'].centerx, b['rect'].centery + 30)
+            if ahora >= b['fin_etapa']: b['etapa'], b['pedido'] = 'esperando', 'subir'
+            return
+        if etapa == 'torre':
+            b['rect'].centerx = round(b['centro_torre'][0] + math.sin((ahora - b['inicio_torre']) / R['periodo']) * R['vaiven'])
+            if b['vida'] <= b['max_vida'] * R['fases'][1]: _empezar_draco(b, ctx, True); return
+            if ahora >= p['cometa']: p['cometa'] = ahora + R['cometa']; _cometa_torre(b, ctx)
+            if ahora >= p['boca'] and len(b['bocas']) < R['max_bocas']: p['boca'] = ahora + R['boca']; _boca_torre(b, ctx)
+            return
+        if b['fase'] == 1 and b['vida'] <= b['max_vida'] * R['fases'][0]:   # 75%: te muerde
+            b.update(etapa='mordida', invulnerable=True, sin_estados=True, dash=None, cometas=[], mordida=ahora + R['aviso_mordida'] + R['dura_mordida'])
+            b['aviso'] = {'hasta': ahora + R['aviso_mordida'], 'clase': 'mordida', 'inicio': ahora}
+            return
+        if b['dash']: _dash_regidrago(b, ctx); return
+        a = b['aviso']
+        if a:
+            if ahora < a['hasta']: return
+            b['aviso'] = None
+            b['dash'] = {'dir': a['dir'], 'restante': R['largo_enfado'], 'pego': False, 'resto': [0.0, 0.0], 'fuego': R['fuego_cada'] // 2}
+            return
+        if b['fase'] == 3:
+            if ahora >= p['draco']: _empezar_draco(b, ctx, False); return
+            if ahora >= p['cometa']: p['cometa'] = ahora + R['cometa']; _cometa_suelo(b, ctx)
+            if ahora >= p['boca'] and len(b['bocas']) < R['max_bocas']:
+                p['boca'] = ahora + R['boca']; _boca(b, ctx, entorno.punto_libre(ent, random, (jx, jy), 300))
+        if ahora >= p['enfado']:
+            p['enfado'] = ahora + R['enfado']
+            b['aviso'] = {'hasta': ahora + R['aviso_enfado'], 'clase': 'enfado', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy)),
+                          'largo': R['largo_enfado'], 'ancho': R['ancho_enfado']}; return
+        if math.hypot(jx - bx, jy - by) > 260: _ir_a(ent, b, (jx, jy), R['vel'], [])
 
 
     def actualizar_jefe(b, ctx):
@@ -999,6 +1231,7 @@ def armar_ia():
         if b['estilo'] == 'regirock': actualizar_regirock(b, ctx); return
         if b['estilo'] == 'registeel': actualizar_registeel(b, ctx); return
         if b['estilo'] == 'regieleki': actualizar_regieleki(b, ctx); return
+        if b['estilo'] == 'regidrago': actualizar_regidrago(b, ctx); return
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -1055,6 +1288,68 @@ def armar_ia():
         if k > 0: pygame.draw.circle(ventana, color, centro, max(1, round(radio * k)), 0 if k > 0.95 else 3)
 
 
+    def _dibujar_boca(ventana, pos, ang, abierta):
+        """Cabeza de dragon de piedra, como la de Regidrago, mirando hacia ang."""
+        x, y = pos
+        p = lambda d, a: (x + math.cos(ang + a) * d, y + math.sin(ang + a) * d)
+        abre = 0.25 + 0.35 * abierta
+        pygame.draw.circle(ventana, (95, 75, 70), (round(x), round(y)), 30)
+        pygame.draw.polygon(ventana, (200, 120, 45), [p(18, -1.1), p(62, -abre), p(40, -0.05), p(14, -0.2)])
+        pygame.draw.polygon(ventana, (200, 120, 45), [p(18, 1.1), p(62, abre), p(40, 0.05), p(14, 0.2)])
+        pygame.draw.polygon(ventana, (40, 25, 25), [p(14, -0.2), p(40, -0.05), p(40, 0.05), p(14, 0.2)])
+        pygame.draw.circle(ventana, (40, 30, 30), (round(x), round(y)), 30, 3)
+        for s in (-1, 1): pygame.draw.circle(ventana, (255, 70, 60), [round(v) for v in p(14, s * 0.9)], 5)
+
+
+    def _dibujar_regidrago(ventana, e, x, y, cx, cy, ahora):
+        R = REGIDRAGO
+        W, H = ventana.get_size()
+        for c in e['cometas']:                                      # banda roja y los meteoritos cayendo de a uno
+            quedan = [m for m in c['puntos'] if not m['cayo']]
+            if not quedan: continue
+            velo = pygame.Surface((W, H), pygame.SRCALPHA)
+            a0 = (quedan[0]['pos'][0] - cx, quedan[0]['pos'][1] - cy); a1 = (c['puntos'][-1]['pos'][0] - cx, c['puntos'][-1]['pos'][1] - cy)
+            pygame.draw.line(velo, (230, 30, 30, 70), a0, a1, R['radio_meteoro'] * 2)
+            for punta in (a0, a1): pygame.draw.circle(velo, (230, 30, 30, 70), [round(v) for v in punta], R['radio_meteoro'])
+            ventana.blit(velo, (0, 0))
+            for m in quedan:
+                mx, my = round(m['pos'][0] - cx), round(m['pos'][1] - cy)
+                k = max(0.0, min(1.0, 1 - (m['cae'] - ahora) / R['aviso_cometa']))
+                pygame.draw.circle(ventana, (255, 60, 40), (mx, my), R['radio_meteoro'], 2)
+                pygame.draw.circle(ventana, (255, 60, 40), (mx, my), max(1, round(R['radio_meteoro'] * k)), 2)
+                falta = m['cae'] - ahora
+                if falta < 450:
+                    t = falta / 450
+                    px, py = mx - 180 * t, my - 320 * t
+                    pygame.draw.line(ventana, (255, 170, 60), (px - 60, py - 100), (px, py), 10)
+                    pygame.draw.circle(ventana, (120, 60, 160), (round(px), round(py)), 22)
+                    pygame.draw.circle(ventana, (255, 200, 90), (round(px), round(py)), 22, 4)
+        for boca in e['bocas']:
+            bx, by = boca['pos'][0] - cx, boca['pos'][1] - cy
+            mira = boca['mira']
+            ang = math.atan2(mira[1] - boca['pos'][1], mira[0] - boca['pos'][0]) if mira else math.atan2(y - by, x - bx) + math.pi
+            if mira:
+                k = max(0.0, min(1.0, 1 - (boca['hasta'] - ahora) / R['aviso_boca']))
+                pygame.draw.line(ventana, (170, 90, 255), (bx, by), (mira[0] - cx, mira[1] - cy), 1 + round(4 * k))
+                pygame.draw.circle(ventana, (170, 90, 255), (round(mira[0] - cx), round(mira[1] - cy)), 18, 2)
+            _dibujar_boca(ventana, (bx, by), ang, 1.0 if mira else 0.2)
+        d = e['draco']
+        if d:
+            if ahora < d['dispara']:                                # carga: anillos que se cierran
+                k = (ahora - d['inicio']) / R['carga_draco']
+                for i in range(3):
+                    r = round(140 * (1 - ((k * 3 + i / 3) % 1)) + 20)
+                    pygame.draw.circle(ventana, (190, 80, 255), (x, y), r, 3)
+                pygame.draw.circle(ventana, (255, 170, 255), (x, y), round(10 + 40 * k))
+                pygame.draw.line(ventana, (190, 80, 255), (x, y), (x + math.cos(d['ang']) * R['largo_draco'], y + math.sin(d['ang']) * R['largo_draco']), 1)
+            elif d.get('fin_rayo'):
+                fin = (d['fin_rayo'][0] - cx, d['fin_rayo'][1] - cy)
+                ancho = R['ancho_draco'] + round(math.sin(ahora / 40) * 6)
+                pygame.draw.line(ventana, (130, 40, 210), (x, y), fin, ancho * 2)
+                pygame.draw.line(ventana, (255, 190, 255), (x, y), fin, ancho)
+                pygame.draw.circle(ventana, (255, 220, 255), (x, y), ancho)
+
+
     def dibujar_avisos(ventana, lista, cx, cy, ahora, fuente=None, colores=None):
         """Anillos, lineas y miras que avisan cada ataque, y el '!' cuando un enemigo te descubre."""
         for e in lista:
@@ -1104,11 +1399,21 @@ def armar_ia():
                     for i in range(1, REGIROCK['largo_roca'] + 1, 2):
                         d = max(e['rect'].size) / 2 + i * REGIROCK['paso_roca']
                         pygame.draw.circle(ventana, (150, 110, 60), (round(x + a['dir'][0] * d), round(y + a['dir'][1] * d)), 6, 2)
-                elif a['clase'] == 'fuerza_bruta':                  # franja roja por donde va a embestir
+                elif a['clase'] == 'mordida':                       # colmillos que se cierran
+                    r = max(e['rect'].size) // 2 + 40
+                    pygame.draw.circle(ventana, (255, 50, 40), (x, y), round(r * (1.3 - 0.3 * k)), 4)
+                    for lado in (-1, 1):
+                        for i in (-1, 0, 1):
+                            bx_ = x + i * 26
+                            by_ = y + lado * (r * (1 - 0.7 * k))
+                            pygame.draw.polygon(ventana, (255, 240, 230), [(bx_ - 10, by_), (bx_ + 10, by_), (bx_, by_ - lado * 26)])
+                elif a['clase'] in ('fuerza_bruta', 'enfado'):      # franja roja por donde va a embestir
                     W, H = ventana.get_size()
                     velo = pygame.Surface((W, H), pygame.SRCALPHA)
-                    fin = (x + a['dir'][0] * REGIROCK['largo_fuerza'], y + a['dir'][1] * REGIROCK['largo_fuerza'])
-                    pygame.draw.line(velo, (230, 30, 30, 70 + round(90 * k)), (x, y), fin, REGIROCK['ancho_fuerza'])
+                    largo, ancho = a.get('largo', REGIROCK['largo_fuerza']), a.get('ancho', REGIROCK['ancho_fuerza'])
+                    fin = (x + a['dir'][0] * largo, y + a['dir'][1] * largo)
+                    pygame.draw.line(velo, (230, 30, 30, 70 + round(90 * k)), (x, y), fin, ancho)
+                    pygame.draw.circle(velo, (230, 30, 30, 70 + round(90 * k)), (round(fin[0]), round(fin[1])), ancho // 2)
                     ventana.blit(velo, (0, 0))
                     pygame.draw.line(ventana, (255, 60, 40), (x, y), fin, 2)
                 elif a['clase'] == 'sentencia':                     # el sello de Arceus del color de su tipo
@@ -1161,10 +1466,11 @@ def armar_ia():
                 pygame.draw.line(ventana, (255, 240, 80), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), REGIELEKI['ancho_linea'])
                 pygame.draw.line(ventana, (255, 255, 220), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), 3)
             for o in e.get('ondas', ()):                            # alto voltaje
-                radio = round(REGIELEKI['radio_onda'] * (ahora - o['inicio']) / REGIELEKI['onda'])
+                radio = round(REGIELEKI['radio_onda'] * max(0, ahora - o['inicio']) / REGIELEKI['onda'])
                 if radio > 2:
                     pygame.draw.circle(ventana, (255, 230, 50), (round(o['pos'][0] - cx), round(o['pos'][1] - cy)), radio, 6)
                     pygame.draw.circle(ventana, (255, 255, 200), (round(o['pos'][0] - cx), round(o['pos'][1] - cy)), radio, 2)
+            if e.get('cometas') or e.get('bocas') or e.get('draco'): _dibujar_regidrago(ventana, e, x, y, cx, cy, ahora)
             if e.get('aturdido_hasta', 0) > ahora:                  # aturdido: estrellitas arriba de la cabeza
                 for i in range(3):
                     ang = ahora / 200 + i * math.tau / 3
@@ -1183,6 +1489,10 @@ def armar_ia():
                 pygame.draw.rect(ventana, color, placa, border_radius=5)
                 pygame.draw.rect(ventana, (255, 255, 255) if t['prox'] - ahora < 400 else (20, 20, 20), placa, 3, border_radius=5)
                 pygame.draw.circle(ventana, (255, 255, 255), placa.center, 7, 2)
+            alfa = alfa_fundido(e, ahora) if e.get('fundido') else 0
+            if alfa:
+                velo = pygame.Surface(ventana.get_size()); velo.fill((255, 255, 255)); velo.set_alpha(alfa)
+                ventana.blit(velo, (0, 0))
             if e.get('grito', 0) > ahora and fuente:
                 t = fuente.render('!', True, (255, 230, 40))
                 ventana.blit(t, t.get_rect(midbottom=(x, e['rect'].top - cy - 10)))

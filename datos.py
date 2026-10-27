@@ -714,6 +714,7 @@ def armar_mundos():
         # lo que deja la Sentencia de Arceus en su ultima fase: no se cruza (ni volando), pero los ataques pasan por arriba
         'vacio': {'color': (12, 6, 24), 'bloquea': True},
         'escarcha': {'color': (200, 238, 255), 'bloquea': False},                 # piso que congela el rayo hielo de Regice
+        'torre_dragon': {'color': (128, 128, 136), 'bloquea': False},             # techo de la torre a donde te lleva Regidrago
     }
 
     # objetos: tamaño en pixeles, material, vida (None = no se rompe), forma y color del dibujo provisorio
@@ -781,7 +782,8 @@ def armar_mundos():
         'estatua_de_titan': {'tam': (80, 90), 'material': 'piedra', 'vida': None, 'color': (160, 150, 190)},
         # lo que arman los Regis en su sala (se va cuando caen)
         'muro_de_hielo': {'tam': (62, 62), 'material': 'hielo_eterno', 'vida': 60, 'color': (150, 215, 245), 'al_romper': 'charco'},
-        'torre_electrica': {'tam': (64, 64), 'material': 'torre', 'vida': 100000, 'color': (130, 130, 130)},
+        'torre_electrica': {'tam': (110, 110), 'material': 'torre', 'vida': 100000, 'color': (130, 130, 130)},
+        'roca_afilada': {'tam': (96, 88), 'material': 'piedra', 'vida': 170, 'forma': 'circulo', 'color': (125, 110, 95), 'cobertura': True},
         # tienda (no se rompen)
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
@@ -963,7 +965,7 @@ def armar_mundos():
                    'piezas': {'ruinas': 1}, 'num_piezas': (1, 2), 'objetos': {}, 'cantidad': (0, 0)}},   # Regigigas y Arceus: arena redonda y mas grande
     ]
     REGIS = tuple(e['regi'] for e in ERAS if 'plan_fijo' not in e)     # los 5 Regis de las eras (no Regigigas)
-    ARENA_REGI = {'forma': {'circulo': 1}, 'tamaño': (25, 25), 'simetria': {'no': 1}, 'paredes': (0, 0),   # sala de los 5 Regis: redonda, grande y vacia
+    ARENA_REGI = {'forma': {'circulo': 1}, 'tamaño': (19, 19), 'simetria': {'no': 1}, 'paredes': (0, 0),   # sala de los 5 Regis: redonda, grande y vacia
                   'piezas': {}, 'num_piezas': (0, 0), 'objetos': {}, 'cantidad': (0, 0)}
 
 

@@ -586,6 +586,7 @@ def main():
         MINI_REGI = {'cada': 11000, 'primera': 4000, 'de_a': 2, 'max': 4, 'vida': 1.6, 'daño': 0.8, 'tam': 58, 'niveles_menos': 4}   # Regigigas invoca Regis chiquitos
         FASES_ARCEUS = {2: 'Multitipo: cambia de tipo con cada golpe', 3: 'Cada Sentencia rompe el piso'}
         FASES_BETA = {2: 'Fase 2', 3: 'Fase 3'}
+        FASES_REGIDRAGO = {2: 'Te llevo a lo alto de su torre', 3: 'Se rompio la torre: ahora usa todo'}
         # cuando cae Arceus: caen Sentencias sobre la mitad de arriba (queda vacia) y aparece Arceus Beta flotando ahi
         LLEGADA_BETA = {'espera': 1500, 'cada': 160, 'aviso': 900, 'paso': 260, 'radio': 130, 'vida': 2.0, 'nivel_mas': 4}
         FRIO_MAX, CARGA_FRIO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 0.9, 0.5, 3000   # barra de congelamiento (escarcha de Regice)
@@ -763,7 +764,7 @@ def main():
             """Mover al jugador, la camara y hacia donde apunta."""
             def mover_jugador(j, piedras):
                 """Mueve al jugador segun las teclas o la palanca: correr gasta energia, el hielo resbala y las cintas empujan."""
-                if tiempo() < j['congelado_hasta']:
+                if tiempo() < max(j['congelado_hasta'], j.get('atrapado_hasta', 0)):
                     j['moviendose'] = j['corriendo'] = False; j['inercia'] = [0.0, 0.0]; return
                 dx, dy = controles.direccion()                   # teclas del perfil, palanca o cruz del control
                 j['moviendose'] = bool(dx or dy)
@@ -952,6 +953,7 @@ def main():
 
             def descongelar(j, tipo):
                 """Congelado solo se puede usar un movimiento de hielo, y te descongela."""
+                if tiempo() < j.get('atrapado_hasta', 0): return False
                 if tiempo() >= j['congelado_hasta']: return True
                 if normalizar_tipo(tipo) != 'hielo': return False
                 j['congelado_hasta'] = 0; j['frio'] = 0.0
@@ -1091,6 +1093,7 @@ def main():
                 efectos.golpe(mundo['ef'], *obj['rect'].center, color, normalizar_tipo(datos.get('tipo')))   # chispas del color del tipo
                 if obj.get('objeto'):                                   # barriles, arboles, autos...: los maneja el entorno
                     entorno.dañar_objeto(mundo['ent'], obj, datos, direccion, tiempo()); return
+                if obj.get('invulnerable'): return
                 ataque_tipo = datos.get('tipo') or datos.get('tipo_ataque')
                 defensa_tipo = obj.get('tipo')
                 try: daño_base = float(datos.get('daño', 0))
@@ -1164,13 +1167,15 @@ def main():
             def invocaciones_jefe(nivel, j, jefe):
                 """Los Regis llaman refuerzos de su tipo al perder un cuarto de vida; Regigigas invoca Regis chiquitos cada tanto; Arceus avisa cada fase."""
                 ahora = tiempo()
-                if jefe['estilo'] in ('arceus', 'beta') and jefe['fase'] != jefe.setdefault('fase_vista', 1):
+                if jefe['estilo'] in ('arceus', 'beta', 'regidrago') and jefe['fase'] != jefe.setdefault('fase_vista', 1):
                     jefe['fase_vista'] = jefe['fase']
-                    textos = FASES_ARCEUS if jefe['estilo'] == 'arceus' else FASES_BETA
+                    textos = {'arceus': FASES_ARCEUS, 'beta': FASES_BETA, 'regidrago': FASES_REGIDRAGO}[jefe['estilo']]
                     cartel(nivel, jefe['nombre'].replace('_', ' ').title() + ' - Fase ' + str(jefe['fase']), 2400, textos.get(jefe['fase']), grande=True)
                     efectos.explosion(mundo['ef'], *jefe['rect'].center, 200); nivel['temblor'] = ahora + 700
                 marcar = lambda **extra: nivel['apariciones'].append(dict({'pos': entorno.punto_libre(nivel['ent'], random, j['rect'].center, 260), 'hasta': ahora + 900}, **extra))
-                if jefe['nombre'] in mundos.REGIS and not jefe.get('refuerzos') and jefe['vida'] <= jefe['max_vida'] * REFUERZOS_REGI['umbral']:
+                if jefe['estilo'] == 'regidrago': torre_regidrago(nivel, j, jefe, ahora)
+                umbral = ia.REGIDRAGO['refuerzos'] if jefe['estilo'] == 'regidrago' else REFUERZOS_REGI['umbral']
+                if jefe['nombre'] in mundos.REGIS and not jefe.get('refuerzos') and jefe['vida'] <= jefe['max_vida'] * umbral and jefe['fase'] == 1:
                     jefe['refuerzos'] = True
                     pool = pokemon_de_tipo(jefe['tipo'], nivel['sala']['era'])
                     for _ in range(REFUERZOS_REGI['cantidad']): marcar(nombre=random.choice(pool), nv=nivel['nivel_enemigos'] - REFUERZOS_REGI['niveles_menos'])
@@ -1184,6 +1189,23 @@ def main():
                             jefe['mini_i'] = jefe.get('mini_i', -1) + 1                # va pasando por los 5 Regis
                             marcar(nombre=mundos.REGIS[jefe['mini_i'] % len(mundos.REGIS)], mini=True)
                         cartel(nivel, 'Regigigas llama a los Regis!', 1600)
+
+            def torre_regidrago(nivel, j, jefe, ahora):
+                """Regidrago pide subir (te mordio) o bajar (se rompio la torre). Los que estaban en la sala esperan abajo."""
+                pedido, jefe['pedido'] = jefe['pedido'], None
+                ent, tam = nivel['ent'], nivel['sala']['tam']
+                if pedido == 'subir':
+                    nivel['abajo'] = nivel['enemigos']; nivel['enemigos'], nivel['apariciones'], nivel['proyectiles_enemigos'] = [], [], []
+                    plataforma = entorno.armar_torre(ent, *ia.REGIDRAGO['torre'])
+                    j['rect'].center = plataforma.center; j['atrapado_hasta'] = 0; j['inercia'] = [0.0, 0.0]
+                    ia.subir_regidrago(jefe, plataforma, ahora)
+                    nivel['temblor'] = ahora + 500
+                elif pedido == 'bajar':
+                    entorno.desarmar_torre(ent)
+                    nivel['enemigos'] += nivel.pop('abajo', []); nivel['proyectiles_enemigos'] = []
+                    j['rect'].center = (ESC.centerx, ESC.centery + tam * 2)
+                    ia.bajar_regidrago(jefe, (ESC.centerx, ESC.centery - tam * 2), ahora)
+                    nivel['temblor'] = ahora + 900
 
             def actualizar_animacion_enemigo(e):
                 """Animacion de un enemigo segun como se movio: suaviza la direccion para que no titile y camina al ritmo real."""
@@ -1292,7 +1314,7 @@ def main():
             def actualizar_jefe(jefe, j, proyectiles, verdes, contexto):
                 """Movimiento y ataques avisados en ia.py; aca el anillo de balas, las piedras verdes y el choque."""
                 ahora = tiempo()
-                if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora) or jefe['estilo'] == 'regieleki': ia.actualizar_jefe(jefe, contexto)
+                if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora) or jefe['estilo'] == 'regieleki' or jefe.get('sin_estados'): ia.actualizar_jefe(jefe, contexto)
                 jefe['rect'].clamp_ip(AREA)
                 if ahora - jefe['ultimo_disparo'] >= CD_JEFE and jefe['estilo'] in ('jefe', 'regigigas'):   # Arceus, Beta y los Regis tienen sus propios ataques
                     for i in range(BALAS_JEFE):
@@ -1301,7 +1323,7 @@ def main():
                     jefe['ultimo_disparo'] = ahora
                 if ahora - jefe['ultimo_poder'] >= CD_PIEDRA and jefe['estilo'] == 'jefe':       # Regigigas y Arceus usan sus propios ataques
                     verdes.extend(crear_piedras_verdes(jefe)); jefe['ultimo_poder'] = ahora
-                if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700 and not jefe.get('escondido'):
+                if jefe['rect'].colliderect(j['rect']) and ahora-jefe['ultimo_golpe'] >= 700 and not jefe.get('escondido') and not jefe.get('sin_contacto'):
                     dañar_jugador(j, jefe['daño'], jefe['tipo']); jefe['ultimo_golpe'] = ahora
                 jefe['color'] = COLORES_TIPO.get(jefe['tipo'], jefe['color'])     # Arceus cambia de tipo (Multitipo)
 
@@ -1819,8 +1841,8 @@ def main():
                     b = nivel['jefe']
                     ventana.blit(render(f_hud, b['nombre'].replace('_', ' ').title() + ' - ' + b['tipo'], 'white'), (W - 300, 4))
                     barra_hud((W - 300, 22, 280, 20), b['vida'], b['max_vida'])
-                    if b['estilo'] in ('arceus', 'beta'):                # la barra de Arceus (y de Beta) se parte en sus 3 fases
-                        for k in ia.ARCEUS['fases']: pygame.draw.line(ventana, 'black', (W - 300 + round(280 * k), 20), (W - 300 + round(280 * k), 43), 4)
+                    if b['estilo'] in ('arceus', 'beta', 'regidrago'):   # la barra de Arceus, Beta y Regidrago se parte en sus 3 fases
+                        for k in (ia.REGIDRAGO if b['estilo'] == 'regidrago' else ia.ARCEUS)['fases']: pygame.draw.line(ventana, 'black', (W - 300 + round(280 * k), 20), (W - 300 + round(280 * k), 43), 4)
                         ventana.blit(render(f_hud, 'Fase ' + str(b['fase']) + '/3', 'white'), (W - 300, 45))
 
             ZONAS_HUD = [pygame.Rect(0, 0, 340, 200), pygame.Rect(W - 310, 0, 310, 50), pygame.Rect(W - 230, H - 125, 230, 125),
@@ -1919,7 +1941,7 @@ def main():
                     cx += random.randint(-fuerza, fuerza); cy += random.randint(-fuerza, fuerza)
                 ventana.fill('black')
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
-                for puerta in nivel['puertas']:                           # puertas con el cartel de lo que hay detras
+                for puerta in nivel['puertas'] if not nivel['ent'].get('guardado') else ():   # puertas con el cartel (en la torre de Regidrago no hay)
                     r = puerta['rect'].move(-cx, -cy)
                     entorno.dibujar_puerta(ventana, r, j['llave'], ahora)    # cerrada con tablas o abierta brillando
                     if 'destino' in puerta:
