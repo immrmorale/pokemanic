@@ -778,6 +778,7 @@ def armar_entorno():
         'ceniza': {'fuego': {'regen': 1.5}},
     }
     PISADAS['escarcha'] = {'todos': {'resbala': True}, 'hielo': {'velocidad': 1.3}, 'volador': {}}
+    PISADAS['arena_movediza'] = {'todos': {'velocidad': 0.45, 'tick': 2}, 'tierra': {'velocidad': 0.85}, 'roca': {'velocidad': 0.75}, 'volador': {}}
     for _lado, _v in {'n': (0, -2.2), 's': (0, 2.2), 'e': (2.2, 0), 'o': (-2.2, 0)}.items():   # cintas: te llevan (acero pesa mas, volador ni las toca)
         PISADAS['cinta_' + _lado] = {'todos': {'empuje': _v}, 'acero': {'empuje': (_v[0] * 0.4, _v[1] * 0.4)}, 'volador': {}}
 
@@ -860,7 +861,7 @@ def armar_entorno():
     ESQUINAS = ((2, 1, 4), (8, 4, 16), (32, 16, 64), (128, 64, 1))
     MUROS = ('pared', 'puerta', 'entrada')                       # lo que cuenta como pared para los bordes
     IGUALES = {'pared': MUROS, 'agua': ('agua', 'puente'), 'hielo': ('hielo', 'escarcha'), 'escarcha': ('hielo', 'escarcha')}
-    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'escarcha', 'torre_dragon', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
+    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'escarcha', 'torre_dragon', 'arena_movediza', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
     MAGENTA = (255, 0, 255)
     _capas, _por_ruta = {}, {}
 
@@ -1435,6 +1436,15 @@ def armar_entorno():
         return o
 
 
+    def poner_barrera(ent, nombre, rect):
+        """Pared fina de un jefe (Jaula Voltio) con el tamaño exacto de rect. No tapa casillas y no la dibuja el entorno."""
+        o = generacion.crear_objeto(nombre, rect.center)
+        o['rect'] = rect.copy()
+        o.update(de_regi=True, sin_dibujo=True)
+        ent['objetos'].append(o); ent['version'] += 1
+        return o
+
+
     def sacar_de_regi(ent):
         """Cuando cae el Regi se van sus muros, rocas y torres."""
         ent['objetos'][:] = [o for o in ent['objetos'] if not o.get('de_regi')]
@@ -1538,9 +1548,16 @@ def armar_entorno():
                 r = obj['rect'].move(paso if i == 0 else 0, paso if i == 1 else 0)
                 if r.collidelist(duros) != -1: choco = True
                 else: obj['rect'].topleft = r.topleft                # se mueve el mismo rect (las listas de solidos lo comparten)
+            rompio = False
             for e in ctx['enemigos']:
                 if e['vida'] > 0 and obj['rect'].colliderect(e['rect']):
+                    if obj['nombre'] == 'bloque_glaciar' and e.get('coraza'):     # el bloque le rompe la coraza a Regice
+                        e['coraza'], e['coraza_rota'] = False, True
+                        e['mensajes'].append(('Se rompio la coraza de hielo!', 1800))
+                        ent['eventos'].append(('explosion', *obj['rect'].center, 90))
+                        rompio = True; break
                     ctx['dañar_enemigo'](e, round(rapidez * 3), 'normal', None); choco = True
+            if rompio: romper(ent, obj); continue
             ent['version'] += 1
             t = terreno_en(ent, *obj['rect'].center)
             if t in ('agua', 'lava'):                               # se hunde (el hielo congela el agua, en la lava se quema)
@@ -1551,7 +1568,8 @@ def armar_entorno():
                 if mundos.OBJETOS[obj['nombre']].get('explota') and rapidez > 6: romper(ent, obj, 'fuego'); continue
                 obj['vel'] = [0.0, 0.0]
             else:
-                obj['vel'] = [v * 0.94 for v in obj['vel']]
+                friccion = 0.993 if t in ('escarcha', 'hielo') else 0.9 if obj['nombre'] == 'bloque_glaciar' else 0.94   # en el hielo se desliza
+                obj['vel'] = [v * friccion for v in obj['vel']]
                 if math.hypot(*obj['vel']) < 0.5: obj['vel'] = [0.0, 0.0]
             if not (obj['vel'][0] or obj['vel'][1]): obj['celdas'] = _casillas_rect(ent, obj['rect']) if obj['solido'] else set()
 
@@ -1711,6 +1729,9 @@ def armar_entorno():
             for _ in range(3): pygame.draw.circle(fondo, color, (x + azar.randint(8, tam - 8), y + azar.randint(8, tam - 8)), azar.randint(3, 6), 2)
         elif t in ('arena', 'lodo', 'ceniza'):                       # granitos
             for _ in range(6): fondo.set_at((x + azar.randint(2, tam - 3), y + azar.randint(2, tam - 3)), (90, 70, 40) if t != 'ceniza' else (40, 40, 40))
+        elif t == 'arena_movediza':                                  # remolinos
+            pygame.draw.circle(fondo, (150, 118, 66), r.center, tam // 3, 2)
+            pygame.draw.circle(fondo, (150, 118, 66), r.center, tam // 6, 2)
         elif t == 'vacio':                                           # estrellitas en el negro
             pygame.draw.rect(fondo, (70, 40, 110), r, 2)
             for _ in range(4): fondo.set_at((x + azar.randint(4, tam - 5), y + azar.randint(4, tam - 5)), (200, 180, 255))
@@ -1842,6 +1863,7 @@ def armar_entorno():
                 while puntos[-1][1] < r.bottom - 6: puntos.append((max(r.x, min(r.right, puntos[-1][0] + azar.randint(-14, 14))), puntos[-1][1] + azar.randint(8, 16)))
                 pygame.draw.lines(ventana, (255, 250, 150), False, puntos, 2)
         for o in ent['objetos']:
+            if o.get('sin_dibujo'): continue
             d = mundos.OBJETOS[o['nombre']]
             r = o['rect'].move(-cx, -cy)
             if not r.colliderect(ventana.get_rect()): continue

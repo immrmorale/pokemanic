@@ -14,7 +14,7 @@ import pygame
 import datos
 from datos import mundos
 from sistema import animaciones
-from mundo import entorno
+from mundo import entorno, generacion
 
 
 # ==================== progreso ====================
@@ -480,7 +480,11 @@ def armar_ia():
 
     # Regigigas: terremotos alrededor suyo y series de puñetazos grandes donde estas parado (todo avisado)
     GIGAS = {'vel': 1.5, 'terremoto': 6500, 'aviso_terremoto': 1100, 'radio_terremoto': 360, 'daño_terremoto': 1.1, 'temblor': 600,
-             'puño': 3000, 'aviso_puño': 850, 'aviso_serie': 550, 'radio_puño': 95, 'daño_puño': 1.4, 'serie': 3}
+             'puño': 3000, 'aviso_puño': 850, 'aviso_serie': 550, 'radio_puño': 95, 'daño_puño': 1.4, 'serie': 3,
+             'lento': 10000, 'def_lento': 0.3,                       # Lento Inicio: 10 s quieto y con la defensa subida
+             'giga': 7500, 'aviso_giga': 900, 'vel_giga': 17, 'largo_giga': 900, 'ancho_giga': 170, 'daño_giga': 2.0, 'recarga_giga': 1200,
+             'proteccion': 12000, 'dura_proteccion': 3000, 'daño_para_proteger': 0.05,
+             'agarre': 6500, 'aviso_agarre': 500, 'radio_agarre': 140, 'sostener': 600, 'vel_lanzar': 20, 'daño_lanzar': 1.6, 'vuelo_max': 1500}
 
 
     # Arceus: 3 fases (la barra de vida se parte en tercios)
@@ -491,7 +495,7 @@ def armar_ia():
               'rayos': 2600, 'rayos_de_a': 3, 'aviso_rayo': 1000, 'radio_rayo': 55, 'daño_rayo': 0.8, 'daño_bala_rayo': 0.45, 'vel_bala_rayo': 6, 'dist_bala_rayo': 420,
               'hiperrayo': 5500, 'aviso_hiperrayo': 1000, 'largo_hiperrayo': 1300, 'ancho_hiperrayo': 34, 'daño_hiperrayo': 1.6, 'haz': 350,
               'sentencia': 3400, 'aviso_sentencia': 1000, 'aviso_serie': 650, 'radio_sentencia': 150, 'daño_sentencia': 1.3, 'serie': 3,
-              'cambio_tipo': 450, 'radio_vacio': 45, 'max_vacios': 40, 'apurado_fase3': 0.8}
+              'cambio_tipo': 450, 'radio_vacio': 45, 'max_vacios': 40, 'apurado_fase3': 0.8, 'recarga_hiperrayo': 3000}
     TIPOS_ARCEUS = tuple(datos.pokemones.TABLA_TIPOS)
 
     # Arceus Beta: flota sobre el vacio de la mitad de arriba y va de un lado al otro (3 fases, por ahora todas como la primera)
@@ -505,22 +509,41 @@ def armar_ia():
     ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta', 'regice': 'regice', 'regirock': 'regirock',
                    'registeel': 'registeel', 'regieleki': 'regieleki', 'regidrago': 'regidrago'}
 
-    # Regice: rayo hielo largo que deja escarcha (resbala y congela al que la pisa) y muros de hielo que solo se derriten con fuego
-    REGICE = {'vel': 1.2, 'rayo': 7000, 'aviso_rayo': 1100, 'largo_rayo': 1600, 'ancho_rayo': 46, 'daño_rayo': 1.3, 'haz': 400,
-              'muro': 5000, 'bloques': 3, 'max_bloques': 12}
-    # Regirock: roca afilada (fila de rocas que deja una roca al final) y desde la mitad de su vida fuerza bruta (se aturde si choca)
-    REGIROCK = {'vel': 1.3, 'roca': 3200, 'aviso_roca': 600, 'paso_roca': 72, 'cada_roca': 65, 'radio_roca': 40, 'largo_roca': 13,
-                'dura_roca': 700, 'daño_roca': 1.1, 'max_rocas': 6,
-                'fuerza': 5000, 'aviso_fuerza': 900, 'largo_fuerza': 750, 'ancho_fuerza': 180, 'vel_fuerza': 15, 'daño_fuerza': 1.6, 'aturdido': 3000}
-    # Registeel: minas que explotan en 8 balas, sierras que rebotan y un iman que te tira hacia el
-    REGISTEEL = {'vel': 1.0, 'mina': 4200, 'minas_de_a': 3, 'espera_mina': 1300, 'radio_mina': 100, 'daño_mina': 1.0,
-                 'daño_bala_mina': 0.5, 'vel_bala_mina': 6, 'dist_bala_mina': 450,
-                 'sierra': 3600, 'sierras_de_a': 2, 'vel_sierra': 7, 'dura_sierra': 5000, 'radio_sierra': 34, 'daño_sierra': 0.9,
-                 'iman': 12000, 'dura_iman': 5000, 'fuerza_iman': 2.4}
-    # Regieleki: 5 rayos; al perder un cuarto de vida se mete en las torres; sin torres se teletransporta con alto voltaje
+    # Regice: 2 fases (50%)
+    #   1  rayo hielo que deja escarcha y al final un bloque de hielo (se empuja con E y se desliza por la escarcha); muros de hielo
+    #   2  coraza de hielo (se rompe chocandole un bloque), el rayo rebota en las paredes 5 s y caen estalactitas
+    REGICE = {'vel': 1.2, 'fases': (0.5,), 'rayo': 7000, 'rayo_fase2': 8500, 'aviso_rayo': 1100, 'largo_rayo': 1600, 'ancho_rayo': 46, 'daño_rayo': 1.3, 'haz': 400,
+              'muro': 5000, 'bloques': 3, 'max_bloques': 12, 'max_glaciares': 3,
+              'largo_rebote': 2600, 'rebotes': 4, 'dura_rebote': 5000, 'tick_rebote': 400, 'daño_rebote': 0.5,
+              'mult_coraza': 0.2, 'mult_rota': 1.6,
+              'estalactita': 1300, 'aviso_estalactita': 1000, 'radio_estalactita': 55, 'daño_estalactita': 0.9}
+    # Regirock: 3 fases (75% y 25%)
+    #   1  roca afilada, avalancha (6 rocas en hexagono alrededor tuyo) y llama refuerzos
+    #   2  avalancha, roca afilada, fuerza bruta y arena movediza alrededor de las rocas que deja la roca afilada
+    #   3  se parte en 5 rocas rodantes que rebotan y tiran lanzarrocas; cuando se quedan sin vida explotan
+    REGIROCK = {'vel': 1.3, 'fases': (0.75, 0.25), 'roca': 3200, 'aviso_roca': 600, 'paso_roca': 72, 'cada_roca': 65, 'radio_roca': 40, 'largo_roca': 13,
+                'dura_roca': 700, 'daño_roca': 1.1, 'max_rocas': 6, 'radio_movediza': 110,
+                'fuerza': 5000, 'aviso_fuerza': 900, 'largo_fuerza': 750, 'ancho_fuerza': 180, 'vel_fuerza': 15, 'daño_fuerza': 1.6, 'aturdido': 3000,
+                'avalancha': 6500, 'aviso_avalancha': 700, 'vuelo_avalancha': 800, 'radio_hexagono': 150, 'radio_avalancha': 55, 'daño_avalancha': 1.0,
+                'dura_roca_avalancha': 5000,
+                'rodantes': 5, 'tam_rodante': 54, 'vel_rodante': 3.6, 'lanza': 2600, 'vel_lanza': 5, 'dist_lanza': 300, 'daño_lanza': 0.45,
+                'daño_rodante': 0.7, 'espera_explosion': 1100, 'radio_explosion': 110, 'daño_explosion': 1.2}
+    # Registeel: 3 fases (75% y 25%)
+    #   1  sierras que rebotan y llama refuerzos
+    #   2  sierras, minas e iman (atrae o aleja al jugador y a las minas; las minas que le explotan cerca lo lastiman)
+    #   3  sierras, iman, Foco Resplandor (rayo que sigue donde estabas) y Cuerpo Pesado (cae del cielo)
+    REGISTEEL = {'vel': 1.0, 'fases': (0.75, 0.25), 'mina': 4200, 'minas_de_a': 3, 'espera_mina': 1300, 'radio_mina': 100, 'daño_mina': 1.0,
+                 'daño_bala_mina': 0.5, 'vel_bala_mina': 6, 'dist_bala_mina': 450, 'daño_mina_jefe': 0.03,
+                 'sierra': 3600, 'sierras_de_a': 2, 'vel_sierra': 7, 'dura_sierra': 7000, 'radio_sierra': 34, 'daño_sierra': 0.9,
+                 'iman': 9000, 'dura_iman': 4000, 'fuerza_iman': 2.4, 'fuerza_mina': 2.0,
+                 'foco': 7500, 'aviso_foco': 900, 'dura_foco': 3500, 'retraso': 500, 'giro_foco': 0.03, 'largo_foco': 1500, 'ancho_foco': 30,
+                 'tick_foco': 300, 'daño_foco': 0.4,
+                 'pesado': 9000, 'sube': 450, 'sigue': 1300, 'quieto': 300, 'cae': 350, 'alto_salto': 800, 'radio_pesado': 150, 'daño_pesado': 1.6}
+    # Regieleki: 5 rayos; al perder un cuarto de vida se mete en las torres; sin torres se teletransporta con alto voltaje y usa Jaula Voltio
     REGIELEKI = {'vel': 2.6, 'rayos': 2600, 'aviso_rayos': 500, 'balas': 5, 'abanico': 0.6, 'vel_bala': 10, 'dist_bala': 700, 'daño_bala': 0.55,
                  'umbral': 0.75, 'torres': 6, 'radio_torres': 5, 'cambio': 1500, 'quedarse': 5000, 'golpes_torre': 3, 'vel_viaje': 26,
-                 'linea': 2500, 'ancho_linea': 14, 'daño_linea': 0.5, 'tele': 2000, 'onda': 3000, 'radio_onda': 330, 'daño_onda': 1.1, 'segunda_onda': 700}
+                 'linea': 2500, 'ancho_linea': 14, 'daño_linea': 0.5, 'tele': 2000, 'onda': 3000, 'radio_onda': 330, 'daño_onda': 1.1, 'segunda_onda': 700,
+                 'jaula': 9000, 'primera_jaula': 1500, 'lado_jaula': 220, 'grosor_jaula': 16, 'golpes_jaula': 2, 'dura_jaula': 7000, 'daño_jaula': 0.5}
     # Regidrago: 3 fases (75% y 25%)
     #   1  Enfado (embiste dejando fuego) y llama 5 de su tipo
     #   2  te muerde y te sube a su torre: Cometa Draco, bocas que tiran Dragoaliento y al 25% Draco Energia; despues la torre se rompe
@@ -533,8 +556,12 @@ def armar_ia():
                  'boca': 3000, 'max_bocas': 4, 'disparos_boca': 3, 'cada_boca': 1700, 'aviso_boca': 650,
                  'vel_aliento': 7, 'dist_aliento': 950, 'tam_aliento': 30, 'daño_aliento': 0.55, 'abanico_aliento': 0.18,
                  'carga_draco': 2000, 'dura_draco': 10000, 'giro_draco': 0.018, 'largo_draco': 1800, 'ancho_draco': 40, 'tick_draco': 300, 'daño_draco': 0.35,
-                 'draco': 26000, 'primer_draco': 9000}
+                 'draco': 26000, 'primer_draco': 9000, 'retraso_draco': 450, 'vida_boca': 0.035}
     COLOR_TORRE = {'gris': (130, 130, 130), 'cargada': (250, 220, 40), 'rota': (120, 75, 35)}
+    # donde se parte la barra de vida de cada jefe con fases (Regieleki cambia de fase por las torres, no por la vida)
+    FASES_JEFE = {'arceus': ARCEUS['fases'], 'beta': ARCEUS['fases'], 'regidrago': REGIDRAGO['fases'], 'regice': REGICE['fases'],
+                  'regirock': REGIROCK['fases'], 'registeel': REGISTEEL['fases'], 'regieleki': (REGIELEKI['umbral'],)}
+    TOTAL_FASES = {'regieleki': 3}
 
 
     def preparar_jefe(b):
@@ -547,40 +574,169 @@ def armar_ia():
                   'iman_hasta': 0, 'iman_a': None, 'torres': None, 'torre': None, 'modo': 'libre', 'viaje': None, 'lineas': [], 'ondas': [],
                   'escondido': False, 'vida_guardada': b['vida'], 'prox_linea': 0,
                   'etapa': None, 'cometas': [], 'bocas': [], 'draco': None, 'invulnerable': False, 'sin_contacto': False, 'sin_estados': False,
-                  'fundido': None, 'plataforma': None, 'mordida': None, 'pedido': None})
+                  'fundido': None, 'plataforma': None, 'mordida': None, 'pedido': None,
+                  'mult_recibido': 1.0, 'mensajes': [], 'anim_forzada': None, 'coraza': False, 'coraza_rota': False, 'estalactitas': [],
+                  'caidas': [], 'rocas_avalancha': [], 'rodantes': [], 'partido': False, 'iman_modo': None, 'foco': None, 'rastro': [],
+                  'altura': 0, 'salto': None, 'jaula': None, 'lento_hasta': None, 'despierto': False, 'escudo_hasta': 0, 'agarre': None})
+
+
+    def _fase(b, cortes):
+        """Fase segun la vida que le queda (cortes de mayor a menor, ej. (0.75, 0.25) -> fases 1, 2 y 3)."""
+        k = b['vida'] / max(1, b['max_vida'])
+        return 1 + sum(1 for c in cortes if k <= c)
+
+
+    def _rastrear(b, j, ahora):
+        """Guarda por donde fue pasando el jugador (para los rayos que siguen donde estabas, no donde estas)."""
+        b['rastro'].append((ahora, j['rect'].center))
+        while len(b['rastro']) > 2 and b['rastro'][1][0] < ahora - 1500: b['rastro'].pop(0)
+
+
+    def _pos_anterior(b, j, ahora, retraso):
+        """Donde estaba el jugador hace 'retraso' ms."""
+        for t, pos in reversed(b['rastro']):
+            if t <= ahora - retraso: return pos
+        return b['rastro'][0][1] if b['rastro'] else j['rect'].center
+
+
+    def _girar_hacia(ang, quiero, maximo):
+        """Gira un angulo hacia otro, como mucho 'maximo' radianes."""
+        dif = (quiero - ang + math.pi) % math.tau - math.pi
+        return ang + max(-maximo, min(maximo, dif))
+
+
+    def _toca_linea(j, puntos, ancho):
+        """Si el jugador esta tocando alguno de los tramos de una linea quebrada (rayos que rebotan)."""
+        mitad = max(j['rect'].size) / 2
+        return any(_dist_segmento(j['rect'].center, a, b) <= ancho + mitad for a, b in zip(puntos, puntos[1:]))
+
+
+    def _trazar(ent, desde, d, largo, rebotes=0):
+        """Camino de un rayo: sigue derecho hasta una pared y, si le quedan rebotes, rebota. Devuelve los puntos de la linea."""
+        pared = lambda x, y: mundos.TERRENOS[entorno.terreno_en(ent, x, y)].get('solido')
+        (x, y), (dx, dy), paso = desde, d, 8
+        puntos, recorrido = [(x, y)], 0
+        while recorrido < largo:
+            nx, ny = x + dx * paso, y + dy * paso
+            if pared(nx, ny):
+                if rebotes <= 0: break
+                rebotes -= 1
+                choca_x, choca_y = pared(nx, y), pared(x, ny)
+                if choca_x: dx = -dx
+                if choca_y: dy = -dy
+                if not (choca_x or choca_y): dx, dy = -dx, -dy
+                puntos.append((x, y))
+                continue
+            x, y = nx, ny; recorrido += paso
+        puntos.append((x, y))
+        return puntos
+
+
+    def _animar(b, nombres, ahora, duracion):
+        """Le pone al jefe una animacion por un rato (la primera de 'nombres' que tenga su sprite)."""
+        b['anim_forzada'] = (nombres, ahora + duracion)
+
+
+    def _dash_gigas(b, ctx):
+        """Gigaimpacto: carga en linea recta hasta donde estabas; despues queda quieto recargando."""
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        G, d = GIGAS, b['dash']
+        paso = min(G['vel_giga'], d['restante'])
+        d['resto'][0] += d['dir'][0] * paso; d['resto'][1] += d['dir'][1] * paso
+        px, py = int(d['resto'][0]), int(d['resto'][1])
+        d['resto'][0] -= px; d['resto'][1] -= py
+        quiero = b['rect'].move(px, py)
+        entorno.mover(ent, b['rect'], px, py, [b['tipo']])
+        d['restante'] -= paso
+        if not d['pego'] and _en_franja(b, j, G['ancho_giga']): ctx['dañar_jugador'](b['daño'] * G['daño_giga'], 'normal'); d['pego'] = True
+        choco = (px or py) and b['rect'].topleft != quiero.topleft
+        if choco or d['restante'] <= 0:
+            b['dash'] = None; b['aturdido_hasta'] = ahora + G['recarga_giga']
+            ctx['impacto'](*b['rect'].center, 120, 450 if choco else 200)
+
+
+    def _agarron(b, ctx):
+        """Agarron: te sostiene un momento y te tira para atras. Solo lastima si chocas contra una pared."""
+        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        G, g = GIGAS, b['agarre']
+        if g['etapa'] == 'sostiene':
+            j['rect'].center = (round(b['rect'].centerx + g['dir'][0] * (max(b['rect'].size) / 2 + 30)), round(b['rect'].centery + g['dir'][1] * (max(b['rect'].size) / 2 + 30)))
+            if ahora >= g['hasta']: g.update(etapa='vuela', hasta=ahora + G['vuelo_max'], resto=[0.0, 0.0])
+            return
+        g['resto'][0] += g['dir'][0] * G['vel_lanzar']; g['resto'][1] += g['dir'][1] * G['vel_lanzar']
+        px, py = int(g['resto'][0]), int(g['resto'][1])
+        g['resto'][0] -= px; g['resto'][1] -= py
+        quiero = j['rect'].move(px, py)
+        entorno.mover(ent, j['rect'], px, py, j['tipos'])
+        if j['rect'].topleft != quiero.topleft:                    # choco contra la pared
+            ctx['dañar_jugador'](b['daño'] * G['daño_lanzar'], 'lucha')
+            ctx['impacto'](*j['rect'].center, 60, 400)
+            b['agarre'] = None; j['atrapado_hasta'] = 0
+        elif ahora >= g['hasta']: b['agarre'] = None; j['atrapado_hasta'] = 0
 
 
     def actualizar_regigigas(b, ctx):
-        """Camina lento hacia vos. Terremoto: anillo que se llena alrededor suyo (los voladores casi no lo sienten).
-        Puñetazos: una mira grande donde estas, se cierra y golpea; vienen de a 3 seguidos."""
+        """Lento Inicio: los primeros 10 s esta quieto con la defensa subida y al despertar usa Terremoto.
+        Despues: Terremoto, Megapuño (3 seguidos), Gigaimpacto, Proteccion (3 s quieto sin recibir daño) y Agarron (te tira contra la pared)."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         dist = math.hypot(jx - bx, jy - by)
         mitad = max(j['rect'].size) / 2
-        if b['prox_terremoto'] is None: b['prox_terremoto'], b['prox_puño'] = ahora + GIGAS['terremoto'] // 2, ahora + 1500   # un respiro al entrar
+        G, p = GIGAS, b['prox']
+        if b['lento_hasta'] is None: b['lento_hasta'] = ahora + G['lento']; b['mult_recibido'] = G['def_lento']
+        if not b['despierto']:
+            if ahora < b['lento_hasta']: return
+            b.update(despierto=True, mult_recibido=1.0, vida_ref=b['vida'])
+            b['mensajes'].append(('Regigigas desperto!', 1800))
+            p.update(puño=ahora + 2500, giga=ahora + 4000, proteccion=ahora + 6000, agarre=ahora + 3000, ref=ahora + 2500)
+            b['prox_terremoto'] = ahora + G['terremoto']
+            b['aviso'] = {'hasta': ahora + G['aviso_terremoto'], 'clase': 'terremoto', 'inicio': ahora}
+            return
+        b['invulnerable'] = ahora < b['escudo_hasta']
+        if b['invulnerable']: return                               # Proteccion: quieto detras del escudo
+        if ahora >= p['ref']: p['ref'] = ahora + 2500; b['vida_ref'] = b['vida']
+        if b['agarre']: _agarron(b, ctx); return
+        if b['dash']: _dash_gigas(b, ctx); return
+        if ahora < b['aturdido_hasta']: return
         a = b['aviso']
         if a:
             if ahora < a['hasta']: return
             b['aviso'] = None
             if a['clase'] == 'terremoto':
-                if dist <= GIGAS['radio_terremoto'] + mitad: ctx['dañar_jugador'](b['daño'] * GIGAS['daño_terremoto'], 'tierra')
-                ctx['impacto'](bx, by, GIGAS['radio_terremoto'], GIGAS['temblor'])
+                if dist <= G['radio_terremoto'] + mitad: ctx['dañar_jugador'](b['daño'] * G['daño_terremoto'], 'tierra')
+                ctx['impacto'](bx, by, G['radio_terremoto'], G['temblor'])
+            elif a['clase'] == 'agarre':
+                p['agarre'] = ahora + G['agarre']
+                if dist <= G['radio_agarre'] + mitad:
+                    b['agarre'] = {'etapa': 'sostiene', 'hasta': ahora + G['sostener'], 'dir': _dir((bx, by), (jx, jy))}
+                    j['atrapado_hasta'] = ahora + 10 ** 7
+            elif a['clase'] == 'gigaimpacto':
+                b['dash'] = {'dir': a['dir'], 'restante': a['largo'], 'pego': False, 'resto': [0.0, 0.0]}
             else:
                 mx, my = a['mira']
                 if math.hypot(jx - mx, jy - my) <= GIGAS['radio_puño'] + mitad: ctx['dañar_jugador'](b['daño'] * GIGAS['daño_puño'], 'normal')
                 ctx['impacto'](mx, my, GIGAS['radio_puño'], 250)
                 b['serie'] -= 1
                 if b['serie'] > 0: b['aviso'] = {'hasta': ahora + GIGAS['aviso_serie'], 'clase': 'puño', 'inicio': ahora, 'mira': (jx, jy)}
-                else: b['prox_puño'] = ahora + GIGAS['puño']          # la espera arranca cuando termina la serie
+                else: p['puño'] = ahora + G['puño']                   # la espera arranca cuando termina la serie
             return
-        if ahora >= b['prox_terremoto'] and dist < GIGAS['radio_terremoto'] * 1.3:
-            b['prox_terremoto'] = ahora + GIGAS['terremoto']
-            b['aviso'] = {'hasta': ahora + GIGAS['aviso_terremoto'], 'clase': 'terremoto', 'inicio': ahora}; return
-        if ahora >= b['prox_puño']:
-            b['serie'] = GIGAS['serie']
-            b['aviso'] = {'hasta': ahora + GIGAS['aviso_puño'], 'clase': 'puño', 'inicio': ahora, 'mira': (jx, jy)}; return
-        if dist > 140: _ir_a(ent, b, (jx, jy), GIGAS['vel'], [])
+        if dist < G['radio_agarre'] and ahora >= p['agarre']:
+            p['agarre'] = ahora + G['agarre']
+            b['aviso'] = {'hasta': ahora + G['aviso_agarre'], 'clase': 'agarre', 'inicio': ahora}; return
+        if ahora >= p['proteccion'] and b['vida'] <= b['vida_ref'] - b['max_vida'] * G['daño_para_proteger']:   # le estan pegando mucho: se cubre
+            p['proteccion'] = ahora + G['proteccion']; b['escudo_hasta'] = ahora + G['dura_proteccion']; b['invulnerable'] = True; return
+        if ahora >= b['prox_terremoto'] and dist < G['radio_terremoto'] * 1.3:
+            b['prox_terremoto'] = ahora + G['terremoto']
+            b['aviso'] = {'hasta': ahora + G['aviso_terremoto'], 'clase': 'terremoto', 'inicio': ahora}; return
+        if ahora >= p['giga'] and dist > 250:
+            p['giga'] = ahora + G['giga']
+            b['aviso'] = {'hasta': ahora + G['aviso_giga'], 'clase': 'gigaimpacto', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy)),
+                          'largo': min(G['largo_giga'], dist + 150), 'ancho': G['ancho_giga']}; return
+        if ahora >= p['puño']:
+            b['serie'] = G['serie']
+            b['aviso'] = {'hasta': ahora + G['aviso_puño'], 'clase': 'puño', 'inicio': ahora, 'mira': (jx, jy)}; return
+        if dist > 140: _ir_a(ent, b, (jx, jy), G['vel'], [])
 
 
     def _dist_segmento(p, a, b):
@@ -609,7 +765,7 @@ def armar_ia():
             ctx['impacto'](x, y, ARCEUS['radio_rayo'], 120)
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 ctx['disparar'](x, y, dx, dy, b['daño'] * ARCEUS['daño_bala_rayo'], 'normal', ARCEUS['vel_bala_rayo'], ARCEUS['dist_bala_rayo'])
-        if fase == 2 or ahora < b['prox_rayos']: return
+        if fase == 2 or ahora < b['prox_rayos'] or ahora < b['aturdido_hasta']: return
         b['prox_rayos'] = ahora + ARCEUS['rayos'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1)
         for i in range(ARCEUS['rayos_de_a']):
             if i == 0: x, y = j['rect'].centerx + random.randint(-60, 60), j['rect'].centery + random.randint(-60, 60)   # uno siempre cerca tuyo
@@ -631,6 +787,7 @@ def armar_ia():
         b['vida_tipo'] = b['vida']
         if b['haz'] and ahora >= b['haz']['hasta']: b['haz'] = None
         _rayos_arceus(b, ctx, fase)
+        if ahora < b['aturdido_hasta']: return                     # recargando despues del Hiperrayo: quieto
         a = b['aviso']
         if a:
             if ahora < a['hasta']: return
@@ -639,7 +796,8 @@ def armar_ia():
                 if _dist_segmento((jx, jy), (bx, by), a['fin']) <= ARCEUS['ancho_hiperrayo'] + mitad: ctx['dañar_jugador'](b['daño'] * ARCEUS['daño_hiperrayo'], 'normal')
                 b['haz'] = {'desde': (bx, by), 'fin': a['fin'], 'hasta': ahora + ARCEUS['haz']}
                 ctx['impacto'](bx, by, 60, 300)
-                b['prox_hiperrayo'] = ahora + ARCEUS['hiperrayo'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1)
+                b['prox_hiperrayo'] = ahora + ARCEUS['hiperrayo'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1) + ARCEUS['recarga_hiperrayo']
+                b['aturdido_hasta'] = ahora + ARCEUS['recarga_hiperrayo']
             else:
                 mx, my = a['mira']
                 if math.hypot(jx - mx, jy - my) <= ARCEUS['radio_sentencia'] + mitad: ctx['dañar_jugador'](b['daño'] * ARCEUS['daño_sentencia'], a['tipo'])
@@ -733,30 +891,75 @@ def armar_ia():
             if o: b['muros'].append(o)
 
 
+    def _bloque_glaciar(b, ctx, puntos):
+        """Al final del rayo hielo de la primera fase queda un bloque de hielo para empujar con E (como mucho unos pocos a la vez)."""
+        ent, j, R = ctx['ent'], ctx['jugador'], REGICE
+        if sum(1 for o in ent['objetos'] if o['nombre'] == 'bloque_glaciar') >= R['max_glaciares'] or len(puntos) < 2: return
+        (x0, y0), (x, y) = puntos[-2], puntos[-1]
+        dx, dy = _dir((x0, y0), (x, y))
+        for atras in (110, 160, 70, 210):                          # un poco antes de la pared, asi se puede pasar por detras
+            if entorno.poner_objeto(ent, 'bloque_glaciar', (x - dx * atras, y - dy * atras), [j['rect'].inflate(20, 20), b['rect']]): return
+
+
+    def _actualizar_estalactitas(b, ctx):
+        """Estalactitas de la segunda fase: una sombra que crece en el piso y despues cae el hielo."""
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGICE
+        for e in b['estalactitas'][:]:
+            if ahora < e['hasta']: continue
+            b['estalactitas'].remove(e)
+            x, y = e['pos']
+            if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_estalactita'] + max(j['rect'].size) / 2:
+                ctx['dañar_jugador'](b['daño'] * R['daño_estalactita'], 'hielo')
+            ctx['impacto'](x, y, R['radio_estalactita'], 120)
+
+
     def actualizar_regice(b, ctx):
-        """Regice: levanta muros de hielo entre los dos y tira un rayo hielo avisado que deja escarcha en el piso."""
+        """Regice: muros de hielo y rayo hielo que deja escarcha. Fase 1: el rayo deja un bloque de hielo para empujar.
+        Fase 2: coraza de hielo (se rompe con un bloque), el rayo rebota en las paredes 5 s y caen estalactitas."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         dist = math.hypot(jx - bx, jy - by)
-        p = b['prox']
-        if not p: p.update(rayo=ahora + 2500, muro=ahora + 1500)
-        if b['haz'] and ahora >= b['haz']['hasta']: b['haz'] = None
-        if ahora >= p['muro']: p['muro'] = ahora + REGICE['muro']; _muro_hielo(b, ctx)
+        R, p = REGICE, b['prox']
+        if not p: p.update(rayo=ahora + 2500, muro=ahora + 1500, estalactita=0)
+        fase = b['fase'] = _fase(b, R['fases'])
+        if fase == 2 and not (b['coraza'] or b['coraza_rota']):
+            b['coraza'] = True; p['estalactita'] = ahora + 1500
+            ctx['impacto'](bx, by, 120, 400)
+        b['mult_recibido'] = R['mult_coraza'] if b['coraza'] else R['mult_rota'] if b['coraza_rota'] else 1.0
+        haz = b['haz']
+        if haz:
+            if ahora >= haz['hasta']: b['haz'] = None
+            elif haz.get('tick') and ahora >= haz['prox'] and _toca_linea(j, haz['puntos'], R['ancho_rayo']):
+                ctx['dañar_jugador'](b['daño'] * R['daño_rebote'], 'hielo'); haz['prox'] = ahora + haz['tick']
+        _actualizar_estalactitas(b, ctx)
+        if fase == 2 and ahora >= p['estalactita']:
+            p['estalactita'] = ahora + R['estalactita']
+            for pos in ((jx + random.randint(-80, 80), jy + random.randint(-80, 80)), entorno.punto_libre(ent, random)):
+                b['estalactitas'].append({'pos': pos, 'inicio': ahora, 'hasta': ahora + R['aviso_estalactita']})
+        if ahora >= p['muro']: p['muro'] = ahora + R['muro']; _muro_hielo(b, ctx)
         a = b['aviso']
         if a:
             if ahora < a['hasta']: return
             b['aviso'] = None
-            if _dist_segmento((jx, jy), (bx, by), a['fin']) <= REGICE['ancho_rayo'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * REGICE['daño_rayo'], 'hielo')
-            b['haz'] = {'desde': (bx, by), 'fin': a['fin'], 'hasta': ahora + REGICE['haz'], 'ancho': REGICE['ancho_rayo'], 'color': ((120, 200, 255), (235, 250, 255))}
-            entorno.congelar_linea(ent, (bx, by), a['fin'], REGICE['ancho_rayo'] * 1.6)
+            puntos = a['puntos']
+            for k in range(len(puntos) - 1): entorno.congelar_linea(ent, puntos[k], puntos[k + 1], R['ancho_rayo'] * 1.6)
+            if a.get('rebota'):
+                b['haz'] = {'puntos': puntos, 'hasta': ahora + R['dura_rebote'], 'tick': R['tick_rebote'], 'prox': ahora,
+                            'ancho': R['ancho_rayo'], 'color': ((120, 200, 255), (235, 250, 255))}
+            else:
+                if _toca_linea(j, puntos, R['ancho_rayo']): ctx['dañar_jugador'](b['daño'] * R['daño_rayo'], 'hielo')
+                b['haz'] = {'puntos': puntos, 'hasta': ahora + R['haz'], 'ancho': R['ancho_rayo'], 'color': ((120, 200, 255), (235, 250, 255))}
+                if fase == 1: _bloque_glaciar(b, ctx, puntos)
             return
+        if b['haz'] and b['haz'].get('tick'): return               # quieto mientras dura el rayo que rebota
         if ahora >= p['rayo']:
-            p['rayo'] = ahora + REGICE['rayo']
-            dx, dy = _dir((bx, by), (jx, jy))
-            b['aviso'] = {'hasta': ahora + REGICE['aviso_rayo'], 'clase': 'rayo_hielo', 'inicio': ahora,
-                          'fin': (bx + dx * REGICE['largo_rayo'], by + dy * REGICE['largo_rayo'])}; return
-        if dist > 220: _ir_a(ent, b, (jx, jy), REGICE['vel'], [])
+            p['rayo'] = ahora + (R['rayo'] if fase == 1 else R['rayo_fase2'])
+            d = _dir((bx, by), (jx, jy))
+            puntos = _trazar(ent, (bx, by), d, R['largo_rebote'] if fase == 2 else R['largo_rayo'], R['rebotes'] if fase == 2 else 0)
+            b['aviso'] = {'hasta': ahora + R['aviso_rayo'], 'clase': 'rayo_hielo', 'inicio': ahora, 'puntos': puntos, 'fin': puntos[-1], 'rebota': fase == 2}
+            return
+        if dist > 220: _ir_a(ent, b, (jx, jy), R['vel'], [])
 
 
     def _poner_roca(b, ctx, puntos):
@@ -764,7 +967,12 @@ def armar_ia():
         ent, j = ctx['ent'], ctx['jugador']
         if sum(1 for o in ent['objetos'] if o.get('de_regi') and o['nombre'] == 'roca_afilada') >= REGIROCK['max_rocas']: return
         for punto in reversed(puntos[-3:]):
-            if entorno.poner_objeto(ent, 'roca_afilada', punto, [j['rect'].inflate(10, 10), b['rect']]): ctx['impacto'](*punto, 30, 120); return
+            if entorno.poner_objeto(ent, 'roca_afilada', punto, [j['rect'].inflate(10, 10), b['rect']]):
+                ctx['impacto'](*punto, 30, 120)
+                if b['fase'] >= 2:                                  # segunda fase: arena movediza alrededor de la roca
+                    for f, c in entorno._casillas_circulo(ent, *punto, REGIROCK['radio_movediza']):
+                        if ent['m'][f][c] in generacion.PISABLES: entorno.cambiar(ent, f, c, 'arena_movediza')
+                return
 
 
     def _avanzar_filas(b, ctx):
@@ -813,31 +1021,113 @@ def armar_ia():
         elif d['restante'] <= 0: b['dash'] = None
 
 
+    def _actualizar_avalancha(b, ctx):
+        """Las rocas de la avalancha vuelan, caen (lastiman si estas abajo) y quedan un rato como obstaculo."""
+        ent, j, ahora, R = ctx['ent'], ctx['jugador'], ctx['ahora'], REGIROCK
+        for c in b['caidas'][:]:
+            if ahora < c['hasta']: continue
+            b['caidas'].remove(c)
+            x, y = c['pos']
+            if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_avalancha'] + max(j['rect'].size) / 2:
+                ctx['dañar_jugador'](b['daño'] * R['daño_avalancha'], 'roca')
+            ctx['impacto'](x, y, R['radio_avalancha'], 150)
+            o = entorno.poner_objeto(ent, 'roca_avalancha', (x, y), [j['rect'].inflate(10, 10), b['rect']])
+            if o: o['expira'] = ahora + R['dura_roca_avalancha']
+        viejas = [o for o in ent['objetos'] if o['nombre'] == 'roca_avalancha' and ahora >= o.get('expira', 0)]
+        for o in viejas: ent['objetos'].remove(o); ctx['impacto'](*o['rect'].center, 30, 80)
+        if viejas: ent['version'] += 1
+
+
+    def _partir_regirock(b, ctx):
+        """Tercera fase: Regirock se parte en 5 rocas rodantes (entre todas tienen la vida que le quedaba)."""
+        ahora, R = ctx['ahora'], REGIROCK
+        bx, by = b['rect'].center
+        vida = max(1, round(b['vida'] / R['rodantes']))
+        b.update(partido=True, escondido=True, invulnerable=True, sin_contacto=True, aviso=None, dash=None, filas_roca=[])
+        for i in range(R['rodantes']):
+            ang = i * math.tau / R['rodantes'] + random.uniform(-0.3, 0.3)
+            r = pygame.Rect(0, 0, R['tam_rodante'], R['tam_rodante']); r.center = (round(bx + math.cos(ang) * 40), round(by + math.sin(ang) * 40))
+            b['rodantes'].append({'rect': r, 'x': float(r.centerx), 'y': float(r.centery), 'v': [math.cos(ang) * R['vel_rodante'], math.sin(ang) * R['vel_rodante']],
+                                  'vida': vida, 'max_vida': vida, 'tipo': 'roca', 'nombre': 'regirock', 'atacable': True, 'de_jefe': True,
+                                  'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'prox_lanza': ahora + 1500 + i * 400, 'golpe': 0, 'explota': None})
+        ctx['impacto'](bx, by, 160, 700)
+
+
+    def _actualizar_rodantes(b, ctx):
+        """Las rocas rodantes rebotan en las paredes y en las rocas, tiran lanzarrocas y al quedarse sin vida explotan."""
+        ent, j, ahora, R = ctx['ent'], ctx['jugador'], ctx['ahora'], REGIROCK
+        duros = entorno.solidos_proyectil(ent)
+        mitad = max(j['rect'].size) / 2
+        for r in b['rodantes'][:]:
+            x, y = r['rect'].center
+            if r['vida'] <= 0:
+                if r['explota'] is None: r['explota'] = ahora + R['espera_explosion']
+                elif ahora >= r['explota']:
+                    b['rodantes'].remove(r)
+                    if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_explosion'] + mitad: ctx['dañar_jugador'](b['daño'] * R['daño_explosion'], 'roca')
+                    ctx['impacto'](x, y, R['radio_explosion'], 400)
+                continue
+            if not (r['estado'] in ('paralizar', 'dormir') and r['estado_hasta'] > ahora):
+                if (round(r['x']), round(r['y'])) != (x, y): r['x'], r['y'] = float(x), float(y)       # lo empujo un golpe
+                caja = r['rect'].copy()
+                for i in (0, 1):
+                    nuevo = [r['x'], r['y']]; nuevo[i] += r['v'][i]
+                    caja.center = (round(nuevo[0]), round(nuevo[1]))
+                    if caja.collidelist(duros) != -1: r['v'][i] = -r['v'][i]
+                    else: r['x'], r['y'] = nuevo
+                r['rect'].center = (round(r['x']), round(r['y']))
+            if r['rect'].colliderect(j['rect']) and ahora >= r['golpe']:
+                ctx['dañar_jugador'](b['daño'] * R['daño_rodante'], 'roca'); r['golpe'] = ahora + 800
+            if ahora >= r['prox_lanza']:                            # lanzarrocas: 6 rocas chicas alrededor
+                r['prox_lanza'] = ahora + R['lanza'] + random.randint(-300, 300)
+                giro = random.uniform(0, math.tau)
+                for k in range(6):
+                    ang = giro + k * math.tau / 6
+                    ctx['disparar'](*r['rect'].center, math.cos(ang), math.sin(ang), b['daño'] * R['daño_lanza'], 'roca', R['vel_lanza'], R['dist_lanza'], 20)
+        if b['rodantes']:
+            b['rect'].center = (sum(r['rect'].centerx for r in b['rodantes']) // len(b['rodantes']), sum(r['rect'].centery for r in b['rodantes']) // len(b['rodantes']))
+        b['vida'] = sum(max(0, r['vida']) for r in b['rodantes']) or (1 if b['rodantes'] else 0)   # mientras alguna explota no termina
+
+
     def actualizar_regirock(b, ctx):
-        """Regirock: filas de roca afilada que avanzan; con la mitad de vida, ademas, Fuerza bruta."""
+        """Regirock: fase 1 roca afilada y avalancha; fase 2 ademas Fuerza bruta y arena movediza; fase 3 se parte en 5 rocas rodantes."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         dist = math.hypot(jx - bx, jy - by)
-        p = b['prox']
-        if not p: p.update(roca=ahora + 1500, fuerza=ahora + 2500)
+        R, p = REGIROCK, b['prox']
+        if not p: p.update(roca=ahora + 1500, fuerza=ahora + 2500, avalancha=ahora + 4000)
         _avanzar_filas(b, ctx)
+        _actualizar_avalancha(b, ctx)
+        if b['partido']: b['fase'] = 3; _actualizar_rodantes(b, ctx); return
+        fase = b['fase'] = _fase(b, R['fases'])
+        if fase == 3: _partir_regirock(b, ctx); return
         if ahora < b['aturdido_hasta']: return
         if b['dash']: _dash_regirock(b, ctx); return
         a = b['aviso']
         if a:
             if ahora < a['hasta']: return
             b['aviso'] = None
-            if a['clase'] == 'fuerza_bruta': b['dash'] = {'dir': a['dir'], 'restante': REGIROCK['largo_fuerza'], 'pego': False, 'resto': [0.0, 0.0]}
+            if a['clase'] == 'fuerza_bruta': b['dash'] = {'dir': a['dir'], 'restante': R['largo_fuerza'], 'pego': False, 'resto': [0.0, 0.0]}
+            elif a['clase'] == 'avalancha':                         # tira 6 rocas que caen en hexagono alrededor tuyo
+                giro = random.uniform(0, math.tau)
+                for k in range(6):
+                    ang = giro + k * math.tau / 6
+                    b['caidas'].append({'pos': (jx + math.cos(ang) * R['radio_hexagono'], jy + math.sin(ang) * R['radio_hexagono']),
+                                        'desde': (bx, by), 'inicio': ahora, 'hasta': ahora + R['vuelo_avalancha']})
             else: b['filas_roca'].append({'x': bx, 'y': by, 'dir': a['dir'], 'paso': 0, 'prox': ahora, 'puntos': [], 'inicio': max(b['rect'].size) / 2})
             return
-        if b['vida'] <= b['max_vida'] / 2 and ahora >= p['fuerza']:
-            p['fuerza'] = ahora + REGIROCK['fuerza']
-            b['aviso'] = {'hasta': ahora + REGIROCK['aviso_fuerza'], 'clase': 'fuerza_bruta', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
+        if ahora >= p['avalancha']:                                 # se queda quieto haciendo el lanzamiento
+            p['avalancha'] = ahora + R['avalancha']
+            _animar(b, ('rearup', 'shoot', 'attack', 'swing'), ahora, R['aviso_avalancha'])
+            b['aviso'] = {'hasta': ahora + R['aviso_avalancha'], 'clase': 'avalancha', 'inicio': ahora}; return
+        if fase >= 2 and ahora >= p['fuerza']:
+            p['fuerza'] = ahora + R['fuerza']
+            b['aviso'] = {'hasta': ahora + R['aviso_fuerza'], 'clase': 'fuerza_bruta', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
         if ahora >= p['roca']:
-            p['roca'] = ahora + REGIROCK['roca']
-            b['aviso'] = {'hasta': ahora + REGIROCK['aviso_roca'], 'clase': 'roca_afilada', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
-        if dist > 240: _ir_a(ent, b, (jx, jy), REGIROCK['vel'], [])
+            p['roca'] = ahora + R['roca']
+            b['aviso'] = {'hasta': ahora + R['aviso_roca'], 'clase': 'roca_afilada', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy))}; return
+        if dist > 240: _ir_a(ent, b, (jx, jy), R['vel'], [])
 
 
     def _actualizar_minas(b, ctx):
@@ -850,6 +1140,8 @@ def armar_ia():
             x, y = m['pos']
             if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_mina'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * R['daño_mina'], 'acero')
             ctx['impacto'](x, y, R['radio_mina'], 150)
+            if not b['invulnerable'] and math.hypot(b['rect'].centerx - x, b['rect'].centery - y) <= R['radio_mina'] + max(b['rect'].size) / 2:
+                b['vida'] = max(1, b['vida'] - round(b['max_vida'] * R['daño_mina_jefe']))
             for i in range(8):
                 ang = i * math.tau / 8
                 ctx['disparar'](x, y, math.cos(ang), math.sin(ang), b['daño'] * R['daño_bala_mina'], 'acero', R['vel_bala_mina'], R['dist_bala_mina'])
@@ -872,29 +1164,99 @@ def armar_ia():
             elif ahora >= s['hasta']: b['sierras'].remove(s)
 
 
+    def _iman(b, ctx):
+        """Iman: atrae (o aleja) al jugador y a las minas. Registeel se queda quieto mientras dura."""
+        ent, j, R = ctx['ent'], ctx['jugador'], REGISTEEL
+        (jx, jy), (bx, by) = j['rect'].center, b['rect'].center
+        signo = 1 if b['iman_modo'] == 'atraer' else -1
+        b['iman_a'] = (jx, jy)
+        dx, dy = _dir((jx, jy), (bx, by))
+        resto = j.setdefault('resto_iman', [0.0, 0.0])
+        resto[0] += dx * R['fuerza_iman'] * signo; resto[1] += dy * R['fuerza_iman'] * signo
+        px, py = int(resto[0]), int(resto[1])
+        resto[0] -= px; resto[1] -= py
+        entorno.mover(ent, j['rect'], px, py, j['tipos'])
+        for m in b['minas']:
+            mx, my = m['pos']
+            if signo > 0 and math.hypot(bx - mx, by - my) < max(b['rect'].size) / 2 + 20: continue   # ya llego: queda pegada a el
+            ux, uy = _dir((mx, my), (bx, by))
+            m['pos'] = (mx + ux * R['fuerza_mina'] * signo, my + uy * R['fuerza_mina'] * signo)
+
+
+    def _actualizar_foco(b, ctx):
+        """Foco Resplandor: un rayo que va siguiendo por donde estabas (no donde estas), asi se puede esquivar."""
+        j, ahora, R = ctx['jugador'], ctx['ahora'], REGISTEEL
+        f = b['foco']
+        bx, by = b['rect'].center
+        px, py = _pos_anterior(b, j, ahora, R['retraso'])
+        f['ang'] = _girar_hacia(f['ang'], math.atan2(py - by, px - bx), R['giro_foco'])
+        f['fin'] = (bx + math.cos(f['ang']) * R['largo_foco'], by + math.sin(f['ang']) * R['largo_foco'])
+        if ahora >= f['prox'] and _dist_segmento(j['rect'].center, (bx, by), f['fin']) <= R['ancho_foco'] + max(j['rect'].size) / 2:
+            ctx['dañar_jugador'](b['daño'] * R['daño_foco'], 'acero'); f['prox'] = ahora + R['tick_foco']
+        if ahora >= f['hasta']: b['foco'] = None
+
+
+    def _cuerpo_pesado(b, ctx):
+        """Cuerpo Pesado: Registeel salta fuera de la pantalla, su sombra te sigue, se frena y cae."""
+        j, ahora, R, p = ctx['jugador'], ctx['ahora'], REGISTEEL, b['prox']
+        s = b['salto']
+        k = (ahora - s['inicio']) / max(1, R[s['etapa']])
+        if s['etapa'] == 'sube':
+            b['altura'] = round(R['alto_salto'] * min(1.0, k))
+            if k >= 1: s.update(etapa='sigue', inicio=ahora)
+        elif s['etapa'] == 'sigue':
+            jx, jy = j['rect'].center
+            b['rect'].center = (round(b['rect'].centerx + (jx - b['rect'].centerx) * 0.12), round(b['rect'].centery + (jy - b['rect'].centery) * 0.12))
+            if k >= 1: s.update(etapa='quieto', inicio=ahora)
+        elif s['etapa'] == 'quieto':
+            if k >= 1: s.update(etapa='cae', inicio=ahora)
+        else:
+            b['altura'] = round(R['alto_salto'] * max(0.0, 1 - k))
+            if k >= 1:
+                x, y = b['rect'].center
+                if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= R['radio_pesado'] + max(j['rect'].size) / 2:
+                    ctx['dañar_jugador'](b['daño'] * R['daño_pesado'], 'acero')
+                ctx['impacto'](x, y, R['radio_pesado'], 600)
+                b.update(salto=None, altura=0, invulnerable=False, sin_contacto=False)
+                p['pesado'] = ahora + R['pesado']
+
+
     def actualizar_registeel(b, ctx):
-        """Registeel: minas, sierras que rebotan y cada tanto un iman que te tira hacia el."""
+        """Registeel: fase 1 sierras; fase 2 sierras, minas e iman (atrae o aleja); fase 3 sierras, iman, Foco Resplandor y Cuerpo Pesado."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         dist = math.hypot(jx - bx, jy - by)
         R, p = REGISTEEL, b['prox']
-        if not p: p.update(mina=ahora + 1500, sierra=ahora + 2500, iman=ahora + 7000)
+        if not p: p.update(mina=ahora + 1500, sierra=ahora + 2000, iman=ahora + 2500, foco=ahora + 2500, pesado=ahora + 5000)
+        _rastrear(b, j, ahora)
+        fase = b['fase'] = _fase(b, R['fases'])
         _actualizar_minas(b, ctx)
         _actualizar_sierras(b, ctx)
-        if ahora < b['iman_hasta']:                                 # iman: se queda quieto y te tira hacia el
-            b['iman_a'] = (jx, jy)
-            dx, dy = _dir((jx, jy), (bx, by))
-            resto = j.setdefault('resto_iman', [0.0, 0.0])
-            resto[0] += dx * R['fuerza_iman']; resto[1] += dy * R['fuerza_iman']
-            px, py = int(resto[0]), int(resto[1])
-            resto[0] -= px; resto[1] -= py
-            entorno.mover(ent, j['rect'], px, py, j['tipos'])
+        if b['salto']: _cuerpo_pesado(b, ctx); return
+        if b['foco']: _actualizar_foco(b, ctx); return
+        a = b['aviso']
+        if a:
+            if ahora < a['hasta']: return
+            b['aviso'] = None
+            if a['clase'] == 'foco':
+                px, py = _pos_anterior(b, j, ahora, R['retraso'])
+                b['foco'] = {'ang': math.atan2(py - by, px - bx), 'fin': a['mira'], 'hasta': ahora + R['dura_foco'], 'prox': ahora}
             return
+        if ahora < b['iman_hasta']: _iman(b, ctx); return
         b['iman_a'] = None
-        if ahora >= p['iman']:
-            p['iman'] = ahora + R['iman']; b['iman_hasta'] = ahora + R['dura_iman']; return
-        if ahora >= p['mina']:
+        if fase >= 2 and ahora >= p['iman']:
+            p['iman'] = ahora + R['iman']; b['iman_hasta'] = ahora + R['dura_iman']
+            b['iman_modo'] = 'alejar' if b['iman_modo'] == 'atraer' else 'atraer'
+            return
+        if fase == 3 and ahora >= p['pesado']:
+            p['pesado'] = ahora + 10 ** 7                           # se vuelve a contar cuando cae
+            b.update(salto={'etapa': 'sube', 'inicio': ahora}, invulnerable=True, sin_contacto=True)
+            ctx['impacto'](bx, by, 80, 200); return
+        if fase == 3 and ahora >= p['foco']:
+            p['foco'] = ahora + R['foco']
+            b['aviso'] = {'hasta': ahora + R['aviso_foco'], 'clase': 'foco', 'inicio': ahora, 'mira': (jx, jy)}; return
+        if fase == 2 and ahora >= p['mina']:
             p['mina'] = ahora + R['mina']
             for i in range(R['minas_de_a']):
                 pos = (jx, jy) if i == 0 else (jx + random.randint(-220, 220), jy + random.randint(-220, 220))
@@ -947,12 +1309,43 @@ def armar_ia():
         if not libres:
             if t['estado'] == 'gris': t['estado'] = 'cargada'; t['obj']['color'] = COLOR_TORRE['cargada']; t['entro'] = ctx['ahora']; return
             b['torre'], b['modo'], b['escondido'] = None, 'tele', False
-            b['prox']['tele'] = ctx['ahora']
+            b['prox']['tele'] = ctx['ahora']; b['prox']['jaula'] = ctx['ahora'] + REGIELEKI['primera_jaula']
             _rayos5(b, ctx)
             return
         b['torre'] = None
         _rayos5(b, ctx)
         _ir_a_torre(b, ctx, random.choice(libres))
+
+
+    def _jaula_voltio(b, ctx):
+        """Jaula Voltio: un cuadrado electrico alrededor del jugador. Lastima si lo tocas y se rompe con 2 ataques."""
+        ent, j, ahora, R = ctx['ent'], ctx['jugador'], ctx['ahora'], REGIELEKI
+        cx, cy = j['rect'].center
+        m, g = R['lado_jaula'] // 2, R['grosor_jaula']
+        lados = (pygame.Rect(cx - m, cy - m, 2 * m, g), pygame.Rect(cx - m, cy + m - g, 2 * m, g),
+                 pygame.Rect(cx - m, cy - m, g, 2 * m), pygame.Rect(cx + m - g, cy - m, g, 2 * m))
+        b['jaula'] = {'piezas': [entorno.poner_barrera(ent, 'jaula_voltio', r) for r in lados], 'golpes': 0, 'hasta': ahora + R['dura_jaula'], 'prox': 0, 'nace': ahora}
+        ctx['impacto'](cx, cy, 60, 150)
+
+
+    def _actualizar_jaula(b, ctx):
+        """Cuenta los golpes que le das a la jaula (cualquier lado) y la saca cuando se rompe o se le acaba el tiempo."""
+        ent, j, ahora, R = ctx['ent'], ctx['jugador'], ctx['ahora'], REGIELEKI
+        jaula = b['jaula']
+        if not jaula: return
+        golpeada = False
+        for o in jaula['piezas']:
+            if o['vida'] < o['max_vida']: golpeada = True
+            o['vida'] = o['max_vida']
+        if golpeada: jaula['golpes'] += 1
+        if ahora >= jaula['prox'] and any(j['rect'].inflate(8, 8).colliderect(o['rect']) for o in jaula['piezas']):
+            ctx['dañar_jugador'](b['daño'] * R['daño_jaula'], 'electrico'); jaula['prox'] = ahora + 500
+        if jaula['golpes'] >= R['golpes_jaula'] or ahora >= jaula['hasta']:
+            for o in jaula['piezas']:
+                if o in ent['objetos']: ent['objetos'].remove(o)
+            ent['version'] += 1
+            ctx['impacto'](*j['rect'].center, 80, 200 if jaula['golpes'] >= R['golpes_jaula'] else 0)
+            b['jaula'] = None
 
 
     def actualizar_regieleki(b, ctx):
@@ -984,6 +1377,9 @@ def armar_ia():
                 ctx['dañar_jugador'](b['daño'] * R['daño_onda'], 'electrico'); o['pego'] = True
         a = b['aviso']
         if a and ahora >= a['hasta']: b['aviso'] = None; _rayos5(b, ctx)
+        _actualizar_jaula(b, ctx)
+        if b['modo'] == 'tele' and not b['jaula'] and ahora >= p.get('jaula', 0):
+            p['jaula'] = ahora + R['jaula']; _jaula_voltio(b, ctx)
         if b['modo'] == 'libre':
             if b['vida'] <= b['max_vida'] * R['umbral'] and any(t['estado'] == 'gris' for t in b['torres']):
                 b['aviso'] = None
@@ -1013,6 +1409,7 @@ def armar_ia():
                 b['ondas'].append({'pos': b['rect'].center, 'inicio': ahora + espera, 'hasta': ahora + espera + R['onda'], 'pego': False})
             ctx['impacto'](*b['rect'].center, 60, 150)
         b['vida_guardada'] = b['vida']
+        b['fase'] = 1 if b['modo'] == 'libre' else 3 if b['modo'] == 'tele' else 2
 
 
     # ---------- Regidrago ----------
@@ -1071,7 +1468,12 @@ def armar_ia():
 
 
     def _boca(b, ctx, pos):
-        b['bocas'].append({'pos': pos, 'prox': ctx['ahora'] + 600, 'disparos': REGIDRAGO['disparos_boca'], 'mira': None, 'hasta': 0, 'nace': ctx['ahora']})
+        boca = {'pos': pos, 'prox': ctx['ahora'] + 600, 'disparos': REGIDRAGO['disparos_boca'], 'mira': None, 'hasta': 0, 'nace': ctx['ahora']}
+        if b['fase'] == 3:                                          # en la tercera fase se les puede pegar
+            vida = max(1, round(b['max_vida'] * REGIDRAGO['vida_boca']))
+            r = pygame.Rect(0, 0, 64, 64); r.center = (round(pos[0]), round(pos[1]))
+            boca.update(rect=r, vida=vida, max_vida=vida, tipo='dragon', atacable=True, de_jefe=True, estado=None, estado_hasta=0, proximo_estado=0)
+        b['bocas'].append(boca)
 
 
     def _boca_torre(b, ctx):
@@ -1088,6 +1490,9 @@ def armar_ia():
         j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
         jx, jy = j['rect'].center
         for boca in b['bocas'][:]:
+            if boca.get('atacable'):
+                if boca['vida'] <= 0: b['bocas'].remove(boca); ctx['impacto'](*boca['rect'].center, 50, 150); continue
+                boca['pos'] = boca['rect'].center                   # por si la empujo un golpe
             x, y = boca['pos']
             if boca['mira'] and ahora >= boca['hasta']:
                 base = math.atan2(boca['mira'][1] - y, boca['mira'][0] - x)
@@ -1107,7 +1512,8 @@ def armar_ia():
         """Draco Energia: se queda quieto y no recibe daño; carga 2 s y despues un rayo que te sigue 10 s."""
         j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
         bx, by = b['rect'].center
-        b.update(etapa='draco', invulnerable=True, sin_estados=True, aviso=None, dash=None, bocas=[])
+        b.update(etapa='draco', invulnerable=volver, sin_estados=True, aviso=None, dash=None)   # en la tercera fase se le puede pegar
+        if volver: b['bocas'] = []
         b['draco'] = {'inicio': ahora, 'dispara': ahora + R['carga_draco'], 'fin': ahora + R['carga_draco'] + R['dura_draco'], 'prox': 0, 'volver': volver,
                       'ang': math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)}
 
@@ -1116,10 +1522,10 @@ def armar_ia():
         j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
         d = b['draco']
         bx, by = b['rect'].center
-        quiero = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        px, py = _pos_anterior(b, j, ahora, R['retraso_draco'])      # apunta a donde estabas: se puede esquivar
+        quiero = math.atan2(py - by, px - bx)
         if ahora < d['dispara']: d['ang'] = quiero; return
-        dif = (quiero - d['ang'] + math.pi) % math.tau - math.pi
-        d['ang'] += max(-R['giro_draco'], min(R['giro_draco'], dif))
+        d['ang'] = _girar_hacia(d['ang'], quiero, R['giro_draco'])
         d['fin_rayo'] = (bx + math.cos(d['ang']) * R['largo_draco'], by + math.sin(d['ang']) * R['largo_draco'])
         if ahora >= d['prox'] and _dist_segmento(j['rect'].center, (bx, by), d['fin_rayo']) <= R['ancho_draco'] + max(j['rect'].size) / 2:
             ctx['dañar_jugador'](b['daño'] * R['daño_draco'], 'dragon'); d['prox'] = ahora + R['tick_draco']
@@ -1164,6 +1570,7 @@ def armar_ia():
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         R, p = REGIDRAGO, b['prox']
+        _rastrear(b, j, ahora)
         if b['etapa'] is None: b['etapa'] = 'suelo'; p.update(enfado=ahora + 2500)
         if b['invulnerable']: b['vida'] = b['vida_guardada']
         if b['fase'] == 1: b['vida'] = max(b['vida'], b['max_vida'] * R['fases'][0])        # cada fase se juega entera
@@ -1333,6 +1740,9 @@ def armar_ia():
                 pygame.draw.line(ventana, (170, 90, 255), (bx, by), (mira[0] - cx, mira[1] - cy), 1 + round(4 * k))
                 pygame.draw.circle(ventana, (170, 90, 255), (round(mira[0] - cx), round(mira[1] - cy)), 18, 2)
             _dibujar_boca(ventana, (bx, by), ang, 1.0 if mira else 0.2)
+            if boca.get('atacable'):
+                pygame.draw.rect(ventana, (60, 0, 0), (bx - 30, by - 44, 60, 5))
+                pygame.draw.rect(ventana, (230, 200, 40), (bx - 30, by - 44, round(60 * max(0, boca['vida']) / boca['max_vida']), 5))
         d = e['draco']
         if d:
             if ahora < d['dispara']:                                # carga: anillos que se cierran
@@ -1391,10 +1801,24 @@ def armar_ia():
                     fx, fy = a['fin'][0] - cx, a['fin'][1] - cy
                     pygame.draw.line(ventana, (255, 240, 180), (x, y), (fx, fy), 2 + round(ARCEUS['ancho_hiperrayo'] * k * 0.6))
                     pygame.draw.line(ventana, (255, 90, 40), (x, y), (fx, fy), 2)
-                elif a['clase'] == 'rayo_hielo':                    # linea celeste fija que se va engrosando
-                    fx, fy = a['fin'][0] - cx, a['fin'][1] - cy
-                    pygame.draw.line(ventana, (200, 240, 255), (x, y), (fx, fy), 2 + round(REGICE['ancho_rayo'] * k * 0.8))
-                    pygame.draw.line(ventana, (60, 140, 230), (x, y), (fx, fy), 2)
+                elif a['clase'] == 'rayo_hielo':                    # linea celeste fija que se va engrosando (con los rebotes)
+                    puntos = [(px - cx, py - cy) for px, py in a.get('puntos', ((e['rect'].centerx, e['rect'].centery), a['fin']))]
+                    pygame.draw.lines(ventana, (200, 240, 255), False, puntos, 2 + round(REGICE['ancho_rayo'] * k * 0.8))
+                    pygame.draw.lines(ventana, (60, 140, 230), False, puntos, 2)
+                elif a['clase'] == 'avalancha':                     # junta las rocas para tirarlas
+                    for i in range(6):
+                        ang = ahora / 150 + i * math.tau / 6
+                        pygame.draw.circle(ventana, (140, 115, 80), (round(x + math.cos(ang) * 70), round(y - 40 + math.sin(ang) * 25)), round(8 + 10 * k))
+                elif a['clase'] == 'foco':                          # Foco Resplandor cargando
+                    mx, my = a['mira'][0] - cx, a['mira'][1] - cy
+                    pygame.draw.line(ventana, (230, 235, 255), (x, y), (mx, my), 1 + round(3 * k))
+                    pygame.draw.circle(ventana, (230, 235, 255), (x, y), round(10 + 30 * k), 3)
+                elif a['clase'] == 'agarre':                        # manos que se abren alrededor de Regigigas
+                    radio = GIGAS['radio_agarre']
+                    pygame.draw.circle(ventana, (255, 150, 40), (x, y), radio, 3)
+                    for i in range(2):
+                        ang = math.pi * i + ahora / 300
+                        pygame.draw.circle(ventana, (255, 200, 120), (round(x + math.cos(ang) * radio * (1 - 0.4 * k)), round(y + math.sin(ang) * radio * (1 - 0.4 * k))), 18, 4)
                 elif a['clase'] == 'roca_afilada':                  # por donde van a salir las rocas
                     for i in range(1, REGIROCK['largo_roca'] + 1, 2):
                         d = max(e['rect'].size) / 2 + i * REGIROCK['paso_roca']
@@ -1407,7 +1831,7 @@ def armar_ia():
                             bx_ = x + i * 26
                             by_ = y + lado * (r * (1 - 0.7 * k))
                             pygame.draw.polygon(ventana, (255, 240, 230), [(bx_ - 10, by_), (bx_ + 10, by_), (bx_, by_ - lado * 26)])
-                elif a['clase'] in ('fuerza_bruta', 'enfado'):      # franja roja por donde va a embestir
+                elif a['clase'] in ('fuerza_bruta', 'enfado', 'gigaimpacto'):   # franja roja por donde va a embestir
                     W, H = ventana.get_size()
                     velo = pygame.Surface((W, H), pygame.SRCALPHA)
                     largo, ancho = a.get('largo', REGIROCK['largo_fuerza']), a.get('ancho', REGIROCK['ancho_fuerza'])
@@ -1430,11 +1854,97 @@ def armar_ia():
                 if k > 0.6: pygame.draw.line(ventana, (255, 255, 230), (rx, ry - 500), (rx, ry), round(2 + 6 * (k - 0.6) / 0.4))
             haz = e.get('haz')
             if haz:
-                a0, a1 = (haz['desde'][0] - cx, haz['desde'][1] - cy), (haz['fin'][0] - cx, haz['fin'][1] - cy)
+                puntos = [(px - cx, py - cy) for px, py in haz.get('puntos', (haz.get('desde'), haz.get('fin')))]
                 ancho = haz.get('ancho', ARCEUS['ancho_hiperrayo'])
                 afuera, adentro = haz.get('color', ((255, 200, 80), (255, 255, 240)))
-                pygame.draw.line(ventana, afuera, a0, a1, ancho * 2)
-                pygame.draw.line(ventana, adentro, a0, a1, ancho)
+                if haz.get('tick'): ancho += round(math.sin(ahora / 50) * 4)
+                pygame.draw.lines(ventana, afuera, False, puntos, ancho * 2)
+                pygame.draw.lines(ventana, adentro, False, puntos, ancho)
+                for p_ in puntos[1:-1]: pygame.draw.circle(ventana, adentro, [round(v) for v in p_], ancho)   # que los rebotes no se corten
+            f = e.get('foco')
+            if f and f.get('fin'):                                  # Foco Resplandor
+                fin = (f['fin'][0] - cx, f['fin'][1] - cy)
+                ancho = REGISTEEL['ancho_foco'] + round(math.sin(ahora / 40) * 4)
+                pygame.draw.line(ventana, (150, 160, 200), (x, y), fin, ancho * 2)
+                pygame.draw.line(ventana, (245, 248, 255), (x, y), fin, ancho)
+            for st in e.get('estalactitas', ()):                    # sombra que crece y la estalactita que cae
+                k = min(1.0, (ahora - st['inicio']) / max(1, st['hasta'] - st['inicio']))
+                sx, sy = round(st['pos'][0] - cx), round(st['pos'][1] - cy)
+                radio = REGICE['radio_estalactita']
+                pygame.draw.circle(ventana, (40, 70, 110), (sx, sy), max(1, round(radio * k)))
+                pygame.draw.circle(ventana, (150, 210, 255), (sx, sy), radio, 2)
+                if k > 0.55:
+                    yy = sy - round(400 * (1 - k) / 0.45)
+                    pygame.draw.polygon(ventana, (210, 240, 255), [(sx - 14, yy - 46), (sx + 14, yy - 46), (sx, yy)])
+                    pygame.draw.polygon(ventana, (90, 150, 210), [(sx - 14, yy - 46), (sx + 14, yy - 46), (sx, yy)], 2)
+            if e.get('coraza'):                                     # coraza de hielo de Regice
+                radio = max(e['rect'].size) // 2 + 18
+                puntos = [(x + math.cos(ahora / 900 + i * math.tau / 6) * radio, y + math.sin(ahora / 900 + i * math.tau / 6) * radio) for i in range(6)]
+                velo = pygame.Surface(ventana.get_size(), pygame.SRCALPHA)
+                pygame.draw.polygon(velo, (170, 225, 255, 70), puntos)
+                ventana.blit(velo, (0, 0))
+                pygame.draw.polygon(ventana, (210, 245, 255), puntos, 4)
+            for c in e.get('caidas', ()):                           # rocas de la avalancha volando hacia el hexagono
+                k = min(1.0, (ahora - c['inicio']) / max(1, c['hasta'] - c['inicio']))
+                tx, ty = round(c['pos'][0] - cx), round(c['pos'][1] - cy)
+                radio = REGIROCK['radio_avalancha']
+                pygame.draw.circle(ventana, (70, 50, 35), (tx, ty), max(1, round(radio * k)))
+                pygame.draw.circle(ventana, (255, 60, 40), (tx, ty), radio, 2)
+                ox, oy = c['desde'][0] - cx, c['desde'][1] - cy
+                rx, ry = ox + (tx - ox) * k, oy + (ty - oy) * k - math.sin(k * math.pi) * 220
+                pygame.draw.circle(ventana, (140, 115, 80), (round(rx), round(ry)), 22)
+                pygame.draw.circle(ventana, (60, 45, 30), (round(rx), round(ry)), 22, 3)
+            for r in e.get('rodantes', ()):                         # las 5 rocas de Regirock
+                pos = (r['rect'].centerx - cx, r['rect'].centery - cy)
+                radio = r['rect'].width // 2
+                if r['explota'] is not None:
+                    k = 1 - (r['explota'] - ahora) / REGIROCK['espera_explosion']
+                    pygame.draw.circle(ventana, (255, 60, 40), pos, REGIROCK['radio_explosion'], 2)
+                    pygame.draw.circle(ventana, (255, 60, 40), pos, max(1, round(REGIROCK['radio_explosion'] * k)), 2)
+                color = (220, 60, 40) if r['explota'] is not None and (ahora // 90) % 2 else (140, 115, 80)
+                pygame.draw.circle(ventana, color, pos, radio)
+                ang = ahora / 120 * (1 if r['v'][0] >= 0 else -1)
+                for i in range(3):
+                    a_ = ang + i * math.tau / 3
+                    pygame.draw.line(ventana, (70, 55, 40), pos, (pos[0] + math.cos(a_) * radio * 0.8, pos[1] + math.sin(a_) * radio * 0.8), 3)
+                pygame.draw.circle(ventana, (60, 45, 30), pos, radio, 3)
+                if r['vida'] > 0:
+                    pygame.draw.rect(ventana, (60, 0, 0), (pos[0] - radio, pos[1] - radio - 10, radio * 2, 5))
+                    pygame.draw.rect(ventana, (230, 200, 40), (pos[0] - radio, pos[1] - radio - 10, round(radio * 2 * r['vida'] / max(1, r['max_vida'])), 5))
+            sal = e.get('salto')
+            if sal and sal['etapa'] != 'sube':                      # sombra de Cuerpo Pesado
+                radio = REGISTEEL['radio_pesado']
+                k = 1 - e['altura'] / REGISTEEL['alto_salto']
+                velo = pygame.Surface((radio * 2, radio * 2), pygame.SRCALPHA)
+                pygame.draw.circle(velo, (0, 0, 0, 60 + round(80 * k)), (radio, radio), max(8, round(radio * (0.3 + 0.7 * k))))
+                ventana.blit(velo, (x - radio, y - radio))
+                pygame.draw.circle(ventana, (255, 60, 40) if sal['etapa'] in ('quieto', 'cae') else (200, 200, 210), (x, y), radio, 3)
+            jaula = e.get('jaula')
+            if jaula:                                               # Jaula Voltio (cambia de color con cada golpe)
+                color = ((255, 240, 80), (255, 150, 40))[min(1, jaula['golpes'])]
+                for o in jaula['piezas']:
+                    r = o['rect'].move(-cx, -cy)
+                    pygame.draw.rect(ventana, (60, 50, 10), r)
+                    azar = random.Random(ahora // 60 + r.x)
+                    largo = max(r.size); vertical = r.height > r.width
+                    puntos = [(r.centerx + (0 if vertical else -largo / 2 + largo * i / 8) + (azar.randint(-6, 6) if vertical else 0),
+                               r.centery + (-largo / 2 + largo * i / 8 if vertical else 0) + (0 if vertical else azar.randint(-6, 6))) for i in range(9)]
+                    pygame.draw.lines(ventana, color, False, puntos, 3)
+                    pygame.draw.rect(ventana, color, r, 2)
+            if e.get('lento_hasta') and not e.get('despierto'):     # Lento Inicio: defensa subida y un anillo que se llena
+                k = 1 - max(0, e['lento_hasta'] - ahora) / GIGAS['lento']
+                radio = max(e['rect'].size) // 2 + 30
+                pygame.draw.circle(ventana, (120, 130, 160), (x, y), radio, 6)
+                pygame.draw.arc(ventana, (240, 240, 255), pygame.Rect(x - radio, y - radio, radio * 2, radio * 2), math.pi / 2, math.pi / 2 + math.tau * k, 6)
+                if fuente:
+                    t = fuente.render('Lento Inicio', True, (230, 230, 245))
+                    ventana.blit(t, t.get_rect(midbottom=(x, y - radio - 6)))
+            if e.get('escudo_hasta', 0) > ahora:                    # Proteccion
+                radio = max(e['rect'].size) // 2 + 26
+                velo = pygame.Surface((radio * 2, radio * 2), pygame.SRCALPHA)
+                pygame.draw.circle(velo, (120, 255, 160, 70), (radio, radio), radio)
+                ventana.blit(velo, (x - radio, y - radio))
+                pygame.draw.circle(ventana, (200, 255, 210), (x, y), radio + round(math.sin(ahora / 80) * 3), 4)
             for c in e.get('circulos', ()):                         # roca afilada
                 k = min(1.0, (ahora - c['inicio']) / 120)
                 pos = (round(c['pos'][0] - cx), round(c['pos'][1] - cy))
@@ -1456,12 +1966,15 @@ def armar_ia():
                     pygame.draw.line(ventana, (90, 90, 100), (pos[0] + math.cos(ang) * rs * 0.5, pos[1] + math.sin(ang) * rs * 0.5),
                                      (pos[0] + math.cos(ang) * (rs + 6), pos[1] + math.sin(ang) * (rs + 6)), 3)
                 pygame.draw.circle(ventana, (60, 60, 70), pos, 5)
-            if e.get('iman_a') and e.get('iman_hasta', 0) > ahora:   # iman: lineas que te tiran hacia Registeel
+            if e.get('iman_a') and e.get('iman_hasta', 0) > ahora:   # iman: violeta atrae, naranja aleja
                 ix, iy = e['iman_a'][0] - cx, e['iman_a'][1] - cy
+                aleja = e.get('iman_modo') == 'alejar'
+                color = (255, 150, 60) if aleja else (170, 120, 255)
                 for i in range(3):
                     k = ((ahora / 400) + i / 3) % 1
-                    pygame.draw.circle(ventana, (170, 120, 255), (round(ix + (x - ix) * k), round(iy + (y - iy) * k)), 6, 2)
-                pygame.draw.circle(ventana, (170, 120, 255), (x, y), round(max(e['rect'].size) / 2 + 20 + math.sin(ahora / 100) * 8), 3)
+                    if aleja: k = 1 - k
+                    pygame.draw.circle(ventana, color, (round(ix + (x - ix) * k), round(iy + (y - iy) * k)), 6, 2)
+                pygame.draw.circle(ventana, color, (x, y), round(max(e['rect'].size) / 2 + 20 + math.sin(ahora / 100) * 8), 3)
             for l in e.get('lineas', ()):                           # camino de Regieleki entre torres
                 pygame.draw.line(ventana, (255, 240, 80), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), REGIELEKI['ancho_linea'])
                 pygame.draw.line(ventana, (255, 255, 220), (l['a'][0] - cx, l['a'][1] - cy), (l['b'][0] - cx, l['b'][1] - cy), 3)

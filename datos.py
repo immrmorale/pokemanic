@@ -715,6 +715,7 @@ def armar_mundos():
         'vacio': {'color': (12, 6, 24), 'bloquea': True},
         'escarcha': {'color': (200, 238, 255), 'bloquea': False},                 # piso que congela el rayo hielo de Regice
         'torre_dragon': {'color': (128, 128, 136), 'bloquea': False},             # techo de la torre a donde te lleva Regidrago
+        'arena_movediza': {'color': (186, 150, 86), 'bloquea': False},            # la que deja Regirock alrededor de sus rocas
     }
 
     # objetos: tamaño en pixeles, material, vida (None = no se rompe), forma y color del dibujo provisorio
@@ -784,6 +785,9 @@ def armar_mundos():
         'muro_de_hielo': {'tam': (62, 62), 'material': 'hielo_eterno', 'vida': 60, 'color': (150, 215, 245), 'al_romper': 'charco'},
         'torre_electrica': {'tam': (110, 110), 'material': 'torre', 'vida': 100000, 'color': (130, 130, 130)},
         'roca_afilada': {'tam': (96, 88), 'material': 'piedra', 'vida': 170, 'forma': 'circulo', 'color': (125, 110, 95), 'cobertura': True},
+        'bloque_glaciar': {'tam': (58, 58), 'material': 'hielo', 'vida': None, 'color': (175, 230, 250), 'empujable': True},   # se empuja con E
+        'roca_avalancha': {'tam': (64, 60), 'material': 'piedra', 'vida': 80, 'forma': 'circulo', 'color': (130, 112, 92)},
+        'jaula_voltio': {'tam': (16, 16), 'material': 'jaula', 'vida': 100000, 'color': (255, 240, 80)},
         # tienda (no se rompen)
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},

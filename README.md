@@ -301,37 +301,51 @@ La vida base se multiplica según el nivel del jefe.
 - Todo se avisa antes: una línea con mira para la ráfaga y un círculo rojo que se llena para el pisotón.
 - También tienen un anillo de balas y piedras verdes.
 
-**Los 5 Regis** (Regice, Regirock, Registeel, Regidrago y Regieleki): cuando pierden **un cuarto de su vida** llaman a **5 pokemon de su mismo tipo**. Primero aparecen las marcas rojas donde van a salir.
+**Los 5 Regis** (Regice, Regirock, Registeel, Regidrago y Regieleki) llaman a **5 pokemon de su mismo tipo** una vez: Regice y Regieleki al perder un cuarto de su vida, y Regirock, Registeel y Regidrago al perder el 10% (en su primera fase). Primero aparecen las marcas rojas donde van a salir.
 
-**Sala de los Regis:** redonda, grande (25 × 25 casillas) y vacía. Cuando cae el Regi se van los muros, rocas y torres que haya armado.
+Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un cartel cuando pasan a la siguiente.
 
-**Regice:**
-- **Rayo Hielo** cada 7 s: una línea celeste fija que se va engrosando y después dispara un rayo ancho y muy largo. El piso por donde pasa queda **escarcha**: resbala.
-- **Barra de congelamiento:** mientras pisás escarcha se carga una barra celeste (se dibuja arriba de tu barra de vida); fuera de la escarcha se descarga sola. Llena, **te congelás 3 s**. Congelado no podés moverte ni atacar, salvo con un **movimiento de hielo**, que te descongela.
-- **Muro de hielo** cada 5 s: 3 bloques de hielo entre él y vos que **solo se rompen con fuego** (el fuego también derrite la escarcha).
+**Sala de los Regis:** redonda, grande y vacía. Cuando cae el Regi se van los muros, rocas, bloques, jaulas y torres que haya armado.
 
-**Regirock:**
-- **Roca Afilada:** una fila de rocas que sale hacia vos y se frena al chocar con otra roca o con la pared. Si no te pegó, deja una roca al final.
-- **Fuerza Bruta** (desde la mitad de su vida): una franja roja marca hacia dónde va a embestir. Si choca contra una roca (la rompe) o una pared, **queda aturdido 3 s**.
+**Regice** (2 fases: 100–50% y 50–0%):
+- **Rayo Hielo:** una línea celeste fija que se va engrosando y después dispara un rayo ancho hasta la pared. El piso por donde pasa queda **escarcha**: resbala.
+- **Barra de congelamiento:** mientras pisás escarcha se carga una barra celeste (arriba de tu barra de vida); fuera de la escarcha se descarga sola. Llena, **te congelás 3 s**. Congelado no podés moverte ni atacar; un **movimiento de fuego o de lucha** te descongela al instante.
+- **Muro de hielo** cada 5 s: 3 bloques entre él y vos que **solo se rompen con fuego**.
+- **Fase 1:** cada Rayo Hielo deja al final un **bloque de hielo** (como mucho 3 a la vez). Parate al lado y apretá **E**: sale para el lado contrario y se desliza por la escarcha.
+- **Fase 2:** se cubre con una **coraza de hielo** (recibe solo el 20% del daño). Se rompe cuando le chocás uno de los bloques de la fase 1; rota, recibe **x1,6** de daño el resto de la pelea. Además el Rayo Hielo **rebota en las paredes** y queda 5 s (Regice se queda quieto mientras dura) y caen **estalactitas**: una sombra que crece en el piso y después cae el hielo.
 
-**Registeel:**
-- **Minas:** pone 3 minas (una donde estás) que explotan al rato y largan balas en 8 direcciones.
-- **Sierras:** tira 2 sierras que rebotan en las paredes durante 5 s o hasta que te pegan.
-- **Imán:** se queda quieto y te tira hacia él durante 5 s.
+**Regirock** (3 fases: 100–75%, 75–25% y 25–0%):
+- **Fase 1:** **Roca Afilada** (una fila de rocas que sale hacia vos y, si no te pega, deja una roca al final) y **Avalancha**: se queda quieto haciendo el lanzamiento y tira 6 rocas que caen en **hexágono** alrededor tuyo. Lastiman al caer y quedan 5 s como obstáculo.
+- **Fase 2:** Avalancha, Roca Afilada y **Fuerza Bruta** (una franja roja marca hacia dónde embiste; si choca contra una roca o una pared queda aturdido 3 s). Alrededor de cada roca que deja la Roca Afilada aparece **arena movediza**: frena mucho y lastima un poquito (a los voladores no les hace nada).
+- **Fase 3:** **se parte en 5 rocas rodantes** que rebotan en las paredes y en las rocas. Cada una tira **Lanzarrocas** (6 rocas chicas alrededor) y lastima si te choca. Cuando una se queda sin vida, se frena, titila y **explota**. La barra del jefe es la suma de las 5.
 
-**Regieleki:**
+**Registeel** (3 fases: 100–75%, 75–25% y 25–0%):
+- **Sierras** (todas las fases): 2 sierras que rebotan en las paredes durante 7 s o hasta que te pegan.
+- **Fase 1:** sierras y llama refuerzos.
+- **Fase 2:** además **minas** (3, una donde estás, que explotan al rato en 8 balas) e **imán**: se queda quieto 4 s y alterna entre **atraer** (violeta) y **alejar** (naranja) al jugador **y a las minas**. Las minas que le explotan cerca a él también lo lastiman.
+- **Fase 3:** sierras, imán, **Foco Resplandor** (un rayo que va siguiendo por donde estabas medio segundo antes, así se puede esquivar) y **Cuerpo Pesado** (salta fuera de la pantalla, su sombra te sigue, se frena un momento y cae).
+
+**Regidrago** (3 fases: 100–75%, 75–25% y 25–0%):
+- **Fase 1:** **Enfado** (embiste dejando fuego) y llama refuerzos.
+- **Fase 2:** te muerde y te lleva a lo alto de su torre: **Cometa Draco**, bocas de dragón que tiran **Dragoaliento** y al 25% **Draco Energía**; después la torre se rompe.
+- **Fase 3:** de vuelta en la sala usa todo junto. **Draco Energía** sigue por donde estabas (se esquiva) y en esta fase **no lo hace invencible**. Las **bocas** que tiran Dragoaliento tienen vida y se pueden romper.
+
+**Regieleki** (3 fases: libre, en las torres y sin torres):
 - Su sala tiene **6 torres eléctricas** (cuadrados grises). Tira **5 rayos** en abanico.
 - Al perder un cuarto de vida **se mete en una torre** (se pone amarilla) y no se le puede pegar. Pegarle a esa torre le pega a él. Si le pegaste, a los 3 s se pasa a otra torre y la anterior queda **marrón** (no puede volver); si no le pegaste, a los 8 s se cambia igual y la torre vuelve a gris. En el camino deja una **línea amarilla** que lastima, y al llegar tira los 5 rayos.
-- Sin torres: **se teletransporta** cada 2 s y larga **Alto Voltaje**, una onda que crece durante 3 s.
+- Sin torres: **se teletransporta** cada 2 s y larga **Alto Voltaje**, una onda que crece durante 3 s. Además usa **Jaula Voltio**: un cuadrado eléctrico aparece alrededor tuyo, lastima si lo tocás y se rompe con **2 ataques** (si no, desaparece a los 7 s).
 
 **Regigigas** pelea distinto:
-- **Terremoto:** un anillo marrón con grietas se llena alrededor suyo y después pega a todo lo que esté adentro. Es de tipo tierra, así que a los voladores casi no les hace nada. La pantalla tiembla.
-- **Puñetazos grandes:** una mira roja aparece donde estás parado, se cierra y cae el puño. Vienen de a 3 seguidos, cada uno apuntado a donde te moviste.
-- **Regis chiquitos:** cada 11 s llama a 2 versiones chicas de los Regis (con menos vida y daño que los de verdad), como mucho 4 a la vez. Regieleki embiste, Regice y Regidrago disparan de lejos y los demás pegan de cerca.
-- No tira piedras verdes.
+- **Lento Inicio:** los primeros **10 s** está quieto con la **defensa subida** (recibe el 30% del daño). Un anillo alrededor suyo se va llenando; cuando despierta usa **Terremoto**.
+- **Terremoto:** un anillo marrón con grietas se llena alrededor suyo y pega a todo lo que esté adentro. Es de tipo tierra, así que a los voladores casi no les hace nada. La pantalla tiembla.
+- **Megapuño:** una mira roja aparece donde estás parado, se cierra y cae el puño. Vienen de a 3 seguidos.
+- **Gigaimpacto:** una franja roja marca hacia dónde carga; embiste hasta donde estabas y pega muy fuerte. Después queda 1,2 s quieto recargando.
+- **Protección:** si le pegás mucho seguido, se cubre con un escudo verde durante 3 s y se queda quieto sin recibir daño.
+- **Agarrón:** si estás cerca, se marca un anillo naranja; si seguís adentro cuando se cierra, te agarra y te tira para atrás. **Solo lastima si chocás contra una pared.**
+- **Regis chiquitos:** después de despertar, cada 11 s llama a 2 versiones chicas de los Regis, como mucho 4 a la vez.
 
 **Arceus** tiene la barra de vida partida en **3 fases** (un tercio cada una), y avisa con un cartel cuando cambia:
-1. **Rayos e Hiperrayo:** caen rayos de tipo normal en cualquier lugar del mapa (uno siempre cerca tuyo). Primero se marca un círculo en el piso y, al caer, cada rayo se abre en 4 balas: arriba, abajo, izquierda y derecha. Además tira **Hiperrayo**: una línea fija hacia donde estabas que se va engrosando; salí de la línea antes de que dispare.
+1. **Rayos e Hiperrayo:** caen rayos de tipo normal en cualquier lugar del mapa (uno siempre cerca tuyo). Primero se marca un círculo en el piso y, al caer, cada rayo se abre en 4 balas: arriba, abajo, izquierda y derecha. Además tira **Hiperrayo**: una línea fija hacia donde estabas que se va engrosando; salí de la línea antes de que dispare. Después del Hiperrayo **queda 3 s quieto recargando** (estrellitas arriba de la cabeza): es el momento de pegarle.
 2. **Multitipo y Sentencia:** cada golpe que le das le cambia el tipo (y con eso sus debilidades). Tira **Sentencia** como los puñetazos de Regigigas pero más grande, de a 3 seguidas: aparece el **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) del color de su tipo, girando y llenándose hasta que cae.
 3. **Todo junto:** rayos, Hiperrayo, Multitipo y Sentencia, más seguido. **Cada Sentencia rompe el piso** y deja un **vacío** que nadie puede cruzar, ni volando (los ataques sí pasan por arriba). Nunca aparece debajo de nadie ni delante de las puertas.
 
@@ -346,7 +360,7 @@ Arceus no tira el anillo de balas ni las piedras verdes.
 
 Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
 
-**Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15). Regidrago todavía pelea como los demás jefes.
+**Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
 **Premios:**
 - **Monedas:** 120 el semijefe, 250 el Regi.
