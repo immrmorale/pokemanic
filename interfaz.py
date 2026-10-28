@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pygame
 import datos
 from datos import mts, tienda
-from sistema import controles, opciones, animaciones
+from sistema import controles, opciones, partidas, animaciones
 from mundo import entorno
 from combate import progreso
 
@@ -606,14 +606,22 @@ def armar_menus():
         s = {}
         s['Controles'] = [nombre + ': ' + tecla(a) for a, nombre in controles.ACCIONES] + ['', 'Todo se puede cambiar en Ajustes > Controles (3 perfiles de teclado y 3 de control).']
         s['Combate'] = [
-            'Ataque cuerpo a cuerpo (' + tecla('basico1') + '): rapido y fuerte, pero tenes que estar cerca.',
+            'Cuerpo a cuerpo (' + tecla('basico1') + '): combo de 3 golpes. Apreta de nuevo enseguida para encadenar; el 3ro es un remate que barre, empuja lejos e interrumpe.',
+            'Cada golpe que conecta te devuelve energia y le saca espera a tus especiales: pelear de cerca rinde.',
+            'Golpe en carrera: si atacas corriendo, el primer golpe pega mas y llega mas lejos.',
+            'Parry: golpea justo cuando un enemigo te va a pegar (su aviso brilla amarillo con un !). Lo aturde, recibe el doble, recuperas energia, vida y especiales. Tambien devuelve las balas.',
+            'Si fallas el parry tenes que esperar un poquito para intentarlo de nuevo: apretar sin parar no sirve.',
+            'Esquivar (' + tecla('esquivar') + '): salto corto hacia donde caminas (quieto: para atras), invulnerable un instante. Gasta energia.',
+            'Esquive perfecto: si te iban a pegar mientras esquivabas, recuperas energia y tu proximo golpe es un contraataque (x1.8).',
             'Ataque a distancia (' + tecla('basico2') + '): mas debil y tarda mas en recargar, pero es seguro.',
             'Especiales (' + tecla('especial1') + ' y ' + tecla('especial2') + '): dependen del rol del pokemon (atacante, tanque, estratega o velocista).',
             'Asistencias (' + tecla('asist1') + ' y ' + tecla('asist2') + '): las tira un pokemon de la banca; tardan mucho en recargar.',
-            'Sinergia: los de la banca le dan un bonus pasivo al que esta peleando segun su rol.',
-            'Cambiar de pokemon (' + tecla('poke1') + ' ' + tecla('poke2') + ' ' + tecla('poke3') + '): tiene una espera de 2.5 s.',
+            'Sinergia: los de la banca le dan un bonus pasivo al que esta peleando. Se elige en la ficha de cada pokemon.',
+            'Cambiar de pokemon (' + tecla('poke1') + ' ' + tecla('poke2') + ' ' + tecla('poke3') + '): tiene una espera de 2 s. Si cambias en el agua a uno que no nada, nada solo hasta la orilla.',
             'Tipos: un ataque super eficaz hace x2, uno poco eficaz x0.5 y si el otro es inmune casi no le hace nada.',
-            'Correr (' + tecla('correr') + ') gasta la barra azul de energia; se recarga sola.',
+            'Correr (' + tecla('correr') + ') gasta la barra azul de energia; arrancas con un pique y se recarga sola.',
+            'Congelado: solo te congela un golpe fuerte de hielo (un rayo de Regice, un pokemon de hielo que te pega de lleno). Pisar hielo solo resbala.',
+            'Al limpiar una sala todo el equipo recupera un poco de vida. Golpear a uno dormido lo despierta pero pega x1.5.',
             'Los enemigos avisan antes de atacar: anillo rojo = golpe, linea con mira = disparo, linea naranja = embestida.',
             'Escondido en hierba o sombra (si tu tipo puede) los enemigos casi no te ven.']
         tipos = sorted({t for tabla in (entorno.PISADAS, ) for terreno in tabla.values() for t in terreno if t != 'todos'} |
@@ -640,12 +648,15 @@ def armar_menus():
             ['  ' + mat + ': ' + ', '.join(t + ' x' + str(v) for t, v in tabla.items()) for mat, tabla in entorno.MATERIALES.items()] + \
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
-        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '. Lo unico que cura es la Baya Oran (a veces tambien la suelta un enemigo).', ''] + \
+        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '.',
+                       'Los objetos que dicen "lo lleva un pokemon" se equipan desde su ficha (hasta 2 cada uno) y solo cuentan mientras pelea.',
+                       'Los que dicen "todo el equipo" valen para todos.',
+                       'MT de combate: van en cualquier casilla (E, Q, Shift o R). MT especiales: solo en Shift o R.', ''] + \
             [it['nombre'] + ' (' + str(it['precio']) + ' $): ' + it['desc'] for k, it in tienda.ITEMS.items() if not it.get('mt')]
         s['Niveles y stats'] = [
             'Ganas experiencia derrotando pokemon, rompiendo cosas, completando salas y comprando. Los de la banca ganan la mitad.',
             'Cada nivel da ' + str(progreso.PUNTOS_POR_NIVEL) + ' punto de esfuerzo (EV): lo pones en el stat que quieras desde el menu de equipo.',
-            'Cada punto son ' + str(progreso.EV_POR_PUNTO) + ' EV. Maximo ' + str(progreso.EV_MAX_STAT) + ' por stat y ' + str(progreso.EV_MAX) + ' en total.',
+            'Cada punto son ' + str(progreso.EV_POR_PUNTO) + ' EV. Maximo ' + str(progreso.EV_MAX_STAT) + ' por stat y ' + str(progreso.EV_MAX) + ' en total (la ficha muestra cuanto llevas).',
             'Cada pokemon tiene IVs (0 a 31) al azar: dos del mismo pokemon no son iguales.',
             'PS = vida. Ataque = golpes y embestidas. At. Esp. = disparos y ataques de area. Defensas = menos daño recibido. Velocidad = caminar mas rapido.',
             'Los enemigos tambien tienen nivel: cuanto mas avanzas, mas fuertes.']
@@ -660,7 +671,11 @@ def armar_menus():
         s['Salas y eras'] = ['5 eras de 30 salas: Glacial, Piedra, Metales, Media y Moderna. Al final, El Origen: Regigigas y Arceus.',
                              'Semijefe en la sala 15 y el Regi de la era en la 30. Las puertas muestran que hay detras.',
                              'Limpia la sala para que aparezca la llave; con la llave se abren las puertas.',
-                             'La vida no se recupera entre salas.']
+                             'La vida no se recupera sola: al limpiar una sala el equipo recupera un 12%.',
+                             'Con la sala completada podes volver por la puerta por la que entraste; las salas hechas quedan hechas.']
+        s['Partidas'] = ['Hay 3 partidas guardadas (Jugar > elegis una ranura).',
+                         'Se guarda sola al entrar a cada sala, al completarla y al comprar: equipo, niveles, experiencia, EV, MT, objetos, monedas y por donde ibas.',
+                         'Si cae todo el equipo podes reintentar la sala desde como estabas al entrar.']
         return s
 
 
@@ -701,6 +716,60 @@ def armar_menus():
                     ventana.blit(fuente(24).render(linea, True, color), (panel.x + 15, y))
             ventana.set_clip(None)
             ventana.blit(fuente(22).render('arriba/abajo: seccion   izq/der o rueda: desplazar   ESC: volver', True, (240, 240, 240)), (40, H - 36))
+            ui['presentar'](); reloj.tick(60)
+
+
+    # ---------- partidas guardadas ----------
+
+    def elegir_partida(ui, resumenes):
+        """Las 3 ranuras de guardado. Devuelve ('continuar' | 'nueva', ranura), None si volves o 'salir'."""
+        ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        elegido, reloj = 0, pygame.time.Clock()
+        while True:
+            cajas = [pygame.Rect(60, 120 + k * 140, W - 120, 120) for k in range(len(resumenes))]
+            accion = None
+            for e in controles.eventos():
+                if e.type == pygame.QUIT: return 'salir'
+                if e.type == pygame.KEYDOWN:
+                    if e.key == pygame.K_ESCAPE: return None
+                    if e.key in (pygame.K_UP, pygame.K_w): elegido = (elegido - 1) % len(cajas)
+                    if e.key in (pygame.K_DOWN, pygame.K_s): elegido = (elegido + 1) % len(cajas)
+                    if e.key in (pygame.K_RETURN, pygame.K_e): accion = elegido
+                    if e.key in (pygame.K_1, pygame.K_2, pygame.K_3): accion = e.key - pygame.K_1
+                if e.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN):
+                    for k, r in enumerate(cajas):
+                        if r.collidepoint(ui['a_logico'](e.pos)):
+                            elegido = k
+                            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1: accion = k
+            if accion is not None and accion < len(resumenes):
+                ranura, resumen = accion + 1, resumenes[accion]
+                if not resumen: return 'nueva', ranura
+                r = preguntar(ui, 'Partida ' + str(ranura) + ': ' + resumen.get('era', '') + ', sala ' + str(resumen.get('sala', '?')),
+                              ['Continuar', 'Empezar de nuevo (borra esta)', 'Borrar', 'Cancelar'])
+                if r == 'salir': return 'salir'
+                if r == 0: return 'continuar', ranura
+                if r == 1 and preguntar(ui, 'Seguro? Se pierde la partida ' + str(ranura), ['Si, empezar de nuevo', 'No']) == 0: return 'nueva', ranura
+                if r == 2 and preguntar(ui, 'Seguro que borras la partida ' + str(ranura) + '?', ['Si, borrar', 'No']) == 0:
+                    partidas.borrar(ranura); resumenes[accion] = None
+            fondo(ventana)
+            titulo(ventana, 'Partidas', 60, 30, 64)
+            for k, r in enumerate(cajas):
+                caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
+                resumen = resumenes[k]
+                ventana.blit(fuente(34).render('Partida ' + str(k + 1), True, 'white'), (r.x + 18, r.y + 12))
+                if not resumen:
+                    ventana.blit(fuente(26).render('Vacia - empezar una partida nueva', True, (190, 190, 190)), (r.x + 18, r.y + 54)); continue
+                ventana.blit(fuente(24).render(resumen.get('era', '') + ' - sala ' + str(resumen.get('sala', '?')) + '/' + str(resumen.get('salas', '?')) +
+                                               '   $ ' + str(resumen.get('monedas', 0)), True, (240, 220, 120)), (r.x + 200, r.y + 18))
+                ventana.blit(fuente(20).render('guardada ' + str(resumen.get('fecha', '')), True, (190, 190, 190)), (r.right - 210, r.y + 18))
+                x = r.x + 18
+                for nombre, nivel in resumen.get('equipo', []):
+                    img = ui['retrato'](nombre, 44)
+                    if img: ventana.blit(img, (x, r.y + 56))
+                    ventana.blit(fuente(24).render(nombre.replace('_', ' ').title() + ' Nv ' + str(nivel), True, 'white'), (x + 50, r.y + 70))
+                    x += 250
+                if k == elegido: dibujar_esquinas(ventana, r.inflate(8, 8))
+            ventana.blit(fuente(22).render('ENTER o clic: elegir   ESC: volver   (se guarda sola al entrar a cada sala y al completarla)', True, 'white'), (60, H - 36))
             ui['presentar'](); reloj.tick(60)
 
 
@@ -871,18 +940,22 @@ def armar_menus():
 
 
     def ficha(ui, j, i, acc):
-        """Ficha de un miembro: stats con IV y EV (para gastar puntos), sus 4 movimientos (para enseñar MT) y evolucion."""
+        """Ficha de un miembro: stats con IV y EV (para gastar puntos), sinergia, sus 4 movimientos (para enseñar MT), sus 2 objetos y evolucion.
+        Abajo, un recuadro explica lo que tenes elegido (que hace el stat, el movimiento, el objeto...)."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         elegido = 0
         reloj = pygame.time.Clock()
         animador, ficha_zonas = None, {}
+        aviso = {'texto': '', 'hasta': 0}
+        sinergias = [None] + list(datos.pokemones.SINERGIAS)
         while True:
             m = j['equipo'][i]
+            m.setdefault('items', []); m.setdefault('sinergia', None)
             if not animador or animador.pokemon != m['nombre']:
-                animador = AnimadorPokemon(m['nombre'], pygame.Rect(0, 0, 10, 10), 120); animador.rect.center = (170, 190); animador.cambiar('idle', 0, True)
+                animador = AnimadorPokemon(m['nombre'], pygame.Rect(0, 0, 10, 10), 120); animador.rect.center = (170, 170); animador.cambiar('idle', 0, True)
             evos = progreso.evoluciones(m, j['inventario']['objetos'])
-            filas = [('stat', s) for s in progreso.STATS] + [('mov', k) for k in range(4)] + [('evo', r) for r in evos]
-            filas += ([('activar', None)] if i != j['activo'] else []) + [('volver', None)]
+            filas = [('stat', s_) for s_ in progreso.STATS] + [('sinergia', None)] + [('mov', k_) for k_ in range(4)] + [('item', r_) for r_ in range(tienda.MAX_EQUIPADOS)]
+            filas += [('evo', r_) for r_ in evos] + ([('activar', None)] if i != j['activo'] else []) + [('volver', None)]
             elegido = min(elegido, len(filas) - 1)
             accion = None
             for e in controles.eventos():
@@ -894,108 +967,222 @@ def armar_menus():
                     if e.key in (pygame.K_LEFT, pygame.K_a): i = (i - 1) % len(j['equipo']); animador = None
                     if e.key in (pygame.K_RIGHT, pygame.K_d): i = (i + 1) % len(j['equipo']); animador = None
                     if e.key in (pygame.K_RETURN, pygame.K_e): accion = filas[elegido]
-                if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                    for k, r in ficha_zonas.items():
-                        if k < len(filas) and r.collidepoint(ui['a_logico'](e.pos)): elegido = k; accion = filas[k]
+                if e.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEMOTION):
+                    for k_, r in ficha_zonas.items():
+                        if k_ < len(filas) and r.collidepoint(ui['a_logico'](e.pos)):
+                            elegido = k_
+                            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1: accion = filas[k_]
             if animador is None: continue
             if accion:
                 clase, valor = accion
                 if clase == 'volver': return None
-                if clase == 'stat' and progreso.gastar_punto(m, valor): acc['refrescar']()
+                if clase == 'stat':
+                    motivo = progreso.motivo_sin_ev(m, valor)
+                    if motivo: aviso.update(texto=motivo, hasta=pygame.time.get_ticks() + 2500)
+                    elif progreso.gastar_punto(m, valor): acc['refrescar']()
+                if clase == 'sinergia':
+                    actual = sinergias.index(m['sinergia']) if m['sinergia'] in sinergias else 0
+                    acc['sinergia'](i, sinergias[(actual + 1) % len(sinergias)])
                 if clase == 'activar': acc['activar'](i)
                 if clase == 'evo':
                     if preguntar(ui, 'Evolucionar a ' + m['nombre'].title() + ' en ' + valor['a'].title() + '?', ['Si', 'Todavia no'],
                                  'requisito: ' + progreso.texto_requisito(valor)) == 0:
                         acc['evolucionar'](i, valor); animacion_evolucion(ui, m['nombre'])
                 if clase == 'mov':
-                    mt = elegir_mt(ui, j, m)
+                    mt = elegir_mt(ui, j, m, valor)
                     if mt == 'salir': return 'salir'
                     if mt: acc['enseñar'](i, valor, mt)
+                if clase == 'item':
+                    r = elegir_objeto(ui, j, m, valor)
+                    if r == 'salir': return 'salir'
+                    if r is not None: acc['equipar'](i, valor, r or None)
+            # ----- panel izquierdo: el pokemon -----
             fondo(ventana)
             caja(ventana, (20, 20, 300, H - 40), 'panel', PANEL)
             animador.actualizar()
-            if not animador.dibujar(ventana): pygame.draw.circle(ventana, (200, 200, 200), (170, 190), 50)
-            ventana.blit(fuente(40).render(m['nombre'].replace('_', ' ').title(), True, 'white'), (40, 280))
+            if not animador.dibujar(ventana): pygame.draw.circle(ventana, (200, 200, 200), (170, 170), 50)
+            ventana.blit(fuente(40).render(m['nombre'].replace('_', ' ').title(), True, 'white'), (40, 255))
             x = 40
-            for tipo in pokemones[m['nombre']].get('tipo', []): x += chip_tipo(ventana, normalizar_tipo(tipo), x, 320)
-            ventana.blit(fuente(26).render('Nivel ' + str(m['nivel']) + '   amistad ' + str(m['amistad']), True, (240, 220, 120)), (40, 352))
-            barra(ventana, (40, 380, 260, 10), progreso.progreso_nivel(m), (80, 160, 255))
+            for tipo in pokemones[m['nombre']].get('tipo', []): x += chip_tipo(ventana, normalizar_tipo(tipo), x, 292)
+            rol = ROL_POKEMON.get(m['nombre'], '')
+            ventana.blit(fuente(22).render(rol.title(), True, (200, 220, 255)), (x + 6, 296))
+            ventana.blit(fuente(26).render('Nivel ' + str(m['nivel']) + '   amistad ' + str(m['amistad']), True, (240, 220, 120)), (40, 324))
+            barra(ventana, (40, 350, 260, 10), progreso.progreso_nivel(m), (80, 160, 255))
             ventana.blit(fuente(20).render('falta ' + str(max(0, progreso.xp_para(m['nombre'], m['nivel'] + 1) - m['xp'])) + ' xp para el nivel ' + str(m['nivel'] + 1),
-                                           True, (220, 220, 220)), (40, 396))
-            reqs = progreso.requisitos(m['nombre'])
-            for k, r in enumerate(reqs[:3]):
-                ventana.blit(fuente(20).render('Evoluciona a ' + r['a'].title() + ' (' + progreso.texto_requisito(r) + ')', True, (200, 230, 200)), (40, 424 + k * 20))
-            ventana.blit(fuente(20).render('izq/der: otro miembro', True, (200, 200, 200)), (40, H - 50))
+                                           True, (220, 220, 220)), (40, 366))
+            total_ev = sum(m['evs'].values())
+            ventana.blit(fuente(20).render('EV usados: ' + str(total_ev) + '/' + str(progreso.EV_MAX) + '  (max ' + str(progreso.EV_MAX_STAT) + ' por stat)',
+                                           True, (220, 220, 220)), (40, 388))
+            for k_, r in enumerate(progreso.requisitos(m['nombre'])[:3]):
+                ventana.blit(fuente(20).render('Evoluciona a ' + r['a'].title() + ' (' + progreso.texto_requisito(r) + ')', True, (200, 230, 200)), (40, 412 + k_ * 20))
+            ventana.blit(fuente(20).render('izq/der: otro miembro   ENTER: usar', True, (200, 200, 200)), (40, H - 50))
+            # ----- columnas de la derecha -----
             ficha_zonas = {}
-            y = 30
-            ventana.blit(fuente(30).render('Stats', True, TINTA), (350, y))
-            ventana.blit(fuente(22).render('Puntos EV para repartir: ' + str(m['puntos']), True, TINTA if not m['puntos'] else ALERTA), (560, y + 6))
-            y += 34
-            for k, (clase, valor) in enumerate(filas):
-                if clase == 'mov' and valor == 0:
-                    y += 10; ventana.blit(fuente(30).render('Movimientos (ENTER para enseñar una MT)', True, TINTA), (350, y)); y += 34
-                if clase == 'evo' and filas[k - 1][0] != 'evo': y += 10
-                r = pygame.Rect(350, y, W - 380, 30)
-                ficha_zonas[k] = r
-                caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
+            col_a, col_b, ancho_col = 340, 660, 310
+            ventana.blit(fuente(28).render('Stats', True, TINTA), (col_a, 22))
+            puntos = fuente(22).render('Puntos para repartir: ' + str(m['puntos']), True, ALERTA if m['puntos'] else TINTA)
+            ventana.blit(puntos, (col_a + ancho_col - puntos.get_width(), 26))
+            ventana.blit(fuente(28).render('Movimientos', True, TINTA), (col_b, 22))
+            y_a, y_b = 52, 52
+            movs_txt = acc['movs'](m)
+            for k_, (clase, valor) in enumerate(filas):
+                if clase in ('stat', 'sinergia', 'evo', 'activar', 'volver'):
+                    if clase == 'sinergia': y_a += 6
+                    if clase == 'evo' and filas[k_ - 1][0] != 'evo': y_a += 6
+                    r = pygame.Rect(col_a, y_a, ancho_col, 30); y_a += 34
+                else:
+                    if clase == 'item' and valor == 0:
+                        y_b += 8; ventana.blit(fuente(28).render('Objetos (hasta ' + str(tienda.MAX_EQUIPADOS) + ')', True, TINTA), (col_b, y_b)); y_b += 30
+                    r = pygame.Rect(col_b, y_b, ancho_col, 30); y_b += 34
+                ficha_zonas[k_] = r
+                caja(ventana, r, 'boton_elegido' if k_ == elegido else 'boton', OSCURO, 2)
                 if clase == 'stat':
                     total = progreso.stat(m['nombre'], valor, m['nivel'], m['ivs'][valor], m['evs'][valor])
-                    ventana.blit(fuente(24).render(progreso.NOMBRE_STAT[valor], True, 'white'), (r.x + 10, r.y + 7))
-                    ventana.blit(fuente(24).render(str(total), True, (240, 220, 120)), (r.x + 130, r.y + 7))
-                    barra(ventana, (r.x + 180, r.y + 9, 200, 12), total / 300, (90, 190, 90))
-                    ventana.blit(fuente(20).render('IV ' + str(m['ivs'][valor]) + '   EV ' + str(m['evs'][valor]), True, (200, 200, 200)), (r.x + 400, r.y + 8))
-                    if m['puntos']: ventana.blit(fuente(24).render('+', True, (120, 255, 120)), (r.right - 24, r.y + 5))
+                    ventana.blit(fuente(24).render(progreso.NOMBRE_STAT[valor], True, 'white'), (r.x + 8, r.y + 7))
+                    ventana.blit(fuente(24).render(str(total), True, (240, 220, 120)), (r.x + 100, r.y + 7))
+                    ventana.blit(fuente(20).render('EV ' + str(m['evs'][valor]) + '/' + str(progreso.EV_MAX_STAT), True, (200, 200, 200)), (r.x + 150, r.y + 8))
+                    barra(ventana, (r.x + 150, r.y + 24, 120, 3), m['evs'][valor] / progreso.EV_MAX_STAT, (120, 200, 255))
+                    if not progreso.motivo_sin_ev(m, valor): ventana.blit(fuente(26).render('+', True, (120, 255, 120)), (r.right - 22, r.y + 4))
+                elif clase == 'sinergia':
+                    clave = list(datos.pokemones.sinergia_de(m['nombre'], m['sinergia']))[0] if datos.pokemones.sinergia_de(m['nombre'], m['sinergia']) else None
+                    txt = 'Sinergia: ' + datos.pokemones.SINERGIAS.get(clave, '-') + ('' if m['sinergia'] else ' (rol)')
+                    ventana.blit(fuente(22).render(txt, True, (180, 230, 255)), (r.x + 8, r.y + 8))
                 elif clase == 'mov':
-                    nombre = acc['movs'](m)[valor]
-                    ventana.blit(fuente(24).render(['E', 'Q', 'Shift', 'R'][valor] + ':  ' + nombre, True, 'white'), (r.x + 10, r.y + 7))
-                    if m['movs'][valor]: ventana.blit(fuente(20).render('(MT)', True, (150, 180, 255)), (r.right - 50, r.y + 8))
-                elif clase == 'evo': ventana.blit(fuente(24).render('Evolucionar a ' + valor['a'].title() + '!', True, (250, 220, 90)), (r.x + 10, r.y + 7))
-                elif clase == 'activar': ventana.blit(fuente(24).render('Poner a pelear', True, 'white'), (r.x + 10, r.y + 7))
-                else: ventana.blit(fuente(24).render('Volver', True, 'white'), (r.x + 10, r.y + 7))
-                if k == elegido: dibujar_esquinas(ventana, r.inflate(6, 4), margen=4, largo=10, grosor=2)
-                y += 34
+                    ventana.blit(fuente(24).render(mts.CASILLAS[valor] + ':  ' + movs_txt[valor], True, 'white'), (r.x + 8, r.y + 7))
+                    if m['movs'][valor]: ventana.blit(fuente(20).render('(MT)', True, (150, 180, 255)), (r.right - 46, r.y + 8))
+                elif clase == 'item':
+                    clave = m['items'][valor] if valor < len(m['items']) else None
+                    icono = icono_objeto(clave, 22) if clave else None
+                    if icono: ventana.blit(icono, (r.x + 6, r.y + 4))
+                    ventana.blit(fuente(24).render(tienda.ITEMS[clave]['nombre'] if clave else '(vacio)', True, 'white' if clave else (150, 150, 150)), (r.x + 34, r.y + 7))
+                elif clase == 'evo': ventana.blit(fuente(24).render('Evolucionar a ' + valor['a'].title() + '!', True, (250, 220, 90)), (r.x + 8, r.y + 7))
+                elif clase == 'activar': ventana.blit(fuente(24).render('Poner a pelear', True, 'white'), (r.x + 8, r.y + 7))
+                else: ventana.blit(fuente(24).render('Volver', True, 'white'), (r.x + 8, r.y + 7))
+                if k_ == elegido: dibujar_esquinas(ventana, r.inflate(6, 4), margen=4, largo=10, grosor=2)
+            # ----- recuadro con la explicacion de lo elegido -----
+            info = pygame.Rect(col_a, H - 128, col_b + ancho_col - col_a, 108)
+            caja(ventana, info, 'panel', PANEL)
+            lineas = _explicar(filas[elegido], m, j, acc)
+            if pygame.time.get_ticks() < aviso['hasta']: lineas = [aviso['texto']] + lineas
+            y = info.y + 10
+            for n_, linea in enumerate(lineas):
+                for parte in ajustar_texto(linea, fuente(21), info.width - 24):
+                    if y > info.bottom - 20: break
+                    ventana.blit(fuente(21).render(parte, True, ALERTA if n_ == 0 and pygame.time.get_ticks() < aviso['hasta'] else (235, 235, 235)), (info.x + 12, y)); y += 20
             ui['presentar'](); reloj.tick(60)
 
 
-    def elegir_mt(ui, j, m):
-        """Lista de las MT de la mochila que este pokemon puede aprender."""
+    def _explicar(fila, m, j, acc):
+        """Lineas que explican la fila elegida de la ficha."""
+        clase, valor = fila
+        if clase == 'stat':
+            return [progreso.NOMBRE_STAT[valor] + ': ' + progreso.USO_STAT[valor] + '.',
+                    'IV ' + str(m['ivs'][valor]) + ' (al azar, de 0 a 31). EV ' + str(m['evs'][valor]) + ' de ' + str(progreso.EV_MAX_STAT) +
+                    ' (total ' + str(sum(m['evs'].values())) + ' de ' + str(progreso.EV_MAX) + ').',
+                    'ENTER: gastar 1 punto = +' + str(progreso.EV_POR_PUNTO) + ' EV. Ganas 1 punto por nivel.']
+        if clase == 'sinergia':
+            pasiva = datos.pokemones.sinergia_de(m['nombre'], m['sinergia'])
+            txt = ', '.join('+' + str(round(v * 100, 1)) + '% ' + datos.pokemones.SINERGIAS.get(c, c) for c, v in pasiva.items())
+            return ['Desde la banca le da al que pelea: ' + (txt or 'nada') + '. ENTER: cambiar (' + ', '.join(datos.pokemones.SINERGIAS.values()) + ').',
+                    'Asistencia (F / G desde la banca): ' + acc['asistencia'](m)]
+        if clase == 'mov':
+            nombres = ['E (cuerpo a cuerpo)', 'Q (a distancia)', 'Shift (especial 1)', 'R (especial 2)']
+            return [nombres[valor] + ': ' + acc['movs'](m)[valor] + ' - ' + acc['info_movs'](m)[valor] + '.',
+                    'ENTER: enseñar una MT. Las de combate van en cualquier casilla; las especiales solo en Shift o R.']
+        if clase == 'item':
+            clave = m['items'][valor] if valor < len(m['items']) else None
+            if clave: return [tienda.ITEMS[clave]['nombre'] + ': ' + tienda.ITEMS[clave]['desc'] + '.', 'Solo cuenta mientras este pokemon pelea. ENTER: cambiar o sacar.']
+            return ['Ranura vacia. ENTER: equipar un objeto de la mochila (Cinta Fuerte, Carbon, Eter...).', 'Cada pokemon lleva hasta ' + str(tienda.MAX_EQUIPADOS) + ' objetos.']
+        if clase == 'evo': return ['Requisito: ' + progreso.texto_requisito(valor) + '. Conserva nivel, IV, EV, MT y objetos.']
+        if clase == 'activar': return ['Lo pone a pelear ahora (sin la espera del cambio).']
+        return ['Volver al equipo.']
+
+
+    def elegir_objeto(ui, j, m, ranura):
+        """Que objeto de la mochila se pone en la ranura. Devuelve la clave, '' para sacar el que tiene, None si cancela o 'salir'."""
+        objetos = j['inventario']['objetos']
+        claves = [k for k in tienda.EQUIPABLES if objetos.get(k, 0) > 0]
+        filas = [(tienda.ITEMS[k]['nombre'] + '  x' + str(objetos[k]), tienda.ITEMS[k]['desc']) for k in claves]
+        tiene = ranura < len(m.get('items', []))
+        if tiene: filas.append(('Sacar ' + tienda.ITEMS[m['items'][ranura]]['nombre'], 'vuelve a la mochila'))
+        if not filas:
+            preguntar(ui, 'No tenes objetos para equipar', ['Ok'], 'se compran en la tienda (Cinta Fuerte, Carbon, Eter...)'); return None
+        k = lista_detallada(ui, 'Objeto para ' + m['nombre'].title(), filas, 'Solo cuenta mientras pelea este pokemon.')
+        if k == 'salir': return 'salir'
+        if k is None: return None
+        return claves[k] if k < len(claves) else ''
+
+
+    def elegir_mt(ui, j, m, casilla):
+        """Lista de las MT de la mochila que este pokemon puede aprender en esa casilla, con lo que hace cada una.
+        Las MT de combate van en cualquier casilla; las especiales (recargan en segundos) solo en Shift o R."""
         trucos_ = ui['config']['trucos']
         disponibles = list(mts.MTS) if trucos_.get('todas_mt') else [k for k, n in j['inventario']['objetos'].items() if n > 0 and k in mts.MTS]
         aprende = [k for k in disponibles if mts.puede_aprender(m['nombre'], k)]
-        if not aprende:
-            preguntar(ui, 'No tenes MT que ' + m['nombre'].title() + ' pueda aprender', ['Ok'], 'se compran en la tienda o las sueltan los jefes'); return None
-        nombres = [mts.MTS[k]['nombre'] + ' (' + mts.MTS[k]['tipo'] + ')' + ('' if trucos_.get('todas_mt') else ' x' + str(j['inventario']['objetos'][k])) for k in aprende]
-        i = preguntar(ui, 'Que MT le enseñas a ' + m['nombre'].title() + '?', nombres[:7] + ['Cancelar'], 'se gasta al usarla')
+        sirven = [k for k in aprende if mts.sirve_en(k, casilla)]
+        nombre_casilla = mts.CASILLAS[casilla]
+        if not sirven:
+            detalle = ('tenes MT especiales: esas van en Shift o R' if aprende else 'se compran en la tienda o las sueltan los jefes')
+            preguntar(ui, 'No tenes MT que ' + m['nombre'].title() + ' pueda usar en ' + nombre_casilla, ['Ok'], detalle); return None
+        sirven.sort(key=lambda k: (mts.MTS[k]['casillas'] != 'todas', mts.MTS[k]['nombre']))
+        cantidad = lambda k: '' if trucos_.get('todas_mt') else ' x' + str(j['inventario']['objetos'][k])
+        filas = [(mts.MTS[k]['nombre'][3:] + ' (' + mts.MTS[k]['tipo'] + ')' + cantidad(k),
+                  ('Combate - ' if mts.MTS[k]['casillas'] == 'todas' else 'Especial - ') + datos.describir_movimiento(mts.MTS[k]['datos'])) for k in sirven]
+        i = lista_detallada(ui, 'MT para ' + nombre_casilla + ' de ' + m['nombre'].title(), filas,
+                            'Combate: sirven en cualquier casilla.  Especial: solo Shift o R.  La MT se gasta al usarla.')
         if i == 'salir': return 'salir'
-        return aprende[i] if i is not None and i < len(aprende[:7]) else None
+        return sirven[i] if i is not None else None
+
+
+    def lista_detallada(ui, titulo_, filas, pie=''):
+        """Lista con scroll: cada fila tiene un nombre y abajo una linea que explica que hace. Devuelve el indice elegido, None o 'salir'."""
+        ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        elegido, reloj, alto = 0, pygame.time.Clock(), 50
+        visibles = (H - 170) // alto
+        while True:
+            inicio = max(0, min(elegido - visibles // 2, len(filas) - visibles))
+            zonas = {}
+            for e in controles.eventos():
+                if e.type == pygame.QUIT: return 'salir'
+                if e.type == pygame.KEYDOWN:
+                    if e.key in (pygame.K_ESCAPE, pygame.K_TAB): return None
+                    if e.key in (pygame.K_UP, pygame.K_w): elegido = (elegido - 1) % len(filas)
+                    if e.key in (pygame.K_DOWN, pygame.K_s): elegido = (elegido + 1) % len(filas)
+                    if e.key in (pygame.K_RETURN, pygame.K_e): return elegido
+                if e.type == pygame.MOUSEWHEEL: elegido = max(0, min(len(filas) - 1, elegido - e.y))
+                if e.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN):
+                    for k in range(inicio, min(len(filas), inicio + visibles)):
+                        r = pygame.Rect(40, 100 + (k - inicio) * alto, W - 80, alto - 6)
+                        if r.collidepoint(ui['a_logico'](e.pos)):
+                            elegido = k
+                            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1: return k
+            fondo(ventana)
+            titulo(ventana, titulo_, 40, 26, 48)
+            for k in range(inicio, min(len(filas), inicio + visibles)):
+                r = pygame.Rect(40, 100 + (k - inicio) * alto, W - 80, alto - 6)
+                caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
+                nombre, desc = filas[k]
+                ventana.blit(fuente(26).render(nombre, True, 'white'), (r.x + 12, r.y + 5))
+                ventana.blit(fuente(20).render(desc, True, (205, 205, 205)), (r.x + 12, r.y + 26))
+                if k == elegido: dibujar_esquinas(ventana, r.inflate(6, 4), margen=4, largo=10, grosor=2)
+            ventana.blit(fuente(22).render(pie + '   ENTER: elegir   ESC: volver', True, 'white'), (40, H - 36))
+            ui['presentar'](); reloj.tick(60)
 
 
     def mochila(ui, j, acc):
-        """Lo que tenes: MT, piedras y objetos de evolucion (se usan desde la ficha de cada pokemon)."""
-        ventana, W, H = ui['ventana'], ui['W'], ui['H']
-        reloj = pygame.time.Clock()
-        while True:
-            for e in controles.eventos():
-                if e.type == pygame.QUIT: return 'salir'
-                if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_TAB, pygame.K_RETURN): return None
-                if e.type == pygame.MOUSEBUTTONDOWN: return None
-            fondo(ventana)
-            titulo(ventana, 'Mochila', 40, 30, 60)
-            inv = j['inventario']
-            lineas = [(k, tienda.ITEMS[k]['nombre'] + '  x' + str(n), tienda.ITEMS[k]['desc'], tienda.ITEMS[k]['color']) for k, n in inv['objetos'].items() if n > 0]
-            lineas += [(k, tienda.ITEMS[k]['nombre'], tienda.ITEMS[k].get('desc', ''), tienda.ITEMS[k]['color']) for k in dict.fromkeys(inv['comprados'])
-                       if 'permanente' in tienda.ITEMS[k] or 'tipo' in tienda.ITEMS[k]]
-            if not lineas: ventana.blit(fuente(30).render('Vacia. Las cosas se consiguen en la tienda y de los jefes.', True, TINTA), (40, 120))
-            for k, (clave, nombre, desc, color) in enumerate(lineas[:12]):
-                r = pygame.Rect(40, 110 + k * 38, W - 80, 32)
-                caja(ventana, r, 'boton')
-                icono = icono_objeto(clave, 24)
-                if icono: ventana.blit(icono, (r.x + 4, r.y + 4))
-                else: pygame.draw.rect(ventana, color, (r.x + 6, r.y + 6, 20, 20), border_radius=4)
-                ventana.blit(fuente(24).render(nombre, True, 'white'), (r.x + 36, r.y + 8))
-                ventana.blit(fuente(20).render(desc, True, (200, 200, 200)), (r.x + 300, r.y + 9))
-            ventana.blit(fuente(22).render('Las MT y piedras se usan desde la ficha de cada pokemon.   ESC: volver', True, 'white'), (40, H - 36))
-            ui['presentar'](); reloj.tick(60)
+        """Lo que tenes: objetos para equipar, MT, piedras, lo que llevan puesto tus pokemon y lo que es de todo el equipo, con lo que hace cada cosa."""
+        inv = j['inventario']
+        filas = []
+        for k_, n in inv['objetos'].items():
+            if n > 0: filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(n), tienda.ITEMS[k_]['desc']))
+        for m in j['equipo'] + j.get('reserva', []):
+            for k_ in m.get('items', []): filas.append((tienda.ITEMS[k_]['nombre'] + '  (lo lleva ' + m['nombre'].title() + ')', tienda.ITEMS[k_]['desc']))
+        for k_ in dict.fromkeys(inv['comprados']):
+            if 'permanente' in tienda.ITEMS[k_]: filas.append((tienda.ITEMS[k_]['nombre'] + '  (equipo)', tienda.ITEMS[k_]['desc']))
+        for linea in tienda.activos(inv): filas.append((linea, 'activo para todo el equipo (el numero son las salas que le quedan)'))
+        if not filas: filas = [('Vacia', 'Las cosas se consiguen en la tienda y de los jefes.')]
+        r = lista_detallada(ui, 'Mochila', filas, 'Objetos, MT y piedras se usan desde la ficha de cada pokemon.')
+        return 'salir' if r == 'salir' else None
 
 
     def reserva(ui, j, acc):

@@ -38,10 +38,12 @@ def armar_progreso():
     NIVEL_MAX = 100
     STATS = ('hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed')
     NOMBRE_STAT = {'hp': 'PS', 'attack': 'Ataque', 'defense': 'Defensa', 'special-attack': 'At. Esp.', 'special-defense': 'Def. Esp.', 'speed': 'Velocidad'}
-    EV_POR_PUNTO, EV_MAX_STAT, EV_MAX = 10, 252, 510      # cada punto que te dan al subir de nivel son 10 EV
+    EV_POR_PUNTO, EV_MAX_STAT, EV_MAX = 10, 300, 900      # cada punto que te dan al subir de nivel son 10 EV; hasta 300 por stat (30 puntos) y 900 en total
     PUNTOS_POR_NIVEL = 1
-    XP_MULT = 0.22                     # que tan rapido se sube (simulado: quedas 2 a 5 niveles arriba de los enemigos)
-    PARTE_BANCA = 0.5                  # los de la banca ganan la mitad de la experiencia
+    XP_MULT = 0.4                      # que tan rapido se sube (antes 0.22: jugando sin trucos te quedabas abajo de los enemigos)
+    PARTE_BANCA = 0.75                 # los de la banca ganan 3/4 de la experiencia (asi no quedan atras)
+    USO_STAT = {'hp': 'vida maxima', 'attack': 'daño de golpes y embestidas', 'defense': 'aguante (junto con Def. Esp.)',
+                'special-attack': 'daño de disparos, ondas y asistencias', 'special-defense': 'aguante (junto con Defensa)', 'speed': 'velocidad al moverte'}
     AMISTAD_EVOLUCION = 20             # amistad que necesitan Pichu, Riolu... (se gana pasando salas juntos)
     PROB_AMISTAD = 0.07                # chance base de que un pokemon derrotado quiera unirse (por su ratio de captura / 255)
 
@@ -88,7 +90,8 @@ def armar_progreso():
     def nuevo(nombre, nivel=NIVEL_INICIAL, azar=random):
         """Un pokemon nuevo para el equipo con IVs al azar (0 a 31)."""
         return {'nombre': nombre, 'nivel': nivel, 'xp': xp_para(nombre, nivel), 'ivs': {s: azar.randint(0, 31) for s in STATS},
-                'evs': {s: 0 for s in STATS}, 'puntos': 0, 'amistad': 0, 'movs': movs_iniciales(nombre)}
+                'evs': {s: 0 for s in STATS}, 'puntos': 0, 'amistad': 0, 'movs': movs_iniciales(nombre),
+                'items': [], 'sinergia': None}                 # objetos equipados (hasta 2) y la pasiva que eligio el jugador (None = la de su rol)
 
 
     def multiplicadores(m):
@@ -130,9 +133,17 @@ def armar_progreso():
         return max(0.0, min(1.0, (m['xp'] - a) / max(1, b - a)))
 
 
+    def motivo_sin_ev(m, clave):
+        """Por que no se puede poner un punto en ese stat (texto para mostrar) o None si se puede."""
+        if m['puntos'] <= 0: return 'No tenes puntos: ganas 1 por cada nivel que sube'
+        if m['evs'][clave] >= EV_MAX_STAT: return NOMBRE_STAT[clave] + ' ya esta al maximo (' + str(EV_MAX_STAT) + ' EV)'
+        if sum(m['evs'].values()) >= EV_MAX: return 'Llegaste al maximo de EV en total (' + str(EV_MAX) + ')'
+        return None
+
+
     def gastar_punto(m, clave):
         """Pone un punto de EV en ese stat (si hay puntos y no esta al tope)."""
-        if m['puntos'] <= 0 or m['evs'][clave] >= EV_MAX_STAT or sum(m['evs'].values()) >= EV_MAX: return False
+        if motivo_sin_ev(m, clave): return False
         m['evs'][clave] = min(EV_MAX_STAT, m['evs'][clave] + EV_POR_PUNTO)
         m['puntos'] -= 1
         return True

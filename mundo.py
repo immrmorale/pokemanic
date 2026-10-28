@@ -668,7 +668,7 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Kecleon en el mostrador (con Chikorita rosa al lado), un estante arriba a la derecha,
+        """Salon de la tienda del tamaño de la pantalla: Chikorita atiende el mostrador, un estante arriba a la derecha,
         otro abajo a la izquierda (asi el HUD no tapa nada) y dos mesas con los objetos destacados."""
         tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
@@ -678,7 +678,7 @@ def armar_generacion():
         ancho = columnas * tam
         alto = filas * tam
         objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('kecleon', (ancho // 2, 62)), crear_objeto('chikorita_rosa', (ancho // 2 - 95, 70)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('chikorita_rosa', (ancho // 2, 66)), crear_objeto('mostrador', (ancho // 2, 105)),
                    crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
                    crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
         for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
@@ -1270,6 +1270,24 @@ def armar_entorno():
             if r.collidelist(duros) == -1: rect.x, rect.y = r.x, r.y
 
 
+    def orilla(ent, rect, tipos):
+        """Si alguien de esos tipos quedo adentro de algo que no puede pisar (cambiaste a uno que no nada en medio del agua),
+        el centro mas cercano donde entra sin chocar. None si donde esta ya esta bien."""
+        duros = solidos(ent, tipos)
+        if rect.collidelist(duros) == -1: return None
+        tam, m = ent['tam'], ent['m']
+        mejor, dist = None, None
+        for f in range(len(m)):
+            for c in range(len(m[0])):
+                if mundos.TERRENOS[m[f][c]]['bloquea'] and not any(x in mundos.TERRENOS[m[f][c]].get('pasan', ()) for x in tipos): continue
+                centro = ((c + 0.5) * tam, (f + 0.5) * tam)
+                d = math.hypot(centro[0] - rect.centerx, centro[1] - rect.centery)
+                if dist is not None and d >= dist: continue
+                if rect.copy().move(round(centro[0] - rect.centerx), round(centro[1] - rect.centery)).collidelist(duros) != -1: continue
+                mejor, dist = centro, d
+        return mejor
+
+
     def punto_libre(ent, azar, lejos=None, distancia=0):
         """Centro de una casilla alcanzable, pisable y sin objetos (para hacer aparecer enemigos o jefes)."""
         ocupadas = {c for o in ent['objetos'] for c in o['celdas']}
@@ -1773,7 +1791,10 @@ def armar_entorno():
                 if img and img.get_height() <= 72:
                     fondo.blit(_escalada(img, tam, tam), r); con_sprite.add(t); continue
                 debajo = capa('agua', era['clave'], variante) if t == 'puente' else piso   # el puente va sobre el agua, lo demas sobre el piso
-                if debajo and t != 'pared': _poner_tile(ent, fondo, debajo, 'agua' if t == 'puente' else 'suelo', f, c, r)
+                if debajo and t != 'pared':
+                    antes = len(ent['animadas'])
+                    _poner_tile(ent, fondo, debajo, 'agua' if t == 'puente' else 'suelo', f, c, r)
+                    if t == 'puente': del ent['animadas'][antes:]          # el agua animada se redibujaba cada frame encima de los tablones
                 if t == 'suelo':
                     if not debajo: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)   # piso del color de la era
                     continue

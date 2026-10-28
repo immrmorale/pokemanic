@@ -2,11 +2,12 @@
 sistema.py - Lo basico para que el juego funcione: ajustes guardados, ventana, teclado/control y animaciones de los sprites.
 
     opciones      cargar y guardar config.json
+    partidas      las 3 partidas guardadas (carpeta partidas/)
     pantalla      dibuja en 1000x600 y escala a la ventana
     controles     teclas configurables, control (joystick) y codigo Konami
     animaciones   AnimadorPokemon: lee las hojas de sprites del PMD
 
-    from sistema import opciones, pantalla, controles, animaciones
+    from sistema import opciones, partidas, pantalla, controles, animaciones
 """
 
 import json
@@ -54,6 +55,60 @@ def armar_opciones():
 
 
 opciones = armar_opciones()
+
+
+# ==================== partidas ====================
+
+def armar_partidas():
+    """Partidas guardadas: 3 ranuras en la carpeta partidas/ (partida_1.json ...). Guardan el equipo (niveles, experiencia, EV,
+    MT, objetos), la reserva, la mochila, las monedas y el recorrido (en que sala estas y las salas por las que pasaste).
+
+        partidas.resumenes()         # [resumen o None] para las 3 ranuras
+        partidas.cargar(1)           # los datos guardados (o None)
+        partidas.guardar(1, datos)
+        partidas.borrar(1)
+    """
+    CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'partidas')
+    RANURAS = 3
+    VERSION = 1
+
+
+    def _ruta(ranura):
+        return os.path.join(CARPETA, 'partida_' + str(ranura) + '.json')
+
+
+    def cargar(ranura):
+        """Los datos de la partida guardada en esa ranura, o None si no hay (o el archivo esta roto)."""
+        try:
+            with open(_ruta(ranura), encoding='utf-8') as f: datos = json.load(f)
+        except (OSError, ValueError): return None
+        return datos if isinstance(datos, dict) and datos.get('version') == VERSION else None
+
+
+    def guardar(ranura, datos):
+        """Guarda la partida (primero en un archivo temporal, asi un corte no deja el guardado a medias)."""
+        try:
+            os.makedirs(CARPETA, exist_ok=True)
+            temporal = _ruta(ranura) + '.tmp'
+            with open(temporal, 'w', encoding='utf-8') as f: json.dump(dict(datos, version=VERSION), f, ensure_ascii=False)
+            os.replace(temporal, _ruta(ranura))
+            return True
+        except (OSError, TypeError, ValueError): return False
+
+
+    def borrar(ranura):
+        try: os.remove(_ruta(ranura))
+        except OSError: pass
+
+
+    def resumenes():
+        """Lo que se muestra de cada ranura en el menu (None si esta vacia)."""
+        return [(cargar(r) or {}).get('resumen') for r in range(1, RANURAS + 1)]
+
+    return SimpleNamespace(**locals())
+
+
+partidas = armar_partidas()
 
 
 # ==================== pantalla ====================
@@ -162,14 +217,14 @@ def armar_controles():
     ACCIONES = [('arriba', 'Mover arriba'), ('abajo', 'Mover abajo'), ('izquierda', 'Mover a la izquierda'), ('derecha', 'Mover a la derecha'),
                 ('correr', 'Correr'), ('basico1', 'Ataque cuerpo a cuerpo'), ('basico2', 'Ataque a distancia'), ('especial1', 'Especial 1'),
                 ('especial2', 'Especial 2'), ('asist1', 'Asistencia 1'), ('asist2', 'Asistencia 2'), ('poke1', 'Pokemon 1'), ('poke2', 'Pokemon 2'),
-                ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa')]
+                ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar')]
     MOVIMIENTO = ('arriba', 'abajo', 'izquierda', 'derecha')
     PRESET_TECLADO = {'arriba': 'w', 'abajo': 's', 'izquierda': 'a', 'derecha': 'd', 'correr': 'left ctrl', 'basico1': 'e', 'basico2': 'q',
                       'especial1': 'left shift', 'especial2': 'r', 'asist1': 'f', 'asist2': 'g', 'poke1': '1', 'poke2': '2', 'poke3': '3',
-                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape'}
+                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space'}
     PRESET_CONTROL = {'arriba': 'ninguno', 'abajo': 'ninguno', 'izquierda': 'ninguno', 'derecha': 'ninguno',     # con control se camina con la palanca
                       'correr': 'LB', 'basico1': 'X', 'basico2': 'RT', 'especial1': 'RB', 'especial2': 'Y', 'asist1': 'LT', 'asist2': 'B',
-                      'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start'}
+                      'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq'}
 
     estado = {'config': None, 'contexto': 'menu', 'mandos': {}, 'konami': [], 'palanca_menu': (0, 0), 'repetir': 0}
 

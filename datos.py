@@ -85,6 +85,37 @@ sinergias = {
 
 ataques = SimpleNamespace(habilidades=habilidades, sinergias=sinergias)
 
+ESTADOS_TXT = {'quemar': 'quema', 'paralizar': 'paraliza', 'dormir': 'duerme', 'ralentizar': 'frena', 'empujar': 'empuja'}
+BUFFS_TXT = {'defensa': 'daño recibido', 'daño': 'daño', 'velocidad': 'velocidad', 'enfriamiento': 'recargas'}
+
+
+def describir_movimiento(datos):
+    """Texto corto de lo que hace un movimiento: forma, daño, alcance, efecto y espera ('golpe cuerpo a cuerpo, daño 20, quema (15%), espera 0.5 s')."""
+    if not datos: return 'sin datos'
+    def num(clave):
+        try: return float(datos.get(clave) or 0)
+        except (TypeError, ValueError): return 0.0
+    forma, partes = datos.get('forma'), []
+    if forma == 'buff':
+        for clave, valor in (datos.get('buffs') or {}).items():
+            if clave == 'sprint': partes.append('correr no gasta energía'); continue
+            cambio = round((valor - 1) * 100)
+            partes.append(BUFFS_TXT.get(clave, clave) + ' ' + ('+' if cambio > 0 else '') + str(cambio) + '%')
+        partes.append('durante ' + str(round(num('duracion') / 1000, 1)) + ' s')
+    elif forma == 'curar':
+        partes.append('cura el ' + str(int(num('porcentaje'))) + '% de la vida')
+    else:
+        partes.append({'cuerpo': 'golpe cuerpo a cuerpo', 'proyectil': 'disparo', 'area': 'onda alrededor tuyo', 'embestida': 'embestida'}.get(forma, str(forma)))
+        if num('daño'): partes.append('daño ' + str(int(num('daño'))))
+        if forma in ('proyectil', 'embestida') and num('distancia'): partes.append('alcance ' + str(int(num('distancia'))))
+        if forma == 'area' and num('area'): partes.append('radio ' + str(int(num('area'))))
+        if int(num('cantidad')) > 1: partes.append(str(int(num('cantidad'))) + ' a la vez')
+        ef = datos.get('efecto')
+        if ef: partes.append(ESTADOS_TXT.get(ef.get('tipo'), str(ef.get('tipo'))) + (' (' + str(int(ef['probabilidad'])) + '%)' if ef.get('probabilidad', 100) < 100 else ''))
+        if datos.get('atraviesa'): partes.append('atraviesa')
+    if num('enfriamiento'): partes.append('espera ' + str(round(num('enfriamiento') / 1000, 1)) + ' s')
+    return ', '.join(partes)
+
 
 # ==================== pokemones ====================
 
@@ -192,6 +223,50 @@ def armar_pokemones():
             if pokemones[_n].get('peso') is None: pokemones[_n]['peso'] = _o.get('peso')
             pokemones[_n]['stats_base'] = _o.get('stats')
 
+    # ---------- balance de los movimientos basicos ----------
+    # Muchos basicos tenian datos de relleno (16 de daño, tipo equivocado) o un proyectil en la casilla de cuerpo a cuerpo
+    # (Snorunt pegaba con Rayo Hielo x1.6 desde lejos). Cada basico queda en una de dos plantillas y se corrigen los tipos.
+    CUERPO_BASE = {'forma': 'cuerpo', 'daño': 19, 'distancia': 66, 'area': 36, 'velocidad': 0, 'enfriamiento': 450, 'retroceso': 30, 'efecto': None}
+    PROYECTIL_BASE = {'forma': 'proyectil', 'daño': 24, 'distancia': 360, 'area': 15, 'velocidad': 9, 'enfriamiento': 780, 'retroceso': 10, 'efecto': None}
+    QUEMA, PARALIZA, FRENA = ({'tipo': 'quemar', 'duracion': 2200, 'probabilidad': 15}, {'tipo': 'paralizar', 'duracion': 1300, 'probabilidad': 15},
+                              {'tipo': 'ralentizar', 'duracion': 1800, 'probabilidad': 25})
+    AJUSTE_MOVIMIENTOS = {
+        # cuerpo a cuerpo
+        'demolicion': {'daño': 22}, 'patada_ignea': {'daño': 22, 'efecto': QUEMA}, 'chispa': {'daño': 20, 'efecto': PARALIZA}, 'acua_jet': {'daño': 20},
+        'garra_dragon': {'daño': 22}, 'puño_hielo': {'daño': 20, 'efecto': FRENA}, 'pistola_agua': {'daño': 18}, 'mordisco': {'daño': 20},
+        'picotazo': {'daño': 18}, 'doble_patada': {'daño': 20}, 'confusion': {'daño': 18}, 'lenguetazo': {'daño': 18, 'efecto': PARALIZA},
+        'impactrueno': {'daño': 18, 'efecto': PARALIZA}, 'excavar': {'daño': 20}, 'lanzarrocas': {'daño': 20}, 'ascuas': {'daño': 18, 'efecto': QUEMA},
+        'picotazo_veneno': {'tipo': 'veneno', 'daño': 18}, 'placaje': {'daño': 18}, 'garra_metal': {'daño': 20}, 'latigo_cepa': {'daño': 18},
+        # a distancia
+        'aura_esfera': {'daño': 26}, 'llamarada': {'daño': 28, 'enfriamiento': 850, 'efecto': {'tipo': 'quemar', 'duracion': 2500, 'probabilidad': 25}},
+        'rayo': {'daño': 26, 'efecto': {'tipo': 'paralizar', 'duracion': 1500, 'probabilidad': 20}}, 'hidrobomba': {'daño': 30, 'enfriamiento': 900},
+        'pulso_dragon': {'daño': 26}, 'rayo_hielo': {'daño': 26, 'efecto': {'tipo': 'ralentizar', 'duracion': 2200, 'probabilidad': 35}},
+        'psicorrayo': {'tipo': 'psiquico'}, 'avalancha': {'tipo': 'roca', 'daño': 26}, 'bomba_lodo': {'tipo': 'veneno', 'daño': 26},
+        'hiper_rayo': {'tipo': 'normal', 'daño': 32, 'enfriamiento': 1000}, 'rayo_solar': {'tipo': 'planta', 'daño': 30, 'enfriamiento': 950},
+        'terremoto': {'daño': 26}, 'hoja_afilada': {'daño': 24},
+    }
+    for _n, _mov in movimientos.items():
+        if _n == 'sentencia': continue
+        plantilla = CUERPO_BASE if _mov['forma'] == 'cuerpo' else PROYECTIL_BASE
+        _nuevo = dict(plantilla, tipo=_mov['tipo'])
+        if _mov['forma'] == 'proyectil' and _mov.get('efecto') and _mov['efecto'].get('tipo') == 'empujar': _nuevo['efecto'] = _mov['efecto']
+        _nuevo.update(AJUSTE_MOVIMIENTOS.get(_n, {}))
+        movimientos[_n] = _nuevo
+    # los que tenian un proyectil como golpe cuerpo a cuerpo
+    for _n in ('snorunt', 'glalie', 'vanillite', 'vanillish', 'vanilluxe'):
+        if _n in pokemones: pokemones[_n].update({'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'rayo_hielo'})
+    for _n, _d in pokemones.items():
+        if movimientos.get(_d.get('ataque_cuerpo'), {}).get('forma') != 'cuerpo' and _d.get('jugable') and not _d.get('boss'):
+            _d['ataque_cuerpo'] = next((a for a in _d.get('ataques', []) if movimientos.get(a, {}).get('forma') == 'cuerpo'), 'placaje')
+
+
+    def fuerza_especie(nombre):
+        """Las especies mas fuertes (evoluciones finales) pegan un poco mas: 1.0 con 300 de stats base totales, hasta x1.25 con 600."""
+        stats = (_oficiales.get(nombre) or {}).get('stats') or {}
+        total = sum(stats.values()) if stats else 400
+        return round(max(0.92, min(1.25, 1 + (total - 300) / 1200)), 3)
+
+
     JUGABLES = [n for n, d in pokemones.items() if d.get('jugable') and not d.get('boss') and n in ROL_POKEMON]
 
     DASH_TIPO = {
@@ -202,12 +277,12 @@ def armar_pokemones():
     DASH_DEFECTO = 'velocidad_extrema'
 
     ESPECIALES = {
-        'defensa_ferrea': {'tipo': 'acero', 'forma': 'buff', 'buffs': {'defensa': 0.5}, 'duracion': 5000, 'enfriamiento': 12000},
-        'danza_espada': {'tipo': 'normal', 'forma': 'buff', 'buffs': {'daño': 1.6}, 'duracion': 6000, 'enfriamiento': 12000},
-        'agilidad': {'tipo': 'psiquico', 'forma': 'buff', 'buffs': {'velocidad': 1.5}, 'duracion': 5000, 'enfriamiento': 10000},
-        'paz_mental': {'tipo': 'psiquico', 'forma': 'buff', 'buffs': {'daño': 1.25, 'defensa': 0.8}, 'duracion': 7000, 'enfriamiento': 14000},
-        'recuperacion': {'tipo': 'normal', 'forma': 'curar', 'porcentaje': 30, 'enfriamiento': 15000},
-        'hipnosis': {'tipo': 'psiquico', 'forma': 'area', 'daño': 0, 'area': 170, 'retroceso': 0, 'efecto': {'tipo': 'dormir', 'duracion': 2800, 'probabilidad': 100}, 'enfriamiento': 9000},
+        'defensa_ferrea': {'tipo': 'acero', 'forma': 'buff', 'buffs': {'defensa': 0.6}, 'duracion': 4500, 'enfriamiento': 12000},
+        'danza_espada': {'tipo': 'normal', 'forma': 'buff', 'buffs': {'daño': 1.4}, 'duracion': 5000, 'enfriamiento': 13000},
+        'agilidad': {'tipo': 'psiquico', 'forma': 'buff', 'buffs': {'velocidad': 1.4, 'enfriamiento': 0.85}, 'duracion': 5000, 'enfriamiento': 11000},
+        'paz_mental': {'tipo': 'psiquico', 'forma': 'buff', 'buffs': {'daño': 1.25, 'defensa': 0.85}, 'duracion': 6000, 'enfriamiento': 14000},
+        'recuperacion': {'tipo': 'normal', 'forma': 'curar', 'porcentaje': 20, 'enfriamiento': 18000},
+        'hipnosis': {'tipo': 'psiquico', 'forma': 'area', 'daño': 0, 'area': 160, 'retroceso': 0, 'efecto': {'tipo': 'dormir', 'duracion': 2600, 'probabilidad': 100}, 'enfriamiento': 10000},
         'onda_trueno': {'tipo': 'electrico', 'forma': 'area', 'daño': 6, 'area': 170, 'retroceso': 0, 'efecto': {'tipo': 'paralizar', 'duracion': 2200, 'probabilidad': 100}, 'enfriamiento': 9000},
         'viento_hielo': {'tipo': 'hielo', 'forma': 'area', 'daño': 10, 'area': 190, 'retroceso': 0, 'efecto': {'tipo': 'ralentizar', 'duracion': 3500, 'probabilidad': 100}, 'enfriamiento': 8000},
     }
@@ -263,12 +338,18 @@ def armar_pokemones():
         return [(dash, ESPECIALES[dash]), ('agilidad', ESPECIALES['agilidad'])]
 
 
-    def sinergia_de(nombre):
-        """Pasiva que da el pokemon desde la banca segun su rol (mas fuerte cuanto mas vida base tiene)."""
+    SINERGIAS = {'daño': 'más daño', 'defensa': 'menos daño recibido', 'velocidad': 'más velocidad', 'enfriamiento': 'recargas más rápidas',
+                 'energia': 'la energía vuelve más rápido'}
+    SINERGIA_ROL = {'atacante': 'daño', 'tanque': 'defensa', 'velocista': 'velocidad', 'estratega': 'enfriamiento'}
+
+
+    def sinergia_de(nombre, elegida=None):
+        """Pasiva que da el pokemon desde la banca: la que elegiste en su ficha o, si no elegiste, la de su rol.
+        Mas fuerte cuanto mas vida base tiene (5% a 10%; la de energia vale el triple porque se nota menos)."""
         d = pokemones[nombre]
-        rol = ROL_POKEMON.get(nombre)
-        fuerza = 0.03 + 0.04 * max(0.0, min(1.0, (float(d.get('vida_base') or 60) - 40) / 70.0))
-        clave = {'atacante': 'daño', 'tanque': 'defensa', 'velocista': 'velocidad', 'estratega': 'enfriamiento'}.get(rol)
+        fuerza = 0.05 + 0.05 * max(0.0, min(1.0, (float(d.get('vida_base') or 60) - 40) / 70.0))
+        clave = elegida if elegida in SINERGIAS else SINERGIA_ROL.get(ROL_POKEMON.get(nombre))
+        if clave == 'energia': fuerza *= 3
         return {clave: round(fuerza, 3)} if clave else {}
 
 
@@ -289,7 +370,7 @@ def armar_pokemones():
         ancho = max(14, round(tamaño * 0.7 * ra))
         alto = max(14, round(tamaño * 0.7 * rh))
         return {'nombre': nombre, 'tipos': tipos, 'rol': rol, 'max_vida': vida, 'velocidad': round(velocidad, 2), 'tamaño': tamaño, 'ancho': ancho, 'alto': alto,
-                'mult_daño': r['daño'], 'mult_enfriamiento': r['enfriamiento'], 'basicos': [d.get('ataque_cuerpo'), d.get('ataque_proyectil')],
+                'mult_daño': round(r['daño'] * fuerza_especie(nombre), 3), 'mult_enfriamiento': r['enfriamiento'], 'basicos': [d.get('ataque_cuerpo'), d.get('ataque_proyectil')],
                 'especiales': _especiales_de(nombre, rol, tipos), 'sinergia': sinergia_de(nombre)}
 
 
@@ -299,7 +380,7 @@ def armar_pokemones():
         'furia': {'duracion': 7000, 'buffs': {'daño': 1.6, 'enfriamiento': 0.7}, 'enfriamiento': 70000},
         'carrera': {'duracion': 6000, 'buffs': {'velocidad': 1.6, 'sprint': 2.0}, 'enfriamiento': 45000},
         'curar': {'porcentaje': 40, 'enfriamiento': 80000},
-        'desvanecer': {'area': 200, 'alcance': 520, 'porcentaje_jefe': 10, 'enfriamiento': 90000},
+        'desvanecer': {'area': 160, 'alcance': 520, 'porcentaje': 60, 'porcentaje_jefe': 8, 'enfriamiento': 90000},
         'masivo': {'area': 480, 'daño': 8, 'duracion': 3500, 'enfriamiento': 55000},
     }
 
@@ -465,8 +546,21 @@ def armar_mts():
         return 120 + round(h.get('daño', 20) * 3) + (40 if h.get('efecto') else 0)
 
 
-    MTS = {'mt_' + clave: {'nombre': 'MT ' + h['nombre'], 'api': h['api'], 'tipo': h['tipo'], 'precio': _precio(h), 'datos': _convertir(h)}
+    # MT especiales: los movimientos grandes (embestidas, areas, buffs, disparos fuertes). Tardan segundos en recargar: solo van en Shift o R
+    MTS = {'mt_' + clave: {'nombre': 'MT ' + h['nombre'], 'api': h['api'], 'tipo': h['tipo'], 'precio': _precio(h), 'datos': _convertir(h), 'casillas': 'especial'}
            for clave, h in habilidades.items() if h['modo'] != 'curar'}
+    # MT de combate: golpes y disparos con tiempos de ataque basico. Van en cualquier casilla (E, Q, Shift o R) y las aprenden los de su tipo
+    _movs = pokemones.movimientos
+    MTS.update({'mtb_' + clave: {'nombre': 'MT ' + clave.replace('_', ' ').title(), 'api': None, 'tipo': m['tipo'], 'precio': 90 + round(m['daño'] * 3),
+                                 'datos': dict(m), 'casillas': 'todas'}
+                for clave, m in _movs.items() if clave != 'sentencia' and m['forma'] in ('cuerpo', 'proyectil')})
+    CASILLAS = ('E', 'Q', 'Shift', 'R')
+
+
+    def sirve_en(clave, casilla):
+        """Si la MT se puede poner en esa casilla (0 E, 1 Q, 2 Shift, 3 R): las de combate en todas, las especiales solo en Shift y R."""
+        mt = MTS.get(clave)
+        return bool(mt) and (mt['casillas'] == 'todas' or casilla >= 2)
 
 
     def datos(nombre):
@@ -476,9 +570,14 @@ def armar_mts():
 
 
     def puede_aprender(pokemon, clave):
-        """True si la especie aprende ese movimiento (segun la PokeAPI). Sin datos, cualquiera puede."""
+        """True si la especie aprende ese movimiento (segun la PokeAPI). Sin datos, cualquiera puede.
+        Las MT de combate las aprenden los pokemon de su tipo (y los que ya lo usan); las de tipo normal, todos."""
+        mt = MTS[clave]
+        if mt['casillas'] == 'todas':
+            tipos = [pokemones.normalizar_tipo(t) for t in (pokemones.pokemones.get(pokemon) or {}).get('tipo', [])]
+            return mt['tipo'] in tipos or mt['tipo'] == 'normal' or clave[4:] in (pokemones.pokemones.get(pokemon) or {}).get('ataques', [])
         lista = (_oficiales.get(pokemon) or {}).get('movimientos')
-        return lista is None or MTS[clave]['api'] in lista
+        return lista is None or mt['api'] in lista
 
 
     def aprendibles(pokemon):
@@ -515,11 +614,15 @@ def armar_tienda():
         'velocidad_x': {'nombre': 'Velocidad X', 'precio': 80, 'color': (90, 200, 220), 'temporal': ('velocidad', 1.2, SALAS_X), 'desc': '+20% de velocidad por 3 salas'},
         'especial_x': {'nombre': 'Especial X', 'precio': 90, 'color': (200, 90, 220), 'temporal': ('enfriamiento', 0.8, SALAS_X), 'desc': 'recargas 20% mas rapidas por 3 salas'},
         'directo': {'nombre': 'Directo', 'precio': 80, 'color': (240, 170, 40), 'critico': (0.2, SALAS_X), 'desc': '20% de golpes criticos (x1.8) por 3 salas'},
-        'eter': {'nombre': 'Eter', 'precio': 120, 'color': (120, 200, 255), 'permanente': {'regen': 1.5, 'gasto': 0.75}, 'desc': 'la energia vuelve 50% mas rapido y el sprint gasta menos'},
-        'cinta_fuerte': {'nombre': 'Cinta Fuerte', 'precio': 200, 'color': (230, 200, 60), 'permanente': {'daño': 1.12}, 'desc': '+12% de daño para siempre'},
-        'garra_rapida': {'nombre': 'Garra Rapida', 'precio': 180, 'color': (200, 200, 200), 'permanente': {'enfriamiento': 0.9}, 'desc': 'recargas 10% mas rapidas para siempre'},
-        'polvo_veloz': {'nombre': 'Polvo Veloz', 'precio': 160, 'color': (230, 230, 150), 'permanente': {'velocidad': 1.1}, 'desc': '+10% de velocidad para siempre'},
-        'chaleco_asalto': {'nombre': 'Chaleco Asalto', 'precio': 200, 'color': (70, 70, 140), 'permanente': {'defensa': 0.88}, 'desc': '12% menos daño recibido para siempre'},
+        # equipables: van a la mochila y se le ponen a un pokemon (hasta 2 cada uno); solo cuentan mientras ese pokemon pelea
+        'eter': {'nombre': 'Eter', 'precio': 120, 'color': (120, 200, 255), 'equipable': {'regen': 1.5, 'gasto': 0.75}, 'desc': 'la energia vuelve 50% mas rapido y correr y esquivar gastan 25% menos'},
+        'cinta_fuerte': {'nombre': 'Cinta Fuerte', 'precio': 200, 'color': (230, 200, 60), 'equipable': {'daño': 1.15}, 'desc': '+15% de daño'},
+        'garra_rapida': {'nombre': 'Garra Rapida', 'precio': 180, 'color': (200, 200, 200), 'equipable': {'enfriamiento': 0.88}, 'desc': 'recargas 12% mas rapidas'},
+        'polvo_veloz': {'nombre': 'Polvo Veloz', 'precio': 160, 'color': (230, 230, 150), 'equipable': {'velocidad': 1.12}, 'desc': '+12% de velocidad'},
+        'chaleco_asalto': {'nombre': 'Chaleco Asalto', 'precio': 200, 'color': (70, 70, 140), 'equipable': {'defensa': 0.85}, 'desc': '15% menos daño recibido'},
+        'cinturon_focus': {'nombre': 'Cinta Focus', 'precio': 190, 'color': (230, 120, 60), 'equipable': {'parry': 1.5}, 'desc': 'la ventana de parry dura 50% mas (es mas facil acertarlo)'},
+        'pluma_agil': {'nombre': 'Pluma Agil', 'precio': 170, 'color': (170, 220, 250), 'equipable': {'esquive': 1.4}, 'desc': 'el esquive dura 40% mas (mas invulnerable) y llega mas lejos'},
+        # de equipo: valen para todos
         'amuleto_moneda': {'nombre': 'Amuleto Moneda', 'precio': 150, 'color': (250, 210, 60), 'permanente': {'monedas': 1.5}, 'desc': '+50% de monedas para siempre'},
         # objetos de tipo: +20% a los ataques de ese tipo
         'agua_mistica': {'nombre': 'Agua Mistica', 'precio': 140, 'color': (60, 130, 240), 'tipo': ('agua', 1.2)},
@@ -540,7 +643,10 @@ def armar_tienda():
         'pañuelo_seda': {'nombre': 'Pañuelo Seda', 'precio': 140, 'color': (230, 230, 210), 'tipo': ('normal', 1.2)},
     }
     for _clave, _item in ITEMS.items():
-        if 'tipo' in _item: _item['desc'] = '+20% de daño a los ataques de tipo ' + _item['tipo'][0]
+        if 'tipo' in _item: _item['desc'] = '+20% de daño a los ataques de tipo ' + _item['tipo'][0]; _item['equipable'] = {}
+        if 'equipable' in _item: _item['desc'] += ' (lo lleva un pokemon)'
+        elif not _item.get('objeto'): _item['desc'] += ' (todo el equipo)'
+    MAX_EQUIPADOS = 2
 
     # objetos que van a la mochila: evolucion (se usan desde el menu de equipo con TAB) y las MT
     ITEMS.update({
@@ -553,12 +659,15 @@ def armar_tienda():
                          'desc': 'el doble de chance de que un pokemon quiera unirse por 3 salas'},
     })
     for _clave, _mt in mts.MTS.items():
-        ITEMS[_clave] = {'nombre': _mt['nombre'], 'precio': _mt['precio'], 'color': (90, 90, 200), 'objeto': True, 'mt': True,
-                         'desc': 'enseña ' + _mt['nombre'][3:] + ' (tipo ' + _mt['tipo'] + ') en una casilla desde el menu de equipo'}
+        ITEMS[_clave] = {'nombre': _mt['nombre'], 'precio': _mt['precio'], 'color': (90, 200, 120) if _mt['casillas'] == 'todas' else (90, 90, 200),
+                         'objeto': True, 'mt': True,
+                         'desc': ('MT de combate: ' if _mt['casillas'] == 'todas' else 'MT especial (solo Shift o R): ') + _mt['nombre'][3:]
+                                 + ' (tipo ' + _mt['tipo'] + '). ' + describir_movimiento(_mt['datos'])}
     EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union')
 
     COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad')
-    DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda')
+    DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda', 'cinturon_focus', 'pluma_agil')
+    EQUIPABLES = tuple(k for k, v in ITEMS.items() if 'equipable' in v)
     DE_TIPO = tuple(k for k, v in ITEMS.items() if 'tipo' in v)
 
 
@@ -632,14 +741,30 @@ def armar_tienda():
         if j['monedas'] < item['precio']: return 'No te alcanza (' + str(item['precio']) + ' $)'
         j['monedas'] -= item['precio']
         inv['comprados'].append(clave)
-        if item.get('objeto'): inv['objetos'][clave] = inv['objetos'].get(clave, 0) + 1   # a la mochila
+        if item.get('objeto') or 'equipable' in item: inv['objetos'][clave] = inv['objetos'].get(clave, 0) + 1   # a la mochila
         if 'repelente' in item: inv['repelente'] += item['repelente']
         if 'temporal' in item: inv['temporal'].append(list(item['temporal']))
         if 'critico' in item: inv['critico'] = [item['critico'][0], inv['critico'][1] + item['critico'][1]]
         for c, v in item.get('permanente', {}).items(): inv['permanente'][c] = inv['permanente'].get(c, 1.0) * v
-        if 'tipo' in item:
-            t, v = item['tipo']; inv['tipos'][t] = inv['tipos'].get(t, 1.0) * v
+        if 'equipable' in item: return 'Compraste ' + item['nombre'] + ': ponéselo a un pokemon desde su ficha'
         return 'Compraste ' + item['nombre']
+
+
+    def mult_equipados(items, clave):
+        """Multiplicador de los objetos que lleva el pokemon que pelea para esa clave ('daño', 'defensa', 'parry'...)."""
+        m = 1.0
+        for k in items or ():
+            m *= ITEMS.get(k, {}).get('equipable', {}).get(clave, 1.0)
+        return m
+
+
+    def mult_tipo_equipados(items, tipo):
+        """+20% por cada objeto de ese tipo que lleve el pokemon que pelea (Carbon para fuego...)."""
+        m = 1.0
+        for k in items or ():
+            t = ITEMS.get(k, {}).get('tipo')
+            if t and t[0] == tipo: m *= t[1]
+        return m
 
     return SimpleNamespace(**locals())
 
@@ -1014,7 +1139,8 @@ def armar_mundos():
     def nuevo_recorrido(semilla=None):
         """Estado de una partida: el plan entero, en que sala estas y el clima que viene arrastrando."""
         azar = random.Random(semilla)
-        return {'plan': planificar(azar), 'era': 0, 'sala': 0, 'semilla': semilla, 'clima': clima_inicial(azar, 0), 'azar': azar}
+        return {'plan': planificar(azar), 'era': 0, 'sala': 0, 'semilla': semilla, 'clima': clima_inicial(azar, 0), 'azar': azar,
+                'historial': [], 'pos': -1}               # salas por las que pasaste (para volver y para guardar) y en cual estas
 
 
     def tipo_sala(rec, era=None, sala=None):
@@ -1072,6 +1198,8 @@ def armar_mundos():
 
     def etiqueta_destino(destino):
         """Texto del cartel arriba de una puerta."""
+        if destino['tipo'] == 'volver': return 'VOLVER'
+        if destino.get('cerrado'): return 'camino no tomado'
         era = ERAS[destino['era']]
         if destino['tipo'] == 'tienda': return 'TIENDA'
         if destino['tipo'] in ('jefe', 'regi', 'final'): return destino['tipo'].upper() + ': ' + str(jefe_de(destino['era'], destino['tipo'])).title()

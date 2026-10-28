@@ -2,9 +2,10 @@ import pygame
 import random
 import math
 import sys
+import time
 import datos
 from datos import mundos, mts, tienda
-from sistema import controles, pantalla, opciones, animaciones
+from sistema import controles, pantalla, opciones, partidas, animaciones
 from mundo import generacion, entorno, efectos
 from combate import ia, progreso
 from interfaz import menus
@@ -315,32 +316,9 @@ def main():
 
     def armar_pokedex():
         """La pokedex y la ficha de cada pokemon."""
-        def descripcion_movimiento(datos):
-            """Texto corto de un movimiento para la ficha: tipo, forma, daño, alcance, efecto y espera."""
-            if not datos: return 'sin datos'
-            def num(clave):
-                """Un campo numerico del movimiento (0 si falta o no es numero)."""
-                try: return float(datos.get(clave) or 0)
-                except (TypeError, ValueError): return 0.0
-            forma = datos.get('forma')
-            partes = []
-            if datos.get('tipo'): partes.append(normalizar_tipo(datos['tipo']))
-            if forma == 'buff':
-                etiquetas = {'defensa': 'daño recibido x', 'daño': 'daño x', 'velocidad': 'velocidad x', 'enfriamiento': 'recargas x'}
-                for clave, valor in (datos.get('buffs') or {}).items():
-                    partes.append('sprint sin gasto' if clave == 'sprint' else etiquetas.get(clave, clave + ' x') + str(valor))
-                partes.append('durante ' + str(round(num('duracion') / 1000, 1)) + ' s')
-            elif forma == 'curar':
-                partes.append('cura ' + str(int(num('porcentaje'))) + '% de la vida')
-            else:
-                partes.append({'cuerpo': 'cuerpo a cuerpo', 'proyectil': 'proyectil', 'area': 'de área', 'embestida': 'embestida'}.get(forma, str(forma)))
-                partes.append('daño ' + str(int(num('daño'))))
-                if num('distancia'): partes.append('alcance ' + str(int(num('distancia'))))
-                if num('area'): partes.append('radio ' + str(int(num('area'))))
-                if datos.get('efecto'): partes.append('efecto ' + str(datos['efecto'].get('tipo')))
-                if datos.get('atraviesa'): partes.append('atraviesa')
-            if num('enfriamiento'): partes.append('espera ' + str(round(num('enfriamiento') / 1000, 1)) + ' s')
-            return ', '.join(partes)
+        def descripcion_movimiento(datos_mov):
+            """Texto corto de un movimiento para la ficha (el mismo que usan la tienda y el menu de equipo)."""
+            return datos.describir_movimiento(datos_mov)
 
         def descripcion_asistencia(a):
             """Texto de lo que hace una asistencia (lo que el pokemon de la banca hace con F / G)."""
@@ -350,7 +328,7 @@ def main():
             if mec == 'furia': return 'daño x1.6 y recargas x0.7 durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'carrera': return 'velocidad x1.6 y sprint sin gasto durante ' + str(a['duracion'] // 1000) + ' s'
             if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo'
-            if mec == 'desvanecer': return 'elimina enemigos comunes en un radio de ' + str(a['area']) + ' y le quita el ' + str(a['porcentaje_jefe']) + '% a un jefe'
+            if mec == 'desvanecer': return 'les saca el ' + str(a['porcentaje']) + '% de la vida a los enemigos comunes en un radio de ' + str(a['area']) + ' y el ' + str(a['porcentaje_jefe']) + '% a un jefe'
             return 'aplica ' + str((a.get('efecto') or {}).get('tipo')) + ' a todos los enemigos cercanos'
 
         def construir_ficha(nombre, ancho, fuente_txt):
@@ -533,11 +511,11 @@ def main():
                     botones.append((r, i))
                 pantalla.presentar()
 
-        return pokedex
+        return pokedex, descripcion_asistencia
 
-    pokedex = armar_pokedex()
+    pokedex, descripcion_asistencia = armar_pokedex()
 
-    def jugar(nombres, config):
+    def jugar(nombres, config, ranura=None, cargada=None):
         """Una partida entera: arma el equipo, recorre las salas una por una y devuelve como termino
         ('menu', 'salir' o 'juego_terminado') junto con el pokemon activo.
         Adentro se arman por grupos (reglas, equipo, movimiento, ataques, enemigos, salas, dibujo, extras) las funciones que usa el bucle."""
@@ -561,20 +539,43 @@ def main():
         DURACION_CARTEL = 1200                      # ms que se ve un cartel ("sala completada", "conseguiste la llave"...)
         BASICO_DISTANCIA = {'daño': 0.65, 'enfriamiento': 1.5, 'distancia': 0.85}   # el ataque a distancia basico es mas flojo que el de cerca
         # el ataque cuerpo a cuerpo basico (E / clic izquierdo): multiplicadores sobre los datos del movimiento
-        GOLPE_CUERPO = {'daño': 1.6, 'distancia': 1.25, 'area': 1.3, 'retroceso': 1.5}
-        # parry: si golpeas cuerpo a cuerpo justo cuando un enemigo esta por pegarte, lo bloqueas
-        PARRY = {'ventana': 220,       # ms que dura el parry desde que golpeas (y cuanto antes del golpe enemigo podes apretar)
-                 'aturdido': 1600,     # ms que el enemigo queda aturdido (no se mueve ni ataca)
+        GOLPE_CUERPO = {'daño': 1.1, 'distancia': 1.3, 'area': 1.3, 'retroceso': 1.0}
+        # combo de 3 golpes: apretando de nuevo dentro de la 'ventana' sale el siguiente; el tercero es un remate.
+        # Cada golpe que conecta te devuelve energia y acelera tus especiales: pelear de cerca rinde mas que quedarse lejos.
+        COMBO = {'ventana': 700,                 # ms para encadenar el siguiente golpe
+                 'espera': 210,                  # ms minimos entre golpe y golpe (se ajusta por rol: los velocistas encadenan mas rapido)
+                 'recuperacion': 430,            # ms despues del remate hasta poder empezar otro combo
+                 'daño': (0.85, 0.95, 1.7),      # multiplicador de cada golpe
+                 'arco': (65, 65, 100),          # grados a cada lado de donde apuntas que alcanza el golpe (el remate barre mas)
+                 'alcance': (1.0, 1.0, 1.25),
+                 'avance': (6, 8, 18),           # pixeles que das para adelante con cada golpe
+                 'retroceso': (0.5, 0.5, 2.4),   # empujon (el remate los manda lejos)
+                 'energia': (4, 4, 10),          # energia que devuelve cada golpe que conecta
+                 'recarga': (180, 180, 550),     # ms que le saca a la espera de tus dos especiales cada golpe que conecta
+                 'iman': 50}                     # grados: si hay un enemigo cerca y casi adelante, el golpe se acomoda solo hacia el
+        CARRERA = {'daño': 1.5, 'avance': 46}   # golpe en carrera: atacar corriendo da un primer golpe mas fuerte y largo
+        # parry: golpear cuerpo a cuerpo justo cuando un enemigo te va a pegar (su aviso brilla amarillo: ese es el momento)
+        PARRY = {'ventana': 320,       # ms que dura el parry desde que golpeas (y cuanto antes del golpe enemigo podes apretar)
+                 'fallo': 650,         # si no bloqueaste nada, ms hasta poder abrir otra ventana (asi no sirve apretar sin parar)
+                 'aturdido': 1800,     # ms que el enemigo queda aturdido (no se mueve ni ataca)
                  'contragolpe': 2.0,   # mientras esta aturdido le haces este multiplicador de daño
                  'empujon': 45,        # pixeles que sale despedido el enemigo
-                 'rebote': 1.5}        # las balas que bloqueas vuelven con este multiplicador de daño
+                 'rebote': 2.0,        # las balas que bloqueas vuelven con este multiplicador de daño
+                 'energia': 30, 'recarga': 1500, 'cura': 0.03}   # premio: energia, ms menos de espera en los especiales y vida (3%)
+        # esquive (Espacio / L3): un salto corto en la direccion en que caminas (o para atras) con invulnerabilidad.
+        # Si te iban a pegar mientras esquivabas es un esquive perfecto: recuperas energia y tu proximo golpe es un contraataque
+        ESQUIVE = {'distancia': 125, 'duracion': 190, 'invulnerable': 280, 'energia': 26, 'espera': 380,
+                   'perfecto_energia': 26, 'contra': 1.8, 'contra_dura': 1600}
         DURACION_ENTRADA = 450                      # ms que el pokemon camina solo al entrar a una sala
+        CURA_SALA = 0.12                            # al limpiar una sala todo el equipo recupera el 12% de su vida
+        VEL_ORILLA = 3.5                            # pixeles por frame al nadar hasta la orilla (cambiaste en el agua a uno que no nada)
         trucos = config['trucos']                   # menu secreto (Konami): vida infinita, sin recarga...
         DISTANCIA_COMPRA = 95                       # que tan cerca de una vitrina hay que estar para comprar
         VEL_P_ENEMIGO = 8                           # balas del anillo de los jefes (las de los tiradores van en ia.py)
         DIST_P_ENEMIGO = 250
         DAÑO_ENEMIGO = 10                           # daño base de un enemigo (se escala con la era y la sala)
-        ENERGIA_MAX, GASTO_SPRINT, REGEN_ENERGIA, ENERGIA_MIN, MULT_SPRINT, COOLDOWN_CAMBIO = 100.0, 0.6, 0.35, 25.0, 1.7, 2500
+        ENERGIA_MAX, GASTO_SPRINT, REGEN_ENERGIA, ENERGIA_MIN, MULT_SPRINT, COOLDOWN_CAMBIO = 100.0, 0.45, 0.45, 25.0, 1.6, 2000
+        ARRANQUE = {'mult': 2.1, 'dura': 230, 'reposo': 500}   # al empezar a correr (despues de medio segundo sin correr) arrancas con un pique
         DIRS = {(1,-1):'noreste',(1,1):'sureste',(-1,-1):'noroeste',(-1,1):'suroeste',(1,0):'este',(-1,0):'oeste',(0,-1):'norte',(0,1):'sur'}
         CD_JEFE, CD_PIEDRA = 5000, 2000
         DURACION_PIEDRA = 5000
@@ -594,7 +595,9 @@ def main():
                        'regieleki': {2: 'Se escondio en las torres', 3: 'Sin torres: Jaula Voltio'}}
         # cuando cae Arceus: caen Sentencias sobre la mitad de arriba (queda vacia) y aparece Arceus Beta flotando ahi
         LLEGADA_BETA = {'espera': 1500, 'cada': 160, 'aviso': 900, 'paso': 260, 'radio': 130, 'vida': 2.0, 'nivel_mas': 4}
-        FRIO_MAX, CARGA_FRIO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 0.9, 0.5, 3000   # barra de congelamiento (escarcha de Regice)
+        # barra de congelamiento: solo la cargan los golpes fuertes de tipo hielo (un rayo de Regice, un Walrein que te pega de lleno...).
+        # Pisar hielo o escarcha solo resbala. FRIO_POR_DAÑO: un golpe del 30% de tu vida te congela de una; los golpecitos se descargan solos
+        FRIO_MAX, FRIO_POR_DAÑO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 340.0, 0.6, 2000
         ESTILO_MINI = {'regieleki': 'rapido', 'regidrago': 'tirador', 'regice': 'tirador'}               # los demas pegan de cerca
 
         def armar_reglas():
@@ -619,8 +622,12 @@ def main():
                 return max(1, round(daño * m))
 
             def mod(j, clave):
-                """Multiplicador del entorno (terreno, maquinas, clima) por lo comprado en la tienda."""
-                return j['entorno'].get(clave, 1.0) * tienda.mult(j['inventario'], clave)
+                """Multiplicador del entorno (terreno, maquinas, clima), lo de equipo comprado en la tienda y los objetos que lleva el que pelea."""
+                return j['entorno'].get(clave, 1.0) * tienda.mult(j['inventario'], clave) * tienda.mult_equipados(llevados(j), clave)
+
+            def llevados(j):
+                """Objetos equipados del pokemon que esta peleando (hasta 2)."""
+                return j['equipo'][j['activo']].get('items', ()) if j.get('equipo') else ()
 
             def objetivos_de(nivel, con_objetos=True):
                 """A quien le pueden pegar los ataques: enemigos, jefe y objetos rompibles."""
@@ -630,9 +637,9 @@ def main():
                     lista += [x for x in jefe.get('rodantes', []) + jefe.get('bocas', []) if x.get('atacable') and x['vida'] > 0]
                 return lista + (entorno.destructibles(nivel['ent']) if con_objetos else [])
 
-            return mover, tipo_combate, daño_con_tipo, mod, objetivos_de
+            return mover, tipo_combate, daño_con_tipo, mod, objetivos_de, llevados
 
-        mover, tipo_combate, daño_con_tipo, mod, objetivos_de = armar_reglas()
+        mover, tipo_combate, daño_con_tipo, mod, objetivos_de, llevados = armar_reglas()
 
         def armar_equipo():
             """El equipo del jugador: miembros, cambio de pokemon, sinergias, debug y velocidad."""
@@ -649,7 +656,7 @@ def main():
                 g = dict(datos_juego(m['nombre']))
                 basicos, especiales = list(g['basicos']), list(g['especiales'])
                 for k, mt in enumerate(m['movs']):
-                    if not mt or not mts.datos(mt): continue
+                    if not mt or not mts.datos(mt) or not mts.sirve_en(mt, k): continue      # una MT especial nunca queda en E o Q
                     if k < 2: basicos[k] = mt
                     else: especiales[k - 2] = (mt, mts.datos(mt))
                 g['basicos'], g['especiales'] = basicos, especiales
@@ -658,7 +665,7 @@ def main():
             def nombre_mov(nombre):
                 """Nombre para mostrar de un movimiento o una MT."""
                 if not nombre: return '-'
-                return mts.MTS[nombre]['nombre'][3:] if nombre in mts.MTS else nombre.replace('_', ' ')
+                return mts.MTS[nombre]['nombre'][3:] if nombre in mts.MTS else nombre.replace('_', ' ').title()
 
             def datos_mov(nombre):
                 """Datos de un movimiento: de la MT si es una, si no de la lista de movimientos."""
@@ -673,7 +680,7 @@ def main():
                 total = {}
                 for i, m in enumerate(j['equipo']):
                     if i == j['activo'] or m['vida'] <= 0: continue
-                    for clave, valor in sinergia_de(m['nombre']).items(): total[clave] = total.get(clave, 0) + valor
+                    for clave, valor in sinergia_de(m['nombre'], m.get('sinergia')).items(): total[clave] = total.get(clave, 0) + valor
                 j['sinergia'] = total
 
             def aplicar_pokemon(j, nombre, vida=None, centro=None):
@@ -711,12 +718,15 @@ def main():
                 if not 0 <= indice < len(j['equipo']) or indice == j['activo']: return False
                 m = j['equipo'][indice]
                 if m['vida'] <= 0: return False
-                if not forzar and (j['atacando'] or j['embestida'] or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO or ahora < j['congelado_hasta']): return False
+                if not forzar and (ocupado(j) or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO or ahora < j['congelado_hasta']): return False
                 guardar_activo(j)
                 j['activo'] = indice; j['ultimo_cambio'] = ahora; j['buffs'] = {}
                 aplicar_pokemon(j, m['nombre'], m['vida'])
                 actualizar_sinergia(j)
                 efectos.cambio(mundo['ef'], *j['rect'].center)
+                if mundo['ent']:                                  # cambiaste en el agua a uno que no nada: va nadando hasta la orilla
+                    j['a_la_orilla'] = entorno.orilla(mundo['ent'], j['rect'], j['tipos'])
+                    if j['a_la_orilla'] and mundo.get('nivel'): cartel(mundo['nivel'], m['nombre'].replace('_', ' ').title() + ' nada hasta la orilla')
                 return True
 
             def equipar_debug(j, nombre, espacio):
@@ -749,7 +759,8 @@ def main():
                     if RESTAURAR_VIDA_ENTRE_SALAS: m['vida'] = m['max_vida']
                     reiniciar_asistencia(m)
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
-                          'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False, 'frio': 0.0, 'congelado_hasta': 0})
+                          'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False, 'frio': 0.0, 'congelado_hasta': 0, 'a_la_orilla': None,
+                          'esquive': None, 'inv_hasta': 0, 'combo': 0, 'combo_listo': 0, 'contra_hasta': 0, 'parry_hasta': 0, 'parry_libre': 0})
                 aplicar_pokemon(j, j['nombre'], j['equipo'][j['activo']]['vida'], centro=centro)
                 actualizar_sinergia(j)
 
@@ -760,7 +771,8 @@ def main():
 
             def velocidad_actual(j):
                 """Velocidad del jugador con todo encima: buffs, sinergia, correr, terreno, tienda y nivel."""
-                return j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * (MULT_SPRINT if j['corriendo'] else 1.0) * mod(j, 'velocidad') * j['mults']['velocidad']
+                sprint = (ARRANQUE['mult'] if tiempo() < j.get('pique_hasta', 0) else MULT_SPRINT) if j['corriendo'] else 1.0
+                return j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * sprint * mod(j, 'velocidad') * j['mults']['velocidad']
 
             return (crear_miembro, juego_de, nombre_mov, datos_mov, actualizar_sinergia, aplicar_pokemon, crear_jugador, guardar_activo,
                     cambiar_slot, equipar_debug, reiniciar_jugador, mult_buff, velocidad_actual)
@@ -778,12 +790,16 @@ def main():
                 j['moviendose'] = bool(dx or dy)
                 if j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
                 gratis = mult_buff(j, 'sprint') > 1 or j['entorno'].get('sprint_gratis')     # en el hielo los de hielo corren gratis
+                antes = j['corriendo']
                 j['corriendo'] = j['moviendose'] and controles.mantiene('correr') and (gratis or not j['agotado'])
+                ahora = tiempo()
+                if j['corriendo'] and not antes and ahora - j.get('dejo_de_correr', -10000) >= ARRANQUE['reposo']: j['pique_hasta'] = ahora + ARRANQUE['dura']
+                if antes and not j['corriendo']: j['dejo_de_correr'] = ahora
                 if j['corriendo']:
-                    if not gratis: j['energia'] = max(0.0, j['energia'] - GASTO_SPRINT * tienda.mult(j['inventario'], 'gasto'))
+                    if not gratis: j['energia'] = max(0.0, j['energia'] - GASTO_SPRINT * mod(j, 'gasto'))
                     if j['energia'] <= 0 and not gratis: j['agotado'] = True; j['corriendo'] = False
-                else:
-                    j['energia'] = min(ENERGIA_MAX, j['energia'] + REGEN_ENERGIA * mod(j, 'regen'))
+                elif ahora >= j.get('sin_regen_hasta', 0):                 # despues de esquivar la energia tarda un poquito en volver
+                    j['energia'] = min(ENERGIA_MAX, j['energia'] + REGEN_ENERGIA * mod(j, 'regen') * (1 + j['sinergia'].get('energia', 0)))
                 if j['moviendose']: j['ultimo_dir'] = (dx, dy)
                 n = math.hypot(dx, dy) or 1; v = velocidad_actual(j)
                 deseado = (dx / n * v, dy / n * v)
@@ -859,7 +875,8 @@ def main():
                 datos['tipo'] = datos.get('tipo') or datos.get('tipo_ataque') or tipo_combate(j['datos'])
                 try: base = float(datos.get('daño', 0))
                 except (TypeError, ValueError): base = 0
-                extra = mod(j, 'daño') * tienda.mult_tipo(j['inventario'], normalizar_tipo(datos['tipo'])) * tienda.critico(j['inventario'])
+                tipo_mov = normalizar_tipo(datos['tipo'])
+                extra = mod(j, 'daño') * tienda.mult_tipo(j['inventario'], tipo_mov) * tienda.mult_tipo_equipados(llevados(j), tipo_mov) * tienda.critico(j['inventario'])
                 stat = j['mults']['fisico' if datos.get('forma') in ('cuerpo', 'embestida') else 'especial']   # Ataque o At. Esp. segun el golpe
                 datos['daño'] = round(base * j['juego']['mult_daño'] * mult_buff(j, 'daño') * (1 + j['sinergia'].get('daño', 0)) * extra * stat
                                       * (100 if trucos.get('golpe_letal') else 1))
@@ -881,25 +898,39 @@ def main():
                 j['atacando'] = True; j['anim_ataque'] = anim; j['dir_ataque'] = direcciones.index(j['direccion'])
                 a.cambiar(anim, j['dir_ataque'], False)
 
-            def golpear(j, datos, objetivos, efectos=None):
-                """Golpe cuerpo a cuerpo: le pega a todo lo que esta en el rectangulo de adelante y deja la estela."""
+            def golpear(j, datos, objetivos, efectos=None, arco=None, alcance_extra=1.0):
+                """Golpe cuerpo a cuerpo: le pega a todo lo que esta adelante (en un arco de 'arco' grados a cada lado, o en el rectangulo
+                de siempre si no se pide arco) y deja la estela. Devuelve los enemigos (no objetos) a los que les pego."""
                 ax, ay = j['aim']
-                try: d = max(1, int(float(datos.get('distancia', 50))))
+                try: d = max(1, int(float(datos.get('distancia', 50)) * alcance_extra))
                 except (TypeError, ValueError): d = 50
                 try: area = max(1, int(float(datos.get('area', 20))))
                 except (TypeError, ValueError): area = 20
                 px, py = j['rect'].center
+                tocados = []
                 for objetivo in objetivos:
                     if objetivo['vida'] <= 0: continue
                     mitad = max(objetivo['rect'].width, objetivo['rect'].height) / 2
                     vx, vy = objetivo['rect'].centerx - px, objetivo['rect'].centery - py
                     adelante, lado = vx * ax + vy * ay, abs(vx * ay - vy * ax)
-                    if -mitad <= adelante <= d + mitad and lado <= area + mitad:
+                    if arco is None: adentro = -mitad <= adelante <= d + mitad and lado <= area + mitad
+                    else:
+                        dist = math.hypot(vx, vy)
+                        angulo = math.degrees(math.acos(max(-1.0, min(1.0, adelante / dist)))) if dist else 0
+                        adentro = dist <= d + mitad + max(j['rect'].size) / 2 and (angulo <= arco or dist <= mitad + max(j['rect'].size) / 2 + 6)
+                    if adentro:
                         recibir_ataque(objetivo, datos, j['direccion'])
+                        if not objetivo.get('objeto'): tocados.append(objetivo)
                 entorno.reaccionar_linea(mundo['ent'], px, py, px + ax * d, py + ay * d, max(20, area), datos.get('tipo'), tiempo())   # congela, quema...
                 if efectos is not None:
                     ahora = tiempo()
-                    efectos.append({'x': px, 'y': py, 'linea': (px + ax * d, py + ay * d), 'radio': max(3, min(area, 14)), 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 130})
+                    if arco is None or arco < 80:
+                        efectos.append({'x': px, 'y': py, 'linea': (px + ax * d, py + ay * d), 'radio': max(3, min(area, 14)), 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 130})
+                    else:                                               # el remate barre: un abanico de estelas
+                        for grados in (-arco * 0.7, 0, arco * 0.7):
+                            r = math.radians(grados); bx, by = ax * math.cos(r) - ay * math.sin(r), ax * math.sin(r) + ay * math.cos(r)
+                            efectos.append({'x': px, 'y': py, 'linea': (px + bx * d, py + by * d), 'radio': max(3, min(area, 12)), 'tipo': datos.get('tipo'), 'inicio': ahora, 'hasta': ahora + 180})
+                return tocados
 
             def lanzar(j, datos, proyectiles):
                 """Dispara uno o varios proyectiles (en abanico) hacia donde apunta el jugador."""
@@ -967,39 +998,147 @@ def main():
                 j['congelado_hasta'] = 0; j['frio'] = 0.0
                 return True
 
-            def usar_basico(j, indice, nivel):
-                """Ataque basico (0 = cuerpo a cuerpo, 1 = a distancia) si ya recargo."""
+            def ocupado(j):
+                """Si el jugador no puede atacar ahora: embistiendo, esquivando o nadando a la orilla."""
+                return bool(j['embestida'] or j.get('esquive') or j.get('a_la_orilla'))
+
+            def apuntar_al_cercano(j, objetivos, alcance):
+                """Iman del golpe: si hay un enemigo cerca y casi adelante, el golpe se acomoda hacia el."""
+                ax, ay = j['aim']; px, py = j['rect'].center
+                mejor, dist_mejor = None, None
+                for o in objetivos:
+                    if o['vida'] <= 0 or o.get('objeto'): continue
+                    vx, vy = o['rect'].centerx - px, o['rect'].centery - py
+                    dist = math.hypot(vx, vy)
+                    if not dist or dist > alcance + max(o['rect'].size) / 2: continue
+                    if math.degrees(math.acos(max(-1.0, min(1.0, (vx * ax + vy * ay) / dist)))) > COMBO['iman']: continue
+                    if dist_mejor is None or dist < dist_mejor: mejor, dist_mejor = (vx / dist, vy / dist), dist
+                if mejor: j['aim'] = mejor; j['direccion'] = direccion_de(pygame.Vector2(mejor))
+
+            def premiar(j, energia, recarga, cura=0.0):
+                """Premio por pelear bien (golpes que conectan, parry, esquive perfecto): energia, menos espera en los especiales y algo de vida."""
+                j['energia'] = min(ENERGIA_MAX, j['energia'] + energia)
+                if energia and j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
+                j['esp_ultimo'] = [t - recarga for t in j['esp_ultimo']]
+                if cura and not trucos.get('vida_infinita'): j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * cura)
+
+            def abrir_parry(j, nivel):
+                """Apretar el golpe abre la ventana de parry (si no la gastaste recien). Los que estan por pegarte ahora mismo quedan bloqueados."""
+                ahora = tiempo()
+                if ahora < j.get('parry_libre', 0): return
+                ventana = PARRY['ventana'] * mod(j, 'parry')
+                j['parry_hasta'] = ahora + ventana; j['parry_libre'] = ahora + PARRY['fallo']; j['parry_dura'] = ventana
+                for e in nivel['enemigos']:
+                    if e['vida'] > 0 and e.get('aviso') and e['aviso']['clase'] in ('golpe', 'embestida') and e['aviso']['hasta'] - ahora <= ventana:
+                        intentar_parry(j, e, nivel)
+
+            def usar_basico(j, indice, nivel, apretado=True):
+                """Ataque basico: 0 = cuerpo a cuerpo (combo de 3 golpes, abre el parry), 1 = a distancia.
+                apretado False: el boton se esta manteniendo (mouse o control), sirve para seguir el combo pero no abre parry."""
                 nombre = j['juego']['basicos'][indice]
                 base = datos_mov(nombre) if nombre else None
-                if not base: return
-                if not mts.datos(nombre):                               # las MT quedan como son; los basicos se ajustan
+                if not base or ocupado(j): return
+                if not mts.datos(nombre) or mts.MTS[nombre]['casillas'] == 'todas':     # los basicos (y las MT de combate) se ajustan
                     base = dict(base)                                   # copia: no se tocan los datos originales del movimiento
-                    ajustes = BASICO_DISTANCIA if indice == 1 else GOLPE_CUERPO   # a distancia mas flojo, cuerpo a cuerpo mas fuerte
+                    ajustes = BASICO_DISTANCIA if indice == 1 or base.get('forma') == 'proyectil' else GOLPE_CUERPO
                     for clave, k in ajustes.items():
                         try: base[clave] = float(base.get(clave, 0)) * k
                         except (TypeError, ValueError): pass
                 datos = preparar(j, base)
                 if not descongelar(j, datos.get('tipo')): return
-                ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
-                clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
-                if j['atacando'] or j['embestida'] or ahora - j[clave] < enfriamiento: return
-                j[clave] = ahora
-                iniciar_ataque(j, datos.get('forma', 'cuerpo'), enfriamiento)
-                if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
-                else:
-                    if indice == 0:                                     # golpe cuerpo a cuerpo: abre la ventana de parry
-                        j['parry_hasta'] = ahora + PARRY['ventana']
-                        for e in nivel['enemigos']:                     # los que estan por pegarte ahora mismo quedan bloqueados
-                            if e['vida'] > 0 and e.get('aviso') and e['aviso']['clase'] in ('golpe', 'embestida') \
-                                    and e['aviso']['hasta'] - ahora <= PARRY['ventana']: intentar_parry(j, e, nivel)
-                    golpear(j, datos, objetivos_de(nivel), nivel['efectos'])
+                ahora = tiempo()
+                if indice == 0 and apretado: abrir_parry(j, nivel)    # el parry no depende de que el golpe este listo
+                if datos.get('forma') != 'cuerpo':                     # disparo (o una MT de disparo puesta en E)
+                    enfriamiento = enfriamiento_de(j, datos)
+                    clave = 'ultimo_golpe' if indice == 0 else 'ultimo_proyectil'
+                    if ahora - j[clave] < enfriamiento: return
+                    j[clave] = ahora
+                    iniciar_ataque(j, datos.get('forma', 'proyectil'), enfriamiento)
+                    if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
+                    else: area_efecto(j, datos, objetivos_de(nivel), nivel['efectos'])
+                    return
+                golpe_combo(j, datos, nivel)
+
+            def golpe_combo(j, datos, nivel):
+                """Un golpe del combo: 1 y 2 rapidos, el 3 es un remate que barre, empuja lejos e interrumpe a los enemigos comunes."""
+                ahora = tiempo()
+                if ahora < j.get('combo_listo', 0): return
+                paso = j.get('combo', 0) if ahora - j.get('ultimo_golpe', -10000) <= COMBO['ventana'] else 0
+                carrera = paso == 0 and (j['corriendo'] or ahora - j.get('dejo_de_correr', -10000) < 150)
+                contra = ahora < j.get('contra_hasta', 0)
+                datos = dict(datos)
+                datos['daño'] = round(datos['daño'] * COMBO['daño'][paso] * (CARRERA['daño'] if carrera else 1) * (ESQUIVE['contra'] if contra else 1))
+                datos['retroceso'] = float(datos.get('retroceso', 0) or 20) * COMBO['retroceso'][paso]
+                objetivos = objetivos_de(nivel)
+                apuntar_al_cercano(j, objetivos, float(datos.get('distancia', 60)) * COMBO['alcance'][paso] + 30)
+                avance = CARRERA['avance'] if carrera else COMBO['avance'][paso]
+                ax, ay = j['aim']
+                solidos_j = entorno.solidos(mundo['ent'], j['tipos'])
+                mover(j['rect'], round(ax * avance), 0, solidos_j); mover(j['rect'], 0, round(ay * avance), solidos_j); j['rect'].clamp_ip(AREA)
+                espera = enfriamiento_de(j, {'enfriamiento': COMBO['espera']})
+                iniciar_ataque(j, 'cuerpo', espera * 2)
+                tocados = golpear(j, datos, objetivos, nivel['efectos'], COMBO['arco'][paso], COMBO['alcance'][paso])
+                j['ultimo_golpe'] = ahora
+                if paso == 2:                                           # remate: recuperacion un poco mas larga y vuelve al primer golpe
+                    j['combo'] = 0; j['combo_listo'] = ahora + enfriamiento_de(j, {'enfriamiento': COMBO['recuperacion']})
+                    nivel['temblor'] = max(nivel['temblor'], ahora + 90)
+                else: j['combo'] = paso + 1; j['combo_listo'] = ahora + espera
+                if contra and tocados: j['contra_hasta'] = 0; cartel(nivel, 'Contraataque!', 600)
+                if carrera and tocados: cartel(nivel, 'Golpe en carrera!', 600)
+                if tocados:
+                    premiar(j, COMBO['energia'][paso], COMBO['recarga'][paso])
+                    if paso == 2:
+                        for e in tocados:
+                            if e is nivel['jefe'] or e.get('jefe') or e.get('de_jefe'): continue
+                            e['aviso'] = None; e['embestida_ia'] = None          # el remate interrumpe lo que estaba por hacer
+                            e['cd_ataque'] = max(e.get('cd_ataque', 0), ahora + 500)
+
+            def esquivar(j, nivel):
+                """Esquive: salto corto hacia donde caminas (si estas quieto, para atras) con invulnerabilidad. Gasta energia."""
+                ahora = tiempo()
+                if ocupado(j) or ahora < max(j['congelado_hasta'], j.get('atrapado_hasta', 0), j.get('esquive_listo', 0)): return
+                gratis = mult_buff(j, 'sprint') > 1
+                costo = ESQUIVE['energia'] * mod(j, 'gasto')
+                if not gratis and (j['agotado'] or j['energia'] < costo): cartel(nivel, 'Sin energia para esquivar', 500); return
+                if not gratis: j['energia'] -= costo
+                dx, dy = controles.direccion()
+                if not (dx or dy): dx, dy = -j['aim'][0], -j['aim'][1]
+                n = math.hypot(dx, dy) or 1
+                largo = mod(j, 'esquive')
+                j['esquive'] = {'vx': dx / n, 'vy': dy / n, 'restante': ESQUIVE['distancia'] * (0.8 + 0.2 * largo), 'hasta': ahora + ESQUIVE['duracion'],
+                                'resto': [0.0, 0.0], 'perfecto': False}
+                j['inv_hasta'] = ahora + ESQUIVE['invulnerable'] * largo
+                j['esquive_listo'] = ahora + ESQUIVE['espera']; j['sin_regen_hasta'] = ahora + 450
+                j['inercia'] = [0.0, 0.0]
+                efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
+
+            def actualizar_esquive(j, piedras):
+                """Un paso del esquive: avanza rapido y frena contra las paredes."""
+                e = j['esquive']
+                pasos_restantes = max(1, (e['hasta'] - tiempo()) / (1000 / 60))
+                paso = min(e['restante'], max(4.0, e['restante'] / pasos_restantes))
+                e['resto'][0] += e['vx'] * paso; e['resto'][1] += e['vy'] * paso
+                px, py = int(e['resto'][0]), int(e['resto'][1])
+                e['resto'][0] -= px; e['resto'][1] -= py
+                mover(j['rect'], px, 0, piedras); mover(j['rect'], 0, py, piedras); j['rect'].clamp_ip(AREA)
+                e['restante'] -= paso
+                if e['restante'] <= 0.5 or tiempo() >= e['hasta'] + 60: j['esquive'] = None
+
+            def esquive_perfecto(j):
+                """Te iban a pegar mientras esquivabas: premio (una vez por esquive)."""
+                if j.get('perfecto_hasta', 0) > tiempo(): return
+                j['perfecto_hasta'] = j.get('inv_hasta', 0)
+                premiar(j, ESQUIVE['perfecto_energia'], 0)
+                j['contra_hasta'] = tiempo() + ESQUIVE['contra_dura']
+                efectos.destello(mundo['ef'], *j['rect'].center)
+                if mundo.get('nivel'): cartel(mundo['nivel'], 'Esquive perfecto! (tu proximo golpe es un contraataque)', 900)
 
             def intentar_parry(j, e, nivel):
                 """Si el jugador esta en su ventana de parry y el enemigo esta cerca, bloquea su ataque:
-                el enemigo queda aturdido, sale despedido y recibe mas daño un rato. Devuelve True si hubo parry."""
+                el enemigo queda aturdido, sale despedido y recibe mas daño un rato. Ademas te premia. Devuelve True si hubo parry."""
                 ahora = tiempo()
                 if ahora >= j.get('parry_hasta', 0): return False
-                alcance = max(j['rect'].size) + max(e['rect'].size) + 70        # tiene que estar mas o menos al alcance del golpe
+                alcance = max(j['rect'].size) + max(e['rect'].size) + 80        # tiene que estar mas o menos al alcance del golpe
                 dx, dy = e['rect'].centerx - j['rect'].centerx, e['rect'].centery - j['rect'].centery
                 distancia = math.hypot(dx, dy)
                 if distancia > alcance: return False
@@ -1009,10 +1148,18 @@ def main():
                 e['cd_ataque'] = e['estado_hasta'] + 500
                 n = distancia or 1
                 entorno.mover(mundo['ent'], e['rect'], round(dx / n * PARRY['empujon']), round(dy / n * PARRY['empujon']), entorno.tipos_de(e))
-                efectos.cambio(mundo['ef'], *e['rect'].center)                   # destello blanco
+                parry_exitoso(j, nivel, e['rect'].center)
+                return True
+
+            def parry_exitoso(j, nivel, donde):
+                """Lo que pasa con cualquier parry (golpe o bala): destello, premio y la ventana queda libre para el proximo."""
+                ahora = tiempo()
+                j['parry_libre'] = ahora                                         # acertaste: podes volver a intentarlo enseguida
+                j['combo_listo'] = ahora                                         # y contragolpear sin esperar
+                premiar(j, PARRY['energia'], PARRY['recarga'], PARRY['cura'])
+                efectos.cambio(mundo['ef'], *donde)                              # destello blanco
                 nivel['temblor'] = max(nivel['temblor'], ahora + 120)            # sacudoncito de pantalla
                 cartel(nivel, 'Parry!', 700)
-                return True
 
             def usar_especial(j, indice, nivel):
                 """Especial 1 o 2 (Shift / R): proyectil, golpe, area, embestida, buff o cura, segun el movimiento."""
@@ -1021,7 +1168,7 @@ def main():
                 if not descongelar(j, datos.get('tipo')): return
                 forma = datos.get('forma', 'proyectil')
                 ahora = tiempo(); enfriamiento = enfriamiento_de(j, datos)
-                if j['atacando'] or j['embestida'] or ahora - j['esp_ultimo'][indice] < enfriamiento: return
+                if ocupado(j) or ahora - j['esp_ultimo'][indice] < enfriamiento: return
                 j['esp_ultimo'][indice] = ahora
                 iniciar_ataque(j, forma, enfriamiento)
                 entorno.al_usar_movimiento(nivel['ent'], nombre, ahora)     # ej. viento hielo trae granizo
@@ -1051,8 +1198,9 @@ def main():
                 objetivos = objetivos_de(nivel, mec != 'desvanecer')        # desvanecer no borra objetos
                 m['asist_listo'] = ahora + a['enfriamiento']
                 entorno.al_usar_movimiento(nivel['ent'], a['nombre'], ahora)   # hidrobomba trae lluvia, llamarada sol, trueno tormenta...
+                fuerza = progreso.multiplicadores(m)['especial']                   # la asistencia escala con el nivel del que la tira
                 if mec == 'impacto':
-                    datos = {'tipo': a['tipo'], 'daño': round(a['daño'] * a['mult_daño']), 'area': a['area'], 'retroceso': 30, 'efecto': a['efecto']}
+                    datos = {'tipo': a['tipo'], 'daño': round(a['daño'] * a['mult_daño'] * fuerza), 'area': a['area'], 'retroceso': 30, 'efecto': a['efecto']}
                     area_efecto(j, datos, objetivos, nivel['efectos'], punto_apuntado(j, a['alcance']))
                 elif mec in ('escudo', 'furia', 'carrera'):
                     for clave, valor in a['buffs'].items(): j['buffs'][clave] = (valor, ahora + a['duracion'])
@@ -1066,10 +1214,10 @@ def main():
                     for o in objetivos:
                         if o['vida'] > 0 and centro.distance_to(o['rect'].center) <= a['area'] + max(o['rect'].width, o['rect'].height) / 2:
                             if o is nivel['jefe'] or o.get('de_jefe'): o['vida'] = max(0, o['vida'] - o['max_vida'] * a['porcentaje_jefe'] / 100)
-                            else: o['vida'] = 0
+                            else: o['vida'] = max(0, o['vida'] - o['max_vida'] * a['porcentaje'] / 100)
                     nivel['efectos'].append({'x': centro.x, 'y': centro.y, 'radio': a['area'], 'tipo': 'fantasma', 'inicio': ahora, 'hasta': ahora + 600})
                 elif mec == 'masivo':
-                    datos = {'tipo': 'normal', 'daño': a['daño'], 'area': a['area'], 'retroceso': 0, 'efecto': a['efecto']}
+                    datos = {'tipo': 'normal', 'daño': round(a['daño'] * fuerza), 'area': a['area'], 'retroceso': 0, 'efecto': a['efecto']}
                     area_efecto(j, datos, objetivos, nivel['efectos'])
 
             def actualizar_jugador(j):
@@ -1086,14 +1234,19 @@ def main():
                     a.cambiar('walk' if j['moviendose'] else 'idle', d, True)
                 a.actualizar()
 
-            def dañar_jugador(j, daño, tipo=None):
-                """Le saca vida al jugador: tipos, buffs, sinergia, tienda y defensa (nada si esta el truco de vida infinita)."""
+            def dañar_jugador(j, daño, tipo=None, evitable=True):
+                """Le saca vida al jugador: tipos, buffs, sinergia, tienda y defensa (nada si esta el truco de vida infinita).
+                evitable: golpes, balas y rayos se esquivan (mientras dura la invulnerabilidad del esquive no pegan y es esquive perfecto);
+                el piso que quema o lastima no."""
                 try: daño = max(0, float(daño))
                 except (TypeError, ValueError): daño = 0
+                if evitable and daño > 0 and tiempo() < j.get('inv_hasta', 0): esquive_perfecto(j); return
                 if tipo: daño = daño_con_tipo(daño, tipo, j['tipos'])
                 daño *= mult_buff(j, 'defensa') * (1 - j['sinergia'].get('defensa', 0)) * mod(j, 'defensa') * j['mults']['defensa']
                 if trucos.get('vida_infinita'): return
                 j['vida'] = max(0, j['vida'] - daño)
+                if tipo and normalizar_tipo(tipo) == 'hielo' and 'hielo' not in j['tipos'] and tiempo() >= j['congelado_hasta']:   # los de hielo no se congelan
+                    j['frio'] = min(FRIO_MAX, j['frio'] + FRIO_POR_DAÑO * daño / max(1, j['max_vida']))
 
             def recibir_ataque(obj, datos, direccion=None):
                 """Un enemigo, jefe u objeto recibe un ataque: daño por tipo, efecto de estado (quemar, paralizar...) y empujon."""
@@ -1108,6 +1261,8 @@ def main():
                 except (TypeError, ValueError): daño_base = 0
                 daño = daño_con_tipo(daño_base, ataque_tipo, defensa_tipo)
                 if obj.get('contragolpe_hasta', 0) > tiempo(): daño = round(daño * PARRY['contragolpe'])   # le hiciste parry: pega mas
+                elif obj.get('estado') == 'dormir' and obj.get('estado_hasta', 0) > tiempo() and daño > 0:
+                    daño = round(daño * 1.5); obj['estado'] = None; obj['estado_hasta'] = 0   # golpe a uno dormido: pega mas y lo despierta
                 if obj.get('mult_recibido', 1.0) != 1.0 and daño: daño = max(1, round(daño * obj['mult_recibido']))   # coraza, Lento Inicio...
                 obj['vida'] = max(0, obj['vida'] - daño)
                 efecto = datos.get('efecto'); ahora = tiempo()
@@ -1124,10 +1279,10 @@ def main():
                     entorno.mover(mundo['ent'], obj['rect'], round(vx * retroceso), round(vy * retroceso), entorno.tipos_de(obj)); obj['rect'].clamp_ip(AREA)
 
             return (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-                    recibir_ataque, intentar_parry)
+                    recibir_ataque, intentar_parry, parry_exitoso, esquivar, actualizar_esquive, ocupado)
 
         (enfriamiento_de, actualizar_embestida, usar_basico, usar_especial, usar_asistencia, actualizar_jugador, dañar_jugador,
-         recibir_ataque, intentar_parry) = armar_ataques()
+         recibir_ataque, intentar_parry, parry_exitoso, esquivar, actualizar_esquive, ocupado) = armar_ataques()
 
         def armar_enemigos():
             """Enemigos, proyectiles y jefes."""
@@ -1279,7 +1434,7 @@ def main():
                                  'area': 6, 'velocidad': proyectil['vel'] * 1.3, 'retroceso': 15}
                         rebotados.append({'x': proyectil['x'], 'y': proyectil['y'], 'vx': -proyectil['dx'], 'vy': -proyectil['dy'], 'direccion': j['direccion'],
                                           'datos': datos, 'rect': proyectil['rect'].copy(), 'distancia': 0, 'activo': True, 'golpeados': []})
-                        efectos.cambio(mundo['ef'], proyectil['x'], proyectil['y'])
+                        if mundo.get('nivel'): parry_exitoso(j, mundo['nivel'], (proyectil['x'], proyectil['y']))
                     else: dañar_jugador(j, proyectil['daño'], proyectil.get('tipo'))
 
             def actualizar_proyectil_pokemon(proyectil, objetivos, piedras):
@@ -1419,42 +1574,69 @@ def main():
                 for i in range(total % partes): base[i] += 1
                 return base
 
-            def crear_nivel(rec, destino, entrada, j):
-                """Arma la sala actual del recorrido: mapa, entorno, puertas con su destino, enemigos y el cartel de entrada."""
-                era, tipo = rec['era'], mundos.tipo_sala(rec)
-                destinos = mundos.destinos_siguientes(rec, random)
-                semilla = random.random()
-                if tipo == 'tienda':
-                    destinos = destinos[:2]
-                    sala = generacion.generar_tienda(era, ['oeste', 'este'][:len(destinos)], semilla)
-                elif tipo in ('jefe', 'regi', 'final'):
-                    destinos = destinos[:1]
-                    sala = generacion.generar_arena(era, ['norte'], semilla, tipo)
-                else:
-                    variantes = mundos.ERAS[era]['variantes']
-                    variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(list(variantes))
-                    lados = random.sample([l for l in generacion.LADOS if l != entrada], len(destinos))
-                    sala = generacion.generar_sala(era, variante, entrada, lados, semilla)
-                for puerta, d in zip(sala['puertas'], destinos): puerta['destino'] = d
+            def crear_nivel(rec, destino, entrada, j, registro=None, llegada=None):
+                """Arma la sala actual del recorrido: mapa, entorno, puertas con su destino, enemigos y el cartel de entrada.
+                registro: la sala ya estaba en el historial (volviste o cargaste la partida): se arma igual que la primera vez
+                y, si ya la habias completado, sin enemigos y con las puertas abiertas. llegada: lado de la puerta por la que entras
+                cuando volves para atras (apareces en la puerta por la que habias salido)."""
+                nuevo = registro is None
+                if nuevo:
+                    era, tipo = rec['era'], mundos.tipo_sala(rec)
+                    destinos = mundos.destinos_siguientes(rec, random)
+                    if tipo == 'tienda': destinos = destinos[:2]; lados = ['oeste', 'este'][:len(destinos)]; variante = None
+                    elif tipo in ('jefe', 'regi', 'final'): destinos = destinos[:1]; lados = ['norte']; variante = None
+                    else:
+                        variantes = mundos.ERAS[era]['variantes']
+                        variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(list(variantes))
+                        lados = random.sample([l for l in generacion.LADOS if l != entrada], len(destinos))
+                    registro = {'era': era, 'sala': rec['sala'], 'tipo': tipo, 'semilla': random.random(), 'variante': variante, 'entrada': entrada,
+                                'lados': lados, 'destinos': destinos, 'clima': rec['clima'], 'completada': False, 'salida': None, 'vitrinas': None}
+                    rec['historial'].append(registro); rec['pos'] = len(rec['historial']) - 1
+                era, tipo, semilla = registro['era'], registro['tipo'], registro['semilla']
+                if tipo == 'tienda': sala = generacion.generar_tienda(era, registro['lados'], semilla)
+                elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, registro['lados'], semilla, tipo)
+                else: sala = generacion.generar_sala(era, registro['variante'], registro['entrada'], registro['lados'], semilla)
+                hecha = registro['completada']
+                ultima = rec['pos'] == len(rec['historial']) - 1
+                for puerta, d in zip(sala['puertas'], registro['destinos']):
+                    puerta['destino'] = d
+                    if not ultima and puerta['lado'] != registro['salida']:      # en una sala vieja solo sigue la puerta por la que saliste
+                        puerta['destino'] = dict(d, cerrado=True); puerta['bloqueada'] = True
+                if rec['pos'] > 0 and sala.get('entrada'):                  # la puerta por la que entraste: vuelve a la sala anterior
+                    sala['puertas'].append({'lado': sala['entrada'], 'atras': True, 'destino': {'tipo': 'volver'},
+                                            'rect': generacion._rect_puerta(sala['entrada'], sala['columnas'], sala['filas'], sala['tam'])})
                 ESC.size = sala['esc'].size                              # la sala nueva puede tener otro tamaño (la tienda)
                 AREA.update(generacion.crear_area(ESC, sala['tam']))
                 datos_era = mundos.ERAS[era]
                 clima = datos_era.get('clima_regi') if tipo == 'regi' else datos_era.get('clima_final') if tipo == 'final' else None
-                ent = entorno.crear(sala, clima or rec['clima'], tiempo())
+                ent = entorno.crear(sala, clima or registro['clima'], tiempo())
                 mundo['ent'] = ent
-                tienda.nueva_sala(j['inventario'], tipo)
-                esc = mundos.escala(era, rec['sala'])
+                if nuevo: tienda.nueva_sala(j['inventario'], tipo)       # los objetos de "por 3 salas" se gastan solo en salas nuevas
+                esc = mundos.escala(era, registro['sala'])
                 nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': esc, 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [], 'proyectiles_enemigos': [],
-                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda', 'monedas': [], 'carteles': [],
-                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, rec['sala'], tipo),
-                         'amigo': None, 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None}
+                         'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo == 'tienda' or hecha, 'monedas': [], 'carteles': [],
+                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, registro['sala'], tipo),
+                         'amigo': None, 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
+                         'registro': registro, 'revisita': hecha, 'inicio': sala['inicio']}
+                if llegada:                                              # volviste para atras: entras por la puerta por la que habias salido
+                    puerta = next((p_ for p_ in sala['puertas'] if p_['lado'] == llegada and not p_.get('atras')), None)
+                    if puerta:
+                        df, dc = generacion.PASO_LADO[llegada]
+                        nivel['inicio'] = (puerta['rect'].centerx + dc * sala['tam'] * 1.4, puerta['rect'].centery + df * sala['tam'] * 1.4)
+                        nivel['llegada_lado'] = llegada
                 mundo['ef']['parts'], mundo['ef']['anims'] = [], []
+                mundo['nivel'] = nivel
                 if tipo == 'tienda':
-                    tipos_equipo = {normalizar_tipo(t) for m in j['equipo'] for t in pokemones[m['nombre']].get('tipo', [])}
-                    necesita = {r['objeto'] for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r}
-                    items = tienda.surtido(random, tipos_equipo, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
-                    nivel['vitrinas'] = [dict(v, item=i, vendido=False) for v, i in zip(sala['vitrinas'], items)]
-                    titulo = 'Tienda de Kecleon'
+                    if registro['vitrinas'] is None:
+                        tipos_equipo = {normalizar_tipo(t) for m in j['equipo'] for t in pokemones[m['nombre']].get('tipo', [])}
+                        necesita = {r['objeto'] for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r}
+                        items = tienda.surtido(random, tipos_equipo, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
+                        registro['vitrinas'] = [[i_, False] for i_ in items]
+                    nivel['vitrinas'] = [dict(v, item=i_, vendido=vendido) for v, (i_, vendido) in zip(sala['vitrinas'], registro['vitrinas'])]
+                    titulo = 'Tienda de Chikorita'
+                elif hecha:
+                    titulo = (sala.get('variante') or tipo).capitalize() if tipo == 'combate' else mundos.jefe_de(era, tipo).title()
+                    titulo += ' (completada)'
                 elif tipo in ('jefe', 'regi', 'final'):
                     nombre = mundos.jefe_de(era, tipo)
                     nv = nivel['nivel_enemigos']
@@ -1463,14 +1645,14 @@ def main():
                     titulo = nombre.title()
                 else:
                     total = max(3, round(esc['cantidad'] * tienda.factor_enemigos(j['inventario'])))
-                    partes = 1 if rec['sala'] < 3 else random.choice((2, 2, 3))
+                    partes = 1 if registro['sala'] < 3 else random.choice((2, 2, 3))
                     oleadas = repartir(total, partes)
                     nivel['enemigos'] = [crear_enemigo(nivel) for _ in range(oleadas[0])]   # la primera oleada ya esta (sin verte todavia)
                     nivel['oleadas'] = oleadas[1:]
                     titulo = sala['variante'].capitalize()
                 clima_txt = 'Interior' if ent['clima'] is None else entorno.CLIMAS[ent['clima']]['nombre']
-                sub = datos_era['nombre'] + '  -  Sala ' + str(rec['sala'] + 1) + '/' + str(mundos.salas_de(rec)) + '  -  ' + clima_txt
-                cartel(nivel, titulo, 2800, sub, grande=True)
+                sub = datos_era['nombre'] + '  -  Sala ' + str(registro['sala'] + 1) + '/' + str(mundos.salas_de(rec, era)) + '  -  ' + clima_txt
+                cartel(nivel, titulo, 2800 if not hecha else 1600, sub, grande=True)
                 return nivel
 
             def impacto(nivel, x, y, radio, temblor):
@@ -1604,7 +1786,9 @@ def main():
                 if not v: return False
                 precio = tienda.ITEMS[v['item']]['precio']
                 mensaje = tienda.comprar(j, v['item'])
-                if mensaje.startswith('Compraste'): v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
+                if mensaje.startswith('Compraste'):
+                    v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
+                    i_ = nivel['vitrinas'].index(v); nivel['registro']['vitrinas'][i_][1] = True; nivel['guardar'] = True
                 cartel(nivel, mensaje)
                 return True
 
@@ -1617,17 +1801,28 @@ def main():
                 nivel['frame'] += 1
                 if trucos.get('monedas_infinitas'): j['monedas'] = 99999
                 if ahora < nivel['entrando_hasta']:                      # entrando a la sala: camina solo desde la puerta
-                    ix, iy = nivel['sala']['inicio']
+                    ix, iy = nivel['inicio']
                     dx, dy = ix - j['rect'].centerx, iy - j['rect'].centery
                     paso = min(math.hypot(dx, dy), 3.2)
                     if paso > 0.5:
                         j['rect'].x += round(dx / math.hypot(dx, dy) * paso); j['rect'].y += round(dy / math.hypot(dx, dy) * paso)
                         j['direccion'] = direccion_de(pygame.Vector2(dx, dy)); j['moviendose'] = True
                     else: j['moviendose'] = False
+                elif j.get('a_la_orilla'):                               # nadando hasta la orilla (no choca contra el agua)
+                    ox, oy = j['a_la_orilla']
+                    dx, dy = ox - j['rect'].centerx, oy - j['rect'].centery
+                    d = math.hypot(dx, dy)
+                    if d <= VEL_ORILLA: j['rect'].center = (round(ox), round(oy)); j['a_la_orilla'] = None
+                    else:
+                        j['rect'].x += round(dx / d * VEL_ORILLA); j['rect'].y += round(dy / d * VEL_ORILLA)
+                        j['direccion'] = direccion_de(pygame.Vector2(dx, dy))
+                        if nivel['frame'] % 6 == 0: efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
+                    j['moviendose'] = True
+                elif j.get('esquive'): actualizar_esquive(j, solidos_j); j['moviendose'] = True
                 elif j['embestida']: actualizar_embestida(j, objetivos, solidos_j); j['moviendose'] = True
                 else: mover_jugador(j, solidos_j)
                 actualizar_jugador(j)
-                if (j['corriendo'] or j['embestida']) and nivel['frame'] % 4 == 0: efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
+                if (j['corriendo'] or j['embestida'] or j.get('esquive')) and nivel['frame'] % 4 == 0: efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
                 efectos.actualizar(mundo['ef'])
                 contexto = {'ent': ent, 'jugador': j, 'enemigos': enemigos + ([jefe] if jefe else []), 'ahora': ahora,
                             'dañar_jugador': lambda d, t: dañar_jugador(j, d, t),
@@ -1635,16 +1830,17 @@ def main():
                             'disparar': lambda x, y, dx, dy, d, t, v, dist, tam=16: nivel['proyectiles_enemigos'].append(crear_proyectil(x, y, dx, dy, round(d), False, t, v, dist, tam)),
                             'impacto': lambda x, y, r, ms: impacto(nivel, x, y, r, ms),
                             'parry': lambda e: intentar_parry(j, e, nivel)}           # la IA lo llama antes de pegarte
-                entorno.actualizar(ent, contexto, ahora)                 # terreno, maquinas, fuego, clima, objetos empujados, explosiones
-                if ahora >= j['congelado_hasta']:                        # la escarcha de Regice carga la barra de congelamiento
-                    if entorno.terreno_en(ent, *j['rect'].center) == 'escarcha': j['frio'] = min(FRIO_MAX, j['frio'] + CARGA_FRIO)
-                    else: j['frio'] = max(0.0, j['frio'] - DESCARGA_FRIO)
+                entorno.actualizar(ent, dict(contexto, dañar_jugador=lambda d, t: dañar_jugador(j, d, t, evitable=False)), ahora)   # terreno, maquinas, fuego, clima, explosiones
+                if ahora >= j['congelado_hasta']:                        # el frio de los golpes de hielo se va solo
                     if j['frio'] >= FRIO_MAX:
                         j['congelado_hasta'] = ahora + DURACION_CONGELADO; j['frio'] = 0.0
                         cartel(nivel, 'Te congelaste! (un movimiento de fuego o lucha te descongela)', 1600)
+                    j['frio'] = max(0.0, j['frio'] - DESCARGA_FRIO)
                 for ev in ent['eventos']:                                # lo que paso en el entorno: monedas, cosas rotas, explosiones
-                    if ev[0] == 'monedas': soltar_monedas(nivel, j, ev[1], ev[2], ev[3])
-                    elif ev[0] == 'roto': efectos.romper(mundo['ef'], ev[1], ev[2], ev[3]); ganar_xp(nivel, j, 2 + nivel['nivel_enemigos'] // 3)
+                    if ev[0] == 'monedas' and not nivel['revisita']: soltar_monedas(nivel, j, ev[1], ev[2], ev[3])
+                    elif ev[0] == 'roto':
+                        efectos.romper(mundo['ef'], ev[1], ev[2], ev[3])
+                        if not nivel['revisita']: ganar_xp(nivel, j, 2 + nivel['nivel_enemigos'] // 3)   # en salas repetidas no se farmea
                     elif ev[0] == 'explosion': efectos.explosion(mundo['ef'], ev[1], ev[2], ev[3])
                 ent['eventos'] = []
                 nivel['efectos'] = [x for x in nivel['efectos'] if ahora < x['hasta']]
@@ -1693,7 +1889,7 @@ def main():
                 nivel['proyectiles_enemigos'] = [proyectil for proyectil in nivel['proyectiles_enemigos'] if proyectil['activo']]
                 for piedra_verde in nivel['verdes'][:]:
                     if ahora - piedra_verde['tiempo'] >= DURACION_PIEDRA: nivel['verdes'].remove(piedra_verde); continue
-                    if j['rect'].colliderect(piedra_verde['rect']) and ahora-piedra_verde['daño'] >= 500: dañar_jugador(j, DAÑO_PIEDRA); piedra_verde['daño'] = ahora
+                    if j['rect'].colliderect(piedra_verde['rect']) and ahora-piedra_verde['daño'] >= 500: dañar_jugador(j, DAÑO_PIEDRA, evitable=False); piedra_verde['daño'] = ahora
                 for moneda in nivel['monedas'][:]:                       # monedas: se juntan al pasar (y vienen solas cuando termina la sala)
                     dx, dy = j['rect'].centerx - moneda['x'], j['rect'].centery - moneda['y']
                     d = math.hypot(dx, dy)
@@ -1702,8 +1898,12 @@ def main():
                 if nivel['llegada']: actualizar_llegada_beta(nivel, j)
                 derrotados = not nivel['enemigos'] and nivel['jefe'] is None and not nivel['oleadas'] and not nivel['apariciones'] and not nivel['llegada']
                 if derrotados and not nivel['completado']:
-                    nivel['completado'] = True
-                    cartel(nivel, 'Sala completada!')
+                    nivel['completado'] = True; nivel['registro']['completada'] = True
+                    cartel(nivel, 'Sala completada!' + ('  (podes volver por donde entraste)' if any(p_.get('atras') for p_ in nivel['puertas']) else ''))
+                    for i, m in enumerate(j['equipo']):                  # un respiro: los que siguen en pie recuperan un poco de vida
+                        if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * CURA_SALA)
+                    if j['vida'] > 0: j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * CURA_SALA)
+                    nivel['guardar'] = True
                     soltar_monedas(nivel, j, *ESC.center, MONEDAS_SALA + 3 * nivel['sala']['era'])
                     ganar_xp(nivel, j, progreso.xp_por_derrota(j['nombre'], nivel['nivel_enemigos'], j['nivel']))
                     for i, m in enumerate(j['equipo']): m['amistad'] = min(255, m['amistad'] + (2 if i == j['activo'] else 1))   # pasar salas juntos
@@ -1720,12 +1920,16 @@ def main():
                     cambiar_slot(j, vivos[0], True)
                 if nivel['saliendo']:                                   # saliendo: se cierra la pantalla y pasa a la sala de atras
                     if ahora >= nivel['saliendo']['hasta']: nivel['salida'] = nivel['saliendo']['puerta']; return 'siguiente'
-                elif j['llave']:
+                elif j['llave'] and ahora >= nivel['entrando_hasta']:
                     for puerta in nivel['puertas']:
-                        if j['rect'].colliderect(puerta['rect'].inflate(20, 20)):
+                        tocando = j['rect'].colliderect(puerta['rect'].inflate(20, 20))
+                        if not tocando: puerta['armada'] = True              # una puerta sirve recien cuando te alejaste de ella
+                        if puerta.get('bloqueada') or (puerta.get('atras') and not nivel['completado']): continue
+                        if tocando and puerta.get('armada'):
                             cx, cy = camara(j)
                             nivel['saliendo'] = {'puerta': puerta, 'hasta': ahora + 320}
                             efectos.transicion(mundo['ef'], 'salir', ahora, (j['rect'].centerx - cx, j['rect'].centery - cy))
+                            break
 
             return menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque
 
@@ -1867,6 +2071,21 @@ def main():
                         ventana.blit(s, s.get_rect(center=(cx, cy)))
                     n = render(f_hud, nombre.replace('_', ' '), (60, 60, 60))
                     ventana.blit(n, n.get_rect(center=(cx, cy + radio + 12)))
+                for k, (tecla_txt, clave, base) in enumerate((('E', 'ultimo_golpe', j['juego']['basicos'][0]), ('Q', 'ultimo_proyectil', j['juego']['basicos'][1]))):
+                    cx, cy = W - 296 + k * 66, H - 56
+                    pygame.draw.circle(ventana, (235, 235, 235), (cx, cy), 20)
+                    pygame.draw.circle(ventana, 'black', (cx, cy), 20, 2)
+                    t = render(f_hud_g, tecla_txt, 'black'); ventana.blit(t, t.get_rect(center=(cx, cy)))
+                    if k == 0 and j.get('combo') and ahora - j.get('ultimo_golpe', -10000) <= COMBO['ventana']:
+                        pygame.draw.arc(ventana, (255, 200, 60), (cx - 22, cy - 22, 44, 44), 0, math.tau * j['combo'] / 3, 4)   # combo en curso
+                    elif k == 1:
+                        dm = datos_mov(base) or {}
+                        espera = enfriamiento_de(j, dict(dm, enfriamiento=float(dm.get('enfriamiento', 800)) * BASICO_DISTANCIA['enfriamiento']))
+                        if ahora - j[clave] < espera: ventana.blit(sombra_circular(20, 140), (cx - 20, cy - 20))
+                    n = render(f_tipo, nombre_mov(base), (40, 40, 40))
+                    ventana.blit(n, n.get_rect(center=(cx, cy + 30)))
+                if j['energia'] < ESQUIVE['energia'] * mod(j, 'gasto'):      # sin energia para esquivar: aviso chiquito
+                    ventana.blit(render(f_hud, 'sin energia para esquivar', (160, 200, 255)), (84, 98))
                 lugar = render(f_hud, mundos.ERAS[rec['era']]['nombre'] + ' - Sala ' + str(rec['sala'] + 1) + '/' + str(mundos.salas_de(rec)), 'white')
                 ventana.blit(lugar, lugar.get_rect(midtop=(W // 2, 6)))
                 if nivel['jefe']:
@@ -1879,7 +2098,7 @@ def main():
                         total = ia.TOTAL_FASES.get(b['estilo'], len(cortes) + 1)
                         ventana.blit(render(f_hud, 'Fase ' + str(b['fase']) + '/' + str(total), 'white'), (W - 300, 45))
 
-            ZONAS_HUD = [pygame.Rect(0, 0, 340, 200), pygame.Rect(W - 310, 0, 310, 50), pygame.Rect(W - 230, H - 125, 230, 125),
+            ZONAS_HUD = [pygame.Rect(0, 0, 340, 200), pygame.Rect(W - 310, 0, 310, 50), pygame.Rect(W - 330, H - 125, 330, 125),
                          pygame.Rect(W // 2 - 110, 0, 220, 44)]                                      # donde no van las flechas
 
             def dibujar_indicadores(nivel, cx, cy):
@@ -1977,8 +2196,9 @@ def main():
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
                 for puerta in nivel['puertas'] if not nivel['ent'].get('guardado') else ():   # puertas con el cartel (en la torre de Regidrago no hay)
                     r = puerta['rect'].move(-cx, -cy)
-                    entorno.dibujar_puerta(ventana, r, j['llave'], ahora)    # cerrada con tablas o abierta brillando
-                    if 'destino' in puerta:
+                    abierta = j['llave'] and not puerta.get('bloqueada') and (not puerta.get('atras') or nivel['completado'])
+                    entorno.dibujar_puerta(ventana, r, abierta, ahora)    # cerrada con tablas o abierta brillando
+                    if 'destino' in puerta and (not puerta.get('atras') or nivel['completado']):
                         t = render(f_hud_b, mundos.etiqueta_destino(puerta['destino']), 'white')
                         df, dc = generacion.PASO_LADO[puerta['lado']]           # el cartel va un poco hacia adentro de la sala
                         centro_t = (r.centerx + dc * (r.width // 2 + 20 + t.get_width() // 2), r.centery + df * (r.height // 2 + 22))
@@ -2025,8 +2245,18 @@ def main():
                 dibujar_jugador(j,cx,cy)
                 dibujar_congelado(j, cx, cy)
                 if ahora < j.get('parry_hasta', 0):                       # ventana de parry abierta: anillo blanco que se achica
-                    k = (j['parry_hasta'] - ahora) / PARRY['ventana']
+                    k = (j['parry_hasta'] - ahora) / max(1, j.get('parry_dura', PARRY['ventana']))
                     pygame.draw.circle(ventana, (255, 255, 255), (j['rect'].centerx - cx, j['rect'].centery - cy), round(max(j['rect'].size) * (0.7 + 0.5 * k)), 2)
+                if ahora < j.get('inv_hasta', 0):                         # esquivando: estela celeste (invulnerable)
+                    pygame.draw.ellipse(ventana, (150, 230, 255), j['rect'].inflate(14, 14).move(-cx, -cy), 2)
+                if ahora < j.get('contra_hasta', 0):                      # contraataque listo: chispitas doradas alrededor
+                    for k in range(3):
+                        ang = ahora / 160 + k * math.tau / 3
+                        pygame.draw.circle(ventana, (255, 215, 80), (round(j['rect'].centerx - cx + math.cos(ang) * 30), round(j['rect'].centery - cy + math.sin(ang) * 22)), 4)
+                if ahora - j.get('ultimo_golpe', -10000) <= COMBO['ventana'] and j.get('combo'):   # puntitos del combo arriba del pokemon
+                    for k in range(3):
+                        lleno = k < j['combo']
+                        pygame.draw.circle(ventana, (255, 230, 120) if lleno else (60, 60, 60), (j['rect'].centerx - cx - 14 + k * 14, j['rect'].top - cy - 12), 5 if lleno else 4)
                 if j['oculto']: pygame.draw.circle(ventana, (200, 200, 255), (j['rect'].centerx - cx, j['rect'].top - cy - 8), 5, 2)   # escondido
                 if j['uso'] == 'mouse': mx, my = pantalla.raton()
                 else: mx, my = round(j['rect'].centerx - cx + j['aim'][0] * 90), round(j['rect'].centery - cy + j['aim'][1] * 90)
@@ -2053,6 +2283,15 @@ def main():
                     if not dibujar_enemigo(b, cx, cy): dibujar_rect(b['rect'].move(0, -b.get('altura', 0)),cx,cy,b.get('color',(255,140,0)))
                     barra((b['rect'].x-cx,b['rect'].y-cy-12-b.get('altura', 0),b['rect'].width,8),b['vida'],b['max_vida'],8)
                 ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b, COLORES_TIPO)
+                ventana_parry = PARRY['ventana'] * mod(j, 'parry')
+                for e in nivel['enemigos']:                                # el momento justo del parry: el aviso brilla amarillo
+                    a_ = e.get('aviso')
+                    if e['vida'] <= 0 or not a_ or a_['clase'] not in ('golpe', 'embestida') or a_['hasta'] - ahora > ventana_parry: continue
+                    if math.hypot(e['rect'].centerx - j['rect'].centerx, e['rect'].centery - j['rect'].centery) > max(j['rect'].size) + max(e['rect'].size) + 140: continue
+                    brillo = 255 if (ahora // 60) % 2 else 200
+                    pygame.draw.circle(ventana, (brillo, brillo, 60), (e['rect'].centerx - cx, e['rect'].centery - cy), max(e['rect'].size) // 2 + 14, 4)
+                    t = render(f_hud_b, '!', (255, 240, 80))
+                    ventana.blit(t, t.get_rect(midbottom=(e['rect'].centerx - cx, e['rect'].top - cy - 14)))
                 for g in (nivel['llegada'] or {}).get('golpes', ()):       # las Sentencias que vacian la mitad de arriba
                     if ahora >= g['inicio']:
                         k = min(1.0, (ahora - g['inicio']) / LLEGADA_BETA['aviso'])
@@ -2132,8 +2371,44 @@ def main():
                     g = juego_de(m)
                     return [nombre_mov(n) for n in (g['basicos'][0], g['basicos'][1], g['especiales'][0][0], g['especiales'][1][0])]
 
+                def info_movs(m):
+                    """Que hace cada una de las 4 casillas: texto listo para mostrar (con los ajustes de los basicos y el combo)."""
+                    g = juego_de(m)
+                    salida = []
+                    for k, n in enumerate((g['basicos'][0], g['basicos'][1], g['especiales'][0][0], g['especiales'][1][0])):
+                        d = dict(datos_mov(n) or {})
+                        if k < 2 and (not mts.datos(n) or mts.MTS[n]['casillas'] == 'todas'):
+                            ajustes = BASICO_DISTANCIA if k == 1 or d.get('forma') == 'proyectil' else GOLPE_CUERPO
+                            for clave, f in ajustes.items():
+                                if clave in d: d[clave] = round(float(d[clave]) * f)
+                        texto = datos.describir_movimiento(d)
+                        if k == 0 and d.get('forma') == 'cuerpo':
+                            texto = 'combo de 3 golpes (el 3ro es un remate); ' + texto.replace('golpe cuerpo a cuerpo, ', '').split(', espera')[0] + \
+                                    '. Apretalo justo cuando te van a pegar para hacer parry'
+                        salida.append(texto)
+                    return salida
+
+                def equipar(i, ranura, clave):
+                    """Pone (o saca, con clave None) un objeto en la ranura 0 o 1 del pokemon i. El que estaba vuelve a la mochila."""
+                    m = j['equipo'][i]; items = m.setdefault('items', []); objetos = j['inventario']['objetos']
+                    if ranura < len(items):
+                        viejo = items.pop(ranura); objetos[viejo] = objetos.get(viejo, 0) + 1
+                    if clave and objetos.get(clave, 0) > 0 and len(items) < tienda.MAX_EQUIPADOS:
+                        objetos[clave] -= 1; items.insert(min(ranura, len(items)), clave)
+
+                def elegir_sinergia(i, clave):
+                    """La pasiva que da el pokemon i desde la banca (None = la de su rol)."""
+                    j['equipo'][i]['sinergia'] = clave
+                    actualizar_sinergia(j)
+
+                def texto_asistencia(m):
+                    """Que hace la asistencia de un miembro (F / G desde la banca)."""
+                    a = m['asist']
+                    return a['nombre'].replace('_', ' ').title() + ': ' + descripcion_asistencia(a) + ' (espera ' + str(a['enfriamiento'] // 1000) + ' s)'
+
                 return {'movs': movs, 'evolucionar': evolucionar, 'enseñar': enseñar, 'activar': lambda i: cambiar_slot(j, i, True),
-                        'refrescar': refrescar, 'reserva': lambda: j['reserva'], 'traer': traer}
+                        'refrescar': refrescar, 'reserva': lambda: j['reserva'], 'traer': traer, 'info_movs': info_movs, 'equipar': equipar,
+                        'sinergia': elegir_sinergia, 'asistencia': texto_asistencia}
 
             def aplicar_trucos(nivel, j):
                 """Los trucos que hacen algo una sola vez (subir niveles)."""
@@ -2148,18 +2423,77 @@ def main():
 
         pantalla_final, acciones_equipo, aplicar_trucos = armar_extras()
 
-        j = crear_jugador(nombres, ESC.center, config['modo'])
-        rec = mundos.nuevo_recorrido()                               # plan de la partida: eras, salas, tiendas, jefes y clima
-        destino, entrada = None, 'sur'
+        def armar_guardado():
+            """Pasar la partida a datos guardables (equipo, mochila, recorrido) y armarla de vuelta al cargar."""
+            CAMPOS = ('nombre', 'nivel', 'xp', 'ivs', 'evs', 'puntos', 'amistad', 'movs', 'items', 'sinergia', 'vida')
+
+            def serializar(j, rec):
+                """Todo lo que hace falta para seguir la partida despues."""
+                guardar_activo(j)
+                miembro = lambda m: {k: m.get(k) for k in CAMPOS}
+                azar = rec['azar'].getstate()
+                return {'jugador': {'equipo': [miembro(m) for m in j['equipo']], 'activo': j['activo'], 'reserva': [miembro(m) for m in j['reserva']],
+                                    'monedas': j['monedas'], 'inventario': j['inventario']},
+                        'recorrido': {'plan': rec['plan'], 'era': rec['era'], 'sala': rec['sala'], 'semilla': rec['semilla'], 'clima': rec['clima'],
+                                      'azar': [azar[0], list(azar[1]), azar[2]], 'historial': rec['historial'], 'pos': rec['pos']},
+                        'resumen': {'equipo': [[m['nombre'], m['nivel']] for m in j['equipo']], 'era': mundos.ERAS[rec['era']]['nombre'],
+                                    'sala': rec['sala'] + 1, 'salas': mundos.salas_de(rec), 'monedas': j['monedas'], 'fecha': time.strftime('%d/%m/%Y %H:%M')}}
+
+            def revivir(d):
+                """Un miembro del equipo desde lo guardado (la vida maxima y la asistencia se recalculan)."""
+                m = crear_miembro(d['nombre'], d.get('nivel', progreso.NIVEL_INICIAL))
+                m.update({k: d[k] for k in CAMPOS if k in d and k != 'vida'})
+                m['items'] = list(m.get('items') or [])
+                m['max_vida'] = progreso.vida_max(m)
+                m['vida'] = max(0, min(m['max_vida'], d.get('vida', m['max_vida'])))
+                return m
+
+            def restaurar(datos_):
+                """(jugador, recorrido) de una partida guardada."""
+                jd, rd = datos_['jugador'], datos_['recorrido']
+                equipo = [revivir(d) for d in jd['equipo']]
+                j = crear_jugador([equipo[0]['nombre']], ESC.center, config['modo'])
+                j['equipo'], j['reserva'] = equipo, [revivir(d) for d in jd.get('reserva', [])]
+                j['activo'] = max(0, min(len(equipo) - 1, jd.get('activo', 0)))
+                if j['equipo'][j['activo']]['vida'] <= 0: j['activo'] = next((i for i, m in enumerate(equipo) if m['vida'] > 0), 0)
+                j['monedas'] = jd.get('monedas', 0)
+                j['inventario'] = dict(tienda.inventario_nuevo(), **jd.get('inventario', {}))
+                aplicar_pokemon(j, j['equipo'][j['activo']]['nombre'], j['equipo'][j['activo']]['vida'])
+                actualizar_sinergia(j)
+                azar = random.Random()
+                a = rd['azar']; azar.setstate((a[0], tuple(a[1]), a[2]))
+                rec = {'plan': rd['plan'], 'era': rd['era'], 'sala': rd['sala'], 'semilla': rd.get('semilla'), 'clima': rd['clima'], 'azar': azar,
+                       'historial': rd['historial'], 'pos': rd['pos']}
+                return j, rec
+
+            def guardar_partida(j, rec):
+                """Autoguardado en la ranura de esta partida (al entrar a cada sala, al completarla y al comprar)."""
+                if ranura: partidas.guardar(ranura, serializar(j, rec))
+
+            return restaurar, guardar_partida
+
+        restaurar, guardar_partida = armar_guardado()
+
+        if cargada: j, rec = restaurar(cargada); visita = rec['pos']
+        else:
+            j = crear_jugador(nombres, ESC.center, config['modo'])
+            rec = mundos.nuevo_recorrido()                           # plan de la partida: eras, salas, tiendas, jefes y clima
+            visita = None
+        destino, entrada, llegada = None, 'sur', None
         reloj = pygame.time.Clock()
         while True:
-            nivel = crear_nivel(rec, destino, entrada, j)
-            reiniciar_jugador(j, nivel['sala']['inicio'])
-            df, dc = generacion.PASO_LADO[nivel['sala']['entrada'] or 'sur']   # arranca en la puerta y camina para adentro
-            j['rect'].center = (nivel['sala']['inicio'][0] - dc * 70, nivel['sala']['inicio'][1] - df * 70)
+            if visita is not None:                                   # una sala del historial: volviste, seguiste para adelante o cargaste
+                registro = rec['historial'][visita]; rec['pos'] = visita
+                rec['era'], rec['sala'], rec['clima'] = registro['era'], registro['sala'], registro['clima']
+                nivel = crear_nivel(rec, None, registro['entrada'], j, registro, llegada)
+            else: nivel = crear_nivel(rec, destino, entrada, j)
+            reiniciar_jugador(j, nivel['inicio'])
+            df, dc = generacion.PASO_LADO[nivel.get('llegada_lado') or nivel['sala']['entrada'] or 'sur']   # arranca en la puerta y camina para adentro
+            j['rect'].center = (round(nivel['inicio'][0] - dc * 70), round(nivel['inicio'][1] - df * 70))
             cx, cy = camara(j)
             efectos.transicion(mundo['ef'], 'entrar', tiempo(), (j['rect'].centerx - cx, j['rect'].centery - cy))
-            if nivel['tipo'] == 'tienda': j['llave'] = True          # la tienda no tiene enemigos: las puertas ya estan abiertas
+            if nivel['tipo'] == 'tienda' or nivel['revisita']: j['llave'] = True   # tienda o sala ya hecha: las puertas ya estan abiertas
+            guardar_partida(j, rec)
             reiniciar_nivel = False
             while True:
                 controles.contexto('juego')
@@ -2179,7 +2513,9 @@ def main():
                         aplicar_trucos(nivel, j)
                     if 'interactuar' in acciones and (comprar_cercano(nivel, j) or hablar_amigo(nivel, j) or empujar_bloque(nivel, j)):
                         acciones = [a for a in acciones if a != 'basico1']   # si estabas comprando o hablando, no ataca
+                    if 'esquivar' in acciones: esquivar(j, nivel)
                     if 'basico1' in acciones: usar_basico(j, 0, nivel)
+                    if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and config['modo'] != 'teclas': usar_basico(j, 0, nivel)   # el clic abre el parry
                     if 'basico2' in acciones: usar_basico(j, 1, nivel)
                     if 'especial1' in acciones: usar_especial(j, 0, nivel)
                     if 'especial2' in acciones: usar_especial(j, 1, nivel)
@@ -2196,24 +2532,33 @@ def main():
                             eleccion = pausado(menu_niveles, rec)
                             if eleccion == 'salir': return 'salir', j['nombre']
                             if eleccion is not None:
+                                if rec['pos'] < len(rec['historial']) - 1: del rec['historial'][rec['pos'] + 1:]   # saltar corta el camino de adelante
                                 mundos.ir_a(rec, *eleccion)
-                                destino, entrada, reiniciar_nivel = None, 'sur', True
+                                destino, entrada, reiniciar_nivel, visita, llegada = None, 'sur', True, None, None
                                 break
                 if reiniciar_nivel:
                     break
                 botones = pygame.mouse.get_pressed()
-                if config['modo'] != 'teclas' and botones[0]: usar_basico(j, 0, nivel)
+                if config['modo'] != 'teclas' and botones[0]: usar_basico(j, 0, nivel, apretado=False)   # mantener el clic sigue el combo
                 if config['modo'] != 'teclas' and botones[2]: usar_basico(j, 1, nivel)
                 if controles.hay_control():                          # con control se puede dejar apretado el ataque
-                    if controles._boton(controles.perfil('control').get('basico1', '')): usar_basico(j, 0, nivel)
+                    if controles._boton(controles.perfil('control').get('basico1', '')): usar_basico(j, 0, nivel, apretado=False)
                     if controles._boton(controles.perfil('control').get('basico2', '')): usar_basico(j, 1, nivel)
                 resultado = actualizar_nivel(nivel, j)
                 dibujar_objetos(nivel, j, rec)
+                if nivel.pop('guardar', False): guardar_partida(j, rec)
                 if resultado == 'siguiente':
                     puerta = nivel['salida']
+                    guardar_activo(j)
+                    if puerta.get('atras'):                              # para atras: a la sala anterior, por la puerta por la que habias salido
+                        visita = rec['pos'] - 1; llegada = rec['historial'][visita]['salida']; break
+                    if rec['pos'] < len(rec['historial']) - 1:           # para adelante por una sala que ya hiciste
+                        visita = rec['pos'] + 1; llegada = None; break
+                    nivel['registro']['salida'] = puerta['lado']
                     if puerta['destino']['tipo'] == 'fin' or not mundos.avanzar(rec):
                         pausado(pantalla_final); return 'menu', j['nombre']
                     destino, entrada = puerta['destino'], generacion.OPUESTO[puerta['lado']]   # salis por el norte: entras por el sur
+                    visita, llegada = None, None
                     break
                 if resultado == 'muerte': return 'juego_terminado', j['nombre']
                 reloj.tick(60)
@@ -2235,12 +2580,29 @@ def main():
         if accion == 'cerrar': opciones.guardar(config); pygame.quit(); sys.exit()
         if accion == 'titulo': estado = 'titulo'
         if accion == 'jugar':
-            inicial = [n for n in equipo_menu if n] or menus.elegir_inicial(ui)   # Electrike, Sandshrew o Mareanie
-            if inicial == 'salir': pygame.quit(); sys.exit()
-            if inicial:
-                resultado, _ = jugar(inicial if isinstance(inicial, list) else [inicial], config)
-                pygame.mouse.set_visible(True)
-                if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+            eleccion = menus.elegir_partida(ui, partidas.resumenes())           # 3 ranuras de guardado
+            if eleccion == 'salir': pygame.quit(); sys.exit()
+            if eleccion:
+                modo, ranura = eleccion
+                cargada, inicial = None, None
+                if modo == 'continuar':
+                    cargada = partidas.cargar(ranura)
+                    if not cargada: menus.preguntar(ui, 'No se pudo leer la partida ' + str(ranura), ['Ok']); continue
+                else:
+                    inicial = [n for n in equipo_menu if n] or menus.elegir_inicial(ui)   # Electrike, Sandshrew o Mareanie
+                    if inicial == 'salir': pygame.quit(); sys.exit()
+                    if not inicial: continue
+                    partidas.borrar(ranura)
+                while True:
+                    resultado, _ = jugar(inicial if isinstance(inicial, list) else [inicial], config, ranura, cargada)
+                    pygame.mouse.set_visible(True)
+                    if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+                    if resultado != 'juego_terminado': break
+                    cargada = partidas.cargar(ranura)                  # cayo todo el equipo: se puede reintentar desde que entraste a la sala
+                    r = menus.preguntar(ui, 'Cayo todo tu equipo...', ['Reintentar la sala', 'Volver al menu'] if cargada else ['Volver al menu'],
+                                        'se vuelve a como estabas al entrar a la sala' if cargada else None)
+                    if r == 'salir': pygame.quit(); sys.exit()
+                    if not cargada or r != 0: break
         if accion == 'pokedex':
             if pokedex() == 'salir': pygame.quit(); sys.exit()
         if accion == 'ajustes' and menus.ajustes(ui) == 'salir': pygame.quit(); sys.exit()

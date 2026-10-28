@@ -6,7 +6,7 @@ Juego de acción en Python con Pygame. Recorrés la historia de la humanidad sal
 python main.py
 ```
 
-Necesita `pygame`. En la misma carpeta tienen que estar los 7 `.py`, `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
+Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la misma carpeta tienen que estar los 7 `.py`, `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
 
 ---
 
@@ -35,7 +35,7 @@ Necesita `pygame`. En la misma carpeta tienen que estar los 7 `.py`, `config.jso
 |---|---|
 | `main.py` | el juego: menús, la partida y el bucle principal |
 | `datos.py` | ataques, pokemones (especies, tipos, roles), MT, tienda y mundos (eras, terrenos, objetos) |
-| `sistema.py` | opciones (`config.json`), pantalla, controles (teclado y joystick) y animaciones |
+| `sistema.py` | opciones (`config.json`), partidas guardadas (`partidas/`), pantalla, controles (teclado y joystick) y animaciones |
 | `mundo.py` | generación de salas, entorno (terrenos, objetos, clima) y efectos (partículas) |
 | `combate.py` | progreso (niveles, IV/EV, evoluciones, amistad) e IA de enemigos y jefes |
 | `interfaz.py` | menús: ajustes, controles, glosario, inicial, equipo, ficha, mochila |
@@ -51,7 +51,8 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 |---|---|---|
 | Moverse | W A S D | palanca izquierda |
 | Correr (gasta energía) | Ctrl izquierdo | LB |
-| Ataque cuerpo a cuerpo | E / clic izquierdo | X |
+| Esquivar (gasta energía) | Espacio | palanca izq (L3) |
+| Ataque cuerpo a cuerpo / parry | E / clic izquierdo | X |
 | Ataque a distancia | Q / clic derecho | RT |
 | Especial 1 / Especial 2 | Shift izquierdo / R | RB / Y |
 | Asistencia 1 / Asistencia 2 | F / G | LT / B |
@@ -75,11 +76,13 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 ## Cómo se juega
 
 - Elegís tu compañero inicial: **Electrike** (eléctrico, velocista), **Sandshrew** (tierra, tanque) o **Mareanie** (veneno/agua, estratega).
-- Peleás con un solo pokemon a la vez. Los otros dos esperan en la **banca**. Cambiar de pokemon tiene una espera de 2,5 s.
+- **Partidas:** al tocar *Jugar* elegís una de las **3 partidas guardadas**. Se guarda sola al entrar a cada sala, al completarla y al comprar (equipo, niveles, experiencia, EV, MT, objetos, monedas y el camino recorrido). Si cae todo el equipo, podés reintentar la sala desde como estabas al entrar.
+- Peleás con un solo pokemon a la vez. Los otros dos esperan en la **banca**. Cambiar de pokemon tiene una espera de 2 s. Si cambiás en el agua a uno que no nada, nada solo hasta la orilla.
 - Cada sala de combate trae enemigos, a veces en 2 o 3 oleadas. Al limpiar la sala aparece una **llave**, y con la llave se abren las puertas.
 - Cada puerta muestra un cartel con lo que hay detrás: una variante de sala, la tienda, el jefe o la era siguiente.
-- **La vida no se recupera entre salas.** Si tu pokemon activo cae, entra solo el siguiente que esté vivo. La partida termina cuando caen todos.
-- **Energía:** la barra azul debajo de la vida. Correr la gasta y se recarga sola. Si se vacía, quedás agotado hasta recuperar un poco.
+- **Volver atrás:** con la sala completada, la puerta por la que entraste queda abierta y te lleva a la sala anterior. Las salas hechas quedan hechas (sin enemigos, sin monedas ni experiencia de nuevo); en ellas solo sigue abierta la puerta que tomaste.
+- **La vida no se recupera sola.** Al limpiar una sala, los que siguen en pie recuperan un **12%**. Si tu pokemon activo cae, entra solo el siguiente que esté vivo.
+- **Energía:** la barra azul debajo de la vida. Correr y esquivar la gastan; se recarga sola y también al pegar, hacer parry o esquivar perfecto. Si se vacía, quedás agotado hasta recuperar un poco. Al empezar a correr arrancás con un pique.
 - **Enemigos:** avisan antes de atacar. Un anillo rojo es un golpe, una línea con mira es un disparo y una línea naranja es una embestida. Como mucho dos te atacan cuerpo a cuerpo al mismo tiempo. Si te escondés en hierba o sombra (si tu tipo puede), casi no te ven.
 - **Tipos de enemigo según su rol:**
   - **Pegadores** (tanques y atacantes): van directo hacia vos.
@@ -90,12 +93,25 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 
 | Botón | Qué hace |
 |---|---|
-| Cuerpo a cuerpo | rápido y fuerte, pero tenés que estar cerca |
+| Cuerpo a cuerpo | **combo de 3 golpes** (el 3º es un remate que barre, empuja lejos e interrumpe a los enemigos comunes) |
 | A distancia | 65% del daño y tarda 1,5 veces más en recargar, pero es seguro |
 | Especiales (2) | dependen del rol del pokemon (ver [Roles](#roles)) |
-| Asistencias (2) | las tira un pokemon de la banca; tardan mucho en recargar (45 a 90 s) |
+| Asistencias (2) | las tira un pokemon de la banca; tardan mucho en recargar (45 a 90 s). Escalan con el nivel del que la tira |
+| Esquivar | salto corto con invulnerabilidad hacia donde caminás (quieto: para atrás) |
 
-Cada pokemon tiene 4 casillas de movimiento (E, Q, Shift, R). Desde la ficha del menú de equipo podés reemplazar una con una **MT**.
+**Pelear de cerca rinde:** cada golpe del combo que conecta te devuelve energía y le saca espera a tus dos especiales (el remate, más). Si atacás corriendo, el primer golpe es un **golpe en carrera** (más daño y alcance). El golpe se acomoda solo hacia un enemigo cercano que tengas casi adelante.
+
+**Parry:** golpeá cuerpo a cuerpo justo cuando un enemigo te va a pegar. El momento lo marca el propio enemigo: **su aviso brilla amarillo con un "!"**. Si acertás, queda aturdido 1,8 s y recibe el doble, y vos recuperás energía, 3% de vida y 1,5 s de espera de los especiales. Las balas que te llegan durante el parry vuelven con el doble de daño. Si no bloqueás nada, tenés que esperar un poquito para volver a intentarlo (apretar sin parar no sirve).
+
+**Esquive perfecto:** si te iban a pegar mientras esquivabas, recuperás energía y tu próximo golpe es un **contraataque** (x1,8). El piso que quema o lastima no se esquiva.
+
+**Congelamiento:** solo te congela un golpe fuerte de tipo hielo (un rayo de Regice, un pokemon de hielo que te pega de lleno). Los golpecitos cargan la barra celeste, que se descarga sola. Pisar hielo o escarcha solo resbala. Los de tipo hielo no se congelan.
+
+Cada pokemon tiene 4 casillas de movimiento (E, Q, Shift, R). Desde la ficha del menú de equipo podés reemplazar una con una **MT**:
+- **MT de combate:** golpes y disparos con tiempos de ataque básico. Van en **cualquier casilla**. Las aprenden los pokemon de su tipo (las de tipo normal, todos).
+- **MT especiales:** embestidas, ondas, buffs y disparos grandes que tardan segundos en recargar. Van **solo en Shift o R** (en E o Q dejarían al pokemon sin ataque básico).
+
+La ficha de cada pokemon explica qué hace cada stat, movimiento, objeto y sinergia (el recuadro de abajo muestra lo que tenés elegido).
 
 ---
 
@@ -110,7 +126,9 @@ Cada pokemon tiene un rol que cambia sus números, sus especiales, su asistencia
 | **Estratega** | 4,3 | x1,05 | x0,95 | x0,9 | estado en área (paraliza, ralentiza o duerme) + Recuperación o Paz Mental | **Curar** 40%, **Desvanecer** (fantasma/psíquico: borra enemigos comunes) o **Masivo** (estado a toda la sala) | recargas más rápidas |
 | **Velocista** | 6 | x0,8 | x0,8 | x0,7 (más rápida) | embestida de su tipo + Agilidad | **Carrera:** +60% velocidad y correr gratis por 6 s | más velocidad |
 
-**Sinergia:** cada pokemon de la banca le da al que pelea un bonus pasivo de 3% a 7% según su rol. Cuanta más vida base tiene la especie, mayor es el bonus.
+**Sinergia:** cada pokemon de la banca le da al que pelea un bonus pasivo de 5% a 10% (cuanta más vida base tiene la especie, mayor). Por defecto es el de su rol, pero **se elige en su ficha**: más daño, menos daño recibido, más velocidad, recargas más rápidas o energía (esta vale el triple).
+
+**Ajustes de balance:** Danza Espada da +40% por 5 s (antes +60% por 6 s), Defensa Férrea −40% de daño por 4,5 s, Recuperación cura 20% cada 18 s (antes 30% cada 15 s), Agilidad también acelera las recargas, y Desvanecer le saca el 60% de la vida a los enemigos comunes (antes los borraba). Los ataques básicos de todas las especies quedaron parejos (antes muchos tenían datos de relleno o un tipo equivocado), y las especies con más stats base pegan un poco más (x1 con 300 de total, hasta x1,25 con 600), así evolucionar se nota.
 
 Algunos pokemon tienen una asistencia propia:
 - **Pikachu y Pichu:** Trueno.
@@ -123,7 +141,7 @@ Algunos pokemon tienen una asistencia propia:
 - Tu pokemon empieza en **nivel 5**. El máximo es **100**.
 - **Stats como en los juegos:** `stat = (2·base + IV + EV/4) · nivel/100 + 5`. Los PS suman además `nivel + 10`. Las bases salen de la PokeAPI (`datos_pokeapi.json`).
 - **IV:** cada pokemon nace con IVs al azar de 0 a 31 en cada stat. Por eso dos del mismo pokemon no son iguales.
-- **EV:** cada nivel da **1 punto**, que equivale a 10 EV. Lo ponés en el stat que quieras desde la ficha del menú de equipo. El máximo es 252 EV por stat y 510 en total.
+- **EV:** cada nivel da **1 punto**, que equivale a 10 EV. Lo ponés en el stat que quieras desde la ficha del menú de equipo. El máximo es **300 EV por stat** y 900 en total; la ficha muestra cuánto llevás de cada uno y, si no se puede sumar, te dice por qué.
 - **Qué hace cada stat:**
   - PS: la vida.
   - Ataque: golpes y embestidas.
@@ -140,7 +158,8 @@ Algunos pokemon tienen una asistencia propia:
 | Romper objetos | 2 + (nivel de la sala ÷ 3) |
 | Comprar en la tienda | el precio ÷ 6 |
 
-- Los pokemon de la **banca ganan la mitad** de la experiencia.
+- Los pokemon de la **banca ganan 3/4** de la experiencia.
+- La experiencia general es casi el doble que antes (`XP_MULT` 0,4 en `combate.py`).
 - Cada especie sube con su propia **curva** (rápida, media, media-lenta o lenta), como en los juegos.
 
 ### Nivel de los enemigos
@@ -309,7 +328,7 @@ Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un 
 
 **Regice** (2 fases: 100–50% y 50–0%):
 - **Rayo Hielo:** una línea celeste fija que se va engrosando y después dispara un rayo ancho hasta la pared. El piso por donde pasa queda **escarcha**: resbala.
-- **Barra de congelamiento:** mientras pisás escarcha se carga una barra celeste (arriba de tu barra de vida); fuera de la escarcha se descarga sola. Llena, **te congelás 3 s**. Congelado no podés moverte ni atacar; un **movimiento de fuego o de lucha** te descongela al instante.
+- **Congelamiento:** la escarcha solo resbala. Lo que congela es que te pegue el **Rayo Hielo** (o las estalactitas): cada golpe de hielo carga la barra celeste (arriba de tu barra de vida) según cuánto te sacó, y un golpe de lleno te congela **2 s**. Congelado no podés moverte ni atacar; un **movimiento de fuego o de lucha** te descongela al instante.
 - **Muro de hielo** cada 5 s: 3 bloques entre él y vos que **solo se rompen con fuego**.
 - **Fase 1:** cada Rayo Hielo deja al final un **bloque de hielo** (como mucho 3 a la vez). Parate al lado y apretá **E**: sale para el lado contrario y se desliza por la escarcha.
 - **Fase 2:** se cubre con una **coraza de hielo** (recibe solo el 20% del daño). Se rompe cuando le chocás uno de los bloques de la fase 1; rota, recibe **x1,6** de daño el resto de la pelea. Además el Rayo Hielo **rebota en las paredes** y queda 5 s (Regice se queda quieto mientras dura) y caen **estalactitas**: una sombra que crece en el piso y después cae el hielo.
@@ -373,20 +392,21 @@ Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan e
 
 ## Tienda
 
-La atiende Kecleon. Acercate a una vitrina y apretá E para comprar.
+La atiende Chikorita. Acercate a una vitrina y apretá E para comprar.
 
 **Cómo están acomodadas las vitrinas:**
 - **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
 - **Mesas:** objetos permanentes. Uno suele ser del tipo de tu equipo o el objeto de evolución que alguien necesita.
 
-**Nada cura.**
+**Objetos equipables y de equipo:** los que dicen *(lo lleva un pokemon)* van a la mochila y se equipan desde la ficha: **cada pokemon lleva hasta 2** y solo cuentan mientras ese pokemon pelea. Los que dicen *(todo el equipo)* valen para todos.
 
-| Tipo de objeto | Ejemplos |
-|---|---|
-| Por 3 salas | Ataque X (+25% daño), Defensa X (−20% daño recibido), Velocidad X, Especial X (recargas más rápidas), Directo (20% de críticos x1,8), Lazo Amistad |
-| Repelentes | Repelente, Superrepelente, Maxirepelente: 35% menos enemigos por 3, 5 u 8 salas |
-| Permanentes | Éter (energía), Cinta Fuerte (+12% daño), Garra Rápida, Polvo Veloz, Chaleco Asalto, Amuleto Moneda (+50% monedas) |
-| De tipo | +20% de daño a los ataques de ese tipo (ver cada tipo) |
+| Tipo de objeto | Ejemplos | Para quién |
+|---|---|---|
+| Por 3 salas | Ataque X (+25% daño), Defensa X (−20% daño recibido), Velocidad X, Especial X (recargas más rápidas), Directo (20% de críticos x1,8), Lazo Amistad | todo el equipo |
+| Repelentes | Repelente, Superrepelente, Maxirepelente: 35% menos enemigos por 3, 5 u 8 salas | todo el equipo |
+| Amuleto Moneda | +50% de monedas | todo el equipo |
+| Equipables | Éter (energía), Cinta Fuerte (+15% daño), Garra Rápida (−12% recargas), Polvo Veloz (+12% velocidad), Chaleco Asalto (−15% daño recibido), Cinta Focus (ventana de parry +50%), Pluma Ágil (esquive más largo) | un pokemon |
+| De tipo | +20% de daño a los ataques de ese tipo (ver cada tipo) | un pokemon |
 | Evolución | Piedra Trueno, Piedra Alba, Garra Afilada, Cordón Unión |
 | MT | enseñan un movimiento en una casilla. Se gastan al usarlas |
 
