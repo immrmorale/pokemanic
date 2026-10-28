@@ -1716,8 +1716,7 @@ def main():
                         j['vida'] += m['max_vida'] - antes; j['max_vida'] = m['max_vida']; j['mults'] = progreso.multiplicadores(m); j['nivel'] = m['nivel']
                         efectos.nivel(mundo['ef'], *j['rect'].center)
                     else: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] - antes)
-                    cartel(nivel, m['nombre'].title() + ' subio al nivel ' + str(m['nivel']) + '!')
-                    if progreso.evoluciones(m, j['inventario']['objetos']): cartel(nivel, m['nombre'].title() + ' puede evolucionar! (' + tecla_de('equipo') + ')', 2200)
+                    cartel(nivel, m['nombre'].title() + ' subio al nivel ' + str(m['nivel']) + '!')   # si ya puede evolucionar, pregunta ofrecer_evolucion
 
             def quiza_amigo(nivel, j, e):
                 """A veces un pokemon derrotado quiere unirse a vos (no se captura: se hace tu amigo). Uno por sala como mucho."""
@@ -2419,13 +2418,39 @@ def main():
                     acciones_equipo(j)['refrescar'](); j['nivel'] = j['equipo'][j['activo']]['nivel']
                     cartel(nivel, 'Truco: +' + str(5 * veces) + ' niveles')
 
-            return pantalla_final, acciones_equipo, aplicar_trucos
+            def ofrecer_evolucion(nivel, j):
+                """Cartel que pregunta si evolucionar apenas un pokemon del equipo llega a su nivel, consigue el objeto o la amistad.
+                Si decis que no, vuelve a preguntar cuando sube otro nivel o conseguis otro objeto (y siempre se puede desde el menu de equipo).
+                Una pregunta por cuadro. Devuelve 'salir' si cerraron la ventana."""
+                objetos = j['inventario']['objetos']
+                for i, m in enumerate(j['equipo']):
+                    for req in progreso.evoluciones(m, objetos):
+                        marca = objetos.get(req['objeto'], 0) if 'objeto' in req else m['nivel']   # como estaba cuando dijiste que no
+                        no = m['evo_no'] = m.get('evo_no') or {}
+                        if req['a'] in no and marca <= no[req['a']]:
+                            no[req['a']] = marca; continue                       # ya dijiste que no (si gastaste el objeto, recuerda cuantos quedan)
+                        nombre = m['nombre'].title()
+                        r = pausado(menus.preguntar, ui, nombre + ' quiere evolucionar en ' + req['a'].title() + '!', ['Evolucionar', 'Todavia no'],
+                                    'requisito: ' + progreso.texto_requisito(req) + ' (despues tambien se puede desde ' + tecla_de('equipo') + ')')
+                        if r == 'salir': return 'salir'
+                        if r == 0:
+                            acciones_equipo(j)['evolucionar'](i, req)
+                            pausado(menus.animacion_evolucion, ui, m['nombre'])
+                            if i == j['activo']: efectos.evolucion(mundo['ef'], *j['rect'].center)
+                            aplicar_trucos(nivel, j)
+                            cartel(nivel, nombre + ' evoluciono en ' + m['nombre'].title() + '!', 2000)
+                            nivel['guardar'] = True
+                        else: no[req['a']] = marca
+                        return None
+                return None
 
-        pantalla_final, acciones_equipo, aplicar_trucos = armar_extras()
+            return pantalla_final, acciones_equipo, aplicar_trucos, ofrecer_evolucion
+
+        pantalla_final, acciones_equipo, aplicar_trucos, ofrecer_evolucion = armar_extras()
 
         def armar_guardado():
             """Pasar la partida a datos guardables (equipo, mochila, recorrido) y armarla de vuelta al cargar."""
-            CAMPOS = ('nombre', 'nivel', 'xp', 'ivs', 'evs', 'puntos', 'amistad', 'movs', 'items', 'sinergia', 'vida')
+            CAMPOS = ('nombre', 'nivel', 'xp', 'ivs', 'evs', 'puntos', 'amistad', 'movs', 'items', 'sinergia', 'vida', 'evo_no')
 
             def serializar(j, rec):
                 """Todo lo que hace falta para seguir la partida despues."""
@@ -2546,6 +2571,7 @@ def main():
                     if controles._boton(controles.perfil('control').get('basico2', '')): usar_basico(j, 1, nivel)
                 resultado = actualizar_nivel(nivel, j)
                 dibujar_objetos(nivel, j, rec)
+                if resultado is None and ofrecer_evolucion(nivel, j) == 'salir': return 'salir', j['nombre']
                 if nivel.pop('guardar', False): guardar_partida(j, rec)
                 if resultado == 'siguiente':
                     puerta = nivel['salida']

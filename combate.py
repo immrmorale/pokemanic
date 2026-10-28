@@ -40,7 +40,7 @@ def armar_progreso():
     NOMBRE_STAT = {'hp': 'PS', 'attack': 'Ataque', 'defense': 'Defensa', 'special-attack': 'At. Esp.', 'special-defense': 'Def. Esp.', 'speed': 'Velocidad'}
     EV_POR_PUNTO, EV_MAX_STAT, EV_MAX = 10, 300, 900      # cada punto que te dan al subir de nivel son 10 EV; hasta 300 por stat (30 puntos) y 900 en total
     PUNTOS_POR_NIVEL = 1
-    XP_MULT = 0.4                      # que tan rapido se sube (antes 0.22: jugando sin trucos te quedabas abajo de los enemigos)
+    XP_MULT = 0.6                      # que tan rapido se sube (antes 0.22 y despues 0.4: jugando sin trucos te quedabas abajo de los enemigos)
     PARTE_BANCA = 0.75                 # los de la banca ganan 3/4 de la experiencia (asi no quedan atras)
     USO_STAT = {'hp': 'vida maxima', 'attack': 'daño de golpes y embestidas', 'defense': 'aguante (junto con Def. Esp.)',
                 'special-attack': 'daño de disparos, ondas y asistencias', 'special-defense': 'aguante (junto con Defensa)', 'speed': 'velocidad al moverte'}

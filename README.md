@@ -159,7 +159,7 @@ Algunos pokemon tienen una asistencia propia:
 | Comprar en la tienda | el precio ÷ 6 |
 
 - Los pokemon de la **banca ganan 3/4** de la experiencia.
-- La experiencia general es casi el doble que antes (`XP_MULT` 0,4 en `combate.py`).
+- La experiencia general se multiplica por `XP_MULT` (0,6 en `combate.py`; antes era 0,4, o sea +50%).
 - Cada especie sube con su propia **curva** (rápida, media, media-lenta o lenta), como en los juegos.
 
 ### Nivel de los enemigos
@@ -180,8 +180,8 @@ Va de 4 a 15 en la primera era y sube 11 niveles por era. El semijefe tiene +3 y
 ## Evoluciones
 
 **Cómo evolucionar:**
-1. Cuando un pokemon puede evolucionar, aparece un cartel que avisa.
-2. Abrí el menú de equipo (TAB), entrá a su ficha y elegí **Evolucionar**.
+1. Apenas un pokemon del equipo llega a su nivel, consigue el objeto o junta la amistad, el juego se pausa y aparece un cartel (como el de los que quieren unirse) que pregunta si querés **Evolucionar** o **Todavía no**.
+2. Si decís que no, vuelve a preguntar cuando sube otro nivel (o cuando conseguís otro objeto, si evoluciona con objeto). También podés hacerlo cuando quieras desde el menú de equipo (TAB): entrá a su ficha y elegí **Evolucionar**.
 
 La evolución conserva el nivel, los IV, los EV y las MT enseñadas.
 
