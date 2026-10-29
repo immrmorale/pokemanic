@@ -30,8 +30,9 @@ def armar_opciones():
     RUTA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
     RESOLUCIONES = ['1000x600', '1250x750', '1500x900', '1920x1152']
     ESTILOS_EQUIPO = ['clasico', 'escenario']        # menu TAB: lista como en los juegos o tus pokemon parados en un escenario
+    HALLS = ['auto', 'atemporal', 'celebi']          # a donde volves al perder: auto = donde aparece Celebi hasta que derrotes una era, despues el atemporal
     DEFECTO = {'volumen': 50, 'modo': 'mouse', 'resolucion': '1000x600', 'pantalla_completa': False, 'estilo_equipo': 'clasico',
-               'controles': None}                    # controles: los arma controles.py la primera vez
+               'hall': 'auto', 'controles': None}    # controles: los arma controles.py la primera vez
 
 
     def cargar():
@@ -217,14 +218,16 @@ def armar_controles():
     ACCIONES = [('arriba', 'Mover arriba'), ('abajo', 'Mover abajo'), ('izquierda', 'Mover a la izquierda'), ('derecha', 'Mover a la derecha'),
                 ('correr', 'Correr'), ('basico1', 'Ataque cuerpo a cuerpo'), ('basico2', 'Ataque a distancia'), ('especial1', 'Especial 1'),
                 ('especial2', 'Especial 2'), ('asist1', 'Asistencia 1'), ('asist2', 'Asistencia 2'), ('poke1', 'Pokemon 1'), ('poke2', 'Pokemon 2'),
-                ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar')]
+                ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar'),
+                ('bailar', 'Bailar (amigar / confundir)')]
     MOVIMIENTO = ('arriba', 'abajo', 'izquierda', 'derecha')
     PRESET_TECLADO = {'arriba': 'w', 'abajo': 's', 'izquierda': 'a', 'derecha': 'd', 'correr': 'left ctrl', 'basico1': 'e', 'basico2': 'q',
                       'especial1': 'left shift', 'especial2': 'r', 'asist1': 'f', 'asist2': 'g', 'poke1': '1', 'poke2': '2', 'poke3': '3',
-                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space'}
+                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v'}
     PRESET_CONTROL = {'arriba': 'ninguno', 'abajo': 'ninguno', 'izquierda': 'ninguno', 'derecha': 'ninguno',     # con control se camina con la palanca
                       'correr': 'LB', 'basico1': 'X', 'basico2': 'RT', 'especial1': 'RB', 'especial2': 'Y', 'asist1': 'LT', 'asist2': 'B',
-                      'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq'}
+                      'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq',
+                      'bailar': 'palanca der'}
 
     estado = {'config': None, 'contexto': 'menu', 'mandos': {}, 'konami': [], 'palanca_menu': (0, 0), 'repetir': 0}
 

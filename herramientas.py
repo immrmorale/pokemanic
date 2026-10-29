@@ -8,6 +8,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py tiles               arma los tilesets con bordes (autotile) y el agua animada del PMD para cada era y variante de sala
     python herramientas.py decorados           rocas, hielo, pinos (piezas sueltas del PMD) y arbustos/arboles (Poke Transfer de BW) para los objetos
     python herramientas.py cielo               recorta el cielo y las nubes del Explorers of Sky para la intro
+    python herramientas.py viaje               recorta el tunel del viaje temporal del Explorers of Sky para la partida nueva
     python herramientas.py efectos             arma los efectos de golpes, proyectiles por tipo, cura, nivel... con los Attack Effects del PMD
     python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
     python herramientas.py paneles             recorta fondos, botones y paneles de los menus de BW a assets/interfaz/paneles
@@ -965,6 +966,48 @@ def herramienta_cielo():
     main()
 
 
+def herramienta_viaje():
+    """Lo del viaje temporal (interfaz.menus.viaje_temporal y cruzar_portal), en assets/interfaz/fondos:
+        viaje_<n>.png     de 'Time Travel' del Explorers of Sky (13 cuadros de 312x240 en la columna izquierda, separados por 3 px):
+                          los 12 cuadros animados del tunel, recortados a 5:3 como la pantalla (el 13 es el tunel quieto y no se usa)
+        apertura_<n>.png  de 'Dimensional Scream' del Explorers of Time/Darkness (cuadros de 256x192 en 3 columnas, separados por 2 px):
+                          la estela que cruza, la estrella y el estallido hasta quedar todo blanco (los 22 primeros cuadros)"""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    ANCHO, ALTO, PASO, CUADROS = 312, 240, 243, 12
+    APERTURA = {'ancho': 256, 'alto': 192, 'paso': 258, 'paso_y': 194, 'columnas': 3, 'cuadros': 22}   # el 22 (fila 7, columna 1) es el blanco
+
+    def buscar(final):
+        """La hoja que termina con ese nombre (en assets o en assets/hojas)."""
+        return next((os.path.join(c, a) for c, _, archivos in os.walk(assets) if 'move_VFX' not in c for a in archivos if a.endswith(final)), None)
+
+    def a_cinco_tercios(hoja, x, y, ancho, alto):
+        """El cuadro (x, y, ancho, alto) recortado arriba y abajo para que quede 5:3, como la pantalla."""
+        recorte = round(ancho * 3 / 5)
+        return hoja.subsurface((x, y + (alto - recorte) // 2, ancho, recorte))
+
+    def main():
+        """Recorta el tunel y la apertura."""
+        pygame.init(); pygame.display.set_mode((1, 1))
+        carpeta = os.path.join(assets, 'interfaz', 'fondos')
+        os.makedirs(carpeta, exist_ok=True)
+        ruta = buscar(' - Time Travel.png')
+        if not ruta: print('falta la hoja (spriters-resource, Explorers of Sky > Miscellaneous > Time Travel) en assets')
+        else:
+            hoja = pygame.image.load(ruta).convert()
+            for i in range(CUADROS): pygame.image.save(a_cinco_tercios(hoja, 0, i * PASO, ANCHO, ALTO), os.path.join(carpeta, 'viaje_' + str(i) + '.png'))
+            print(CUADROS, 'cuadros del tunel en assets/interfaz/fondos')
+        ruta = buscar(' - Dimensional Scream.png')
+        if not ruta: print('falta la hoja (spriters-resource, Explorers of Time/Darkness > Miscellaneous > Dimensional Scream) en assets'); return
+        hoja, a = pygame.image.load(ruta).convert(), APERTURA
+        for i in range(a['cuadros']):
+            fila, col = divmod(i, a['columnas'])
+            pygame.image.save(a_cinco_tercios(hoja, col * a['paso'], fila * a['paso_y'], a['ancho'], a['alto']), os.path.join(carpeta, 'apertura_' + str(i) + '.png'))
+        print(a['cuadros'], 'cuadros de la apertura en assets/interfaz/fondos')
+
+    main()
+
+
 # ==================== efectos de ataque del PMD ====================
 
 def herramienta_efectos():
@@ -1176,6 +1219,7 @@ if __name__ == '__main__':
     elif orden == 'tiles': herramienta_tiles()
     elif orden == 'decorados': herramienta_decorados()
     elif orden == 'cielo': herramienta_cielo()
+    elif orden == 'viaje': herramienta_viaje()
     elif orden == 'efectos': herramienta_efectos()
     elif orden == 'objetos': herramienta_objetos()
     elif orden == 'paneles': herramienta_paneles()

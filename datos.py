@@ -920,6 +920,8 @@ def armar_mundos():
         'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # ayudante de Kecleon
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
+        # hall (a donde volves al perder; no se rompe nada)
+        'celebi': {'tam': (40, 40), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 230, 120)},   # cuida el hall y te manda de viaje
     }
 
     # piezas armadas a mano (como los "chunks" de Spelunky): se rotan, se espejan y se ubican donde entren
@@ -1199,6 +1201,7 @@ def armar_mundos():
     def etiqueta_destino(destino):
         """Texto del cartel arriba de una puerta."""
         if destino['tipo'] == 'volver': return 'VOLVER'
+        if destino['tipo'] == 'viaje': return 'VIAJE TEMPORAL'                # el portal del hall: empieza otro viaje desde la Era Glacial
         if destino.get('cerrado'): return 'camino no tomado'
         era = ERAS[destino['era']]
         if destino['tipo'] == 'tienda': return 'TIENDA'
