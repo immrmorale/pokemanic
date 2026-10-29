@@ -1506,6 +1506,26 @@ def armar_entorno():
         ent['version'] += 1; ent['fondo'] = None; ent['cache'].clear(); _buscar_maquinas(ent)
 
 
+    def armar_plataforma(ent, es_piso, protegido):
+        """Arceus Beta cambia la arena: donde es_piso(f, c) queda piso y todo lo demas se vuelve vacio (las puertas no se tocan).
+        Lo que habia se guarda para que cerrar_vacios lo devuelva. 'protegido' es un rect que no puede quedar sobre el vacio (el jugador)."""
+        m, antes = ent['m'], ent.setdefault('antes_vacio', {})
+        ocupadas, ent['ocupadas'] = ent['ocupadas'], set(_casillas_rect(ent, protegido))   # Arceus Beta flota: solo importa el jugador
+        for f in range(len(m)):
+            for c in range(len(m[0])):
+                t = m[f][c]
+                if t in ('puerta', 'entrada'): continue
+                if es_piso(f, c):
+                    if t == 'vacio':
+                        viejo = antes.get((f, c), 'suelo')
+                        cambiar(ent, f, c, 'suelo' if mundos.TERRENOS[viejo]['bloquea'] else viejo)
+                elif t != 'vacio' and cambiar(ent, f, c, 'vacio'): antes.setdefault((f, c), t); ent['celdas_vacio'].add((f, c))
+        ent['ocupadas'] = ocupadas
+        caen = [o for o in ent['objetos'] if any(m[f][c] == 'vacio' for f, c in set(o['celdas']) | {casilla(ent, *o['rect'].center)})]
+        for o in caen: ent['objetos'].remove(o)
+        if caen: ent['version'] += 1
+
+
     def cerrar_vacios(ent):
         """El piso vuelve a donde habia vacios (y las paredes que se habian vuelto vacio vuelven a ser pared)."""
         antes, ocupadas = ent.pop('antes_vacio', {}), ent['ocupadas']

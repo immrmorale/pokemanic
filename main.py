@@ -587,7 +587,7 @@ def main():
                           'umbral_de': {'regidrago': ia.REGIDRAGO['refuerzos'], 'regirock': 0.9, 'registeel': 0.9}}   # (estos en su primera fase)
         MINI_REGI = {'cada': 11000, 'primera': 4000, 'de_a': 2, 'max': 4, 'vida': 1.6, 'daño': 0.8, 'tam': 58, 'niveles_menos': 4}   # Regigigas invoca Regis chiquitos
         FASES_TEXTO = {'arceus': {2: 'Sentencia: el sello cae del cielo', 3: 'Sentencia grande, Proteccion y Recuperacion'},
-                       'beta': {2: 'Fase 2', 3: 'Fase 3'},
+                       'beta': {2: 'El piso se vuelve un triangulo', 3: 'Fase 3'},
                        'regidrago': {2: 'Te llevo a lo alto de su torre', 3: 'Se rompio la torre: ahora usa todo'},
                        'regice': {2: 'Coraza de hielo: chocale un bloque de hielo'},
                        'regirock': {2: 'Fuerza Bruta y arena movediza', 3: 'Se partio en 5 rocas rodantes'},
@@ -595,7 +595,7 @@ def main():
                        'regieleki': {2: 'Se escondio en las torres', 3: 'Sin torres: Jaula Voltio'}}
         # cuando cae Arceus: pasas al medio de la arena, caen Sentencias alrededor que vuelven vacio el piso y las paredes (menos un circulo
         # de 'libre' casillas de radio donde quedas parado) y Arceus Beta aparece flotando sobre el vacio, delante tuyo
-        LLEGADA_BETA = {'espera': 1500, 'cada': 110, 'aviso': 900, 'paso': 230, 'radio': 130, 'libre': 3, 'separacion': 30, 'vida': 2.0, 'nivel_mas': 4}
+        LLEGADA_BETA = {'espera': 1500, 'cada': 110, 'aviso': 900, 'paso': 230, 'radio': 130, 'libre': 3.5, 'separacion': 30, 'vida': 2.0, 'nivel_mas': 4}
         # barra de congelamiento: solo la cargan los golpes fuertes de tipo hielo (un rayo de Regice, un Walrein que te pega de lleno...).
         # Pisar hielo o escarcha solo resbala. FRIO_POR_DAÑO: un golpe del 30% de tu vida te congela de una; los golpecitos se descargan solos
         FRIO_MAX, FRIO_POR_DAÑO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 340.0, 0.6, 2000
@@ -761,7 +761,8 @@ def main():
                     reiniciar_asistencia(m)
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
                           'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False, 'frio': 0.0, 'congelado_hasta': 0, 'a_la_orilla': None,
-                          'esquive': None, 'inv_hasta': 0, 'combo': 0, 'combo_listo': 0, 'contra_hasta': 0, 'parry_hasta': 0, 'parry_libre': 0})
+                          'esquive': None, 'inv_hasta': 0, 'combo': 0, 'combo_listo': 0, 'contra_hasta': 0, 'parry_hasta': 0, 'parry_libre': 0,
+                          'atrapado_hasta': 0, 'en_arena': False})
                 aplicar_pokemon(j, j['nombre'], j['equipo'][j['activo']]['vida'], centro=centro)
                 actualizar_sinergia(j)
 
@@ -1696,9 +1697,28 @@ def main():
                 beta = ia.BETA
                 nivel['jefe'] = crear_jefe(nivel, 'arceus_beta', ll['vida'], ll['nv'], (beta['ancho'], beta['alto']),
                                            (cx_, cy_ - libre - LLEGADA_BETA['separacion'] - beta['alto'] // 2))
+                nivel['jefe']['zona'] = ia.zona_circulo((cx_, cy_), libre)     # el circulo de piso donde peleas la fase 1
                 nivel['llegada'] = None
                 cartel(nivel, 'Arceus Beta', 2800, 'flota sobre el vacio delante tuyo', grande=True)
                 impacto(nivel, cx_, cy_ - libre, 250, 900)
+
+            def forzar_cambio(j):
+                """Llave Giro de Arceus Beta: te cambia al siguiente pokemon vivo (por la espera de cambio no podes volver por 2 s).
+                Si no tenes otro pokemon en pie no pasa nada."""
+                vivos = [i for i, m in enumerate(j['equipo']) if i != j['activo'] and m['vida'] > 0]
+                if not vivos or not cambiar_slot(j, vivos[0], forzar=True): return False
+                cartel(mundo['nivel'], 'Llave Giro: te cambio de pokemon!', 1400)
+                return True
+
+            def quitar_objeto(j):
+                """Desarme de Arceus Beta: perdes un objeto al azar de la mochila. Devuelve su nombre (None si no tenias)."""
+                inv = j['inventario']['objetos']
+                hay = [k for k, n in inv.items() if n > 0]
+                if not hay: return None
+                k = random.choice(hay)
+                inv[k] -= 1
+                if inv[k] <= 0: del inv[k]
+                return mts.MTS[k]['nombre'] if k in mts.MTS else tienda.ITEMS.get(k, {}).get('nombre', k)
 
             def soltar_monedas(nivel, j, x, y, cantidad):
                 """Deja una pila de monedas en el piso (el amuleto moneda de la tienda las multiplica)."""
@@ -1831,7 +1851,8 @@ def main():
                             'dañar_enemigo': lambda e, d, t, ef: recibir_ataque(e, {'tipo': t, 'daño': d, 'efecto': ef, 'retroceso': 0}),
                             'disparar': lambda x, y, dx, dy, d, t, v, dist, tam=16: nivel['proyectiles_enemigos'].append(crear_proyectil(x, y, dx, dy, round(d), False, t, v, dist, tam)),
                             'impacto': lambda x, y, r, ms: impacto(nivel, x, y, r, ms),
-                            'parry': lambda e: intentar_parry(j, e, nivel)}           # la IA lo llama antes de pegarte
+                            'parry': lambda e: intentar_parry(j, e, nivel),           # la IA lo llama antes de pegarte
+                            'forzar_cambio': lambda: forzar_cambio(j), 'quitar_objeto': lambda: quitar_objeto(j)}   # Llave Giro y Desarme de Arceus Beta
                 entorno.actualizar(ent, dict(contexto, dañar_jugador=lambda d, t: dañar_jugador(j, d, t, evitable=False)), ahora)   # terreno, maquinas, fuego, clima, explosiones
                 if ahora >= j['congelado_hasta']:                        # el frio de los golpes de hielo se va solo
                     if j['frio'] >= FRIO_MAX:
@@ -1880,6 +1901,7 @@ def main():
                     elif jefe['vida'] <= 0:
                         nivel['jefe'] = None
                         j['atrapado_hasta'] = 0
+                        ia.salir_arena(j, ahora)
                         entorno.sacar_de_regi(ent)
                         if jefe['estilo'] == 'beta': entorno.cerrar_vacios(ent); cartel(nivel, 'El piso vuelve...', 2000)
                         soltar_monedas(nivel, j, *jefe['rect'].center, MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
@@ -2196,6 +2218,7 @@ def main():
                     cx += random.randint(-fuerza, fuerza); cy += random.randint(-fuerza, fuerza)
                 ventana.fill('black')
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
+                ia.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # Arceus Beta: el triangulo, charcos, rastros y arena
                 for puerta in nivel['puertas'] if not nivel['ent'].get('guardado') else ():   # puertas con el cartel (en la torre de Regidrago no hay)
                     r = puerta['rect'].move(-cx, -cy)
                     abierta = j['llave'] and not puerta.get('bloqueada') and (not puerta.get('atras') or nivel['completado'])
@@ -2276,6 +2299,9 @@ def main():
                     if math.hypot(e['rect'].centerx - j['rect'].centerx, e['rect'].centery - j['rect'].centery) < 90:
                         t = render(f_hud_b, tecla_de('interactuar') + ': hablar', 'white')
                         ventana.blit(t, t.get_rect(midbottom=(e['rect'].centerx - cx, e['rect'].top - cy - 26)))
+                if j.get('en_arena'):                                      # Bucle Arena de Arceus Beta
+                    t = render(f_hud_b, tecla_de('interactuar') + ': salir de la arena', 'white')
+                    ventana.blit(t, t.get_rect(midbottom=(j['rect'].centerx - cx, j['rect'].top - cy - 22)))
                 bloque = bloque_cercano(j)
                 if bloque:
                     t = render(f_hud_b, tecla_de('interactuar') + ': empujar', 'white')
@@ -2539,7 +2565,7 @@ def main():
                         guardar_activo(j)
                         if pausado(menus.equipo, ui, j, acciones_equipo(j)) == 'salir': return 'salir', j['nombre']
                         aplicar_trucos(nivel, j)
-                    if 'interactuar' in acciones and (comprar_cercano(nivel, j) or hablar_amigo(nivel, j) or empujar_bloque(nivel, j)):
+                    if 'interactuar' in acciones and (ia.salir_arena(j, tiempo()) or comprar_cercano(nivel, j) or hablar_amigo(nivel, j) or empujar_bloque(nivel, j)):
                         acciones = [a for a in acciones if a != 'basico1']   # si estabas comprando o hablando, no ataca
                     if 'esquivar' in acciones: esquivar(j, nivel)
                     if 'basico1' in acciones: usar_basico(j, 0, nivel)

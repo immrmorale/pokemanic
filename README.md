@@ -369,7 +369,7 @@ Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un 
 |---|:-:|:-:|:-:|---|
 | **Hiperrayo** | ✔ | ✔ | ✔ | Una franja del ancho de Arceus marca hacia dónde va a salir. Después dispara un rayo de tipo normal, **del mismo ancho que Arceus**, que sale de él y va **siguiendo por donde estabas** medio segundo antes (se esquiva moviéndose). Al terminar **queda 3 s quieto recargando** (estrellitas arriba de la cabeza). |
 | **Velocidad Extrema** | ✔ | | ✔ | Una franja roja corta avisa y embiste rapidísimo hacia vos. **Si choca contra una pared no queda aturdido.** |
-| **Vozarrón** | ✔ | ✔ | ✔ | Salen de Arceus **3 círculos** que se van agrandando durante **5 s**. Cada uno te pega una vez si su borde te pasa por encima (se salta con el esquive o se escapa corriendo). |
+| **Vozarrón** | ✔ | ✔ | ✔ | Salen de Arceus **3 círculos partidos en 8 arcos** (la mitad de cada tramo es hueco) que se van agrandando durante **5 s**. Cada círculo va girado medio tramo respecto del anterior, así que hay que moverse para pasar por los huecos. Cada uno te pega una vez si un arco te pasa por encima (también se salta con el esquive). |
 | **Meteoros** | ✔ | ✔ | ✔ | Caen **7 meteoritos rápidos** uno atrás del otro donde estás parado, cada uno avisado **1 s** antes con una sombra. Arceus sigue haciendo otras cosas mientras caen. |
 | **Sentencia (chica)** | | ✔ | | El **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) aparece donde estás, gira, se llena y cae del cielo una columna de luz. Tipo normal, un poco más chico que el sello original. De a 3 seguidas. |
 | **Sentencia (grande)** | | | ✔ | Igual, pero un poco **más grande** que el original. De a 2 seguidas. |
@@ -380,14 +380,34 @@ Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un 
 
 Arceus no tira el anillo de balas ni las piedras verdes.
 
-**Arceus Beta:** cuando vencés a Arceus, desaparece y **quedás en el medio de la arena**. Empiezan a caer Sentencias alrededor, de afuera hacia adentro, y donde caen el **piso y las paredes se vuelven vacío**. Al final todo es vacío menos un **círculo de piso en el medio** (3 casillas de radio) donde estás vos. Entonces aparece **Arceus Beta** delante tuyo, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro, con **las tablas girando a su alrededor**; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
-1. **Tablas:** llega con 13 tablas girando en dos anillos: todas menos **agua, dragón, acero y fantasma** (y en los juegos no hay tabla normal). Brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
-   - eléctrico, tierra, roca, psíquico y hada: una marca grande que cae donde estás;
-   - fuego, volador, veneno, bicho, lucha y siniestro: 3 balas grandes en abanico;
-   - planta y hielo: una bala grande apuntada.
-2. y 3. **Por definir** (por ahora sigue con las tablas).
+**Arceus Beta:** cuando vencés a Arceus, desaparece y **quedás en el medio de la arena**. Empiezan a caer Sentencias alrededor, de afuera hacia adentro, y donde caen el **piso y las paredes se vuelven vacío**. Al final todo es vacío menos un **círculo de piso en el medio** (3,5 casillas de radio) donde estás vos. Entonces aparece **Arceus Beta** delante tuyo, mucho más grande que vos, flotando sobre el vacío con **las tablas girando a su alrededor**. Tiene el doble de vida que Arceus y su barra se parte en 3 fases (100–66%, 66–33% y 33–0%).
 
-Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
+- **Está quieto en un punto** (solo se mueve en los movimientos que lo necesitan: embestidas, Bote, Teletransporte, Mordisco). Se le pega desde el borde o a distancia.
+- **Tablas:** tiene puesta una por vez y usa los 3 movimientos de esa tabla, de a uno, con una pausa corta entre uno y otro. Arranca con la **Tabla Neutra** (sin tabla). Es del tipo de la tabla puesta (Multitipo), y arriba suyo dice qué tabla tiene y qué movimiento está usando.
+- **Cambio de tabla:** tarda **2 s** (se saca la puesta y se pone la nueva) y entre un cambio y otro pasan **10 s**. Voltio Cambio la cambia enseguida (animación corta) e Ida y Vuelta al instante (sin animación).
+
+**Fase 1** (en el círculo de piso):
+
+| Tabla | Movimientos |
+|---|---|
+| **Neutra** | **Vozarrón** (como el de Arceus: círculos en arcos) · **Meteoros** (como los de Arceus) · **Gigaimpacto** (cruza la zona 3 veces por donde estás y vuelve a su lugar) |
+| **Llama** | **Lanzallamas** (una línea de fuego que gira de una punta a la otra de la zona, larga hasta la mitad de la zona) · **Llamarada** (estrella de fuego de 5 puntas en el medio; entre las puntas no pega) · **Colmillo Ígneo** (mordida grande de fuego en la esquina de la zona más cerca tuyo) |
+| **Trueno** | **Electrocañón** (rayo horizontal o vertical por donde estás) · **Bola Voltio** (3 bolas eléctricas lentas) · **Voltio Cambio** (rayo rápido donde estás con 0,5 s de aviso y cambia de tabla enseguida) |
+| **Pradal** | **Hoja Afilada** (10 hojas, 5 de cada lado, que salen de a 2 hacia donde estás) · **Abrecaminos** (pasa por una línea que cruza el medio de la zona y la zona queda partida en dos por 10 s) · **Asta Drenaje** (pasa por una línea vertical u horizontal con un triángulo verde adelante; si te pega se cura el 25% del daño) |
+| **Helada** | **Ventisca** (2 s de hielo sobre una gran parte de la zona, la del lado donde estás) · **Chuzos** (estalactitas en lugares al azar) · **Martillo Hielo** (un martillo enorme cae donde estás) |
+| **Fuerte** | **Tajo Cruzado** (2 cortes en X por donde estás) · **Puño Drenaje** (puñetazo; si te pega se cura el 25% del daño) · **Llave Giro** (golpe en círculo; si te pega te cambia de pokemon y no podés volver por 2 s. Si no tenés otro pokemon en pie no pasa nada) |
+| **Tóxica** | **Bomba Lodo** (3 bolas que dejan 3 charcos chicos; lastiman si los pisás) · **Picotazo Veneno** (15 agujas finas y largas, todas en vertical o todas en horizontal) · **Carga Tóxica** (pasa por una línea al azar y deja un rastro de veneno por 7 s) |
+| **Terrax** | **Huesomerang** (3 huesos que van y vuelven; pegan a la ida y a la vuelta) · **Mil Flechas** (20 flechas chicas sobre la zona) · **Bucle Arena** (3 círculos de arena movediza por 4 s; si pisás uno quedás trabado hasta que apretás **E**) |
+| **Cielo** | **Bote** (salta, su sombra te sigue 3 s, cae ahí y vuelve) · **Tornado** (una fila de ráfagas cruza la zona en vertical con un hueco para pasar, y después el viento te empuja 5 s para ese lado) · **Pájaro Osado** (embiste hasta donde estás y vuelve) |
+| **Mental** | **Psíquico** (te levanta y te tira al lado contrario de la zona; se esquiva justo al final del aviso) · **Psicorruido** (ondas en arcos desde él) · **Teletransporte** (aparece en otro lugar sobre el vacío, afuera de la zona, y se queda ahí) |
+| **Bicho** | **Corte Furia** (3 cortes donde estás, cada uno más fuerte) · **Chupavidas** (embestida; si te pega se cura el 50% del daño, pega menos que Asta Drenaje) · **Ida y Vuelta** (golpe rapidísimo sin aviso y cambia de tabla al instante) |
+| **Pétrea** | **Roca Veloz** (5 piedras rápidas hacia donde estás) · **Hachazo Pétreo** (un golpe en X en un lugar al azar y después otro en cruz) · **Avalancha** (rocas en lugares al azar) |
+| **Oscura** | **Alarido** (6 ataques siniestros en abanico) · **Desarme** (embestida; si te pega perdés un objeto de la mochila) · **Mordisco** (5 mordiscos: antes de cada uno aparece al lado de la zona y muerde hacia adentro) |
+| **Duende** | **Fuerza Lunar** (un rayo redondo que te persigue 5 s) · **Brillo Mágico** (la pantalla queda blanca 0,5 s pero el juego sigue, y enseguida usa otro movimiento) · **Cañón Floral** (carga 2 s y tira un ataque en línea recta, horizontal o vertical, que dura 7 s) |
+
+**Fases 2 y 3:** al terminar la fase 1 la pantalla se pone blanca y **el piso se vuelve un triángulo** (la imagen `assets/interfaz/arena_arceus_beta.png`), con Arceus Beta arriba de la punta. Por ahora sigue con las tablas sobre el triángulo; los movimientos propios de estas fases están **por definir**.
+
+Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus. Los números de cada movimiento están en `MOVS_BETA` en `combate.py` y los de las tablas en `BETA` y `TABLAS_BETA`.
 
 **Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
