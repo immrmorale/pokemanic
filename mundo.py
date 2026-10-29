@@ -1431,6 +1431,22 @@ def armar_entorno():
         if caen: ent['version'] += 1
 
 
+    def vaciar_alrededor(ent, centro, libre, x=None, y=None, radio=None):
+        """Piso y paredes se vuelven vacio (toda la sala, o solo el circulo x, y, radio) menos un circulo de piso en el medio (centro, libre).
+        Lo que habia se guarda para que cerrar_vacios lo devuelva; los objetos que quedan sobre el vacio caen. Las puertas no se tocan."""
+        m = ent['m']
+        casillas = _casillas_circulo(ent, x, y, radio) if radio else [(f, c) for f in range(len(m)) for c in range(len(m[0]))]
+        libres = set(_casillas_circulo(ent, *centro, libre))
+        antes = ent.setdefault('antes_vacio', {})
+        for f, c in casillas:
+            t = m[f][c]
+            if (f, c) in libres or t in ('vacio', 'puerta', 'entrada'): continue
+            if cambiar(ent, f, c, 'vacio'): antes[(f, c)] = t; ent['celdas_vacio'].add((f, c))
+        caen = [o for o in ent['objetos'] if any(m[f][c] == 'vacio' for f, c in set(o['celdas']) | {casilla(ent, *o['rect'].center)})]
+        for o in caen: ent['objetos'].remove(o)
+        if caen: ent['version'] += 1
+
+
     def congelar_linea(ent, a, b, radio):
         """El rayo hielo de Regice deja escarcha (resbala) a lo largo de su camino."""
         pasos = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) // (ent['tam'] / 2)))
@@ -1491,9 +1507,12 @@ def armar_entorno():
 
 
     def cerrar_vacios(ent):
-        """El piso vuelve a donde habia vacios."""
+        """El piso vuelve a donde habia vacios (y las paredes que se habian vuelto vacio vuelven a ser pared)."""
+        antes, ocupadas = ent.pop('antes_vacio', {}), ent['ocupadas']
+        ent['ocupadas'] = set()                                      # sobre el vacio no hay nadie parado (Arceus Beta flotaba, pero ya cayo)
         for f, c in ent['celdas_vacio']:
-            if ent['m'][f][c] == 'vacio': cambiar(ent, f, c, 'suelo')
+            if ent['m'][f][c] == 'vacio': cambiar(ent, f, c, antes.get((f, c), 'suelo'))
+        ent['ocupadas'] = ocupadas
         ent['celdas_vacio'].clear(); ent['vacios'] = 0
 
 

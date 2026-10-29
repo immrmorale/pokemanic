@@ -586,15 +586,16 @@ def main():
         REFUERZOS_REGI = {'umbral': 0.75, 'cantidad': 5, 'niveles_menos': 3,   # al perder un cuarto de vida, el Regi llama a 5 de su tipo
                           'umbral_de': {'regidrago': ia.REGIDRAGO['refuerzos'], 'regirock': 0.9, 'registeel': 0.9}}   # (estos en su primera fase)
         MINI_REGI = {'cada': 11000, 'primera': 4000, 'de_a': 2, 'max': 4, 'vida': 1.6, 'daño': 0.8, 'tam': 58, 'niveles_menos': 4}   # Regigigas invoca Regis chiquitos
-        FASES_TEXTO = {'arceus': {2: 'Multitipo: cambia de tipo con cada golpe', 3: 'Cada Sentencia rompe el piso'},
+        FASES_TEXTO = {'arceus': {2: 'Sentencia: el sello cae del cielo', 3: 'Sentencia grande, Proteccion y Recuperacion'},
                        'beta': {2: 'Fase 2', 3: 'Fase 3'},
                        'regidrago': {2: 'Te llevo a lo alto de su torre', 3: 'Se rompio la torre: ahora usa todo'},
                        'regice': {2: 'Coraza de hielo: chocale un bloque de hielo'},
                        'regirock': {2: 'Fuerza Bruta y arena movediza', 3: 'Se partio en 5 rocas rodantes'},
                        'registeel': {2: 'Iman y minas', 3: 'Foco Resplandor y Cuerpo Pesado'},
                        'regieleki': {2: 'Se escondio en las torres', 3: 'Sin torres: Jaula Voltio'}}
-        # cuando cae Arceus: caen Sentencias sobre la mitad de arriba (queda vacia) y aparece Arceus Beta flotando ahi
-        LLEGADA_BETA = {'espera': 1500, 'cada': 160, 'aviso': 900, 'paso': 260, 'radio': 130, 'vida': 2.0, 'nivel_mas': 4}
+        # cuando cae Arceus: pasas al medio de la arena, caen Sentencias alrededor que vuelven vacio el piso y las paredes (menos un circulo
+        # de 'libre' casillas de radio donde quedas parado) y Arceus Beta aparece flotando sobre el vacio, delante tuyo
+        LLEGADA_BETA = {'espera': 1500, 'cada': 110, 'aviso': 900, 'paso': 230, 'radio': 130, 'libre': 3, 'separacion': 30, 'vida': 2.0, 'nivel_mas': 4}
         # barra de congelamiento: solo la cargan los golpes fuertes de tipo hielo (un rayo de Regice, un Walrein que te pega de lleno...).
         # Pisar hielo o escarcha solo resbala. FRIO_POR_DAÑO: un golpe del 30% de tu vida te congela de una; los golpecitos se descargan solos
         FRIO_MAX, FRIO_POR_DAÑO, DESCARGA_FRIO, DURACION_CONGELADO = 100.0, 340.0, 0.6, 2000
@@ -1662,40 +1663,42 @@ def main():
                 nivel['temblor'] = max(nivel['temblor'], tiempo() + temblor)
 
             def empezar_llegada_beta(nivel, j, arceus):
-                """Arceus desaparece y se preparan las Sentencias que van a vaciar la mitad de arriba de la arena."""
+                """Arceus desaparece, pasas al medio de la arena y se preparan las Sentencias que van a caer alrededor (de afuera hacia adentro)."""
                 ahora, tam, ll = tiempo(), nivel['sala']['tam'], LLEGADA_BETA
                 nivel['jefe'] = None; nivel['proyectiles_enemigos'] = []
                 efectos.evolucion(mundo['ef'], *arceus['rect'].center)
                 cartel(nivel, 'Arceus desaparecio...', 2400, 'algo cae del cielo', grande=True)
-                linea = nivel['sala']['filas'] // 2 * tam
-                puntos = [(x + random.randint(-40, 40), y + random.randint(-30, 30)) for y in range(tam * 2, linea - ll['radio'] - 30, ll['paso'])
-                          for x in range(tam * 2, ESC.width - tam, ll['paso'])]
-                random.shuffle(puntos)
+                centro, libre = ESC.center, ll['libre'] * tam
+                j['rect'].center = centro                             # el piso que queda es el del medio
+                efectos.evolucion(mundo['ef'], *centro)
+                puntos = [(x + random.randint(-40, 40), y + random.randint(-40, 40)) for y in range(tam // 2, ESC.height, ll['paso'])
+                          for x in range(tam // 2, ESC.width, ll['paso']) if math.hypot(x - centro[0], y - centro[1]) > libre + ll['radio'] * 0.5]
+                puntos.sort(key=lambda p: random.uniform(0, 400) - math.hypot(p[0] - centro[0], p[1] - centro[1]))   # de afuera hacia adentro
                 golpes = [{'pos': p, 'inicio': ahora + ll['espera'] + i * ll['cada']} for i, p in enumerate(puntos)]
-                nivel['llegada'] = {'golpes': golpes, 'linea': linea, 'fin': ahora + ll['espera'] + len(golpes) * ll['cada'] + ll['aviso'] + 500,
-                                    'movido': False, 'nv': arceus['nivel'] + ll['nivel_mas'], 'vida': round(arceus['max_vida'] * ll['vida'])}
+                nivel['llegada'] = {'golpes': golpes, 'centro': centro, 'libre': libre, 'fin': ahora + ll['espera'] + len(golpes) * ll['cada'] + ll['aviso'] + 500,
+                                    'nv': arceus['nivel'] + ll['nivel_mas'], 'vida': round(arceus['max_vida'] * ll['vida'])}
 
             def actualizar_llegada_beta(nivel, j):
-                """Caen las Sentencias; si quedaste arriba te pasa abajo; se vacia toda la mitad de arriba y aparece Arceus Beta flotando ahi."""
+                """Caen las Sentencias y vuelven vacio el piso y las paredes donde caen; al final todo es vacio menos tu circulo
+                y aparece Arceus Beta flotando delante tuyo con sus tablas."""
                 ahora, ent, ll = tiempo(), nivel['ent'], nivel['llegada']
+                (cx_, cy_), libre = ll['centro'], ll['libre']
+                dx, dy = j['rect'].centerx - cx_, j['rect'].centery - cy_
+                d, lim = math.hypot(dx, dy), libre - max(j['rect'].size) / 2 - 2
+                if d > lim: j['rect'].center = (round(cx_ + dx / d * lim), round(cy_ + dy / d * lim))   # mientras caen no te deja salir del circulo
                 for g in ll['golpes'][:]:
                     if ahora < g['inicio'] + LLEGADA_BETA['aviso']: continue
                     ll['golpes'].remove(g)
-                    entorno.abrir_vacio(ent, *g['pos'], LLEGADA_BETA['radio'], 10 ** 6)
+                    entorno.vaciar_alrededor(ent, ll['centro'], libre, *g['pos'], LLEGADA_BETA['radio'])
                     impacto(nivel, *g['pos'], LLEGADA_BETA['radio'] * 0.5, 200)
                 if ahora < ll['fin']: return
-                if not ll['movido']:
-                    ll['movido'] = True
-                    if j['rect'].centery < ll['linea'] + nivel['sala']['tam']:
-                        j['rect'].center = (ESC.centerx, ll['linea'] + nivel['sala']['tam'] * 3.5)
-                        efectos.evolucion(mundo['ef'], *j['rect'].center)
-                    return                                            # un cuadro despues, asi el entorno ya sabe donde estas
-                entorno.vaciar_franja(ent, ll['linea'])
+                entorno.vaciar_alrededor(ent, ll['centro'], libre)         # lo que haya quedado entre las Sentencias
                 beta = ia.BETA
-                nivel['jefe'] = crear_jefe(nivel, 'arceus_beta', ll['vida'], ll['nv'], (beta['ancho'], beta['alto']), (ESC.centerx, ll['linea'] - beta['alto'] // 2 + 60))
+                nivel['jefe'] = crear_jefe(nivel, 'arceus_beta', ll['vida'], ll['nv'], (beta['ancho'], beta['alto']),
+                                           (cx_, cy_ - libre - LLEGADA_BETA['separacion'] - beta['alto'] // 2))
                 nivel['llegada'] = None
-                cartel(nivel, 'Arceus Beta', 2800, 'flota sobre el vacio: pegale desde abajo', grande=True)
-                impacto(nivel, ESC.centerx, ll['linea'], 250, 900)
+                cartel(nivel, 'Arceus Beta', 2800, 'flota sobre el vacio delante tuyo', grande=True)
+                impacto(nivel, cx_, cy_ - libre, 250, 900)
 
             def soltar_monedas(nivel, j, x, y, cantidad):
                 """Deja una pila de monedas en el piso (el amuleto moneda de la tienda las multiplica)."""
@@ -2291,7 +2294,7 @@ def main():
                     pygame.draw.circle(ventana, (brillo, brillo, 60), (e['rect'].centerx - cx, e['rect'].centery - cy), max(e['rect'].size) // 2 + 14, 4)
                     t = render(f_hud_b, '!', (255, 240, 80))
                     ventana.blit(t, t.get_rect(midbottom=(e['rect'].centerx - cx, e['rect'].top - cy - 14)))
-                for g in (nivel['llegada'] or {}).get('golpes', ()):       # las Sentencias que vacian la mitad de arriba
+                for g in (nivel['llegada'] or {}).get('golpes', ()):       # las Sentencias que vacian la arena alrededor tuyo
                     if ahora >= g['inicio']:
                         k = min(1.0, (ahora - g['inicio']) / LLEGADA_BETA['aviso'])
                         ia.dibujar_sello(ventana, (round(g['pos'][0] - cx), round(g['pos'][1] - cy)), LLEGADA_BETA['radio'], (245, 240, 220), k, ahora)
@@ -2636,4 +2639,4 @@ def main():
         if accion == 'salir' and confirmar('¿Seguro que quieres salir?'): opciones.guardar(config); pygame.quit(); sys.exit()
 
 if __name__ == '__main__':
-    main()
+    main()

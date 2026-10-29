@@ -498,23 +498,38 @@ def armar_ia():
              'agarre': 6500, 'aviso_agarre': 500, 'radio_agarre': 140, 'sostener': 600, 'vel_lanzar': 20, 'daño_lanzar': 1.6, 'vuelo_max': 1500}
 
 
-    # Arceus: 3 fases (la barra de vida se parte en tercios)
-    #   1  rayos normales que caen en cualquier lado y se abren en 4 balas, e Hiperrayo
-    #   2  Multitipo (cambia de tipo con cada golpe que le das) y Sentencia del tipo que tenga (como los puñetazos de Regigigas pero mas grandes)
-    #   3  todo junto, y cada Sentencia rompe el piso y deja un vacio
-    ARCEUS = {'vel': 1.3, 'fases': (2 / 3, 1 / 3),
-              'rayos': 2600, 'rayos_de_a': 3, 'aviso_rayo': 1000, 'radio_rayo': 55, 'daño_rayo': 0.8, 'daño_bala_rayo': 0.45, 'vel_bala_rayo': 6, 'dist_bala_rayo': 420,
-              'hiperrayo': 5500, 'aviso_hiperrayo': 1000, 'largo_hiperrayo': 1300, 'ancho_hiperrayo': 34, 'daño_hiperrayo': 1.6, 'haz': 350,
-              'sentencia': 3400, 'aviso_sentencia': 1000, 'aviso_serie': 650, 'radio_sentencia': 150, 'daño_sentencia': 1.3, 'serie': 3,
-              'cambio_tipo': 450, 'radio_vacio': 45, 'max_vacios': 40, 'apurado_fase3': 0.8, 'recarga_hiperrayo': 3000}
+    # Arceus: 3 fases (100-65%, 65-20% y 20-0%). Usa un movimiento por vez, elegido al azar entre los de su fase (MOVS_ARCEUS):
+    #   Hiperrayo           rayo del ancho de Arceus que sale de el y va siguiendo por donde estabas; despues recarga 3 s quieto
+    #   Velocidad Extrema   embiste rapidisimo hacia vos; si choca contra una pared NO queda aturdido
+    #   Vozarron            salen de el 3 circulos que se van agrandando durante 5 s
+    #   Meteoros            caen 7 meteoritos rapidos donde estas, cada uno avisado 1 s antes
+    #   Sentencia           el sello cae del cielo, de tipo normal: chica en la fase 2 y grande en la 3
+    #   Proteccion          escudo 3 s: quieto, sin atacar y sin recibir daño
+    #   Recuperacion        3 s quieto juntando estrellitas sin atacar; si le pegas se corta, si no se cura un poco
+    #   Recuperacion, Velocidad Extrema e Hiperrayo nunca van juntos: entre uno y otro de esos tres pasa 'pausa_exclusivos'
+    MOVS_ARCEUS = {1: ('hiperrayo', 'velocidad_extrema', 'vozarron', 'meteoros'),
+                   2: ('sentencia', 'hiperrayo', 'vozarron', 'meteoros'),
+                   3: ('hiperrayo', 'velocidad_extrema', 'vozarron', 'meteoros', 'sentencia', 'proteccion', 'recuperacion')}
+    EXCLUSIVOS_ARCEUS = ('recuperacion', 'velocidad_extrema', 'hiperrayo')
+    ARCEUS = {'vel': 1.3, 'fases': (0.65, 0.20), 'primer_mov': 1500, 'pausa': (700, 1300), 'pausa_exclusivos': 2500,
+              'espera': {'hiperrayo': 9000, 'velocidad_extrema': 5000, 'vozarron': 8000, 'meteoros': 7000, 'sentencia': 5500,     # cada cuanto puede repetir cada uno
+                         'proteccion': 12000, 'recuperacion': 16000},
+              'aviso_hiperrayo': 900, 'dura_hiperrayo': 2200, 'retraso_hiperrayo': 450, 'giro_hiperrayo': 0.025, 'largo_hiperrayo': 1600,
+              'tick_hiperrayo': 400, 'daño_hiperrayo': 0.55, 'recarga_hiperrayo': 3000,
+              'aviso_extrema': 450, 'vel_extrema': 24, 'largo_extrema': 950, 'daño_extrema': 1.3,
+              'aviso_vozarron': 600, 'circulos': 3, 'entre_circulos': 550, 'dura_vozarron': 5000, 'radio_vozarron': 760, 'grosor_vozarron': 22, 'daño_vozarron': 0.9,
+              'meteoros': 7, 'entre_meteoros': 260, 'aviso_meteoro': 1000, 'radio_meteoro': 58, 'daño_meteoro': 0.75,
+              'aviso_sentencia': 1000, 'aviso_serie': 650,
+              'sentencia_chica': {'radio': 130, 'serie': 3, 'daño': 1.2}, 'sentencia_grande': {'radio': 175, 'serie': 2, 'daño': 1.5},   # el sello original medía 150
+              'dura_proteccion': 3000, 'daño_para_proteger': 0.04, 'dura_recuperacion': 3000, 'cura': 0.08}
     TIPOS_ARCEUS = tuple(datos.pokemones.TABLA_TIPOS)
 
-    # Arceus Beta: flota sobre el vacio de la mitad de arriba y va de un lado al otro (3 fases, por ahora todas como la primera)
-    #   1  invoca las tablas de cada tipo; cada tabla da vueltas a su alrededor y tira ataques de su tipo, mas grandes que los normales
-    BETA = {'tam': 300, 'ancho': 240, 'alto': 200, 'vaiven': 220, 'periodo': 2600,
-            'tabla': 2200, 'max_tablas': 6, 'orbita': (300, 430), 'giro': 0.00035, 'ataque_tabla': (2600, 3800),
+    # Arceus Beta: flota sobre el vacio delante del piso que te queda y va de un lado al otro (3 fases, por ahora todas como la primera)
+    #   1  aparece con las tablas girando a su alrededor; cada tabla tira ataques de su tipo, mas grandes que los normales
+    BETA = {'tam': 300, 'ancho': 240, 'alto': 200, 'vaiven': 220, 'periodo': 2600, 'fases': (2 / 3, 1 / 3),
+            'orbita': (310, 420), 'giro': 0.00035, 'primer_ataque': (1500, 5000), 'ataque_tabla': (5500, 8500),
             'aviso_marca': 900, 'radio_marca': 95, 'daño_marca': 0.7, 'vel_bala': 5.5, 'dist_bala': 750, 'tam_bala': 30, 'daño_bala': 0.55, 'abanico': 0.35}
-    TIPOS_TABLA = tuple(t for t in TIPOS_ARCEUS if t != 'normal')        # en los juegos no hay tabla de tipo normal
+    TIPOS_TABLA = tuple(t for t in TIPOS_ARCEUS if t not in ('normal', 'agua', 'dragon', 'acero', 'fantasma'))   # sin agua, dragon, acero ni fantasma (y en los juegos no hay tabla normal)
     FORMA_TABLA = {t: 'marca' for t in ('electrico', 'tierra', 'roca', 'psiquico', 'fantasma', 'hada', 'dragon')}   # cae donde estas
     FORMA_TABLA.update({t: 'abanico' for t in ('fuego', 'volador', 'veneno', 'bicho', 'lucha', 'siniestro')})        # 3 balas en abanico
     ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta', 'regice': 'regice', 'regirock': 'regirock',
@@ -570,7 +585,7 @@ def armar_ia():
                  'draco': 26000, 'primer_draco': 9000, 'retraso_draco': 450, 'vida_boca': 0.035}
     COLOR_TORRE = {'gris': (130, 130, 130), 'cargada': (250, 220, 40), 'rota': (120, 75, 35)}
     # donde se parte la barra de vida de cada jefe con fases (Regieleki cambia de fase por las torres, no por la vida)
-    FASES_JEFE = {'arceus': ARCEUS['fases'], 'beta': ARCEUS['fases'], 'regidrago': REGIDRAGO['fases'], 'regice': REGICE['fases'],
+    FASES_JEFE = {'arceus': ARCEUS['fases'], 'beta': BETA['fases'], 'regidrago': REGIDRAGO['fases'], 'regice': REGICE['fases'],
                   'regirock': REGIROCK['fases'], 'registeel': REGISTEEL['fases'], 'regieleki': (REGIELEKI['umbral'],)}
     TOTAL_FASES = {'regieleki': 3}
 
@@ -579,8 +594,8 @@ def armar_ia():
         """Pone en un jefe todos los campos que usan sus ataques (avisos, rayos, tablas, minas, torres...) y su estilo."""
         b.update({'aviso': None, 'prox_rafaga': 0, 'prox_pisoton': 0, 'resto_ia': [0.0, 0.0], 'estilo': ESTILO_JEFE.get(b['nombre'], 'jefe'),
                   'prox_terremoto': None, 'prox_puño': None, 'serie': 0,
-                  'fase': 1, 'rayos': [], 'haz': None, 'prox_rayos': None, 'prox_hiperrayo': None, 'prox_sentencia': None, 'vida_tipo': b['vida'], 'prox_cambio': 0,
-                  'tablas': [], 'marcas': [], 'n_tabla': 0, 'prox_tabla': None, 'inicio_beta': None, 'centro_beta': None,
+                  'fase': 1, 'haz': None, 'libre_en': None, 'fin_exclusivo': 0, 'meteoros': [], 'vozarron': [], 'recupera': None,
+                  'tablas': [], 'marcas': [], 'inicio_beta': None, 'centro_beta': None,
                   'prox': {}, 'muros': [], 'filas_roca': [], 'circulos': [], 'dash': None, 'aturdido_hasta': 0, 'minas': [], 'sierras': [],
                   'iman_hasta': 0, 'iman_a': None, 'torres': None, 'torre': None, 'modo': 'libre', 'viaje': None, 'lineas': [], 'ondas': [],
                   'escondido': False, 'vida_guardada': b['vida'], 'prox_linea': 0,
@@ -758,79 +773,193 @@ def armar_ia():
         return math.hypot(p[0] - ax - k * (bx - ax), p[1] - ay - k * (by - ay))
 
 
-    def fase_arceus(b):
-        """Fase de Arceus (1, 2 o 3) segun cuanta vida le queda."""
-        k = b['vida'] / max(1, b['max_vida'])
-        return 1 if k > ARCEUS['fases'][0] else 2 if k > ARCEUS['fases'][1] else 3
+    def fase_arceus(b, cortes=None):
+        """Fase de Arceus (o de Arceus Beta) segun la vida que le queda. No vuelve atras aunque Recuperacion lo cure."""
+        b['fase'] = max(b['fase'], _fase(b, cortes or ARCEUS['fases']))
+        return b['fase']
 
 
-    def _rayos_arceus(b, ctx, fase):
-        """Rayos normales: se marcan en el piso, caen y se abren en 4 balas (arriba, abajo y a los costados)."""
-        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
-        mitad = max(j['rect'].size) / 2
-        for r in b['rayos'][:]:
-            if ahora < r['hasta']: continue
-            b['rayos'].remove(r)
-            x, y = r['pos']
-            if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= ARCEUS['radio_rayo'] + mitad: ctx['dañar_jugador'](b['daño'] * ARCEUS['daño_rayo'], 'normal')
-            ctx['impacto'](x, y, ARCEUS['radio_rayo'], 120)
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                ctx['disparar'](x, y, dx, dy, b['daño'] * ARCEUS['daño_bala_rayo'], 'normal', ARCEUS['vel_bala_rayo'], ARCEUS['dist_bala_rayo'])
-        if fase == 2 or ahora < b['prox_rayos'] or ahora < b['aturdido_hasta']: return
-        b['prox_rayos'] = ahora + ARCEUS['rayos'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1)
-        for i in range(ARCEUS['rayos_de_a']):
-            if i == 0: x, y = j['rect'].centerx + random.randint(-60, 60), j['rect'].centery + random.randint(-60, 60)   # uno siempre cerca tuyo
-            else: x, y = entorno.punto_libre(ent, random); x += random.randint(-30, 30); y += random.randint(-30, 30)
-            b['rayos'].append({'pos': (x, y), 'inicio': ahora, 'hasta': ahora + ARCEUS['aviso_rayo']})
+    def _terminar(b, ahora, exclusivo=False):
+        """Termino un movimiento de Arceus: espera un poco antes del siguiente (y anota cuando termino Recuperacion, Velocidad Extrema o Hiperrayo)."""
+        b['libre_en'] = ahora + random.randint(*ARCEUS['pausa'])
+        if exclusivo: b['fin_exclusivo'] = ahora
+
+
+    def _proteger(b, ahora):
+        """Proteccion: escudo 3 s; mientras dura no se mueve, no ataca y no recibe daño."""
+        b['escudo_hasta'] = ahora + ARCEUS['dura_proteccion']; b['invulnerable'] = True
+        b['prox']['proteccion'] = ahora + ARCEUS['espera']['proteccion']
+        _terminar(b, b['escudo_hasta'])
+
+
+    def _aviso_sentencia(b, ahora, espera, mira):
+        """Marca de una Sentencia en el piso: donde cae, cuando y de que tamaño (chica en la fase 2, grande en la 3). Siempre de tipo normal."""
+        s = ARCEUS['sentencia_grande'] if b['fase'] == 3 else ARCEUS['sentencia_chica']
+        return {'hasta': ahora + espera, 'clase': 'sentencia', 'inicio': ahora, 'mira': mira, 'tipo': 'normal', 'radio': s['radio'], 'daño': s['daño']}
+
+
+    def _elegir_arceus(b, ctx):
+        """Elige al azar el proximo movimiento entre los de su fase que ya esten listos.
+        Recuperacion, Velocidad Extrema e Hiperrayo no se usan uno pegado al otro."""
+        ent, j, ahora, A, p = ctx['ent'], ctx['jugador'], ctx['ahora'], ARCEUS, b['prox']
+        (jx, jy), (bx, by) = j['rect'].center, b['rect'].center
+        listos = []
+        for mov in MOVS_ARCEUS[b['fase']]:
+            if ahora < p.get(mov, 0): continue
+            if mov in EXCLUSIVOS_ARCEUS and ahora < b['fin_exclusivo'] + A['pausa_exclusivos']: continue
+            if mov == 'hiperrayo' and not ve(ent, (bx, by), (jx, jy)): continue
+            if mov == 'velocidad_extrema' and math.hypot(jx - bx, jy - by) < 200: continue
+            if mov == 'recuperacion' and b['vida'] >= b['max_vida']: continue
+            listos.append(mov)
+        if not listos: return
+        mov = random.choice(listos)
+        p[mov] = ahora + A['espera'][mov]
+        if mov == 'hiperrayo':
+            ang = math.atan2(jy - by, jx - bx)
+            b['aviso'] = {'hasta': ahora + A['aviso_hiperrayo'], 'clase': 'hiperrayo', 'inicio': ahora, 'ang': ang, 'ancho': b['rect'].width // 2,
+                          'fin': (bx + math.cos(ang) * A['largo_hiperrayo'], by + math.sin(ang) * A['largo_hiperrayo'])}
+            _animar(b, ('charge', 'spattack'), ahora, A['aviso_hiperrayo'])
+        elif mov == 'velocidad_extrema':
+            b['aviso'] = {'hasta': ahora + A['aviso_extrema'], 'clase': 'velocidad_extrema', 'inicio': ahora, 'dir': _dir((bx, by), (jx, jy)),
+                          'largo': min(A['largo_extrema'], math.hypot(jx - bx, jy - by) + 150), 'ancho': b['rect'].width}
+        elif mov == 'vozarron':
+            b['aviso'] = {'hasta': ahora + A['aviso_vozarron'], 'clase': 'vozarron', 'inicio': ahora}
+            _animar(b, ('spattack', 'charge'), ahora, A['aviso_vozarron'] + 300)
+        elif mov == 'meteoros':                                     # cada meteorito apunta a donde estas cuando le toca salir
+            b['meteoros'].extend({'sale': ahora + i * A['entre_meteoros'], 'pos': None} for i in range(A['meteoros']))
+            _animar(b, ('spattack', 'charge'), ahora, 600)
+            _terminar(b, ahora)
+        elif mov == 'sentencia':
+            b['serie'] = (A['sentencia_grande'] if b['fase'] == 3 else A['sentencia_chica'])['serie']
+            b['aviso'] = _aviso_sentencia(b, ahora, A['aviso_sentencia'], (jx, jy))
+        elif mov == 'proteccion': _proteger(b, ahora)
+        else:
+            b['recupera'] = {'inicio': ahora, 'hasta': ahora + A['dura_recuperacion'], 'vida': b['vida']}
+            _animar(b, ('deepbreath', 'pose'), ahora, A['dura_recuperacion'])
+
+
+    def _hiperrayo_arceus(b, ctx):
+        """Hiperrayo disparando: sale de Arceus y gira despacio hacia donde estabas hace un rato (se esquiva). Al terminar recarga quieto."""
+        j, ahora, A, h = ctx['jugador'], ctx['ahora'], ARCEUS, b['haz']
+        bx, by = b['rect'].center
+        px, py = _pos_anterior(b, j, ahora, A['retraso_hiperrayo'])
+        h['ang'] = _girar_hacia(h['ang'], math.atan2(py - by, px - bx), A['giro_hiperrayo'])
+        h['desde'], h['fin'] = (bx, by), (bx + math.cos(h['ang']) * A['largo_hiperrayo'], by + math.sin(h['ang']) * A['largo_hiperrayo'])
+        if ahora >= h['prox'] and _dist_segmento(j['rect'].center, h['desde'], h['fin']) <= h['ancho'] + max(j['rect'].size) / 2:
+            ctx['dañar_jugador'](b['daño'] * A['daño_hiperrayo'], 'normal'); h['prox'] = ahora + A['tick_hiperrayo']
+        if ahora >= h['hasta']:
+            b['haz'] = None; b['anim_forzada'] = None
+            b['aturdido_hasta'] = ahora + A['recarga_hiperrayo']        # recarga: quieto (estrellitas arriba de la cabeza)
+            _terminar(b, b['aturdido_hasta'], exclusivo=True)
+
+
+    def _extrema_arceus(b, ctx):
+        """Velocidad Extrema: embiste en linea recta muy rapido. Si choca contra una pared se frena, pero no queda aturdido."""
+        ent, j, ahora, A, d = ctx['ent'], ctx['jugador'], ctx['ahora'], ARCEUS, b['dash']
+        paso = min(A['vel_extrema'], d['restante'])
+        d['resto'][0] += d['dir'][0] * paso; d['resto'][1] += d['dir'][1] * paso
+        px, py = int(d['resto'][0]), int(d['resto'][1])
+        d['resto'][0] -= px; d['resto'][1] -= py
+        quiero = b['rect'].move(px, py)
+        entorno.mover(ent, b['rect'], px, py, [b['tipo']])
+        d['restante'] -= paso
+        if not d['pego'] and _en_franja(b, j, b['rect'].width): ctx['dañar_jugador'](b['daño'] * A['daño_extrema'], 'normal'); d['pego'] = True
+        choco = (px or py) and b['rect'].topleft != quiero.topleft
+        if choco or d['restante'] <= 0:
+            b['dash'] = None
+            if choco: ctx['impacto'](*b['rect'].center, 80, 250)
+            _terminar(b, ahora, exclusivo=True)
+
+
+    def _recuperacion_arceus(b, ctx):
+        """Recuperacion: si le pegaste mientras juntaba estrellitas se corta; si aguanto los 3 s se cura un poco."""
+        ahora, r = ctx['ahora'], b['recupera']
+        if b['vida'] < r['vida']:
+            b['recupera'] = None; b['anim_forzada'] = None
+            b['mensajes'].append(('Le cortaste la Recuperacion!', 1400))
+            _terminar(b, ahora, exclusivo=True)
+        elif ahora >= r['hasta']:
+            b['vida'] = min(b['max_vida'], b['vida'] + round(b['max_vida'] * ARCEUS['cura']))
+            b['recupera'] = None
+            b['mensajes'].append(('Arceus se curo', 1400))
+            _terminar(b, ahora, exclusivo=True)
+
+
+    def _actualizar_meteoros(b, ctx):
+        """Meteoros: cada uno sale apuntando a donde estas, avisa 1 s con una sombra y cae."""
+        j, ahora, A = ctx['jugador'], ctx['ahora'], ARCEUS
+        for m in b['meteoros'][:]:
+            if m['pos'] is None:
+                if ahora >= m['sale']: m.update(pos=j['rect'].center, inicio=ahora, hasta=ahora + A['aviso_meteoro'])
+                continue
+            if ahora < m['hasta']: continue
+            b['meteoros'].remove(m)
+            x, y = m['pos']
+            if math.hypot(j['rect'].centerx - x, j['rect'].centery - y) <= A['radio_meteoro'] + max(j['rect'].size) / 2: ctx['dañar_jugador'](b['daño'] * A['daño_meteoro'], 'normal')
+            ctx['impacto'](x, y, A['radio_meteoro'], 150)
+
+
+    def _actualizar_vozarron(b, ctx):
+        """Vozarron: los 3 circulos se agrandan durante 5 s; cada uno te pega una sola vez si su borde te pasa por encima."""
+        j, ahora, A = ctx['jugador'], ctx['ahora'], ARCEUS
+        jx, jy = j['rect'].center
+        for o in b['vozarron'][:]:
+            if ahora >= o['hasta']: b['vozarron'].remove(o); continue
+            if ahora < o['inicio']: continue
+            radio = A['radio_vozarron'] * (ahora - o['inicio']) / A['dura_vozarron']
+            if not o['pego'] and abs(math.hypot(jx - o['pos'][0], jy - o['pos'][1]) - radio) <= A['grosor_vozarron'] + max(j['rect'].size) / 2:
+                ctx['dañar_jugador'](b['daño'] * A['daño_vozarron'], 'normal'); o['pego'] = True
 
 
     def actualizar_arceus(b, ctx):
-        """Arceus: fase 1 rayos y Hiperrayo; fase 2 Multitipo y Sentencias; fase 3 todo mas rapido y las Sentencias rompen el piso."""
-        ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
+        """Arceus: usa un movimiento por vez, elegido al azar entre los de su fase (ver MOVS_ARCEUS), con una pausa entre uno y otro."""
+        ent, j, ahora, A, p = ctx['ent'], ctx['jugador'], ctx['ahora'], ARCEUS, b['prox']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
         dist = math.hypot(jx - bx, jy - by)
         mitad = max(j['rect'].size) / 2
-        if b['prox_rayos'] is None: b['prox_rayos'], b['prox_hiperrayo'], b['prox_sentencia'] = ahora + 1500, ahora + 4000, ahora + 1500
-        fase = b['fase'] = fase_arceus(b)
-        if fase >= 2 and b['vida'] < b['vida_tipo'] and ahora >= b['prox_cambio']:     # Multitipo: cada golpe le cambia el tipo (y sus debilidades)
-            b['tipo'] = random.choice([t for t in TIPOS_ARCEUS if t != b['tipo']]); b['prox_cambio'] = ahora + ARCEUS['cambio_tipo']
-        b['vida_tipo'] = b['vida']
-        if b['haz'] and ahora >= b['haz']['hasta']: b['haz'] = None
-        _rayos_arceus(b, ctx, fase)
+        if b['libre_en'] is None:
+            b.update(libre_en=ahora + A['primer_mov'], fin_exclusivo=ahora - A['pausa_exclusivos'], vida_ref=b['vida']); p['ref'] = ahora + 2500
+        fase_arceus(b)
+        _rastrear(b, j, ahora)
+        _actualizar_meteoros(b, ctx)                                # los meteoros y los circulos siguen aunque el haga otra cosa
+        _actualizar_vozarron(b, ctx)
+        if ahora >= p['ref']: p['ref'] = ahora + 2500; b['vida_ref'] = b['vida']
+        b['invulnerable'] = ahora < b['escudo_hasta']
+        if b['invulnerable']: return                               # Proteccion: quieto y sin atacar detras del escudo
+        if b['haz']: _hiperrayo_arceus(b, ctx); return
+        if b['dash']: _extrema_arceus(b, ctx); return
+        if b['recupera']: _recuperacion_arceus(b, ctx); return
         if ahora < b['aturdido_hasta']: return                     # recargando despues del Hiperrayo: quieto
         a = b['aviso']
         if a:
             if ahora < a['hasta']: return
             b['aviso'] = None
             if a['clase'] == 'hiperrayo':
-                if _dist_segmento((jx, jy), (bx, by), a['fin']) <= ARCEUS['ancho_hiperrayo'] + mitad: ctx['dañar_jugador'](b['daño'] * ARCEUS['daño_hiperrayo'], 'normal')
-                b['haz'] = {'desde': (bx, by), 'fin': a['fin'], 'hasta': ahora + ARCEUS['haz']}
+                b['haz'] = {'ang': a['ang'], 'desde': (bx, by), 'fin': a['fin'], 'ancho': a['ancho'], 'hasta': ahora + A['dura_hiperrayo'], 'prox': ahora}
                 ctx['impacto'](bx, by, 60, 300)
-                b['prox_hiperrayo'] = ahora + ARCEUS['hiperrayo'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1) + ARCEUS['recarga_hiperrayo']
-                b['aturdido_hasta'] = ahora + ARCEUS['recarga_hiperrayo']
-            else:
+                _animar(b, ('spattack', 'shoot'), ahora, A['dura_hiperrayo'])
+            elif a['clase'] == 'velocidad_extrema':
+                b['dash'] = {'dir': a['dir'], 'restante': a['largo'], 'pego': False, 'resto': [0.0, 0.0]}
+            elif a['clase'] == 'vozarron':
+                b['vozarron'].extend({'pos': (bx, by), 'inicio': ahora + i * A['entre_circulos'], 'hasta': ahora + i * A['entre_circulos'] + A['dura_vozarron'], 'pego': False}
+                                     for i in range(A['circulos']))
+                ctx['impacto'](bx, by, 80, 250)
+                _terminar(b, ahora)
+            else:                                                   # Sentencia
                 mx, my = a['mira']
-                if math.hypot(jx - mx, jy - my) <= ARCEUS['radio_sentencia'] + mitad: ctx['dañar_jugador'](b['daño'] * ARCEUS['daño_sentencia'], a['tipo'])
-                ctx['impacto'](mx, my, ARCEUS['radio_sentencia'], 350)
-                if fase == 3: entorno.abrir_vacio(ent, mx, my, ARCEUS['radio_vacio'], ARCEUS['max_vacios'])
+                if math.hypot(jx - mx, jy - my) <= a['radio'] + mitad: ctx['dañar_jugador'](b['daño'] * a['daño'], a['tipo'])
+                ctx['impacto'](mx, my, a['radio'], 350)
                 b['serie'] -= 1
-                if b['serie'] > 0: b['aviso'] = _aviso_sentencia(b, ahora, ARCEUS['aviso_serie'], (jx, jy), fase)
-                else: b['prox_sentencia'] = ahora + ARCEUS['sentencia'] * (ARCEUS['apurado_fase3'] if fase == 3 else 1)
+                if b['serie'] > 0: b['aviso'] = _aviso_sentencia(b, ahora, A['aviso_serie'], (jx, jy))
+                else: _terminar(b, ahora)
             return
-        if fase != 2 and ahora >= b['prox_hiperrayo'] and ve(ent, (bx, by), (jx, jy)):
-            n = dist or 1
-            fin = (bx + (jx - bx) / n * ARCEUS['largo_hiperrayo'], by + (jy - by) / n * ARCEUS['largo_hiperrayo'])   # la direccion queda fija: se esquiva
-            b['aviso'] = {'hasta': ahora + ARCEUS['aviso_hiperrayo'], 'clase': 'hiperrayo', 'inicio': ahora, 'fin': fin}; return
-        if fase >= 2 and ahora >= b['prox_sentencia']:
-            b['serie'] = ARCEUS['serie']
-            b['aviso'] = _aviso_sentencia(b, ahora, ARCEUS['aviso_sentencia'], (jx, jy), fase); return
-        if dist > 160: _ir_a(ent, b, (jx, jy), ARCEUS['vel'], [])
-
-
-    def _aviso_sentencia(b, ahora, espera, mira, fase):
-        """Marca de una Sentencia en el piso: donde cae, cuando y de que tipo."""
-        return {'hasta': ahora + espera, 'clase': 'sentencia', 'inicio': ahora, 'mira': mira, 'tipo': b['tipo'], 'rompe': fase == 3}
+        if 'proteccion' in MOVS_ARCEUS[b['fase']] and ahora >= p.get('proteccion', 0) and b['vida'] <= b['vida_ref'] - b['max_vida'] * A['daño_para_proteger']:
+            _proteger(b, ahora); return                             # le estan pegando mucho: se cubre
+        if ahora >= b['libre_en']:
+            _elegir_arceus(b, ctx)
+            if b['aviso'] or b['recupera'] or b['invulnerable']: return
+        if dist > 160: _ir_a(ent, b, (jx, jy), A['vel'], [])
 
 
     # ---------- Arceus Beta ----------
@@ -857,18 +986,15 @@ def armar_ia():
 
 
     def actualizar_beta(b, ctx):
-        """Arceus Beta flota de lado a lado e invoca tablas de cada tipo que lo orbitan y atacan solas."""
+        """Arceus Beta flota de lado a lado con todas sus tablas girando alrededor; cada tabla ataca sola con su tipo."""
         j, ahora = ctx['jugador'], ctx['ahora']
         mitad = max(j['rect'].size) / 2
-        if b['inicio_beta'] is None: b['inicio_beta'], b['centro_beta'], b['prox_tabla'] = ahora, b['rect'].center, ahora + 800
-        b['fase'] = fase_arceus(b)
+        if b['inicio_beta'] is None:                                # llega con las tablas ya girando, repartidas en dos anillos
+            b['inicio_beta'], b['centro_beta'] = ahora, b['rect'].center
+            b['tablas'] = [{'tipo': tipo, 'ang': i * math.tau / len(TIPOS_TABLA), 'radio': BETA['orbita'][i % 2], 'nace': ahora,
+                            'prox': ahora + random.randint(*BETA['primer_ataque']), 'pos': b['rect'].center} for i, tipo in enumerate(TIPOS_TABLA)]
+        fase_arceus(b, BETA['fases'])
         b['rect'].centerx = round(b['centro_beta'][0] + math.sin((ahora - b['inicio_beta']) / BETA['periodo']) * BETA['vaiven'])
-        if ahora >= b['prox_tabla']:                                # invoca la tabla del tipo que sigue (y la mas vieja se va)
-            b['prox_tabla'] = ahora + BETA['tabla']
-            tipo = TIPOS_TABLA[b['n_tabla'] % len(TIPOS_TABLA)]; b['n_tabla'] += 1
-            b['tablas'].append({'tipo': tipo, 'ang': random.uniform(0, math.tau), 'radio': random.uniform(*BETA['orbita']), 'nace': ahora,
-                                'prox': ahora + BETA['ataque_tabla'][0] // 2, 'pos': b['rect'].center})
-            if len(b['tablas']) > BETA['max_tablas']: b['tablas'].pop(0)
         for t in b['tablas']:
             t['pos'] = pos_tabla(b, t, ahora)
             if ahora >= t['prox']: t['prox'] = ahora + random.randint(*BETA['ataque_tabla']); _ataque_tabla(b, t, ctx)
@@ -1808,10 +1934,16 @@ def armar_ia():
                     pygame.draw.circle(ventana, (255, 60, 40), (mx, my), max(1, round(radio * k)), 0 if k > 0.95 else 2)
                     for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                         pygame.draw.line(ventana, (255, 60, 40), (mx + ox * radio * 0.6, my + oy * radio * 0.6), (mx + ox * radio * 1.2, my + oy * radio * 1.2), 3)
-                elif a['clase'] == 'hiperrayo':                     # linea fija hacia donde va a salir el rayo, cada vez mas gruesa
+                elif a['clase'] == 'hiperrayo':                     # franja del ancho de Arceus hacia donde va a salir el rayo, cada vez mas marcada
                     fx, fy = a['fin'][0] - cx, a['fin'][1] - cy
-                    pygame.draw.line(ventana, (255, 240, 180), (x, y), (fx, fy), 2 + round(ARCEUS['ancho_hiperrayo'] * k * 0.6))
+                    velo = pygame.Surface(ventana.get_size(), pygame.SRCALPHA)
+                    pygame.draw.line(velo, (255, 240, 180, 50 + round(110 * k)), (x, y), (fx, fy), max(2, round(a['ancho'] * 2 * k)))
+                    ventana.blit(velo, (0, 0))
                     pygame.draw.line(ventana, (255, 90, 40), (x, y), (fx, fy), 2)
+                    pygame.draw.circle(ventana, (255, 250, 220), (x, y), round(10 + 30 * k), 3)
+                elif a['clase'] == 'vozarron':                      # Arceus junta aire: 3 anillos que laten alrededor suyo
+                    for i in range(3):
+                        pygame.draw.circle(ventana, (255, 245, 210), (x, y), round(max(e['rect'].size) / 2 + 10 + i * 18 + 14 * k), 3)
                 elif a['clase'] == 'rayo_hielo':                    # linea celeste fija que se va engrosando (con los rebotes)
                     puntos = [(px - cx, py - cy) for px, py in a.get('puntos', ((e['rect'].centerx, e['rect'].centery), a['fin']))]
                     pygame.draw.lines(ventana, (200, 240, 255), False, puntos, 2 + round(REGICE['ancho_rayo'] * k * 0.8))
@@ -1842,7 +1974,7 @@ def armar_ia():
                             bx_ = x + i * 26
                             by_ = y + lado * (r * (1 - 0.7 * k))
                             pygame.draw.polygon(ventana, (255, 240, 230), [(bx_ - 10, by_), (bx_ + 10, by_), (bx_, by_ - lado * 26)])
-                elif a['clase'] in ('fuerza_bruta', 'enfado', 'gigaimpacto'):   # franja roja por donde va a embestir
+                elif a['clase'] in ('fuerza_bruta', 'enfado', 'gigaimpacto', 'velocidad_extrema'):   # franja roja por donde va a embestir
                     W, H = ventana.get_size()
                     velo = pygame.Surface((W, H), pygame.SRCALPHA)
                     largo, ancho = a.get('largo', REGIROCK['largo_fuerza']), a.get('ancho', REGIROCK['ancho_fuerza'])
@@ -1851,22 +1983,49 @@ def armar_ia():
                     pygame.draw.circle(velo, (230, 30, 30, 70 + round(90 * k)), (round(fin[0]), round(fin[1])), ancho // 2)
                     ventana.blit(velo, (0, 0))
                     pygame.draw.line(ventana, (255, 60, 40), (x, y), fin, 2)
-                elif a['clase'] == 'sentencia':                     # el sello de Arceus del color de su tipo
+                elif a['clase'] == 'sentencia':                     # el sello de Arceus (tipo normal) y al final una columna de luz que baja del cielo
                     centro = (round(a['mira'][0] - cx), round(a['mira'][1] - cy))
-                    dibujar_sello(ventana, centro, ARCEUS['radio_sentencia'], (colores or {}).get(a['tipo'], (255, 255, 255)), k, ahora)
-                    if a.get('rompe'): pygame.draw.circle(ventana, (40, 10, 60), centro, max(1, round(ARCEUS['radio_vacio'] * k)), 4)
-            for r in e.get('rayos', ()):                            # rayos de Arceus: marca en el piso y una linea que baja del cielo
+                    dibujar_sello(ventana, centro, a['radio'], (colores or {}).get(a['tipo'], (255, 255, 255)), k, ahora)
+                    if k > 0.7:
+                        caida = (k - 0.7) / 0.3
+                        pygame.draw.line(ventana, (255, 250, 225), (centro[0], centro[1] - 600), (centro[0], centro[1] - round(600 * (1 - caida))), round(4 + a['radio'] * 0.3 * caida))
+            for m in e.get('meteoros', ()):                         # Meteoros: sombra que se llena y el meteorito que baja en diagonal
+                if m['pos'] is None: continue
+                k = min(1.0, (ahora - m['inicio']) / max(1, m['hasta'] - m['inicio']))
+                mx, my = round(m['pos'][0] - cx), round(m['pos'][1] - cy)
+                radio = ARCEUS['radio_meteoro']
+                pygame.draw.circle(ventana, (60, 40, 30), (mx, my), max(1, round(radio * k)))
+                pygame.draw.circle(ventana, (255, 120, 50), (mx, my), radio, 2)
+                if k > 0.45:
+                    v = (k - 0.45) / 0.55
+                    px, py = mx + 280 * (1 - v), my - 460 * (1 - v)
+                    pygame.draw.line(ventana, (255, 200, 120), (px + 60, py - 100), (px, py), 6)
+                    pygame.draw.circle(ventana, (255, 150, 60), (round(px), round(py)), 17)
+                    pygame.draw.circle(ventana, (255, 240, 200), (round(px), round(py)), 8)
+            for o in e.get('vozarron', ()):                         # Vozarron: circulos que se agrandan
+                if ahora < o['inicio']: continue
+                radio = round(ARCEUS['radio_vozarron'] * (ahora - o['inicio']) / ARCEUS['dura_vozarron'])
+                if radio > 4:
+                    centro = (round(o['pos'][0] - cx), round(o['pos'][1] - cy))
+                    pygame.draw.circle(ventana, (200, 190, 150), centro, radio, ARCEUS['grosor_vozarron'] // 2)
+                    pygame.draw.circle(ventana, (255, 250, 230), centro, radio, 3)
+            r = e.get('recupera')
+            if r:                                                   # Recuperacion: estrellitas que llegan hasta Arceus y un anillo que se llena
                 k = min(1.0, (ahora - r['inicio']) / max(1, r['hasta'] - r['inicio']))
-                rx, ry = round(r['pos'][0] - cx), round(r['pos'][1] - cy)
-                pygame.draw.circle(ventana, (255, 250, 200), (rx, ry), ARCEUS['radio_rayo'], 2)
-                pygame.draw.circle(ventana, (255, 250, 200), (rx, ry), max(1, round(ARCEUS['radio_rayo'] * k)), 0 if k > 0.95 else 2)
-                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):  # hacia donde salen las 4 balas
-                    pygame.draw.line(ventana, (230, 220, 160), (rx + dx * ARCEUS['radio_rayo'], ry + dy * ARCEUS['radio_rayo']), (rx + dx * (ARCEUS['radio_rayo'] + 18), ry + dy * (ARCEUS['radio_rayo'] + 18)), 2)
-                if k > 0.6: pygame.draw.line(ventana, (255, 255, 230), (rx, ry - 500), (rx, ry), round(2 + 6 * (k - 0.6) / 0.4))
+                radio = max(e['rect'].size) // 2 + 24
+                for i in range(10):
+                    v = ((ahora / 900) + i / 10) % 1
+                    ang = i * math.tau / 10 + ahora / 1500
+                    sx, sy = x + math.cos(ang) * (radio + 110 * (1 - v)), y + math.sin(ang) * (radio + 110 * (1 - v))
+                    largo = 4 + 4 * v
+                    pygame.draw.line(ventana, (255, 240, 120), (sx - largo, sy), (sx + largo, sy), 2)
+                    pygame.draw.line(ventana, (255, 240, 120), (sx, sy - largo), (sx, sy + largo), 2)
+                pygame.draw.circle(ventana, (120, 110, 60), (x, y), radio, 3)
+                pygame.draw.arc(ventana, (255, 240, 140), pygame.Rect(x - radio, y - radio, radio * 2, radio * 2), math.pi / 2, math.pi / 2 + math.tau * k, 5)
             haz = e.get('haz')
             if haz:
                 puntos = [(px - cx, py - cy) for px, py in haz.get('puntos', (haz.get('desde'), haz.get('fin')))]
-                ancho = haz.get('ancho', ARCEUS['ancho_hiperrayo'])
+                ancho = haz.get('ancho', 30)
                 afuera, adentro = haz.get('color', ((255, 200, 80), (255, 255, 240)))
                 if haz.get('tick'): ancho += round(math.sin(ahora / 50) * 4)
                 pygame.draw.lines(ventana, afuera, False, puntos, ancho * 2)

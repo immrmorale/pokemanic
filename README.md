@@ -363,21 +363,31 @@ Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un 
 - **Agarrón:** si estás cerca, se marca un anillo naranja; si seguís adentro cuando se cierra, te agarra y te tira para atrás. **Solo lastima si chocás contra una pared.**
 - **Regis chiquitos:** después de despertar, cada 11 s llama a 2 versiones chicas de los Regis, como mucho 4 a la vez.
 
-**Arceus** tiene la barra de vida partida en **3 fases** (un tercio cada una), y avisa con un cartel cuando cambia:
-1. **Rayos e Hiperrayo:** caen rayos de tipo normal en cualquier lugar del mapa (uno siempre cerca tuyo). Primero se marca un círculo en el piso y, al caer, cada rayo se abre en 4 balas: arriba, abajo, izquierda y derecha. Además tira **Hiperrayo**: una línea fija hacia donde estabas que se va engrosando; salí de la línea antes de que dispare. Después del Hiperrayo **queda 3 s quieto recargando** (estrellitas arriba de la cabeza): es el momento de pegarle.
-2. **Multitipo y Sentencia:** cada golpe que le das le cambia el tipo (y con eso sus debilidades). Tira **Sentencia** como los puñetazos de Regigigas pero más grande, de a 3 seguidas: aparece el **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) del color de su tipo, girando y llenándose hasta que cae.
-3. **Todo junto:** rayos, Hiperrayo, Multitipo y Sentencia, más seguido. **Cada Sentencia rompe el piso** y deja un **vacío** que nadie puede cruzar, ni volando (los ataques sí pasan por arriba). Nunca aparece debajo de nadie ni delante de las puertas.
+**Arceus** tiene la barra de vida partida en **3 fases** (100–65%, 65–20% y 20–0%) y avisa con un cartel cuando cambia. Usa un movimiento por vez, elegido al azar entre los de su fase, con una pausa corta entre uno y otro:
+
+| Movimiento | Fase 1 | Fase 2 | Fase 3 | Qué hace |
+|---|:-:|:-:|:-:|---|
+| **Hiperrayo** | ✔ | ✔ | ✔ | Una franja del ancho de Arceus marca hacia dónde va a salir. Después dispara un rayo de tipo normal, **del mismo ancho que Arceus**, que sale de él y va **siguiendo por donde estabas** medio segundo antes (se esquiva moviéndose). Al terminar **queda 3 s quieto recargando** (estrellitas arriba de la cabeza). |
+| **Velocidad Extrema** | ✔ | | ✔ | Una franja roja corta avisa y embiste rapidísimo hacia vos. **Si choca contra una pared no queda aturdido.** |
+| **Vozarrón** | ✔ | ✔ | ✔ | Salen de Arceus **3 círculos** que se van agrandando durante **5 s**. Cada uno te pega una vez si su borde te pasa por encima (se salta con el esquive o se escapa corriendo). |
+| **Meteoros** | ✔ | ✔ | ✔ | Caen **7 meteoritos rápidos** uno atrás del otro donde estás parado, cada uno avisado **1 s** antes con una sombra. Arceus sigue haciendo otras cosas mientras caen. |
+| **Sentencia (chica)** | | ✔ | | El **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) aparece donde estás, gira, se llena y cae del cielo una columna de luz. Tipo normal, un poco más chico que el sello original. De a 3 seguidas. |
+| **Sentencia (grande)** | | | ✔ | Igual, pero un poco **más grande** que el original. De a 2 seguidas. |
+| **Protección** | | | ✔ | Escudo verde de **3 s**: no se mueve, no ataca y no recibe daño. Lo usa si le pegás mucho seguido, o cada tanto. |
+| **Recuperación** | | | ✔ | Se queda **3 s quieto juntando estrellitas** (no ataca). **Si le pegás se corta**; si no, se cura un 8%. Curarse no lo devuelve a la fase anterior. |
+
+**Recuperación, Velocidad Extrema e Hiperrayo nunca van juntos:** entre uno y otro de esos tres pasan al menos 2,5 s. Los números de cada movimiento (y qué movimientos hay en cada fase) están en `ARCEUS` y `MOVS_ARCEUS` en `combate.py`.
 
 Arceus no tira el anillo de balas ni las piedras verdes.
 
-**Arceus Beta:** cuando vencés a Arceus, desaparece y empiezan a caer Sentencias por toda la mitad de arriba de la arena hasta que queda vacía. Si estabas arriba, te pasa a la mitad de abajo. Ahí aparece **Arceus Beta**, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
-1. **Tablas:** cada 2,2 s invoca la tabla del tipo que sigue (las 17, todas menos normal; como mucho 6 a la vez). Las tablas dan vueltas a su alrededor, brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
-   - eléctrico, tierra, roca, psíquico, fantasma, hada y dragón: una marca grande que cae donde estás;
+**Arceus Beta:** cuando vencés a Arceus, desaparece y **quedás en el medio de la arena**. Empiezan a caer Sentencias alrededor, de afuera hacia adentro, y donde caen el **piso y las paredes se vuelven vacío**. Al final todo es vacío menos un **círculo de piso en el medio** (3 casillas de radio) donde estás vos. Entonces aparece **Arceus Beta** delante tuyo, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro, con **las tablas girando a su alrededor**; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
+1. **Tablas:** llega con 13 tablas girando en dos anillos: todas menos **agua, dragón, acero y fantasma** (y en los juegos no hay tabla normal). Brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
+   - eléctrico, tierra, roca, psíquico y hada: una marca grande que cae donde estás;
    - fuego, volador, veneno, bicho, lucha y siniestro: 3 balas grandes en abanico;
-   - agua, planta, hielo y acero: una bala grande apuntada.
+   - planta y hielo: una bala grande apuntada.
 2. y 3. **Por definir** (por ahora sigue con las tablas).
 
-Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
+Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
 
 **Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
