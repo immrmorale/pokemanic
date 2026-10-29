@@ -19,13 +19,14 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 5. [Niveles y stats](#niveles-y-stats)
 6. [Evoluciones](#evoluciones)
 7. [Amistad: pokemon que se unen](#amistad-pokemon-que-se-unen)
-8. [Eras y salas](#eras-y-salas)
-9. [Jefes](#jefes)
-10. [Tienda](#tienda)
-11. [Clima](#clima)
-12. [Características de cada tipo](#características-de-cada-tipo)
-13. [Tabla de tipos](#tabla-de-tipos)
-14. [Herramientas](#herramientas)
+8. [Hall](#hall)
+9. [Eras y salas](#eras-y-salas)
+10. [Jefes](#jefes)
+11. [Tienda](#tienda)
+12. [Clima](#clima)
+13. [Características de cada tipo](#características-de-cada-tipo)
+14. [Tabla de tipos](#tabla-de-tipos)
+15. [Herramientas](#herramientas)
 
 ---
 
@@ -58,6 +59,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 | Asistencia 1 / Asistencia 2 | F / G | LT / B |
 | Cambiar al pokemon 1, 2 o 3 | 1 / 2 / 3 | cruz izq / arriba / der |
 | Interactuar, comprar, hablar | E | A |
+| Bailar (amigar / confundir) | V | palanca der (R3) |
 | Menú de equipo | TAB | Back |
 | Pausa | ESC | Start |
 
@@ -75,8 +77,13 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 
 ## Cómo se juega
 
-- Elegís tu compañero inicial: **Electrike** (eléctrico, velocista), **Sandshrew** (tierra, tanque) o **Mareanie** (veneno/agua, estratega).
-- **Partidas:** al tocar *Jugar* elegís una de las **3 partidas guardadas**. Se guarda sola al entrar a cada sala, al completarla y al comprar (equipo, niveles, experiencia, EV, MT, objetos, monedas y el camino recorrido). Si cae todo el equipo, podés reintentar la sala desde como estabas al entrar.
+- **Partida nueva:** se abre el tiempo (la apertura del Explorers of Time) y flotás en el túnel como una lucecita sin forma. Llega Celebi dormido, se despierta, te ve y te pregunta tu **nombre**, tu **género** (chico, chica o prefiero no decirlo; cambia los textos) y **qué pokemon sos** (como armar tu cuerpo en Deltarune: ese pokemon sos vos y lo controlás). Uno por rol, y todos evolucionan:
+  - **Mudkip** (agua, tanque → Swampert): aguanta los golpes y pelea de cerca.
+  - **Torchic** (fuego, atacante → Blaziken): pega fuerte.
+  - **Riolu** (lucha, velocista → Lucario): rápido, vive del parry y del combo.
+  - **Natu** (psíquico/volador, estratega → Xatu): controla la sala con estados y desde lejos.
+- **Partidas:** al tocar *Jugar* elegís una de las **3 partidas guardadas**. Se guarda sola al entrar a cada sala, al completarla y al comprar (equipo, niveles, experiencia, EV, MT, objetos, monedas, el camino recorrido y tu perfil).
+- **Si cae todo el equipo** se pierde el viaje y Celebi te lleva al [hall](#hall). Tus amigos se quedan.
 - Peleás con un solo pokemon a la vez. Los otros dos esperan en la **banca**. Cambiar de pokemon tiene una espera de 2 s. Si cambiás en el agua a uno que no nada, nada solo hasta la orilla.
 - Cada sala de combate trae enemigos, a veces en 2 o 3 oleadas. Al limpiar la sala aparece una **llave**, y con la llave se abren las puertas.
 - Cada puerta muestra un cartel con lo que hay detrás: una variante de sala, la tienda, el jefe o la era siguiente.
@@ -155,11 +162,12 @@ Algunos pokemon tienen una asistencia propia:
 |---|---|
 | Derrotar a un pokemon | fórmula de 5ª generación: más contra los de más nivel, menos contra los débiles. Los jefes dan el triple |
 | Completar una sala | lo mismo que derrotar a tu propia especie al nivel de la sala |
-| Romper objetos | 2 + (nivel de la sala ÷ 3) |
+| Romper objetos | 1 + (nivel de la sala ÷ 6) |
 | Comprar en la tienda | el precio ÷ 6 |
 
 - Los pokemon de la **banca ganan 3/4** de la experiencia.
-- La experiencia general es casi el doble que antes (`XP_MULT` 0,4 en `combate.py`).
+- **Ajuste elástico:** si vas por encima del nivel de los enemigos comunes de la sala ganás menos experiencia, y si vas por debajo, más (cada 2,5 niveles de diferencia se duplica o se divide por 2, entre x0,1 y x2,5). Así tendés a ir **2 niveles arriba** de los comunes: el semijefe queda parejo con vos y el Regi de cada era un poco arriba. Sirve también para que la banca no quede atrás.
+- `XP_MULT` es 0,2 (con 0,4 terminabas la Era Glacial 11 niveles arriba de los enemigos). Todo se ajusta arriba de todo en `combate.py`.
 - Cada especie sube con su propia **curva** (rápida, media, media-lenta o lenta), como en los juegos.
 
 ### Nivel de los enemigos
@@ -256,9 +264,53 @@ En este juego **los pokemon no se capturan**. Cuando derrotás a uno, a veces se
 **Cuándo es más probable:**
 - Con pokemon comunes, porque depende del ratio de captura de la especie.
 - Si sos de más nivel que él.
+- Según su **naturaleza** (ver abajo).
+- Si le **bailaste** cuando tenía poca vida.
 - Con el **Lazo Amistad** de la tienda, que duplica la chance.
 
 Los jefes nunca se unen, y como mucho se une uno por sala.
+
+**Mínimo de amigos:** en la **segunda sala de la Era Glacial** alguien quiere unirse seguro. En cada era hay **al menos 2** ofertas: la primera antes de la sala 11 y la segunda antes de la 23. Además, cada sala de combate que completás sin que nadie quiera unirse suma +2,5% de chance para la siguiente (se reinicia cuando alguien quiere).
+
+### Naturalezas
+
+Cada pokemon (enemigos, tu inicial y los que se unen) nace con una de las **25 naturalezas** de los juegos, al azar. Sube un 10% un stat y baja un 10% otro (las 5 neutras no cambian nada), y además dice **qué tan fácil se amiga**. En la ficha, el stat que sube se ve en verde y el que baja en rojo.
+
+| Se amiga | Naturalezas |
+|---|---|
+| muy fácil (x1,5 a x1,8) | Afable, Amable, Dócil, Alegre, Plácida |
+| fácil (x1,1 a x1,4) | Ingenua, Mansa, Serena, Floja, Activa, Modesta |
+| normal | Fuerte, Osada, Rara, Alocada, Pícara, Seria |
+| cuesta (x0,5 a x0,8) | Huraña, Grosera, Agitada, Tímida, Miedosa, Firme, Audaz, Cauta |
+
+Las de los enemigos también cambian un poco su daño (si le suben o le bajan el ataque).
+
+### Baile
+
+Con **V** (R3 en el control) tu pokemon baila un momento. Gasta 30 de energía y tiene 6 s de espera. Afecta a los que estén cerca:
+- **Con poca vida** (menos del 40%): **se encariñan**. Asienten y les aparece un corazoncito arriba de la cabeza. Cada baile suma +70% de chance de que quieran unirse cuando los derrotes (hasta 3 bailes).
+- **Con vida:** el 55% de las veces **se confunden** por 4,5 s. Les salen estrellitas, tropiezan, caminan sin rumbo, no te atacan y le pegan a sus compañeros si chocan con ellos.
+
+Los jefes y los Regis chiquitos no se dejan. En la tienda y en el hall no se baila.
+
+Todo el que se une queda como **amigo para siempre**, aunque después pierdas ese viaje: lo vas a encontrar en el hall.
+
+---
+
+## Hall
+
+Es a donde volvés cuando cae todo tu equipo (como la casa de Hades). Una pantalla sin enemigos:
+- **Tus amigos pasean** por el hall. Acercate y apretá **E** para hablarles: ahí elegís quién viene al próximo viaje (hasta 3). Si tu equipo está lleno, lo cambiás por alguien que no esté peleando.
+- **Celebi** está al lado del portal: te cuenta cuántos viajes hiciste, cuántas eras derrotaste y cuántos amigos tenés.
+- **El portal** (puerta del norte, *VIAJE TEMPORAL*) arranca otro viaje desde la Era Glacial.
+- **Cada viaje empieza de cero:** todos vuelven a su primera forma (un Swampert vuelve a ser Mudkip) y al nivel 5, sin monedas ni objetos. Lo que conservan son sus IV, su amistad y su sinergia. La charla muestra su mejor viaje (hasta qué forma y nivel llegó).
+
+**Dónde queda** (Ajustes > Hall):
+- **Automático:** el claro del bosque donde aparece Celebi, con las ruinas del templo, hasta que derrotes una era. Después, el lugar atemporal.
+- **Atemporal:** una isla flotando en el flujo del tiempo, con el piso de la última era que derrotaste.
+- **Celebi:** siempre el claro del bosque.
+
+**Animaciones:** tus amigos caminan y al quedarse quietos se sientan, se acuestan, miran para arriba o duermen. Asienten cuando les hablás y saltan de alegría cuando los llevás al viaje. Al caer el equipo, el último se desmaya antes de que se oscurezca la pantalla.
 
 ---
 
@@ -268,6 +320,7 @@ La partida sigue la historia de la humanidad:
 - **5 eras de 30 salas** cada una.
 - Al final, **El Origen**, con 3 salas fijas: tienda, Regigigas y Arceus.
 - En cada era, el **semijefe** está en la sala 15 y el **Regi** en la sala 30.
+- **Portal de Celebi:** cuando cae el Regi, Celebi aparece al lado de la puerta y la vuelve un portal del tiempo (no hace falta la llave). Hablale con E para cruzar ya, o juntá las monedas y cruzá cuando quieras: el túnel del tiempo te lleva a la era siguiente.
 - La **tienda** aparece cada 5 a 10 salas.
 
 | Era | Regi (sala 30) | Semijefe (sala 15) | Climas comunes | Variantes de sala | Enemigos |
@@ -363,21 +416,31 @@ Los jefes con fases muestran en la barra de vida dónde cambian y avisan con un 
 - **Agarrón:** si estás cerca, se marca un anillo naranja; si seguís adentro cuando se cierra, te agarra y te tira para atrás. **Solo lastima si chocás contra una pared.**
 - **Regis chiquitos:** después de despertar, cada 11 s llama a 2 versiones chicas de los Regis, como mucho 4 a la vez.
 
-**Arceus** tiene la barra de vida partida en **3 fases** (un tercio cada una), y avisa con un cartel cuando cambia:
-1. **Rayos e Hiperrayo:** caen rayos de tipo normal en cualquier lugar del mapa (uno siempre cerca tuyo). Primero se marca un círculo en el piso y, al caer, cada rayo se abre en 4 balas: arriba, abajo, izquierda y derecha. Además tira **Hiperrayo**: una línea fija hacia donde estabas que se va engrosando; salí de la línea antes de que dispare. Después del Hiperrayo **queda 3 s quieto recargando** (estrellitas arriba de la cabeza): es el momento de pegarle.
-2. **Multitipo y Sentencia:** cada golpe que le das le cambia el tipo (y con eso sus debilidades). Tira **Sentencia** como los puñetazos de Regigigas pero más grande, de a 3 seguidas: aparece el **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) del color de su tipo, girando y llenándose hasta que cae.
-3. **Todo junto:** rayos, Hiperrayo, Multitipo y Sentencia, más seguido. **Cada Sentencia rompe el piso** y deja un **vacío** que nadie puede cruzar, ni volando (los ataques sí pasan por arriba). Nunca aparece debajo de nadie ni delante de las puertas.
+**Arceus** tiene la barra de vida partida en **3 fases** (100–65%, 65–20% y 20–0%) y avisa con un cartel cuando cambia. Usa un movimiento por vez, elegido al azar entre los de su fase, con una pausa corta entre uno y otro:
+
+| Movimiento | Fase 1 | Fase 2 | Fase 3 | Qué hace |
+|---|:-:|:-:|:-:|---|
+| **Hiperrayo** | ✔ | ✔ | ✔ | Una franja del ancho de Arceus marca hacia dónde va a salir. Después dispara un rayo de tipo normal, **del mismo ancho que Arceus**, que sale de él y va **siguiendo por donde estabas** medio segundo antes (se esquiva moviéndose). Al terminar **queda 3 s quieto recargando** (estrellitas arriba de la cabeza). |
+| **Velocidad Extrema** | ✔ | | ✔ | Una franja roja corta avisa y embiste rapidísimo hacia vos. **Si choca contra una pared no queda aturdido.** |
+| **Vozarrón** | ✔ | ✔ | ✔ | Salen de Arceus **3 círculos** que se van agrandando durante **5 s**. Cada uno te pega una vez si su borde te pasa por encima (se salta con el esquive o se escapa corriendo). |
+| **Meteoros** | ✔ | ✔ | ✔ | Caen **7 meteoritos rápidos** uno atrás del otro donde estás parado, cada uno avisado **1 s** antes con una sombra. Arceus sigue haciendo otras cosas mientras caen. |
+| **Sentencia (chica)** | | ✔ | | El **sello de Arceus** (círculo con un triángulo y un círculo en cada punta) aparece donde estás, gira, se llena y cae del cielo una columna de luz. Tipo normal, un poco más chico que el sello original. De a 3 seguidas. |
+| **Sentencia (grande)** | | | ✔ | Igual, pero un poco **más grande** que el original. De a 2 seguidas. |
+| **Protección** | | | ✔ | Escudo verde de **3 s**: no se mueve, no ataca y no recibe daño. Lo usa si le pegás mucho seguido, o cada tanto. |
+| **Recuperación** | | | ✔ | Se queda **3 s quieto juntando estrellitas** (no ataca). **Si le pegás se corta**; si no, se cura un 8%. Curarse no lo devuelve a la fase anterior. |
+
+**Recuperación, Velocidad Extrema e Hiperrayo nunca van juntos:** entre uno y otro de esos tres pasan al menos 2,5 s. Los números de cada movimiento (y qué movimientos hay en cada fase) están en `ARCEUS` y `MOVS_ARCEUS` en `combate.py`.
 
 Arceus no tira el anillo de balas ni las piedras verdes.
 
-**Arceus Beta:** cuando vencés a Arceus, desaparece y empiezan a caer Sentencias por toda la mitad de arriba de la arena hasta que queda vacía. Si estabas arriba, te pasa a la mitad de abajo. Ahí aparece **Arceus Beta**, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
-1. **Tablas:** cada 2,2 s invoca la tabla del tipo que sigue (las 17, todas menos normal; como mucho 6 a la vez). Las tablas dan vueltas a su alrededor, brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
-   - eléctrico, tierra, roca, psíquico, fantasma, hada y dragón: una marca grande que cae donde estás;
+**Arceus Beta:** cuando vencés a Arceus, desaparece y **quedás en el medio de la arena**. Empiezan a caer Sentencias alrededor, de afuera hacia adentro, y donde caen el **piso y las paredes se vuelven vacío**. Al final todo es vacío menos un **círculo de piso en el medio** (3 casillas de radio) donde estás vos. Entonces aparece **Arceus Beta** delante tuyo, mucho más grande que vos, flotando sobre el vacío y moviéndose de un lado al otro, con **las tablas girando a su alrededor**; se le pega desde el borde o a distancia. Tiene el doble de vida que Arceus y su barra también se parte en 3 fases.
+1. **Tablas:** llega con 13 tablas girando en dos anillos: todas menos **agua, dragón, acero y fantasma** (y en los juegos no hay tabla normal). Brillan antes de atacar y tiran ataques de su tipo más grandes que los normales:
+   - eléctrico, tierra, roca, psíquico y hada: una marca grande que cae donde estás;
    - fuego, volador, veneno, bicho, lucha y siniestro: 3 balas grandes en abanico;
-   - agua, planta, hielo y acero: una bala grande apuntada.
+   - planta y hielo: una bala grande apuntada.
 2. y 3. **Por definir** (por ahora sigue con las tablas).
 
-Al vencer a Arceus Beta el piso vuelve y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
+Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus.
 
 **Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
@@ -653,6 +716,7 @@ Programas aparte para preparar el juego. No se usan mientras jugás.
 python herramientas.py descargar           baja sprites y retratos del PMD (SpriteCollab) a assets/sprites/pokemones
 python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI (stats, movimientos, evoluciones)
 python herramientas.py recortar hoja.png   recorta sprites de una hoja y los guarda en assets/mundo
+python herramientas.py viaje               recorta el túnel del viaje temporal (Explorers of Sky > Time Travel) para la partida nueva
 python herramientas.py visor               ventana para mirar salas generadas sin jugar
 python herramientas.py salas               dibuja en texto algunas salas generadas
 python herramientas.py plan                muestra el plan de salas de una partida

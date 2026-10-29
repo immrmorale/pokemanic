@@ -689,6 +689,48 @@ def armar_generacion():
                                                         'tendero': (ancho // 2, 62), 'interior': True})
 
 
+    def generar_hall(era, estilo='celebi', semilla=None):
+        """El hall: a donde volves al perder y desde donde sale cada viaje. Del tamaño de la pantalla (como la tienda), sin enemigos.
+        estilo 'celebi': el claro del bosque donde aparece Celebi (hierba, arboles y las columnas del templo alrededor del portal).
+        estilo 'atemporal': una isla flotando en el flujo del tiempo (el vacio con estrellas alrededor); el piso es el de la era
+        que se le pase, asi cambia segun hasta donde llegaste. El portal (puerta del norte) arranca otro viaje.
+        'guardian' es donde esta Celebi (se le habla con E)."""
+        azar = random.Random(semilla)
+        tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
+        ancho, alto = columnas * tam, filas * tam
+        cc, fc = columnas // 2, filas // 2
+        guardian = (ancho // 2 + 70, 2 * tam + 34)                       # al lado del portal
+        if estilo == 'atemporal':
+            m = _matriz_base(columnas, filas, None, ['norte'])
+            for f in range(filas):                                        # isla: una elipse de piso y el vacio alrededor (tambien en el borde)
+                for c in range(columnas):
+                    if m[f][c] == 'puerta': continue
+                    adentro = ((c - cc) / (cc - 1.5)) ** 2 + ((f - fc - 0.5) / (fc - 1.0)) ** 2 <= 1
+                    camino = abs(c - cc) <= 1 and f <= fc                 # puente de piso hasta el portal
+                    m[f][c] = 'suelo' if adentro or camino else 'vacio'
+            objetos = [crear_objeto('pilar_de_cristal', (ancho // 2 - 6 * tam, alto // 2 - tam)), crear_objeto('pilar_de_cristal', (ancho // 2 + 6 * tam, alto // 2 - tam)),
+                       crear_objeto('columna_rota', (ancho // 2 - 4 * tam, alto - 3 * tam)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, alto - 3 * tam))]
+        else:
+            m = _matriz_base(columnas, filas, None, ['norte'])
+            for f in range(1, filas - 1):                                 # claro del bosque: hierba con un caminito de piedra hasta el portal
+                for c in range(1, columnas - 1):
+                    m[f][c] = 'suelo' if abs(c - cc) <= 1 else 'hierba'
+            for f in range(filas - 5, filas - 2):                         # laguna chiquita abajo a la izquierda
+                for c in range(3, 7):
+                    if azar.random() < 0.85: m[f][c] = 'agua'
+            objetos = [crear_objeto('columna_rota', (ancho // 2 - 4 * tam, 2 * tam + 10)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, 2 * tam + 10)),   # ruinas del templo
+                       crear_objeto('columna_rota', (ancho // 2 - 4 * tam, 5 * tam)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, 5 * tam))]
+            objetos += [crear_objeto('arbol', (x, y)) for x, y in ((2 * tam, 2 * tam), (ancho - 2 * tam, 2 * tam), (ancho - 2 * tam, alto - 2 * tam),
+                                                                   (2 * tam, alto // 2 - tam), (ancho - 3 * tam, alto // 2))]
+            objetos += [crear_objeto('arbusto', (x, y)) for x, y in ((8 * tam, alto - 2 * tam), (ancho - 7 * tam, alto - 3 * tam))]
+        objetos.append(crear_objeto('celebi', guardian))
+        for o in objetos:
+            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+            o['vida'] = o['max_vida'] = None                              # en el hall no se rompe nada
+        return _armar(m, objetos, tam, None, ['norte'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'guardian': guardian,
+                                                         'interior': False, 'inicio': (ancho // 2, alto // 2 + 2 * tam)})
+
+
     def generar_nivel(semilla=None):
         """Compatibilidad con mainprubag.py: sala con las claves viejas (paredes, piedras, puertas, agua)."""
         sala = generar_sala(3, 'patio del castillo', 'sur', ['norte', 'este', 'oeste'], semilla)
@@ -1431,6 +1473,22 @@ def armar_entorno():
         if caen: ent['version'] += 1
 
 
+    def vaciar_alrededor(ent, centro, libre, x=None, y=None, radio=None):
+        """Piso y paredes se vuelven vacio (toda la sala, o solo el circulo x, y, radio) menos un circulo de piso en el medio (centro, libre).
+        Lo que habia se guarda para que cerrar_vacios lo devuelva; los objetos que quedan sobre el vacio caen. Las puertas no se tocan."""
+        m = ent['m']
+        casillas = _casillas_circulo(ent, x, y, radio) if radio else [(f, c) for f in range(len(m)) for c in range(len(m[0]))]
+        libres = set(_casillas_circulo(ent, *centro, libre))
+        antes = ent.setdefault('antes_vacio', {})
+        for f, c in casillas:
+            t = m[f][c]
+            if (f, c) in libres or t in ('vacio', 'puerta', 'entrada'): continue
+            if cambiar(ent, f, c, 'vacio'): antes[(f, c)] = t; ent['celdas_vacio'].add((f, c))
+        caen = [o for o in ent['objetos'] if any(m[f][c] == 'vacio' for f, c in set(o['celdas']) | {casilla(ent, *o['rect'].center)})]
+        for o in caen: ent['objetos'].remove(o)
+        if caen: ent['version'] += 1
+
+
     def congelar_linea(ent, a, b, radio):
         """El rayo hielo de Regice deja escarcha (resbala) a lo largo de su camino."""
         pasos = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) // (ent['tam'] / 2)))
@@ -1491,9 +1549,12 @@ def armar_entorno():
 
 
     def cerrar_vacios(ent):
-        """El piso vuelve a donde habia vacios."""
+        """El piso vuelve a donde habia vacios (y las paredes que se habian vuelto vacio vuelven a ser pared)."""
+        antes, ocupadas = ent.pop('antes_vacio', {}), ent['ocupadas']
+        ent['ocupadas'] = set()                                      # sobre el vacio no hay nadie parado (Arceus Beta flotaba, pero ya cayo)
         for f, c in ent['celdas_vacio']:
-            if ent['m'][f][c] == 'vacio': cambiar(ent, f, c, 'suelo')
+            if ent['m'][f][c] == 'vacio': cambiar(ent, f, c, antes.get((f, c), 'suelo'))
+        ent['ocupadas'] = ocupadas
         ent['celdas_vacio'].clear(); ent['vacios'] = 0
 
 
