@@ -12,6 +12,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py efectos             arma los efectos de golpes, proyectiles por tipo, cura, nivel... con los Attack Effects del PMD
     python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
     python herramientas.py paneles             recorta fondos, botones y paneles de los menus de BW a assets/interfaz/paneles
+    python herramientas.py hud                 recorta barras de HP, iconos de estado, la Pokeball y los paneles en flecha de BW a assets/interfaz/hud
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
@@ -1188,6 +1189,68 @@ def herramienta_paneles():
     main()
 
 
+def herramienta_hud():
+    """De las hojas 'Battle HUD', 'Miscellaneous Icons' y 'Party Screen' de Blanco/Negro recorta las piezas del HUD y de los menus
+    a assets/interfaz/hud: las barras de HP del combate (la del rival y la tuya, con la etiqueta HP y la punta de flecha),
+    la de experiencia, el icono 'Lv', la Pokeball grande del fondo de la pantalla tactil, la textura de puntitos de los botones
+    tactiles, los iconos de estado (PSN, BRN, PAR, FRZ, FNT) y los 12 paneles en flecha del menu de equipo (panel_<fila>_<columna>).
+    Lo que rodea a cada pieza (el color de fondo de la hoja) queda transparente."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    LILA, AZUL, CAFE = (189, 189, 231), (66, 66, 255), (69, 57, 57)        # fondos de las hojas
+    PIEZAS = {'barra_rival': ('Battle HUD', (617, 24, 124, 15), LILA), 'barra_jugador': ('Battle HUD', (617, 44, 120, 21), LILA),
+              'barra_exp': ('Battle HUD', (640, 64, 97, 5), LILA), 'nv': ('Battle HUD', (701, 23, 8, 7), LILA),
+              'pokeball_chica': ('Battle HUD', (730, 8, 8, 8), LILA), 'textura_boton': ('Battle HUD', (628, 249, 5, 5), None),
+              'pokeball': ('Battle HUD', (0, 0, 512, 512), None)}
+    for k, estado in enumerate(('psn', 'brn', 'par', 'frz', 'fnt')): PIEZAS['estado_' + estado] = ('Miscellaneous Icons', (79, 311 + k * 9, 19, 6), AZUL)
+    for fila in range(3):
+        for col in range(4): PIEZAS['panel_%d_%d' % (fila, col)] = ('Party Screen', (5 + col * 128, 201 + fila * 48, 126, 46), (160, 234, 0))
+
+    def buscar_hoja(nombre):
+        for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas', 'blanco_negro', 'Miscellaneous'), assets):
+            if not os.path.isdir(carpeta): continue
+            for archivo in os.listdir(carpeta):
+                if archivo.endswith(' - ' + nombre + '.png') and 'Black _ White' in archivo: return os.path.join(carpeta, archivo)
+        return None
+
+    def transparente(sup, color):
+        """El color de fondo de la hoja que toca los bordes de la pieza pasa a ser transparente (relleno desde los bordes)."""
+        w, h = sup.get_size()
+        pendientes = [(x, 0) for x in range(w)] + [(x, h - 1) for x in range(w)] + [(0, y) for y in range(h)] + [(w - 1, y) for y in range(h)]
+        while pendientes:
+            x, y = pendientes.pop()
+            if not (0 <= x < w and 0 <= y < h): continue
+            c = sup.get_at((x, y))
+            if c.a == 0 or tuple(c)[:3] != color: continue
+            sup.set_at((x, y), (0, 0, 0, 0))
+            pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        return sup
+
+    def pokeball(sup):
+        """La Pokeball grande sin el fondo: todo lo que queda afuera del circulo es transparente."""
+        w, h = sup.get_size(); cx, cy, r = w / 2, h / 2, w / 2 - 6
+        for y in range(h):
+            for x in range(w):
+                if (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r: sup.set_at((x, y), (0, 0, 0, 0))
+        return sup
+
+    pygame.init(); pygame.display.set_mode((1, 1))
+    hojas, hechos, faltan = {}, 0, set()
+    carpeta = os.path.join(assets, 'interfaz', 'hud')
+    os.makedirs(carpeta, exist_ok=True)
+    for pieza, (hoja, rect, fondo) in PIEZAS.items():
+        if hoja not in hojas:
+            ruta = buscar_hoja(hoja)
+            hojas[hoja] = pygame.image.load(ruta).convert_alpha() if ruta else None
+        if not hojas[hoja]: faltan.add(hoja); continue
+        img = hojas[hoja].subsurface(rect).copy()
+        if fondo: img = transparente(img, fondo)
+        if pieza == 'pokeball': img = pokeball(img)
+        pygame.image.save(img, os.path.join(carpeta, pieza + '.png')); hechos += 1
+    print(hechos, 'piezas en assets/interfaz/hud')
+    if faltan: print('faltan las hojas (spriters-resource, Black/White > Miscellaneous):', ', '.join(sorted(faltan)))
+
+
 def ver_salas():
     """Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego)."""
     letras = {'suelo': '.', 'pared': '#', 'puerta': 'D', 'entrada': 'E', 'agua': '~', 'puente': '=', 'hierba': '"', 'lava': '%', 'sombra': 's'}
@@ -1223,6 +1286,7 @@ if __name__ == '__main__':
     elif orden == 'efectos': herramienta_efectos()
     elif orden == 'objetos': herramienta_objetos()
     elif orden == 'paneles': herramienta_paneles()
+    elif orden == 'hud': herramienta_hud()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()
