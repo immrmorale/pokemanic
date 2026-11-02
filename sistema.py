@@ -3,11 +3,12 @@ sistema.py - Lo basico para que el juego funcione: ajustes guardados, ventana, t
 
     opciones      cargar y guardar config.json
     partidas      las 3 partidas guardadas (carpeta partidas/)
+    tipografia    la letra de los juegos de DS (recortada de la hoja de HeartGold/SoulSilver)
     pantalla      dibuja en 1000x600 y escala a la ventana
     controles     teclas configurables, control (joystick) y codigo Konami
     animaciones   AnimadorPokemon: lee las hojas de sprites del PMD
 
-    from sistema import opciones, partidas, pantalla, controles, animaciones
+    from sistema import opciones, partidas, tipografia, pantalla, controles, animaciones
 """
 
 import json
@@ -109,6 +110,134 @@ def armar_partidas():
 
 
 partidas = armar_partidas()
+
+
+# ==================== tipografia ====================
+
+def armar_tipografia():
+    """La letra de los juegos de Pokemon de DS (la de HeartGold/SoulSilver, igual a la de Blanco/Negro), recortada letra por letra de
+    'assets/DS _ DSi - Pokemon HeartGold _ SoulSilver - Miscellaneous - Fonts.png'. Se usa igual que pygame.font.Font:
+
+        f = tipografia.fuente(24)             # el tamaño de pygame que se pedia antes (24 -> letra al x1, 40 -> al x2...)
+        f.render('¡Hola!', True, 'white')     # letra blanca con sombra oscura (la sombra se elige sola segun el color)
+        tipografia.fuente(24, borde=True)     # con borde oscuro alrededor: se lee sobre cualquier piso (HUD, nombres de enemigos)
+
+    Los pixeles se agrandan enteros (x1, x2, x3...) para que la letra no se vea borrosa. Si falta la hoja, usa la letra de pygame."""
+    RUTA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'DS _ DSi - Pokemon HeartGold _ SoulSilver - Miscellaneous - Fonts.png')
+    ORIGEN, CELDA = (24, 192), 16                     # grilla del bloque blanco de la hoja (letra gris con sombra gris clara)
+    TINTA, SOMBRA = (82, 82, 90), (165, 165, 173)
+    FILAS = {
+        0: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm',
+        1: 'nopqrstuvwxyzÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖ×ÙÚÛÜß' + 'àáâä' + '\0' + 'çèéêëìí',
+        2: 'îïñòóôö÷ùúûüŒœª' + 'º' + '\1\2\3' + '₽¡¿!?,.…·/‘’“”„«»()♂♀+-*#=&~:;',
+        3: {2: '♥', 4: '★', 10: '@', 11: '♪', 12: '%'},
+        9: {35: '←', 36: '↑', 37: '↓', 38: '→', 39: '▶'},
+    }
+    PARECIDOS = {'$': '₽', "'": '’', '"': '”', '<': '«', '>': '»', '[': '(', ']': ')', '{': '(', '}': ')', '_': '-', '|': '/', '\\': '/',
+                 '`': '‘', '^': '*', '–': '-', '—': '-', 'ã': 'a', 'õ': 'o', 'Ã': 'A', 'Õ': 'O', '°': 'º', '\t': ' '}
+    ESPACIO = 4
+    _glifos, _fuentes, _cache = {}, {}, {}
+
+
+    def _cargar():
+        """Lee la hoja una vez: por cada letra, sus pixeles de tinta y de sombra y su ancho."""
+        if _glifos: return True
+        try: hoja = pygame.image.load(RUTA)
+        except (pygame.error, FileNotFoundError): return False
+        for fila, letras in FILAS.items():
+            pares = letras.items() if isinstance(letras, dict) else enumerate(letras)
+            for col, letra in pares:
+                if letra in '\0\1\2\3': continue
+                x0, y0 = ORIGEN[0] + col * CELDA, ORIGEN[1] + fila * CELDA
+                tinta, sombra = [], []
+                for y in range(CELDA):
+                    for x in range(CELDA):
+                        c = tuple(hoja.get_at((x0 + x, y0 + y)))[:3]
+                        if c == TINTA: tinta.append((x, y))
+                        elif c == SOMBRA: sombra.append((x, y))
+                todos = tinta + sombra
+                if not todos: continue
+                izq = min(x for x, _ in todos); der = max(x for x, _ in todos)
+                _glifos[letra] = ([(x - izq, y) for x, y in tinta], [(x - izq, y) for x, y in sombra], der - izq + 1)
+        _glifos[' '] = ([], [], ESPACIO)
+        return True
+
+
+    def _color(c):
+        try: return tuple(pygame.Color(c))[:3]
+        except (ValueError, TypeError): return (255, 255, 255)
+
+
+    def sombra_de(color):
+        """Sombra que contrasta: oscura para letras claras y gris clara para letras oscuras (como en los juegos)."""
+        r, g, b = color
+        if r * 0.3 + g * 0.59 + b * 0.11 > 110: return (max(0, r // 4), max(0, g // 4), max(0, b // 4 + 10))
+        return (min(255, r + 110), min(255, g + 110), min(255, b + 115))
+
+
+    class FuenteDS:
+        """Misma forma de usar que pygame.font.Font (render, size, get_height, get_linesize)."""
+        ARRIBA, ABAJO = 1, 15                         # filas de la celda que se usan (las tildes llegan arriba)
+
+        def __init__(self, escala, borde=False):
+            self.escala, self.borde = escala, borde
+
+        def set_bold(self, valor): pass
+        def get_height(self): return (self.ABAJO - self.ARRIBA) * self.escala + (2 * self.escala if self.borde else 0)
+        def get_linesize(self): return self.get_height() + self.escala * 2
+        def get_ascent(self): return self.get_height()
+
+        def _glifo(self, letra):
+            if letra not in _glifos: letra = PARECIDOS.get(letra, letra)
+            return _glifos.get(letra) or _glifos.get(letra.upper()) or _glifos['?']
+
+        def size(self, texto):
+            ancho = sum(self._glifo(c)[2] + 1 for c in str(texto))
+            return max(0, ancho - 1) * self.escala + (2 * self.escala if self.borde else 0), self.get_height()
+
+        def render(self, texto, antialias=False, color=(255, 255, 255), fondo=None):
+            texto = str(texto)
+            tinta = _color(color); sombra = sombra_de(tinta)
+            clave = (texto, tinta, self.escala, self.borde, None if fondo is None else _color(fondo))
+            if clave in _cache: return _cache[clave]
+            if len(_cache) > 3000: _cache.clear()
+            ancho = sum(self._glifo(c)[2] + 1 for c in texto) + 2
+            base = pygame.Surface((max(1, ancho), self.ABAJO - self.ARRIBA + 2), pygame.SRCALPHA)
+            x = 1
+            for c in texto:
+                puntos_t, puntos_s, w = self._glifo(c)
+                if self.borde:                            # borde: la sombra rodea toda la letra
+                    for px, py in puntos_t:
+                        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1), (-1, -1), (1, -1), (-1, 1)):
+                            base.set_at((x + px + dx, py - self.ARRIBA + 1 + dy), sombra)
+                else:
+                    for px, py in puntos_s: base.set_at((x + px, py - self.ARRIBA + 1), sombra)
+                for px, py in puntos_t: base.set_at((x + px, py - self.ARRIBA + 1), tinta)
+                x += w + 1
+            recorte = base if self.borde else base.subsurface((1, 1, max(1, ancho - 2), self.ABAJO - self.ARRIBA))
+            sup = pygame.transform.scale(recorte, (recorte.get_width() * self.escala, recorte.get_height() * self.escala))
+            if fondo is not None:
+                lleno = pygame.Surface(sup.get_size()); lleno.fill(_color(fondo)); lleno.blit(sup, (0, 0)); sup = lleno
+            _cache[clave] = sup
+            return sup
+
+
+    def escala_de(tam):
+        """Cuanto se agranda la letra para el tamaño de pygame que pedian (la letra de pygame de 24 se parece a la de DS al x1)."""
+        return 1 if tam <= 26 else 2 if tam <= 52 else 3 if tam <= 76 else 4
+
+
+    def fuente(tam=24, borde=False, escala=None):
+        """La letra de DS para ese tamaño (o la de pygame si no esta la hoja). escala: forzar x1, x2..."""
+        e = escala or escala_de(tam)
+        clave = (e, borde) if _cargar() else ('pygame', tam)
+        if clave not in _fuentes: _fuentes[clave] = FuenteDS(e, borde) if clave[0] != 'pygame' else pygame.font.Font(None, tam)
+        return _fuentes[clave]
+
+    return SimpleNamespace(**locals())
+
+
+tipografia = armar_tipografia()
 
 
 # ==================== pantalla ====================

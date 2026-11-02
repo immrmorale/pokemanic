@@ -25,7 +25,8 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 11. [Clima](#clima)
 12. [Características de cada tipo](#características-de-cada-tipo)
 13. [Tabla de tipos](#tabla-de-tipos)
-14. [Herramientas](#herramientas)
+14. [Gráficos e interfaz](#gráficos-e-interfaz)
+15. [Herramientas](#herramientas)
 
 ---
 
@@ -675,6 +676,20 @@ Abreviaturas: NOR normal · FUE fuego · AGU agua · ELE eléctrico · PLA plant
 
 ---
 
+## Gráficos e interfaz
+
+Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGold/SoulSilver, que es la misma de BW):
+
+- **Letra:** la de los juegos de DS, recortada letra por letra de `assets/DS _ DSi - Pokemon HeartGold _ SoulSilver - Miscellaneous - Fonts.png` (`sistema.tipografia`). Tiene tildes, ñ, ¿ ¡ y el símbolo de Pokédólar (₽, que reemplaza al `$`). Se agranda en pixeles enteros (x1, x2, x3) para que no se vea borrosa, y tiene una versión con borde para leer sobre el piso.
+- **HUD del combate** (como la batalla de BW): tu pokemon con la barra de HP del jugador (con la placa oscura, la etiqueta HP y el ícono Lv) y las barras de experiencia y energía; la raya blanca de la energía marca cuánto gasta un esquive. El daño reciente queda en blanco en la barra y se vacía de a poco, y la placa tiembla al recibir un golpe. La banca va en los **paneles en flecha** del menú de equipo (verde: asistencia lista; rojo: debilitado). Los 4 movimientos son los **botones octogonales de la pantalla táctil** (con la textura de puntitos y el borde del color del tipo); la espera se cierra como un abanico. Los jefes usan la barra del rival.
+- **En la pelea:** números de daño que saltan (amarillos si es súper eficaz, grises si resiste, naranjas en contraataques, rojos los que recibís), íconos de estado de BW arriba de los enemigos (BRN, PAR, FRZ), destello de pantalla en el parry, el esquive perfecto y el remate, y aviso amarillo con "!" en el momento del parry.
+- **Carteles:** el nombre de la sala y los jefes entran barriendo en una franja inclinada con rayas de color (rojas en los jefes); los avisos chicos caen desde arriba con una raya de color.
+- **Menús:** el logo (POKE + MANIC en letras Unown) cae al abrir el título; los botones son los paneles en flecha de BW y entran escalonados desde la izquierda (el elegido se corre y titila). El fondo de grilla de BW se mueve en diagonal con la **Pokéball de la pantalla táctil** girando. La pausa entra con una franja inclinada y la Pokéball grande girando detrás.
+
+Las piezas recortadas están en `assets/interfaz/hud` (las arma `python herramientas.py hud` desde las hojas de `assets/hojas/blanco_negro`). Si falta alguna, el juego dibuja una forma básica.
+
+---
+
 ## Herramientas
 
 Programas aparte para preparar el juego. No se usan mientras jugás.
@@ -683,6 +698,7 @@ Programas aparte para preparar el juego. No se usan mientras jugás.
 python herramientas.py descargar           baja sprites y retratos del PMD (SpriteCollab) a assets/sprites/pokemones
 python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI (stats, movimientos, evoluciones)
 python herramientas.py recortar hoja.png   recorta sprites de una hoja y los guarda en assets/mundo
+python herramientas.py hud                 recorta las barras de HP, íconos de estado, la Pokéball y los paneles en flecha de BW a assets/interfaz/hud
 python herramientas.py visor               ventana para mirar salas generadas sin jugar
 python herramientas.py salas               dibuja en texto algunas salas generadas
 python herramientas.py plan                muestra el plan de salas de una partida

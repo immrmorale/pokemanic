@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pygame
 import datos
 from datos import mts, tienda
-from sistema import controles, opciones, partidas, animaciones
+from sistema import controles, opciones, partidas, tipografia, animaciones
 from mundo import entorno
 from combate import progreso
 
@@ -48,8 +48,7 @@ def armar_menus():
 
     def fuente(tam):
         """Fuente del tamaño pedido (se crea una sola vez)."""
-        if tam not in _fuentes: _fuentes[tam] = pygame.font.Font(None, tam)
-        return _fuentes[tam]
+        return tipografia.fuente(tam)                     # la letra de los juegos de DS (sistema.tipografia)
 
 
     # ---------- piezas de BW (assets/interfaz/paneles, las recorta: python herramientas.py paneles) ----------
@@ -95,9 +94,29 @@ def armar_menus():
         clave = (nombre, 'estirado' if estirar else 'doble')
         if clave not in _paneles: _paneles[clave] = pygame.transform.scale(img, (W, H) if estirar else (img.get_width() * 2, img.get_height() * 2))
         t = _paneles[clave]
-        for x in range(0, W, t.get_width()):
-            for y in range(0, H, t.get_height()): ventana.blit(t, (x, y))
+        ahora = pygame.time.get_ticks()
+        dx, dy = (0, 0) if estirar else (-(ahora // 28) % t.get_width(), -(ahora // 40) % t.get_height())   # la grilla de BW se mueve en diagonal
+        for x in range(dx - (t.get_width() if dx else 0), W, t.get_width()):
+            for y in range(dy - (t.get_height() if dy else 0), H, t.get_height()): ventana.blit(t, (x, y))
+        if not estirar: pokeball_girando(ventana, (W - 70, H + 10), 420, ahora, 34)   # la Pokeball de la pantalla tactil, de fondo
         return True
+
+
+    _girando = {}
+
+
+    def pokeball_girando(ventana, centro, lado, ahora, alfa=255, vueltas_por_minuto=6):
+        """La Pokeball grande de la pantalla tactil de BW girando despacio (lado en pixeles, alfa 0-255)."""
+        img = hud('pokeball')
+        if not img: return
+        clave = (lado, alfa)
+        if clave not in _girando:
+            base = pygame.transform.smoothscale(img, (lado, lado)).convert_alpha()
+            if alfa < 255: base.fill((255, 255, 255, alfa), special_flags=pygame.BLEND_RGBA_MULT)
+            _girando[clave] = base
+        angulo = (ahora * vueltas_por_minuto * 360 / 60000) % 360
+        rotada = pygame.transform.rotate(_girando[clave], -angulo)
+        ventana.blit(rotada, rotada.get_rect(center=centro))
 
 
     def ajustar_texto(texto, f, ancho):
@@ -120,16 +139,24 @@ def armar_menus():
             pygame.draw.line(pantalla, color, (ax, ay), (bx, by), grosor)
 
 
-    def boton(ventana, rect, texto, elegido=False, tam=34, valor=None):
-        """Barra de opciones de BW (si no esta, boton oscuro con borde blanco como el menu de pausa). valor: texto a la derecha con < >."""
-        caja(ventana, rect, 'boton_elegido' if elegido else 'boton', OSCURO, 3)
+    def boton(ventana, rect, texto, elegido=False, tam=34, valor=None, aparicion=1.0, variante=None):
+        """Boton con los paneles en flecha del menu de equipo de BW: azul oscuro, y celeste corrido a la derecha el elegido.
+        valor: texto a la derecha con < >. aparicion: 0 -> 1 mientras entra deslizandose desde la izquierda (ver aparecer).
+        variante: (fila, columna) del panel de la hoja si se quiere otro color (rojo, verde)."""
+        rect = pygame.Rect(rect)
+        if aparicion < 1: rect = rect.move(-round((1 - aparicion) * (rect.right + 40)), 0)
+        if elegido: rect = rect.move(10, 0)
+        fila = (variante or (0, 0))[0]
+        panel_flecha(ventana, rect, (fila, 1) if elegido else (fila, variante[1] if variante else 0))
+        if elegido:                                               # brillo que late en el elegido
+            if math.sin(pygame.time.get_ticks() / 140) > 0: pygame.draw.rect(ventana, (255, 255, 255), rect.inflate(4, 4), 2, border_radius=8)
         t = fuente(tam).render(texto, True, 'white')
         if valor is None: ventana.blit(t, t.get_rect(center=rect.center))
         else:
-            ventana.blit(t, t.get_rect(midleft=(rect.x + 18, rect.centery)))
-            v = fuente(tam).render('< ' + str(valor) + ' >', True, (230, 230, 120) if elegido else (220, 220, 220))
-            ventana.blit(v, v.get_rect(midright=(rect.right - 18, rect.centery)))
-        if elegido: dibujar_esquinas(ventana, rect.inflate(10, 10))
+            ventana.blit(t, t.get_rect(midleft=(rect.x + 22, rect.centery)))
+            v = fuente(tam).render('< ' + str(valor) + ' >', True, (255, 236, 120) if elegido else (220, 220, 220))
+            ventana.blit(v, v.get_rect(midright=(rect.right - 22, rect.centery)))
+        if elegido: dibujar_esquinas(ventana, rect.inflate(12, 10))
 
 
     def titulo(ventana, texto, x=60, y=40, tam=72, color=None):
@@ -229,10 +256,14 @@ def armar_menus():
 
     def chip_tipo(ventana, tipo, x, y):
         """Etiqueta redondeada del color de un tipo. Devuelve el ancho que ocupo (para poner la siguiente al lado)."""
-        t = fuente(20).render(tipo, True, 'black')
-        r = pygame.Rect(x, y, t.get_width() + 14, 22)
-        pygame.draw.rect(ventana, COLORES_TIPO.get(tipo, (150, 150, 150)), r, border_radius=8)
-        ventana.blit(t, (x + 7, y + 4))
+        color = COLORES_TIPO.get(tipo, (150, 150, 150))
+        t = fuente(20).render(str(tipo).upper(), True, 'white')         # como los iconos de tipo de BW: letra blanca con sombra
+        r = pygame.Rect(x, y, t.get_width() + 14, t.get_height() + 8)
+        oscuro = tuple(max(0, c - 70) for c in color)
+        pygame.draw.rect(ventana, oscuro, r, border_radius=4)
+        pygame.draw.rect(ventana, color, r.inflate(-4, -4), border_radius=3)
+        pygame.draw.line(ventana, tuple(min(255, c + 60) for c in color), (r.x + 4, r.y + 3), (r.right - 5, r.y + 3), 2)   # el brillo de arriba
+        ventana.blit(t, t.get_rect(center=r.center))
         return r.width + 6
 
 
@@ -266,6 +297,182 @@ def armar_menus():
         pygame.draw.rect(ventana, fondo, rect)
         pygame.draw.rect(ventana, color, (rect[0], rect[1], int(rect[2] * max(0, min(1, k))), rect[3]))
         pygame.draw.rect(ventana, 'black', rect, 2)
+
+
+    # ---------- piezas del HUD de BW (assets/interfaz/hud, las recorta: python herramientas.py hud) ----------
+
+    HUD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'hud')
+    # barras de HP del combate: columnas del hueco donde va la vida y filas del relleno (clara arriba, oscura abajo)
+    BARRAS = {'rival': {'pieza': 'barra_rival', 'hueco': (44, 91), 'filas': (8, 9), 'nv': (85, 101)},
+              'jugador': {'pieza': 'barra_jugador', 'hueco': (56, 103), 'filas': (9, 10), 'nv': (80, 90)}}
+    COLOR_EXP = (64, 200, 248)
+    _hud = {}
+
+
+    def hud(nombre, escala=1):
+        """Pieza del HUD de BW agrandada x escala (pixeles enteros) o None si no esta."""
+        clave = (nombre, escala)
+        if clave not in _hud:
+            ruta = os.path.join(HUD, nombre + '.png')
+            try: img = pygame.image.load(ruta).convert_alpha() if os.path.isfile(ruta) else None
+            except pygame.error: img = None
+            _hud[clave] = pygame.transform.scale(img, (img.get_width() * escala, img.get_height() * escala)) if img and escala != 1 else img
+        return _hud[clave]
+
+
+    def _estirada(nombre, ancho, hueco, quitar=None):
+        """La pieza con el hueco del medio estirado hasta 'ancho' (a escala 1): se repite una columna del hueco.
+        quitar: columnas (desde, hasta) de las filas de arriba a borrar (el icono 'Lv', que se dibuja aparte)."""
+        clave = ('estirada', nombre, ancho)
+        if clave not in _hud:
+            img = hud(nombre)
+            if not img: _hud[clave] = None; return None
+            img = img.copy()
+            if quitar:
+                for x in range(*quitar):
+                    for y in range(0, 6):
+                        if x < img.get_width(): img.set_at((x, y), (0, 0, 0, 0))
+            w, h = img.get_size(); a, b = hueco[0] + 4, hueco[1] - 3
+            extra = max(0, ancho - w)
+            sup = pygame.Surface((w + extra, h), pygame.SRCALPHA)
+            sup.blit(img, (0, 0), (0, 0, a, h))
+            columna = img.subsurface((a, 0, 1, h))
+            for x in range(a, b + extra): sup.blit(columna, (x, 0))
+            sup.blit(img, (b + extra, 0), (b, 0, w - b, h))
+            _hud[clave] = sup
+        return _hud[clave]
+
+
+    def color_vida(k):
+        """(claro, oscuro) de la barra de vida de BW: verde, amarilla debajo de la mitad y roja debajo del 20%."""
+        return next((c, o) for limite, c, o in VIDA_BW if k > limite or limite == 0.0)
+
+
+    def barra_hp(ventana, x, y, ancho, k, cual='rival', escala=2, nivel=None, fuente_nv=None, k_atras=None):
+        """Barra de HP del combate de BW ('rival': la de arriba, 'jugador': la tuya con la placa oscura) de 'ancho' pixeles de pantalla.
+        Si no estan las piezas, la barra de vida de siempre. Devuelve el rect dibujado."""
+        datos_b = BARRAS[cual]
+        img = _estirada(datos_b['pieza'], ancho // escala, datos_b['hueco'], datos_b['nv'])
+        if not img:
+            r = pygame.Rect(x, y, ancho, 8 * escala); barra_vida(ventana, r, k); return r
+        extra = img.get_width() - hud(datos_b['pieza']).get_width()
+        grande = pygame.transform.scale(img, (img.get_width() * escala, img.get_height() * escala))
+        ventana.blit(grande, (x, y))
+        k = max(0.0, min(1.0, k))
+        h0, h1 = datos_b['hueco'][0], datos_b['hueco'][1] + extra
+        largo = round((h1 - h0 + 1) * escala * k)
+        claro, oscuro = color_vida(k)
+        f0, f1 = datos_b['filas']
+        if k_atras is not None and k_atras > k:                     # lo que te acaban de sacar: blanco que se vacia de a poco
+            hasta = round((h1 - h0 + 1) * escala * min(1.0, k_atras))
+            pygame.draw.rect(ventana, (255, 255, 255), (x + h0 * escala + largo, y + f0 * escala, hasta - largo, escala))
+            pygame.draw.rect(ventana, (255, 170, 150), (x + h0 * escala + largo, y + f1 * escala, hasta - largo, escala))
+        if largo:
+            pygame.draw.rect(ventana, claro, (x + h0 * escala, y + f0 * escala, largo, escala))
+            pygame.draw.rect(ventana, oscuro, (x + h0 * escala, y + f1 * escala, largo, escala))
+        if nivel is not None:                                       # el 'Lv' de BW arriba de la barra y el numero
+            nv = hud('nv', escala)
+            px = x + (datos_b['nv'][0] + extra) * escala
+            if nv: ventana.blit(nv, (px, y - escala))
+            t = (fuente_nv or tipografia.fuente(20, borde=True)).render(str(nivel), True, 'white')
+            ventana.blit(t, (px + (nv.get_width() if nv else 0) + 2, y - escala - t.get_height() + (nv.get_height() if nv else 8) + 2))
+        return pygame.Rect(x, y, grande.get_width(), grande.get_height())
+
+
+    def barra_exp(ventana, x, y, ancho, k, color=COLOR_EXP, escala=2):
+        """Barra fina de experiencia de BW (tambien sirve para la energia con otro color)."""
+        img = _estirada('barra_exp', ancho // escala, (9, 88))
+        if not img: barra(ventana, (x, y, ancho, 4 * escala), k, color); return
+        ventana.blit(pygame.transform.scale(img, (img.get_width() * escala, img.get_height() * escala)), (x, y))
+        extra = img.get_width() - hud('barra_exp').get_width()
+        largo = round((88 + extra - 9 + 1) * escala * max(0.0, min(1.0, k)))
+        if largo: pygame.draw.rect(ventana, color, (x + 9 * escala, y + 3 * escala, largo, escala))
+
+
+    _octagonos = {}
+
+
+    def boton_tactil(ventana, centro, radio, k_espera=0.0, acento=None, apagado=False):
+        """Boton octogonal de la pantalla tactil de BW (Luchar / Mochila / Huir): textura de puntitos, borde blanco grueso.
+        k_espera: 0 listo, 1 recien usado (se oscurece en abanico). acento: color del borde de adentro (el tipo del movimiento)."""
+        clave = (radio, acento, apagado)
+        if clave not in _octagonos:
+            lado = radio * 2 + 4
+            sup = pygame.Surface((lado, lado), pygame.SRCALPHA)
+            c = lado / 2
+            puntos = lambda r: [(c + r * math.cos(math.radians(22.5 + 45 * i)), c + r * math.sin(math.radians(22.5 + 45 * i))) for i in range(8)]
+            pygame.draw.polygon(sup, (33, 33, 33), puntos(radio + 1))
+            pygame.draw.polygon(sup, (230, 230, 230), puntos(radio - 1))
+            interior = pygame.Surface((lado, lado), pygame.SRCALPHA)
+            tile = hud('textura_boton', 2)
+            if tile:
+                for tx in range(0, lado, tile.get_width()):
+                    for ty in range(0, lado, tile.get_height()): interior.blit(tile, (tx, ty))
+            else: interior.fill((60, 60, 60))
+            if apagado: interior.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_SUB)      # sin poder usarse: mas oscuro
+            mascara = pygame.Surface((lado, lado), pygame.SRCALPHA)
+            pygame.draw.polygon(mascara, (255, 255, 255, 255), puntos(radio - 5))
+            interior.blit(mascara, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            sup.blit(interior, (0, 0))
+            if acento: pygame.draw.polygon(sup, acento, puntos(radio - 5), 3)
+            _octagonos[clave] = sup
+        sup = _octagonos[clave]
+        ventana.blit(sup, sup.get_rect(center=centro))
+        if k_espera > 0:                                            # la espera: un abanico oscuro que se va cerrando
+            r = radio - 5
+            puntos = [centro] + [(centro[0] + r * 1.08 * math.sin(math.tau * t / 24), centro[1] - r * 1.08 * math.cos(math.tau * t / 24))
+                                 for t in range(0, round(24 * k_espera) + 1)]
+            if len(puntos) > 2:
+                capa = pygame.Surface((radio * 2 + 4, radio * 2 + 4), pygame.SRCALPHA)
+                desplazados = [(px - centro[0] + radio + 2, py - centro[1] + radio + 2) for px, py in puntos]
+                pygame.draw.polygon(capa, (0, 0, 0, 165), desplazados)
+                mascara = pygame.Surface(capa.get_size(), pygame.SRCALPHA)
+                c = radio + 2
+                pygame.draw.polygon(mascara, (255, 255, 255, 255), [(c + (radio - 5) * math.cos(math.radians(22.5 + 45 * i)), c + (radio - 5) * math.sin(math.radians(22.5 + 45 * i))) for i in range(8)])
+                capa.blit(mascara, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+                ventana.blit(capa, (centro[0] - radio - 2, centro[1] - radio - 2))
+
+
+    ESTADO_ICONO = {'quemar': 'estado_brn', 'paralizar': 'estado_par', 'congelado': 'estado_frz', 'veneno': 'estado_psn', 'debilitado': 'estado_fnt'}
+
+
+    def icono_estado(ventana, estado, centro, escala=2):
+        """Icono de estado de BW (BRN, PAR, FRZ...) centrado en 'centro'. Dormido y frenado no tienen icono en BW: se escribe."""
+        nombre = ESTADO_ICONO.get(estado)
+        img = hud(nombre, escala) if nombre else None
+        if img: ventana.blit(img, img.get_rect(center=centro)); return
+        texto = {'dormir': 'zZ', 'ralentizar': '↓'}.get(estado)
+        if texto:
+            t = tipografia.fuente(20, borde=True).render(texto, True, (150, 200, 255) if estado == 'ralentizar' else 'white')
+            ventana.blit(t, t.get_rect(center=centro))
+
+
+    def panel_flecha(ventana, rect, variante=(0, 0)):
+        """Panel en flecha del menu de equipo de BW (fila, columna de la hoja) estirado al rect, con las puntas sin deformar."""
+        rect = pygame.Rect(rect)
+        nombre = 'panel_%d_%d' % variante
+        img = hud(nombre)
+        if not img:
+            pygame.draw.rect(ventana, (40, 90, 150), rect, border_radius=10); pygame.draw.rect(ventana, 'white', rect, 2, border_radius=10); return
+        clave = ('flecha', nombre, rect.size)
+        if clave not in _hud:
+            w, h = img.get_size()
+            e = max(1, min(3, rect.height // h + (1 if rect.height % h > h * 0.6 else 0)))
+            alto = rect.height
+            punta = 12                                              # las puntas (esquinas cortadas) no se estiran
+            izq = pygame.transform.scale(img.subsurface((0, 0, punta, h)), (punta * alto // h, alto))
+            der = pygame.transform.scale(img.subsurface((w - punta, 0, punta, h)), (punta * alto // h, alto))
+            medio = pygame.transform.scale(img.subsurface((punta, 0, w - 2 * punta, h)), (max(1, rect.width - izq.get_width() - der.get_width()), alto))
+            sup = pygame.Surface(rect.size, pygame.SRCALPHA)
+            sup.blit(izq, (0, 0)); sup.blit(medio, (izq.get_width(), 0)); sup.blit(der, (rect.width - der.get_width(), 0))
+            _hud[clave] = sup
+        ventana.blit(_hud[clave], rect)
+
+
+    def aparecer(t, retraso=0, dura=260):
+        """0 -> 1 con frenada al final (para que las cosas entren deslizandose): t = ms desde que se abrio el menu."""
+        k = max(0.0, min(1.0, (t - retraso) / dura))
+        return 1 - (1 - k) ** 3
 
 
     # ---------- fondo del menu principal ----------
@@ -725,6 +932,7 @@ def armar_menus():
         """Las 3 ranuras de guardado. Devuelve ('continuar' | 'nueva', ranura), None si volves o 'salir'."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         elegido, reloj = 0, pygame.time.Clock()
+        abierto = pygame.time.get_ticks()
         while True:
             cajas = [pygame.Rect(60, 120 + k * 140, W - 120, 120) for k in range(len(resumenes))]
             accion = None
@@ -752,10 +960,12 @@ def armar_menus():
                 if r == 2 and preguntar(ui, 'Seguro que borras la partida ' + str(ranura) + '?', ['Si, borrar', 'No']) == 0:
                     partidas.borrar(ranura); resumenes[accion] = None
             fondo(ventana)
+            t = pygame.time.get_ticks() - abierto
             titulo(ventana, 'Partidas', 60, 30, 64)
             for k, r in enumerate(cajas):
-                caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
+                r = r.move(-round((1 - aparecer(t, k * 80)) * (r.right + 40)) + (12 if k == elegido else 0), 0)
                 resumen = resumenes[k]
+                panel_flecha(ventana, r, (2 if resumen else 0, 1 if k == elegido else 0))
                 ventana.blit(fuente(34).render('Partida ' + str(k + 1), True, 'white'), (r.x + 18, r.y + 12))
                 if not resumen:
                     ventana.blit(fuente(26).render('Vacia - empezar una partida nueva', True, (190, 190, 190)), (r.x + 18, r.y + 54)); continue

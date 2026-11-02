@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pygame
 import datos
 from datos import mundos
-from sistema import animaciones
+from sistema import animaciones, tipografia
 
 
 # ==================== generacion ====================
@@ -1156,8 +1156,7 @@ def armar_entorno():
         """Texto renderizado una sola vez y guardado."""
         clave = (texto, tam, color)
         if clave not in _textos:
-            if tam not in _fuentes: _fuentes[tam] = pygame.font.Font(None, tam)
-            _textos[clave] = _fuentes[tam].render(texto, True, color)
+            _textos[clave] = tipografia.fuente(tam).render(texto, True, color)
         return _textos[clave]
 
 
