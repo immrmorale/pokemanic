@@ -10,6 +10,7 @@ import random
 from types import SimpleNamespace
 import pygame
 import datos
+import mecanicas
 from datos import mts, tienda
 from sistema import controles, opciones, partidas, tipografia, animaciones
 from mundo import entorno
@@ -482,9 +483,10 @@ def armar_menus():
         nombre = ESTADO_ICONO.get(estado)
         img = hud(nombre, escala) if nombre else None
         if img: ventana.blit(img, img.get_rect(center=centro)); return
-        texto = {'dormir': 'zZ', 'ralentizar': '↓'}.get(estado)
+        texto = {'dormir': 'zZ', 'ralentizar': '↓', 'confusion': '??', 'aturdido': '**'}.get(estado)
         if texto:
-            t = tipografia.fuente(20, borde=True).render(texto, True, (150, 200, 255) if estado == 'ralentizar' else 'white')
+            color = {'ralentizar': (150, 200, 255), 'confusion': (255, 150, 200), 'aturdido': (255, 255, 160)}.get(estado, 'white')
+            t = tipografia.fuente(20, borde=True).render(texto, True, color)
             ventana.blit(t, t.get_rect(center=centro))
 
 
@@ -1168,12 +1170,13 @@ def armar_menus():
             'Los enemigos te rodean, esquivan tus disparos, los tiradores se mueven de costado y tiran rafagas, y con poca vida se enfurecen.']
         s['Estilo'] = [
             'El medidor de ESTILO (arriba a la derecha) va de D a S. Cuanto mas alto, mas pegas: C +5%, B +10%, A +17%, S +25%.',
-            'Sube al pegar, matar, hacer parry, esquivar perfecto, usar asistencias (F / G) y hacer relevos.',
+            'Sale de 5 cosas: el RITMO (golpes seguidos, con menos de 0,7 s entre uno y otro, rinden todo), el MOVIMIENTO (moverte peleando),',
+            'los COMBOS (terminar los 3 golpes), los RELEVOS (cambiar de pokemon peleando y pegar con el que entra: ese golpe pega x1,4)',
+            'y las SINERGIAS (usar las asistencias F / G). Matar da poco.',
             'Variá: si repetis siempre el mismo ataque, cada golpe da cada vez menos (sale el aviso "variá tus ataques").',
-            'Baja si te pegan y si te quedas sin pelear un rato.',
+            'Baja si te pegan y si te quedas quieto sin pelear. Cuando no quedan enemigos, deja de sumar.',
             'Racha: bajas seguidas en menos de 3 segundos dan monedas extra.',
-            'Relevo: si cambias de pokemon peleando, el primer golpe del que entra pega x1,4.',
-            'Al limpiar la sala te ponen nota (S, A, B, C, D) por el tiempo, el daño que recibiste, tu estilo maximo y los parrys.',
+            'Al limpiar la sala te ponen nota (S, A, B, C, D) sobre 100: ritmo 25, movimiento 20, combos 20, relevos 15 y sinergias 20.',
             'S y A dan monedas, experiencia y a veces un objeto (baya, llave o caramelo). En las salas de desafio (★), el doble.']
         tipos = sorted({t for tabla in (entorno.PISADAS, ) for terreno in tabla.values() for t in terreno if t != 'todos'} |
                        {t for _, (_, por_tipo) in entorno.AURAS.items() for t in por_tipo} | {t for _, t in entorno.REACCIONES})
@@ -1199,8 +1202,9 @@ def armar_menus():
             ['  ' + mat + ': ' + ', '.join(t + ' x' + str(v) for t, v in tabla.items()) for mat, tabla in entorno.MATERIALES.items()] + \
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
-        s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '.',
-                       'Cambia de nombre segun la era (' + ', '.join(e['tienda'] for e in datos.mundos.ERAS) + '), pero siempre atiende Chikorita.',
+        s['Tienda'] = ['Aparece cada 5 a 10 salas. Riolu vende objetos en el mostrador: acercate a una vitrina y apretá ' + tecla('interactuar') + '.',
+                       'Cambia de nombre segun la era (' + ', '.join(e['tienda'] for e in datos.mundos.ERAS) + '), pero siempre atiende Riolu.',
+                       'Curaciones: Chikorita rosa tiene su mostrador abajo a la derecha. Por monedas cura al que pelea o cura y revive a todo el equipo.',
                        'Siempre hay una Llave del Tesoro a la venta. Tambien cuida tu reserva: los cambios con la reserva se hacen aca.',
                        'Los objetos que dicen "lo lleva un pokemon" se equipan desde su ficha (hasta 2 cada uno) y solo cuentan mientras pelea.',
                        'Los que dicen "todo el equipo" valen para todos.',
@@ -1223,11 +1227,13 @@ def armar_menus():
                         'Los cambios entre el equipo y la reserva solo se hacen en la tienda.',
                         'Es mas probable con los pokemon comunes, si sos de mas nivel y con el Lazo Amistad. Los jefes no se unen.',
                         'Si te vas de la sala sin hablarle, se va.',
+                        '[Uno por sala] Cuando alguien quiere unirse, en el resto de esa sala ya nadie mas se ofrece, y la sala siguiente es de espera.',
+                        'Excepcion: a los que les bailaste les queda una chance (la mitad) de querer unirse igual: bailando podes amigar a mas de uno.',
                         '[Naturaleza] Cada pokemon nace con una de las 25 de los juegos: sube un 10% un stat y baja otro. Tambien dice que tan facil se amiga:',
                         'las de buen caracter (Afable, Docil, Amable, Alegre...) se amigan facil; las de mal caracter (Huraña, Grosera, Agitada...) cuestan.',
                         '[Baile] Con ' + tecla('bailar') + ' bailas (gasta energia, espera de 6 s). A los que tienen poca vida los encariña: corazoncitos arriba de la cabeza,',
                         'y mas chance de que quieran unirse cuando los derrotes (hasta 3 bailes). A los sanos a veces los confunde: caminan sin rumbo y le pegan a los suyos.',
-                        '[Minimo de amigos] En la segunda sala de la Era Glacial alguien seguro quiere unirse. En cada era hay al menos 2 que quieren',
+                        '[Minimo de amigos] Desde la segunda sala de la Era Glacial, el primero que derrotes quiere unirse seguro. En cada era hay al menos 2 que quieren',
                         '(la 1ra antes de la sala ' + str(progreso.GARANTIA_AMISTAD[0] + 1) + ', la 2da antes de la ' + str(progreso.GARANTIA_AMISTAD[1] + 1) + '), y cada sala sin amigos hace la proxima un poco mas facil.']
         s['Salas y eras'] = ['5 eras de 30 salas: Glacial, Piedra, Metales, Media y Moderna. Al final, El Origen: Regigigas y Arceus.',
                              'Semijefe en la sala 15 y el Regi de la era en la 30. Las puertas muestran que hay detras.',
@@ -1241,6 +1247,20 @@ def armar_menus():
         s['Partidas'] = ['Hay 3 partidas guardadas (Jugar > elegis una ranura).',
                          'Se guarda sola al entrar a cada sala, al completarla y al comprar: equipo, niveles, experiencia, EV, MT, objetos, monedas y por donde ibas.',
                          'Si cae todo el equipo, Celebi te lleva al hall: el viaje se pierde, pero tus amigos se quedan.']
+        s['Estados y curas'] = [
+            'Algunos golpes enemigos te dejan un estado (los de veneno envenenan, fuego quema, eléctrico paraliza, psíquico y fantasma confunden),',
+            'y algunos pokemon tienen los suyos (el chillido de Zubat aturde, las esporas de Foongus envenenan, Diglett te entierra...).',
+            '[Envenenado] pierde vida de a poco (nunca te deja en 0). [Quemado] pierde vida y pega 20% menos. [Paralizado] más lento y a veces',
+            'no le sale el especial. [Dormido] no se mueve ni ataca hasta que le pegan. [Confundido] camina al revés. [Aturdido] un instante quieto.',
+            'Cada pokemon tiene sus propios estados: si cambiás, el que entra no los trae. Los de veneno y acero no se envenenan, los de fuego no se queman...',
+            'Curarse: con ' + tecla('curar') + ' usás sola la curación que conviene (primero el estado, después la vida). Desde la mochila elegís cuál y en quién.',
+            'Chikorita rosa vende todas las curaciones. La Poción Máxima no se vende: Celebi te da una al empezar cada viaje y en cada era nueva (solo se lleva una).',
+            ''] + [it['nombre'] + ' (' + (str(it['precio']) + ' $' if it['precio'] else 'de Celebi') + '): ' + it['desc'] for k, it in tienda.ITEMS.items() if it.get('curativo')]
+        s['Pokemon únicos'] = ['Cada línea de la expansión (y Chikorita) tiene algo propio, sacado de su Pokédex: una pasiva o un especial en R.',
+                               'Los especiales fuertes tienen mucha espera (Predicción 40 s, Control mental 25 s, Ilusión 20 s).', ''] + \
+            [mecanicas.MECANICAS[cl]['nombre'] + ' (' + ', '.join(e.replace('_', ' ').title() for e, (c_, _) in mecanicas.LINEAS.items() if c_ == cl) + '): ' + mecanicas.MECANICAS[cl]['desc']
+             for cl in dict.fromkeys(c_ for c_, _ in mecanicas.LINEAS.values())] + [''] + \
+            [v['nombre'] + ' (' + e.title() + ', en R): ' + v['desc'] for e, v in mecanicas.ESPECIE_ESPECIAL.items()] + ['', '[Como enemigos]'] + list(mecanicas.ENEMIGO_TXT.values())
         s['Hall'] = ['Es a donde volves al perder. Tus amigos pasean ahi: acercate y apreta ' + tecla('interactuar') + ' para hablarles.',
                      'Hablando con un amigo elegis si viene al proximo viaje (hasta 3 en el equipo).',
                      'Cada viaje empieza de cero: todos vuelven a su primera forma y al nivel ' + str(progreso.NIVEL_INICIAL) + ', con sus IV y su amistad.',
@@ -1685,6 +1705,10 @@ def armar_menus():
                 ventana.blit(fuente(20).render('Evoluciona a ' + r['a'].title() + ' (' + progreso.texto_requisito(r) + ')', True, (200, 230, 200)), (40, 412 + k_ * 20))
             for k_, linea in enumerate(ajustar_texto('Naturaleza ' + progreso.texto_naturaleza(m.get('naturaleza')), fuente(20), 270)[:2]):   # como en los juegos
                 ventana.blit(fuente(20).render(linea, True, (240, 200, 230)), (40, 478 + k_ * 18))
+            unico = mecanicas.texto_de(m['nombre'])                       # lo que hace unica a su linea (mecanicas.py)
+            if unico:
+                for k_, linea in enumerate(ajustar_texto(unico, fuente(20), 270)[:2]):
+                    ventana.blit(fuente(20).render(linea, True, (160, 220, 255)), (40, 516 + k_ * 17))
             ventana.blit(fuente(20).render('izq/der: otro miembro   ENTER: usar', True, (200, 200, 200)), (40, H - 50))
             # ----- columnas de la derecha -----
             ficha_zonas = {}
@@ -1810,10 +1834,11 @@ def armar_menus():
         return sirven[i] if i is not None else None
 
 
-    def lista_detallada(ui, titulo_, filas, pie=''):
-        """Lista con scroll: cada fila tiene un nombre y abajo una linea que explica que hace. Devuelve el indice elegido, None o 'salir'."""
+    def lista_detallada(ui, titulo_, filas, pie='', elegido=0):
+        """Lista con scroll: cada fila tiene un nombre y abajo una linea que explica que hace. Devuelve el indice elegido, None o 'salir'.
+        elegido: en que fila arranca (para volver a abrirla donde estaba)."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
-        elegido, reloj, alto = 0, pygame.time.Clock(), 50
+        elegido, reloj, alto = max(0, min(elegido, len(filas) - 1)), pygame.time.Clock(), 50
         visibles = (H - 170) // alto
         while True:
             inicio = max(0, min(elegido - visibles // 2, len(filas) - visibles))
@@ -1846,19 +1871,37 @@ def armar_menus():
 
 
     def mochila(ui, j, acc):
-        """Lo que tenes: objetos para equipar, MT, piedras, lo que llevan puesto tus pokemon y lo que es de todo el equipo, con lo que hace cada cosa."""
+        """Lo que tenes: curaciones (se usan aca: elegis a quien), objetos para equipar, MT, piedras, lo que llevan puesto tus pokemon
+        y lo que es de todo el equipo, con lo que hace cada cosa."""
         inv = j['inventario']
-        filas = []
-        for k_, n in inv['objetos'].items():
-            if n > 0: filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(n), tienda.ITEMS[k_]['desc']))
-        for m in j['equipo'] + j.get('reserva', []):
-            for k_ in m.get('items', []): filas.append((tienda.ITEMS[k_]['nombre'] + '  (lo lleva ' + m['nombre'].title() + ')', tienda.ITEMS[k_]['desc']))
-        for k_ in dict.fromkeys(inv['comprados']):
-            if 'permanente' in tienda.ITEMS[k_]: filas.append((tienda.ITEMS[k_]['nombre'] + '  (equipo)', tienda.ITEMS[k_]['desc']))
-        for linea in tienda.activos(inv): filas.append((linea, 'activo para todo el equipo (el numero son las salas que le quedan)'))
-        if not filas: filas = [('Vacia', 'Las cosas se consiguen en la tienda y de los jefes.')]
-        r = lista_detallada(ui, 'Mochila', filas, 'Objetos, MT y piedras se usan desde la ficha de cada pokemon.')
-        return 'salir' if r == 'salir' else None
+        elegido = 0
+        while True:
+            filas, claves = [], []
+            curativos = [k_ for k_, n in inv['objetos'].items() if n > 0 and 'curativo' in tienda.ITEMS.get(k_, {})]
+            for k_ in curativos:
+                filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(inv['objetos'][k_]) + '   (ENTER: usar)', tienda.ITEMS[k_]['desc'])); claves.append(k_)
+            for k_, n in inv['objetos'].items():
+                if n > 0 and k_ not in curativos: filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(n), tienda.ITEMS[k_]['desc'])); claves.append(None)
+            for m in j['equipo'] + j.get('reserva', []):
+                for k_ in m.get('items', []): filas.append((tienda.ITEMS[k_]['nombre'] + '  (lo lleva ' + m['nombre'].title() + ')', tienda.ITEMS[k_]['desc'])); claves.append(None)
+            for k_ in dict.fromkeys(inv['comprados']):
+                if 'permanente' in tienda.ITEMS[k_]: filas.append((tienda.ITEMS[k_]['nombre'] + '  (equipo)', tienda.ITEMS[k_]['desc'])); claves.append(None)
+            for linea in tienda.activos(inv): filas.append((linea, 'activo para todo el equipo (el numero son las salas que le quedan)')); claves.append(None)
+            if not filas: filas, claves = [('Vacia', 'Las cosas se consiguen en la tienda, con Chikorita rosa y de los jefes.')], [None]
+            r = lista_detallada(ui, 'Mochila', filas, 'Las curaciones se usan aca. Objetos, MT y piedras, desde la ficha de cada pokemon.', elegido)
+            if r == 'salir': return 'salir'
+            if r is None: return None
+            elegido = r
+            clave = claves[r]
+            if not clave: continue
+            miembros = [(i_, m) for i_, m in enumerate(j['equipo'])] + [(('r', i_), m) for i_, m in enumerate(j.get('reserva', []))]
+            opciones_ = [m['nombre'].replace('_', ' ').title() + '  ' + (('debilitado' if m['vida'] <= 0 else str(round(m['vida'])) + '/' + str(m['max_vida']) + ' PS')
+                         + (' - con estado' if m.get('estados') else '')) for _, m in miembros]
+            q = preguntar(ui, '¿En quién usás ' + tienda.ITEMS[clave]['nombre'] + '?', opciones_ + ['Cancelar'], tienda.ITEMS[clave]['desc'])
+            if q == 'salir': return 'salir'
+            if q is None or q >= len(miembros): continue
+            texto = acc['usar'](miembros[q][0], clave)
+            if preguntar(ui, texto, ['Ok']) == 'salir': return 'salir'
 
 
     def reserva(ui, j, acc):

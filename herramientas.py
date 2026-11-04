@@ -8,6 +8,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py tiles               arma los tilesets con bordes (autotile) y el agua animada del PMD para cada era y variante de sala
     python herramientas.py decorados           rocas, hielo, pinos (piezas sueltas del PMD) y arbustos/arboles (Poke Transfer de BW) para los objetos
     python herramientas.py cielo               recorta el cielo y las nubes del Explorers of Sky para la intro
+    python herramientas.py minimapa            recorta las piezas del minimapa (Map Sprites del Explorers of Time/Darkness)
     python herramientas.py viaje               recorta el tunel del viaje temporal del Explorers of Sky para la partida nueva
     python herramientas.py efectos             arma los efectos de golpes, proyectiles por tipo, cura, nivel... con los Attack Effects del PMD
     python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
@@ -117,16 +118,37 @@ def herramienta_datos():
     """Pide a la PokeAPI stats, movimientos, descripcion y evoluciones y los guarda en datos_pokeapi.json."""
     pokemones = datos.pokemones.pokemones
 
-    CAMBIOS = {'samurott_hisui': 'samurott-hisui'}
+    CAMBIOS = {'samurott_hisui': 'samurott-hisui', 'meowstic': 'meowstic-male', 'lycanroc': 'lycanroc-midday', 'aegislash': 'aegislash-shield'}
     SALTAR = ('arceus_beta', 'missigno')
+    ESPEJO = 'https://raw.githubusercontent.com/PokeAPI/api-data/master/data'   # la misma PokeAPI guardada en GitHub (si pokeapi.co no responde)
+    _indices = {}
+
+
+    def _json(url):
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic'}), timeout=20) as r:
+            return json.loads(r.read().decode('utf-8'))
+
+
+    def _por_espejo(url):
+        """La misma pagina desde el espejo de GitHub: ahi todo esta por numero, asi que los nombres se buscan en el indice."""
+        ruta = url.split('/api/v2/', 1)[1].strip('/')
+        recurso, clave = ruta.split('/', 1)
+        if not clave.isdigit():
+            if recurso not in _indices:
+                _indices[recurso] = {r['name']: r['url'].strip('/').rsplit('/', 1)[1] for r in _json(ESPEJO + '/api/v2/' + recurso + '/index.json')['results']}
+            clave = _indices[recurso][clave]
+        return _json(ESPEJO + '/api/v2/' + recurso + '/' + clave + '/index.json')
 
 
     def pedir(url):
-        """JSON de la PokeAPI (una URL completa o el nombre de un pokemon)."""
-        if not url.startswith('http'):
+        """JSON de la PokeAPI (una URL completa o el nombre de un pokemon). Si pokeapi.co no responde, usa el espejo de GitHub."""
+        if url.startswith('/api/v2/'): url = 'https://pokeapi.co' + url        # el espejo guarda los enlaces sin el dominio
+        elif not url.startswith('http'):
             url = 'https://pokeapi.co/api/v2/pokemon/' + url
-        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic'}), timeout=20) as r:
-            return json.loads(r.read().decode('utf-8'))
+        if not _indices.get('_sin_api'):
+            try: return _json(url)
+            except Exception: _indices['_sin_api'] = True              # no responde: de aca en adelante, directo al espejo
+        return _por_espejo(url)
 
 
     def como_evoluciona(hijo):
@@ -156,10 +178,14 @@ def herramienta_datos():
 
 
     def main():
-        """Arma datos_pokeapi.json con stats, movimientos, evoluciones y descripciones de todos los pokemon."""
+        """Arma datos_pokeapi.json con stats, movimientos, evoluciones y descripciones de todos los pokemon.
+        Conserva lo que ya estaba: solo pide los que faltan (con 'python herramientas.py datos todo' pide todos de nuevo)."""
+        todo = len(sys.argv) > 2 and sys.argv[2] == 'todo'
         salida = {}
+        if not todo and os.path.isfile('datos_pokeapi.json'):
+            with open('datos_pokeapi.json', encoding='utf-8') as f: salida = json.load(f)
         for nombre in pokemones:
-            if nombre in SALTAR: continue
+            if nombre in SALTAR or (nombre in salida and not todo): continue
             slug = CAMBIOS.get(nombre, nombre.replace('_', '-'))
             try:
                 datos = pedir(slug)
@@ -1011,6 +1037,34 @@ def herramienta_cielo():
     main()
 
 
+def herramienta_minimapa():
+    """De la hoja 'Map Sprites' del Explorers of Time/Darkness (el mapa de la pantalla de arriba del PMD) recorta las piezas del minimapa:
+    assets/interfaz/minimapa/ yo, compañero, objeto, enemigo, jefe (outlaw), baldosa (wondertile), escalera, trampa y portal (warpzone),
+    borde_h / borde_v (las rayitas blancas de las paredes) y relleno (la trama azul del piso explorado). El verde de fondo queda transparente."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    PIEZAS = {'yo': (2, 3, 4, 4), 'yo_claro': (9, 3, 4, 4), 'compañero': (2, 10, 4, 4), 'objeto': (2, 17, 4, 4), 'enemigo': (2, 24, 4, 4),
+              'jefe': (2, 31, 4, 4), 'baldosa': (3, 39, 2, 2), 'escalera': (2, 45, 4, 4), 'trampa': (2, 52, 4, 4), 'portal': (2, 59, 4, 4),
+              'borde_h': (37, 79, 4, 1), 'borde_v': (46, 79, 1, 4), 'relleno': (5, 104, 4, 4), 'relleno_lleno': (31, 104, 4, 4)}
+
+    def main():
+        """Recorta cada pieza de la hoja y saca el verde de fondo."""
+        pygame.init(); pygame.display.set_mode((1, 1))
+        ruta = next((os.path.join(c, a) for c, _, archivos in os.walk(assets) if 'move_VFX' not in c for a in archivos if a.endswith(' - Map Sprites.png')), None)
+        if not ruta: print('falta la hoja (spriters-resource, Explorers of Time/Darkness > Miscellaneous > Map Sprites) en assets'); return
+        hoja = pygame.image.load(ruta).convert_alpha()
+        verde = tuple(hoja.get_at((0, 0)))
+        carpeta = os.path.join(assets, 'interfaz', 'minimapa')
+        os.makedirs(carpeta, exist_ok=True)
+        for nombre, r in PIEZAS.items():
+            pieza = hoja.subsurface(r).copy()
+            pa = pygame.PixelArray(pieza); pa.replace(verde[:3], (0, 0, 0, 0)); pa.close()
+            pygame.image.save(pieza, os.path.join(carpeta, nombre + '.png'))
+        print(len(PIEZAS), 'piezas del minimapa en assets/interfaz/minimapa')
+
+    main()
+
+
 def herramienta_viaje():
     """Lo del viaje temporal (interfaz.menus.viaje_temporal y cruzar_portal), en assets/interfaz/fondos:
         viaje_<n>.png     de 'Time Travel' del Explorers of Sky (13 cuadros de 312x240 en la columna izquierda, separados por 3 px):
@@ -1332,6 +1386,7 @@ if __name__ == '__main__':
     elif orden == 'tiles': herramienta_tiles()
     elif orden == 'decorados': herramienta_decorados()
     elif orden == 'cielo': herramienta_cielo()
+    elif orden == 'minimapa': herramienta_minimapa()
     elif orden == 'viaje': herramienta_viaje()
     elif orden == 'efectos': herramienta_efectos()
     elif orden == 'objetos': herramienta_objetos()

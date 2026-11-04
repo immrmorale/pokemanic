@@ -6,7 +6,7 @@ Juego de acción en Python con Pygame. Recorrés la historia de la humanidad sal
 python main.py
 ```
 
-Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la misma carpeta tienen que estar los 7 `.py`, `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
+Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la misma carpeta tienen que estar los 8 `.py`, `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
 
 ---
 
@@ -20,6 +20,8 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 6. [Evoluciones](#evoluciones)
 7. [Amistad: pokemon que se unen](#amistad-pokemon-que-se-unen)
 8. [Hall](#hall)
+8b. [Pokemon nuevos y lo que los hace únicos](#pokemon-nuevos-y-lo-que-los-hace-únicos)
+8c. [Estados y curaciones](#estados-y-curaciones)
 9. [Eras y salas](#eras-y-salas)
 10. [Jefes](#jefes)
 11. [Tienda](#tienda)
@@ -40,6 +42,7 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 | `sistema.py` | opciones (`config.json`), partidas guardadas (`partidas/`), pantalla, controles (teclado y joystick) y animaciones |
 | `mundo.py` | generación de salas, entorno (terrenos, objetos, clima) y efectos (partículas) |
 | `combate.py` | progreso (niveles, IV/EV, evoluciones, amistad) e IA de enemigos y jefes |
+| `mecanicas.py` | la mecánica única de cada línea evolutiva nueva (pasivas y especiales) y lo que hacen algunos enemigos |
 | `interfaz.py` | menús: ajustes, controles, glosario, inicial, equipo, ficha, mochila |
 | `herramientas.py` | programas aparte para preparar el juego (ver [Herramientas](#herramientas)) |
 
@@ -62,6 +65,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 | Interactuar, comprar, hablar | E | A |
 | Bailar (amigar / confundir) | V | palanca der (R3) |
 | Evolucionar (mantener) | C | cruz abajo |
+| Curarse (usa la curación que conviene) | H | sin asignar (se elige en Controles) |
 | Menú de equipo | TAB | Back |
 | Pausa | ESC | Start |
 
@@ -102,13 +106,20 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 
 ### Estilo, rachas y nota de la sala
 
-- **Estilo** (arriba a la derecha, de D a S): sube al pegar, matar, hacer parry, esquivar perfecto, usar asistencias y hacer relevos; baja si te pegan o si te quedás sin pelear. **Variá:** repetir siempre el mismo ataque rinde cada vez menos estilo. Cada rango pega más: C +5%, B +10%, A +17%, S +25%.
+- **Estilo** (arriba a la derecha, de D a S): sale de cinco cosas:
+  - **Ritmo:** cada cuánto le pegás a un enemigo. Golpes seguidos (menos de 0,7 s entre uno y otro) rinden todo; si pasan 3 s, casi nada.
+  - **Movimiento:** moverte mientras peleás suma de a poco; quedarte quieto lo baja rápido.
+  - **Combos:** terminar el combo de 3 golpes.
+  - **Relevos:** cambiar de pokemon peleando y pegar con el que entra (ese golpe además pega x1,4).
+  - **Sinergias:** usar las asistencias (F / G) de tus compañeros.
+  Matar da poco. Baja si te pegan, si te quedás sin hacer nada o si repetís siempre el mismo ataque. **Cuando no quedan enemigos deja de sumar.** Cada rango pega más: C +5%, B +10%, A +17%, S +25%.
 - **Racha:** bajas seguidas en menos de 3 s dan monedas extra.
-- **Relevo:** cambiar de pokemon peleando hace que el primer golpe del que entra pegue x1,4.
-- **Nota de la sala** (S, A, B, C, D) al limpiarla: tiempo, daño recibido, estilo máximo y parrys. S y A dan monedas, experiencia y a veces un objeto.
+- **Nota de la sala** (S, A, B, C, D) al limpiarla, sobre 100: ritmo (25), movimiento (20), combos (20), relevos (15) y sinergias (20). Se ven los puntos de cada parte. S y A dan monedas, experiencia y a veces un objeto.
 
 ### Caminos, tesoros y premios por explorar
 
+- **La llave de la sala:** al limpiar una sala aparece una llave que vuela sola hacia vos y abre las puertas. Si tocás una puerta cerrada, te dice por qué no se abre.
+- **Minimapa** (arriba a la derecha, debajo del estilo): el mapa del Mystery Dungeon, con el piso en azul, los bordes de las paredes en blanco, vos (titilando), los enemigos en rojo, el jefe en violeta, los que quieren ser tus amigos en amarillo, los objetos en celeste, la llave y las puertas (cruces rojas mientras están cerradas, escaleras cuando se abren). No aparece en la tienda, el tesoro ni el hall.
 - **Puertas del tesoro (TESORO llave):** cuando una sala tiene 2 o más salidas, a veces una lleva a una **sala del tesoro**. Hace falta una **Llave del Tesoro** (siempre hay una en la tienda; también salen al romper cosas o con buena nota). Adentro hay 3 premios y te llevás uno: **Caramelos Raros** (x2) o una **mejora para todo el equipo** para siempre: Proteína (+8% daño), Hierro (−8% daño recibido), Carburante (+6% velocidad), Calcio (−8% recargas), Zinc (energía y parry), Más PS (cura a todos y revive).
 - **Salas de desafío (★):** 50% más enemigos; la nota da el doble y más chance de objeto.
 - **Romper cosas** a veces suelta una Baya Oran (cura 15% al agarrarla), una llave o un caramelo.
@@ -217,6 +228,13 @@ La evolución conserva el nivel, los IV, los EV y las MT enseñadas.
 - **Piedra u objeto:** tenerlo en la mochila. Se compran en la tienda, y el Regi lo suelta si alguien de tu equipo lo necesita.
 - **Cordón Unión:** reemplaza a las evoluciones por intercambio de los juegos.
 - **Amistad:** sube con cada sala que completás: +2 para el que pelea y +1 para los de la banca. Pichu y Riolu necesitan 20.
+- **Saber una MT:** Piloswine evoluciona en Mamoswine sabiendo **Poder Pasado**.
+
+**Piedras y objetos nuevos:** Piedra Fuego, Agua, Hoja, Hielo, Solar, Lunar, Día y Noche, Armadura Auspiciosa y Maldita (Charcadet), Mineral Negro (Scyther → Kleavor) y el **Cristal Paradoja**.
+- **Eevee:** Piedra Agua → Vaporeon, Trueno → Jolteon, Fuego → Flareon, Solar → Espeon, Lunar → Umbreon, Hoja → Leafeon, Hielo → Glaceon, y con amistad → Sylveon.
+- **Formas regionales:** el Growlithe de Hisui evoluciona con Piedra Fuego; Diglett de Alola (26), Grimer de Alola (38), Ponyta de Galar (40) y Zorua de Hisui (30) evolucionan en su misma forma.
+- **Nincada** evoluciona en Ninjask a nivel 20 y, si hay lugar en el equipo o la reserva, aparece también **Shedinja**.
+- **Formas paradoja:** el viaje en el tiempo las trae. Con un Cristal Paradoja, Donphan se vuelve **Colmilargo**, Salamence **Bramaluna** y Tyranitar **Ferropúas**.
 
 | Pokemon | Evoluciona a | Requisito |
 |---|---|---|
@@ -277,7 +295,7 @@ Solo se evoluciona a pokemon que están en el juego, así que Chikorita no evolu
 
 En este juego **los pokemon no se capturan**. Cuando derrotás a uno, a veces se queda con corazones porque quiere unirse a vos:
 - Acercate y apretá **E** para hablarle.
-- Si tu equipo está lleno (3), el nuevo va a la **reserva** (hasta 3; si está llena, elegís a quién dejar ir). Los cambios entre el equipo y la reserva **solo se hacen en la tienda** (Chikorita la cuida), así no se puede ir cambiando cuando uno quiere.
+- Si tu equipo está lleno (3), el nuevo va a la **reserva** (hasta 3; si está llena, elegís a quién dejar ir). Los cambios entre el equipo y la reserva **solo se hacen en la tienda** (Chikorita rosa la cuida), así no se puede ir cambiando cuando uno quiere.
 - Si te vas de la sala sin hablarle, se va.
 
 **Cuándo es más probable:**
@@ -287,9 +305,11 @@ En este juego **los pokemon no se capturan**. Cuando derrotás a uno, a veces se
 - Si le **bailaste** cuando tenía poca vida.
 - Con el **Lazo Amistad** de la tienda, que duplica la chance.
 
-Los jefes nunca se unen, y como mucho se une uno por sala.
+Los jefes nunca se unen.
 
-**Mínimo de amigos:** en la **segunda sala de la Era Glacial** alguien quiere unirse seguro. En cada era hay **al menos 2** ofertas: la primera antes de la sala 11 y la segunda antes de la 23. Además, cada sala de combate que completás sin que nadie quiera unirse suma +2,5% de chance para la siguiente (se reinicia cuando alguien quiere).
+**Uno por sala y una de espera:** cuando alguien quiere unirse, en el resto de esa sala ya no se ofrece nadie más, y la **sala siguiente es de espera** (nadie se ofrece). **Excepción:** a los que les bailaste les queda una chance (la mitad de lo normal) de querer unirse igual, así que bailando podés amigar a más de uno.
+
+**Mínimo de amigos:** desde la **segunda sala de la Era Glacial** el primero que derrotás quiere unirse seguro (si esa sala es una tienda o un tesoro, pasa a la siguiente de pelea); los demás de esa sala, no. En cada era hay **al menos 2** ofertas: la primera antes de la sala 11 y la segunda antes de la 23. Además, cada sala de combate que completás sin que nadie quiera unirse suma +2,5% de chance para la siguiente (se reinicia cuando alguien quiere).
 
 ### Naturalezas
 
@@ -330,6 +350,80 @@ Es a donde volvés cuando cae todo tu equipo (como la casa de Hades). Una pantal
 - **Celebi:** siempre el claro del bosque.
 
 **Animaciones:** tus amigos caminan y al quedarse quietos se sientan, se acuestan, miran para arriba o duermen. Asienten cuando les hablás y saltan de alegría cuando los llevás al viaje. Al caer el equipo, el último se desmaya antes de que se oscurezca la pantalla.
+
+---
+
+## Pokemon nuevos y lo que los hace únicos
+
+Se sumaron **más de 60 líneas evolutivas** (datos de la PokeAPI y sprites de SpriteCollab):
+
+| Tipo | Líneas |
+|---|---|
+| Normal | Lillipup, Zigzagoon, Eevee (y sus 8 evoluciones), Whismur, Wooloo |
+| Fuego | Charcadet (Armarouge / Ceruledge), Litten, Growlithe de Hisui |
+| Planta | Shroomish, Snivy, Fomantis, Chikorita (Bayleef y Meganium), Sprigatito, Foongus (+ Furioseta) |
+| Hielo | Swinub |
+| Veneno | Zubat, Grimer de Alola, Croagunk, Skrelp |
+| Tierra | Sandile, Diglett de Alola, Phanpy (+ Colmilargo) |
+| Volador | Noibat, Cramorant, Arrokuda |
+| Psíquico | Ponyta de Galar, Espurr, Ralts (Gardevoir / Gallade), Elgyem |
+| Bicho | Wimpod, Scyther (Scizor / Kleavor), Nincada, Joltik, Sewaddle |
+| Roca | Rockruff, Anorith, Tyrunt, Larvitar (+ Ferropúas) |
+| Fantasma | Shuppet, Litwick, Phantump, Greavard |
+| Dragón | Axew, Bagon (+ Bramaluna), Dreepy, Druddigon |
+| Siniestro | Zorua y Zorua de Hisui, Pawniard, Impidimp |
+| Acero | Mawile, Honedge, Klink, Aron |
+| Hada | Cleffa, Tinkatink, Flabébé |
+
+Amoonguss y Furioseta están cargados, pero SpriteCollab todavía no tiene sus sprites: aparecen solos el día que estén en `assets/sprites/pokemones`.
+
+**Dónde aparecen:** cada era suma los suyos (los de hielo y frío en la Glacial, fósiles y bestias en la de Piedra, los de acero en la de los Metales, dragones, hadas y fantasmas en la Edad Media, ciudad y tecnología en la Moderna, y las formas paradoja y las evoluciones finales en El Origen).
+
+**Mecánicas únicas** (`mecanicas.py`): cada línea tiene una **pasiva** o un **especial propio en R**, sacado de lo que dice su Pokédex. Se ven en su ficha, en la Pokédex y en *Glosario > Pokemon únicos*. Algunas:
+
+| Línea | Mecánica |
+|---|---|
+| Chikorita | **Rastro de pasto:** deja pasto por donde camina; parado en su pasto se cura |
+| Sprigatito | **Bomba floral (R):** flores que explotan al segundo (1, 2 o 3 según la evolución) |
+| Foongus | **Humo tóxico (R):** nube de esporas que envenena y frena |
+| Zubat | **Supersónico (R):** chillido en cono que aturde y confunde |
+| Diglett de Alola | **Bajo tierra (R):** 3 s intocable, pasa por debajo de agua, hielo y lava y sale golpeando |
+| Noibat | **Predicción (R, 40 s):** 5 s esquivando solo; si algo viene muy rápido el tiempo se frena. **Oído fino:** flechas hacia los enemigos de fuera de la pantalla |
+| Elgyem | **Control mental (R, 25 s):** el enemigo más cercano pelea de tu lado |
+| Joltik | **Cobardía:** con poca vida cambia solo al siguiente pokemon |
+| Zorua | **Ilusión (R, 20 s):** toma la forma de un enemigo, no lo atacan hasta que pega y ese golpe hace el doble |
+| Mawile | **Mandíbula trasera:** el golpe muerde adelante y atrás, a veces paraliza y arrastra |
+| Honedge | **Tajo teledirigido (R):** la embestida persigue al enemigo (Aegislash cambia entre espada y escudo) |
+| Eevee y evoluciones | Adaptable, Absorbe Agua, Pelaje de agujas, Absorbe Fuego, Premonición, Sudor venenoso, Fotosíntesis, Cuerpo helado, Cintas calmantes |
+
+**Balance:** las pasivas son chicas y siempre están; lo fuerte va en especiales con mucha espera. Las de contacto (Piel tosca, Púas de hierro, Sudor venenoso...) castigan al que te pega cuerpo a cuerpo.
+
+**Como enemigos:** Diglett de Alola te entierra (mirá el círculo), Mawile te paraliza y arrastra, Zubat te aturde con su chillido (anillo amarillo), Foongus suelta esporas, Zorua aparece disfrazado de otro, Elgyem te controla la mente (caminás al revés) y Joltik escapa con poca vida.
+
+**MT nuevas:** Poder Pasado, Danza Aleteo, Fuerza Lunar y Vozarrón, y los básicos nuevos (Tijera X, Zumbido, Pin Misil, Carantoña, Beso Drenaje, Brillo Mágico, Fuerza Lunar, Vozarrón, Filo Amargo) también se venden como MT de combate.
+
+---
+
+## Estados y curaciones
+
+**Estados del jugador** (iconos arriba de la cabeza): algunos golpes enemigos te los dejan según su tipo (veneno envenena 12%, fuego quema 10%, eléctrico paraliza 10%, psíquico y fantasma confunden), y algunos pokemon tienen los suyos.
+- **Envenenado:** pierde vida de a poco (nunca te deja en 0). **Quemado:** pierde vida y pega 20% menos. **Paralizado:** más lento y a veces no le sale el especial.
+- **Dormido:** no se mueve ni ataca hasta que le pegan. **Confundido:** camina al revés. **Aturdido:** un instante sin poder hacer nada.
+- Cada pokemon tiene los suyos: si cambiás, el que entra no los trae. Los de veneno y acero no se envenenan, los de fuego no se queman y los eléctricos no se paralizan.
+
+**Curaciones** (las vende Chikorita rosa en la tienda): se usan desde la mochila (elegís en quién, también en la banca o la reserva) o con **H**, que usa sola la que conviene: primero saca el estado (la baya justa si la tenés), si no cura la vida gastando lo menos posible.
+
+| Grupo | Objetos |
+|---|---|
+| Bayas | Zumo de Baya (20 PS), Baya Aranja (10), Baya Zidra (30); Zreza (parálisis), Atania (sueño), Meloc (veneno), Safre (quemadura), Perasi (congelamiento), Caquic (confusión), Ziuela (todos) |
+| Amargos (baratos, bajan un poco la amistad) | Polvo Curación (todos los estados), Polvo Energía (50), Raíz Energía (200), Hierba Revivir (revive con la mitad) |
+| Líquidos | Agua Fresca (50), Refresco (60), Limonada (80), Leche Mu-mu (100) |
+| Remedios | Remedio (60), Superremedio (100), Hiperremedio (150) |
+| Pociones | Poción (20), Superpoción (50), Hiperpoción (200), **Poción Máxima** (toda la vida; no se vende: Celebi te da una al empezar cada viaje y en cada era nueva, y solo se lleva una) |
+| Comidas | Galleta Lava, Porcehelado, Crepe Luminalia, Bizcocho Jubileo (todos los estados) |
+| Revivir | Revivir (mitad de la vida), Máximo Revivir (toda) |
+
+Al romper cosas a veces sale una Baya Aranja, una Ziuela o un Zumo de Baya.
 
 ---
 
@@ -494,7 +588,9 @@ Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los spri
 
 ## Tienda
 
-La atiende siempre Chikorita, pero el local cambia de nombre según la era: **Puesto de trueque** (Glacial), **Mercado de trueque** (Piedra), **Bazar** (Metales), **Mercado** (Edad Media), **Almacén** (Moderna) y **Bazar del tiempo** (El Origen). Acercate a una vitrina y apretá E para comprar.
+La atiende siempre **Riolu**, pero el local cambia de nombre según la era: **Puesto de trueque** (Glacial), **Mercado de trueque** (Piedra), **Bazar** (Metales), **Mercado** (Edad Media), **Almacén** (Moderna) y **Bazar del tiempo** (El Origen). Acercate a una vitrina y apretá E para comprar.
+
+**Curaciones:** en el mostrador de abajo a la derecha está **Chikorita rosa**. Hablale con E: cura al que pelea (30 $ + 15 por era), cura y revive a todo el equipo (70 $ + 30 por era) y también **vende todas las curaciones** (ver [Estados y curaciones](#estados-y-curaciones)).
 
 **Cómo están acomodadas las vitrinas:**
 - **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
@@ -772,7 +868,9 @@ Programas aparte para preparar el juego. No se usan mientras jugás.
 
 ```
 python herramientas.py descargar           baja sprites y retratos del PMD (SpriteCollab) a assets/sprites/pokemones
-python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI (stats, movimientos, evoluciones)
+python herramientas.py datos               agrega a datos_pokeapi.json los pokemon que faltan (stats, movimientos, evoluciones). Si pokeapi.co no responde
+                                           usa el espejo de GitHub (PokeAPI/api-data). Con 'datos todo' los vuelve a pedir todos
+python herramientas.py minimapa            recorta las piezas del minimapa (Map Sprites del Explorers of Time/Darkness)
 python herramientas.py recortar hoja.png   recorta sprites de una hoja y los guarda en assets/mundo
 python herramientas.py viaje               recorta el túnel del viaje temporal (Explorers of Sky > Time Travel) para la partida nueva
 python herramientas.py hud                 recorta las barras de HP, íconos de estado, la Pokéball y los paneles en flecha de BW a assets/interfaz/hud

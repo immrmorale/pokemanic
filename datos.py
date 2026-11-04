@@ -15,6 +15,7 @@ import os
 import random
 import unicodedata
 from types import SimpleNamespace
+import mecanicas
 
 
 # ==================== ataques ====================
@@ -59,6 +60,11 @@ habilidades = {
     'sintesis': {'nombre': 'Síntesis', 'api': 'synthesis', 'tipo': 'planta', 'modo': 'curar', 'cura': 0.35, 'duracion': 1200, 'dormir': False, 'enfriamiento': 15000},
     'proteccion': {'nombre': 'Protección', 'api': 'protect', 'tipo': 'normal', 'modo': 'escudo', 'duracion': 900, 'enfriamiento': 8000},
     'deteccion': {'nombre': 'Detección', 'api': 'detect', 'tipo': 'lucha', 'modo': 'escudo', 'duracion': 900, 'enfriamiento': 8000},
+    # expansion
+    'poder_pasado': {'nombre': 'Poder Pasado', 'api': 'ancient-power', 'tipo': 'roca', 'modo': 'proyectil', 'daño': 20, 'distancia': 380, 'velocidad': 10, 'area': 14, 'enfriamiento': 5000, 'cantidad': 3, 'abanico': 30, 'atraviesa': False, 'retroceso': 15, 'efecto': None},
+    'danza_aleteo': {'nombre': 'Danza Aleteo', 'api': 'quiver-dance', 'tipo': 'bicho', 'modo': 'buff', 'duracion': 8000, 'enfriamiento': 14000, 'mejoras': {'daño': 1.25, 'velocidad': 1.2, 'cooldown': 0.9}},
+    'fuerza_lunar_mt': {'nombre': 'Fuerza Lunar', 'api': 'moonblast', 'tipo': 'hada', 'modo': 'proyectil', 'daño': 44, 'distancia': 440, 'velocidad': 9, 'area': 24, 'enfriamiento': 6000, 'cantidad': 1, 'abanico': 0, 'atraviesa': False, 'retroceso': 30, 'efecto': None},
+    'vozarron_mt': {'nombre': 'Vozarrón', 'api': 'hyper-voice', 'tipo': 'normal', 'modo': 'area', 'daño': 30, 'area': 170, 'enfriamiento': 5500, 'retroceso': 40, 'efecto': None},
 }
 
 sinergias = {
@@ -118,6 +124,8 @@ def explicar_movimiento(datos, casilla=None):
         frase = 'Te potencia ' + str(round(float(datos.get('duracion', 0)) / 1000, 1)).replace('.0', '') + ' segundos: ' + ', '.join(partes) + '.'
     elif forma == 'curar':
         frase = 'Te curas el ' + str(int(datos.get('porcentaje', 0))) + '% de la vida al instante.'
+    elif forma == 'mecanica':
+        frase = 'Especial propio de su línea (' + datos.get('nombre', '') + '): ' + datos.get('desc', '') + '.'
     else: frase = 'Movimiento de tipo ' + tipo + '.'
     ef = datos.get('efecto')
     if ef and ef.get('tipo') in EFECTOS_FRASE:
@@ -143,6 +151,7 @@ def nombre_ataque(clave):
     if clave.startswith('fuerza_'): return clave[7:].replace('_', ' ').title() + ' potenciado'
     if clave.startswith('onda_'): return 'Onda de ' + clave[5:].replace('_', ' ').title()
     if clave.startswith('mtb_') or clave.startswith('mt_'): return clave.split('_', 1)[1].replace('_', ' ').title()
+    if clave.startswith('mec_') and clave[4:] in mecanicas.MECANICAS: return mecanicas.MECANICAS[clave[4:]]['nombre']   # el especial propio de la linea
     return clave.replace('_', ' ').title()
 
 ESTADOS_TXT = {'quemar': 'quema', 'paralizar': 'paraliza', 'dormir': 'duerme', 'ralentizar': 'frena', 'empujar': 'empuja'}
@@ -165,7 +174,8 @@ def describir_movimiento(datos):
     elif forma == 'curar':
         partes.append('cura el ' + str(int(num('porcentaje'))) + '% de la vida')
     else:
-        partes.append({'cuerpo': 'golpe cuerpo a cuerpo', 'proyectil': 'disparo', 'area': 'onda alrededor tuyo', 'embestida': 'embestida'}.get(forma, str(forma)))
+        partes.append({'cuerpo': 'golpe cuerpo a cuerpo', 'proyectil': 'disparo', 'area': 'onda alrededor tuyo', 'embestida': 'embestida',
+                       'mecanica': datos.get('nombre', 'especial propio')}.get(forma, str(forma)))
         if num('daño'): partes.append('daño ' + str(int(num('daño'))))
         if forma in ('proyectil', 'embestida') and num('distancia'): partes.append('alcance ' + str(int(num('distancia'))))
         if forma == 'area' and num('area'): partes.append('radio ' + str(int(num('area'))))
@@ -185,6 +195,167 @@ def armar_pokemones():
 
     pokemones = {'lapras': {'pokedex': 131, 'tipo': ['agua', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 130, 'vida': 144, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'acua_jet', 'ataque_proyectil': 'rayo_hielo'}, 'sneasel': {'pokedex': 215, 'tipo': ['siniestro', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['mordisco', 'tajo_umbral', 'pulso_umbrio', 'finta'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'tajo_umbral'}, 'weavile': {'pokedex': 461, 'tipo': ['siniestro', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['mordisco', 'tajo_umbral', 'pulso_umbrio', 'finta'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'tajo_umbral'}, 'snorunt': {'pokedex': 361, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'glalie': {'pokedex': 362, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'froslass': {'pokedex': 478, 'tipo': ['hielo', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'rayo_hielo'}, 'spheal': {'pokedex': 363, 'tipo': ['agua', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'sealeo': {'pokedex': 364, 'tipo': ['agua', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'walrein': {'pokedex': 365, 'tipo': ['agua', 'hielo'], 'peso': None, 'altura': None, 'vida_base': 110, 'vida': 132, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'vanillite': {'pokedex': 582, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 36, 'vida': 83, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'vanillish': {'pokedex': 583, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 51, 'vida': 93, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'vanilluxe': {'pokedex': 584, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 71, 'vida': 106, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'rookidee': {'pokedex': 821, 'tipo': ['volador'], 'peso': None, 'altura': None, 'vida_base': 38, 'vida': 85, 'ataques': ['picotazo', 'ataque_ala', 'vuelo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'ataque_ala'}, 'corvisquire': {'pokedex': 822, 'tipo': ['volador'], 'peso': None, 'altura': None, 'vida_base': 68, 'vida': 104, 'ataques': ['picotazo', 'ataque_ala', 'vuelo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'ataque_ala'}, 'corviknight': {'pokedex': 823, 'tipo': ['volador', 'acero'], 'peso': None, 'altura': None, 'vida_base': 98, 'vida': 124, 'ataques': ['picotazo', 'ataque_ala', 'vuelo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'ataque_ala'}, 'hawlucha': {'pokedex': 701, 'tipo': ['lucha', 'volador'], 'peso': None, 'altura': None, 'vida_base': 78, 'vida': 111, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'natu': {'pokedex': 177, 'tipo': ['psiquico', 'volador'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'}, 'xatu': {'pokedex': 178, 'tipo': ['psiquico', 'volador'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'}, 'drifloon': {'pokedex': 425, 'tipo': ['fantasma', 'volador'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'}, 'drifblim': {'pokedex': 426, 'tipo': ['fantasma', 'volador'], 'peso': None, 'altura': None, 'vida_base': 150, 'vida': 158, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'}, 'magnemite': {'pokedex': 81, 'tipo': ['electrico', 'acero'], 'peso': None, 'altura': None, 'vida_base': 25, 'vida': 76, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'magneton': {'pokedex': 82, 'tipo': ['electrico', 'acero'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'magnezone': {'pokedex': 462, 'tipo': ['electrico', 'acero'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'pichu': {'pokedex': 172, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 20, 'vida': 73, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'pikachu': {'pokedex': 25, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 35, 'vida': 83, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'chispa', 'ataque_proyectil': 'rayo'}, 'raichu': {'pokedex': 26, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'mareep': {'pokedex': 179, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'flaaffy': {'pokedex': 180, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'ampharos': {'pokedex': 181, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'chispa', 'ataque_proyectil': 'rayo'}, 'shinx': {'pokedex': 403, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'luxio': {'pokedex': 404, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'luxray': {'pokedex': 405, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'electrike': {'pokedex': 309, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'manectric': {'pokedex': 310, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'sandshrew': {'pokedex': 27, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'sandslash': {'pokedex': 28, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 109, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'geodude': {'pokedex': 74, 'tipo': ['roca', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['lanzarrocas', 'avalancha', 'romperrocas', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lanzarrocas', 'ataque_proyectil': 'avalancha'}, 'graveler': {'pokedex': 75, 'tipo': ['roca', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['lanzarrocas', 'avalancha', 'romperrocas', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lanzarrocas', 'ataque_proyectil': 'avalancha'}, 'golem': {'pokedex': 76, 'tipo': ['roca', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['lanzarrocas', 'avalancha', 'romperrocas', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lanzarrocas', 'ataque_proyectil': 'avalancha'}, 'cubone': {'pokedex': 104, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'marowak': {'pokedex': 105, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'wooper': {'pokedex': 194, 'tipo': ['agua', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'quagsire': {'pokedex': 195, 'tipo': ['agua', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 122, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'gible': {'pokedex': 443, 'tipo': ['dragon', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 58, 'vida': 98, 'ataques': ['garra_dragon', 'pulso_dragon', 'enfado', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'}, 'gabite': {'pokedex': 444, 'tipo': ['dragon', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 68, 'vida': 104, 'ataques': ['garra_dragon', 'pulso_dragon', 'enfado', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'}, 'garchomp': {'pokedex': 445, 'tipo': ['dragon', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 108, 'vida': 130, 'ataques': ['garra_dragon', 'pulso_dragon', 'enfado', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'}, 'golett': {'pokedex': 622, 'tipo': ['tierra', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 59, 'vida': 98, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo', 'lenguetazo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'golurk': {'pokedex': 623, 'tipo': ['tierra', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 89, 'vida': 118, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo', 'lenguetazo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'}, 'mankey': {'pokedex': 56, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'primeape': {'pokedex': 57, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'annihilape': {'pokedex': 979, 'tipo': ['lucha', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 110, 'vida': 132, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'machop': {'pokedex': 66, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'machoke': {'pokedex': 67, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'machamp': {'pokedex': 68, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'demolicion', 'ataque_proyectil': 'aura_esfera'}, 'torchic': {'pokedex': 255, 'tipo': ['fuego'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['ascuas', 'llamarada', 'patada_ignea', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'}, 'combusken': {'pokedex': 256, 'tipo': ['fuego', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['ascuas', 'llamarada', 'patada_ignea', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'}, 'blaziken': {'pokedex': 257, 'tipo': ['fuego', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['ascuas', 'llamarada', 'patada_ignea', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'patada_ignea', 'ataque_proyectil': 'llamarada'}, 'riolu': {'pokedex': 447, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'lucario': {'pokedex': 448, 'tipo': ['lucha', 'acero'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'demolicion', 'ataque_proyectil': 'aura_esfera'}, 'timburr': {'pokedex': 532, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 109, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'gurdurr': {'pokedex': 533, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'conkeldurr': {'pokedex': 534, 'tipo': ['lucha'], 'peso': None, 'altura': None, 'vida_base': 105, 'vida': 128, 'ataques': ['doble_patada', 'golpe_karate', 'demolicion', 'aura_esfera'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'golpe_karate'}, 'mudkip': {'pokedex': 258, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'marshtomp': {'pokedex': 259, 'tipo': ['agua', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 106, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'swampert': {'pokedex': 260, 'tipo': ['agua', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 125, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'acua_jet', 'ataque_proyectil': 'hidrobomba'}, 'squirtle': {'pokedex': 7, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 44, 'vida': 89, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'wartortle': {'pokedex': 8, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 59, 'vida': 98, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'blastoise': {'pokedex': 9, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 79, 'vida': 111, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'froakie': {'pokedex': 656, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 41, 'vida': 87, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'frogadier': {'pokedex': 657, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 54, 'vida': 95, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'greninja': {'pokedex': 658, 'tipo': ['agua', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 72, 'vida': 107, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'acua_jet', 'ataque_proyectil': 'hidrobomba'}, 'mareanie': {'pokedex': 747, 'tipo': ['veneno', 'agua'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'puya_nociva', 'colmillo_veneno'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'}, 'toxapex': {'pokedex': 748, 'tipo': ['veneno', 'agua'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'puya_nociva', 'colmillo_veneno'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'}, 'oshawott': {'pokedex': 501, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'dewott': {'pokedex': 502, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 109, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'samurott': {'pokedex': 503, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 122, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'clodsire': {'pokedex': 980, 'tipo': ['veneno', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 130, 'vida': 144, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'puya_nociva', 'colmillo_veneno'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'}, 'samurott_hisui': {'pokedex': 503, 'tipo': ['agua', 'siniestro'], 'peso': 'placeholder', 'altura': 'placeholder', 'vida_base': 90, 'vida': 118, 'ataques': ['pistola_agua', 'hidrobomba', 'surf', 'acua_jet'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'pistola_agua', 'ataque_proyectil': 'hidrobomba'}, 'fletchling': {'pokedex': 661, 'tipo': ['normal', 'volador'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'}, 'fletchinder': {'pokedex': 662, 'tipo': ['fuego', 'volador'], 'peso': None, 'altura': None, 'vida_base': 62, 'vida': 100, 'ataques': ['ascuas', 'llamarada', 'patada_ignea', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'}, 'talonflame': {'pokedex': 663, 'tipo': ['fuego', 'volador'], 'peso': None, 'altura': None, 'vida_base': 78, 'vida': 111, 'ataques': ['ascuas', 'llamarada', 'patada_ignea', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'}, 'regigigas': {'pokedex': 486, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 110, 'vida': 220, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'}, 'regice': {'pokedex': 378, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 180, 'ataques': ['rayo_hielo', 'ventisca', 'aliento_hielo', 'puño_hielo'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'rayo_hielo', 'ataque_proyectil': 'ventisca'}, 'regirock': {'pokedex': 377, 'tipo': ['roca'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 180, 'ataques': ['lanzarrocas', 'avalancha', 'romperrocas', 'pedrada'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'lanzarrocas', 'ataque_proyectil': 'avalancha'}, 'registeel': {'pokedex': 379, 'tipo': ['acero'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 180, 'ataques': ['garra_metal', 'cabeza_hierro', 'cañon_flash', 'cola_de_hierro'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'cabeza_hierro'}, 'regieleki': {'pokedex': 894, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 180, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'}, 'regidrago': {'pokedex': 895, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 200, 'vida': 400, 'ataques': ['garra_dragon', 'pulso_dragon', 'enfado', 'cola_dragon'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'}, 'chikorita': {'pokedex': 152, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'}, 'celebi': {'pokedex': 251, 'tipo': ['psiquico', 'planta'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 100, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': False, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'}, 'arceus': {'pokedex': 493, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 120, 'vida': 240, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'}, 'arceus_beta': {'pokedex': 493, 'tipo': ['normal'], 'peso': 'placeholder', 'altura': 'placeholder', 'vida_base': 150, 'vida': 300, 'ataques': ['sentencia', 'pulso_umbrio', 'terremoto', 'rayo'], 'jugable': False, 'boss': True, 'ataque_cuerpo': 'sentencia', 'ataque_proyectil': 'pulso_umbrio'}, 'missigno': {'pokedex': 'placeholder', 'tipo': [], 'peso': 'placeholder', 'altura': 'placeholder', 'vida_base': 'placeholder', 'vida': None, 'ataques': [], 'jugable': False, 'boss': False, 'ataque_cuerpo': None, 'ataque_proyectil': None}}
 
+
+    # ---------- expansion: ~60 lineas evolutivas nuevas (datos de la PokeAPI, sprites de SpriteCollab) ----------
+    # movimientos basicos nuevos (pasan por las plantillas de cuerpo / proyectil de mas abajo; los ajustes en AJUSTE_MOVIMIENTOS)
+    movimientos.update({
+        'tijera_x': {'tipo': 'bicho', 'forma': 'cuerpo'}, 'zumbido': {'tipo': 'bicho', 'forma': 'proyectil'}, 'pin_misil': {'tipo': 'bicho', 'forma': 'proyectil'},
+        'carantoña': {'tipo': 'hada', 'forma': 'cuerpo'}, 'beso_drenaje': {'tipo': 'hada', 'forma': 'cuerpo'},
+        'brillo_magico': {'tipo': 'hada', 'forma': 'proyectil'}, 'fuerza_lunar': {'tipo': 'hada', 'forma': 'proyectil'},
+        'vozarron': {'tipo': 'normal', 'forma': 'proyectil'}, 'filo_amargo': {'tipo': 'fuego', 'forma': 'cuerpo'},
+    })
+    POKEMON_NUEVOS = {
+        'lillipup': {'pokedex': 506, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['mordisco', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'ataque_rapido'},
+        'herdier': {'pokedex': 507, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['mordisco', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'ataque_rapido'},
+        'stoutland': {'pokedex': 508, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['mordisco', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'ataque_rapido'},
+        'zigzagoon': {'pokedex': 263, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 38, 'vida': 85, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'},
+        'linoone': {'pokedex': 264, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 78, 'vida': 110, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'},
+        'eevee': {'pokedex': 133, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['placaje', 'ataque_rapido', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'ataque_rapido'},
+        'vaporeon': {'pokedex': 134, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 130, 'vida': 144, 'ataques': ['acua_jet', 'hidrobomba', 'surf', 'pistola_agua'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'acua_jet', 'ataque_proyectil': 'hidrobomba'},
+        'jolteon': {'pokedex': 135, 'tipo': ['electrico'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['impactrueno', 'rayo', 'onda_thunder', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'impactrueno', 'ataque_proyectil': 'rayo'},
+        'flareon': {'pokedex': 136, 'tipo': ['fuego'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['ascuas', 'llamarada', 'envite_igneo', 'patada_ignea'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'},
+        'espeon': {'pokedex': 196, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'umbreon': {'pokedex': 197, 'tipo': ['siniestro'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['mordisco', 'pulso_umbrio', 'tajo_umbral', 'finta'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pulso_umbrio'},
+        'leafeon': {'pokedex': 470, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'glaceon': {'pokedex': 471, 'tipo': ['hielo'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['puño_hielo', 'rayo_hielo', 'ventisca', 'aliento_hielo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'rayo_hielo'},
+        'sylveon': {'pokedex': 700, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['carantoña', 'brillo_magico', 'fuerza_lunar', 'beso_drenaje'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'carantoña', 'ataque_proyectil': 'brillo_magico'},
+        'whismur': {'pokedex': 293, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 64, 'vida': 101, 'ataques': ['placaje', 'vozarron', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'vozarron'},
+        'loudred': {'pokedex': 294, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 84, 'vida': 114, 'ataques': ['placaje', 'vozarron', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'vozarron'},
+        'exploud': {'pokedex': 295, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 104, 'vida': 127, 'ataques': ['placaje', 'vozarron', 'golpe_cuerpo', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'vozarron'},
+        'wooloo': {'pokedex': 831, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 42, 'vida': 87, 'ataques': ['placaje', 'golpe_cuerpo', 'ataque_rapido', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'golpe_cuerpo'},
+        'dubwool': {'pokedex': 832, 'tipo': ['normal'], 'peso': None, 'altura': None, 'vida_base': 72, 'vida': 107, 'ataques': ['placaje', 'golpe_cuerpo', 'ataque_rapido', 'hiper_rayo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'golpe_cuerpo'},
+        'charcadet': {'pokedex': 935, 'tipo': ['fuego'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['ascuas', 'llamarada', 'envite_igneo', 'patada_ignea'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'},
+        'armarouge': {'pokedex': 936, 'tipo': ['fuego', 'psiquico'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['patada_ignea', 'llamarada', 'psicorrayo', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'patada_ignea', 'ataque_proyectil': 'llamarada'},
+        'ceruledge': {'pokedex': 937, 'tipo': ['fuego', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['filo_amargo', 'bola_sombra', 'llamarada', 'envite_igneo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'filo_amargo', 'ataque_proyectil': 'bola_sombra'},
+        'litten': {'pokedex': 725, 'tipo': ['fuego'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['ascuas', 'llamarada', 'envite_igneo', 'patada_ignea'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'},
+        'torracat': {'pokedex': 726, 'tipo': ['fuego'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['ascuas', 'llamarada', 'envite_igneo', 'patada_ignea'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'llamarada'},
+        'incineroar': {'pokedex': 727, 'tipo': ['fuego', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['mordisco', 'llamarada', 'envite_igneo', 'pulso_umbrio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'llamarada'},
+        'growlithe_hisui': {'pokedex': 58, 'tipo': ['fuego', 'roca'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['ascuas', 'pedrada', 'llamarada', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'pedrada'},
+        'arcanine_hisui': {'pokedex': 59, 'tipo': ['fuego', 'roca'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['ascuas', 'pedrada', 'llamarada', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'pedrada'},
+        'shroomish': {'pokedex': 285, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['latigo_cepa', 'energia_bola', 'bomba_lodo', 'hoja_afilada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'energia_bola'},
+        'breloom': {'pokedex': 286, 'tipo': ['planta', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['doble_patada', 'energia_bola', 'golpe_karate', 'hoja_afilada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'energia_bola'},
+        'snivy': {'pokedex': 495, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'servine': {'pokedex': 496, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'serperior': {'pokedex': 497, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'fomantis': {'pokedex': 753, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['latigo_cepa', 'hoja_afilada', 'rayo_solar', 'energia_bola'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'lurantis': {'pokedex': 754, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['latigo_cepa', 'hoja_afilada', 'rayo_solar', 'energia_bola'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'bayleef': {'pokedex': 153, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'meganium': {'pokedex': 154, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'sprigatito': {'pokedex': 906, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'floragato': {'pokedex': 907, 'tipo': ['planta'], 'peso': None, 'altura': None, 'vida_base': 61, 'vida': 100, 'ataques': ['latigo_cepa', 'hoja_afilada', 'energia_bola', 'rayo_solar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'hoja_afilada'},
+        'meowscarada': {'pokedex': 908, 'tipo': ['planta', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 76, 'vida': 109, 'ataques': ['mordisco', 'hoja_afilada', 'energia_bola', 'tajo_umbral'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'hoja_afilada'},
+        'foongus': {'pokedex': 590, 'tipo': ['planta', 'veneno'], 'peso': None, 'altura': None, 'vida_base': 69, 'vida': 105, 'ataques': ['latigo_cepa', 'bomba_lodo', 'energia_bola', 'puya_nociva'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'bomba_lodo'},
+        'amoonguss': {'pokedex': 591, 'tipo': ['planta', 'veneno'], 'peso': None, 'altura': None, 'vida_base': 114, 'vida': 133, 'ataques': ['latigo_cepa', 'bomba_lodo', 'energia_bola', 'puya_nociva'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'bomba_lodo'},
+        'brute_bonnet': {'pokedex': 986, 'tipo': ['planta', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 111, 'vida': 132, 'ataques': ['mordisco', 'energia_bola', 'tajo_umbral', 'bomba_lodo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'energia_bola'},
+        'swinub': {'pokedex': 220, 'tipo': ['hielo', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['puño_hielo', 'rayo_hielo', 'bofeton_lodo', 'ventisca'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'rayo_hielo'},
+        'piloswine': {'pokedex': 221, 'tipo': ['hielo', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 124, 'ataques': ['puño_hielo', 'rayo_hielo', 'bofeton_lodo', 'ventisca'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'rayo_hielo'},
+        'mamoswine': {'pokedex': 473, 'tipo': ['hielo', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 110, 'vida': 131, 'ataques': ['puño_hielo', 'terremoto', 'rayo_hielo', 'ventisca'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'puño_hielo', 'ataque_proyectil': 'terremoto'},
+        'zubat': {'pokedex': 41, 'tipo': ['veneno', 'volador'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['picotazo_veneno', 'ataque_ala', 'bomba_lodo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'ataque_ala'},
+        'golbat': {'pokedex': 42, 'tipo': ['veneno', 'volador'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['picotazo_veneno', 'ataque_ala', 'bomba_lodo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'ataque_ala'},
+        'crobat': {'pokedex': 169, 'tipo': ['veneno', 'volador'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['picotazo_veneno', 'ataque_ala', 'bomba_lodo', 'tajo_aereo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'ataque_ala'},
+        'grimer_alola': {'pokedex': 88, 'tipo': ['veneno', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 80, 'vida': 112, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'puya_nociva', 'pulso_umbrio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'},
+        'muk_alola': {'pokedex': 89, 'tipo': ['veneno', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 105, 'vida': 128, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'puya_nociva', 'pulso_umbrio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'},
+        'croagunk': {'pokedex': 453, 'tipo': ['veneno', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 48, 'vida': 91, 'ataques': ['doble_patada', 'puya_nociva', 'bomba_lodo', 'golpe_karate'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'puya_nociva'},
+        'toxicroak': {'pokedex': 454, 'tipo': ['veneno', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 83, 'vida': 114, 'ataques': ['doble_patada', 'puya_nociva', 'bomba_lodo', 'golpe_karate'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'doble_patada', 'ataque_proyectil': 'puya_nociva'},
+        'skrelp': {'pokedex': 690, 'tipo': ['veneno', 'agua'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['picotazo_veneno', 'bomba_lodo', 'pistola_agua', 'puya_nociva'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo_veneno', 'ataque_proyectil': 'bomba_lodo'},
+        'dragalge': {'pokedex': 691, 'tipo': ['veneno', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['garra_dragon', 'bomba_lodo', 'pulso_dragon', 'puya_nociva'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'bomba_lodo'},
+        'sandile': {'pokedex': 551, 'tipo': ['tierra', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['mordisco', 'bofeton_lodo', 'terremoto', 'tajo_umbral'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'bofeton_lodo'},
+        'krokorok': {'pokedex': 552, 'tipo': ['tierra', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['mordisco', 'bofeton_lodo', 'terremoto', 'tajo_umbral'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'bofeton_lodo'},
+        'krookodile': {'pokedex': 553, 'tipo': ['tierra', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['mordisco', 'bofeton_lodo', 'terremoto', 'tajo_umbral'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'bofeton_lodo'},
+        'diglett_alola': {'pokedex': 50, 'tipo': ['tierra', 'acero'], 'peso': None, 'altura': None, 'vida_base': 10, 'vida': 67, 'ataques': ['garra_metal', 'terremoto', 'bofeton_lodo', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'terremoto'},
+        'dugtrio_alola': {'pokedex': 51, 'tipo': ['tierra', 'acero'], 'peso': None, 'altura': None, 'vida_base': 35, 'vida': 83, 'ataques': ['garra_metal', 'terremoto', 'bofeton_lodo', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'terremoto'},
+        'phanpy': {'pokedex': 231, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['placaje', 'bofeton_lodo', 'terremoto', 'golpe_cuerpo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'placaje', 'ataque_proyectil': 'bofeton_lodo'},
+        'donphan': {'pokedex': 232, 'tipo': ['tierra'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 118, 'ataques': ['excavar', 'terremoto', 'bofeton_lodo', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'excavar', 'ataque_proyectil': 'terremoto'},
+        'great_tusk': {'pokedex': 984, 'tipo': ['tierra', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 115, 'vida': 134, 'ataques': ['demolicion', 'terremoto', 'golpe_karate', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'demolicion', 'ataque_proyectil': 'terremoto'},
+        'noibat': {'pokedex': 714, 'tipo': ['volador', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['picotazo', 'tajo_aereo', 'pulso_dragon', 'vozarron'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'tajo_aereo'},
+        'noivern': {'pokedex': 715, 'tipo': ['volador', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['picotazo', 'tajo_aereo', 'pulso_dragon', 'vozarron'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'tajo_aereo'},
+        'cramorant': {'pokedex': 845, 'tipo': ['volador', 'agua'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['picotazo', 'hidrobomba', 'tajo_aereo', 'surf'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'picotazo', 'ataque_proyectil': 'hidrobomba'},
+        'arrokuda': {'pokedex': 846, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 41, 'vida': 87, 'ataques': ['mordisco', 'hidrobomba', 'acua_jet', 'surf'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'hidrobomba'},
+        'barraskewda': {'pokedex': 847, 'tipo': ['agua'], 'peso': None, 'altura': None, 'vida_base': 61, 'vida': 100, 'ataques': ['mordisco', 'hidrobomba', 'acua_jet', 'surf'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'hidrobomba'},
+        'ponyta_galar': {'pokedex': 77, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'brillo_magico'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'rapidash_galar': {'pokedex': 78, 'tipo': ['psiquico', 'hada'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['carantoña', 'psicorrayo', 'brillo_magico', 'psiquico'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'carantoña', 'ataque_proyectil': 'psicorrayo'},
+        'espurr': {'pokedex': 677, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 62, 'vida': 100, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'meowstic': {'pokedex': 678, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 74, 'vida': 108, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'ralts': {'pokedex': 280, 'tipo': ['psiquico', 'hada'], 'peso': None, 'altura': None, 'vida_base': 28, 'vida': 78, 'ataques': ['confusion', 'brillo_magico', 'psicorrayo', 'fuerza_lunar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'brillo_magico'},
+        'kirlia': {'pokedex': 281, 'tipo': ['psiquico', 'hada'], 'peso': None, 'altura': None, 'vida_base': 38, 'vida': 85, 'ataques': ['confusion', 'brillo_magico', 'psicorrayo', 'fuerza_lunar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'brillo_magico'},
+        'gardevoir': {'pokedex': 282, 'tipo': ['psiquico', 'hada'], 'peso': None, 'altura': None, 'vida_base': 68, 'vida': 104, 'ataques': ['confusion', 'brillo_magico', 'psicorrayo', 'fuerza_lunar'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'brillo_magico'},
+        'gallade': {'pokedex': 475, 'tipo': ['psiquico', 'lucha'], 'peso': None, 'altura': None, 'vida_base': 68, 'vida': 104, 'ataques': ['demolicion', 'psicorrayo', 'golpe_karate', 'psiquico'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'demolicion', 'ataque_proyectil': 'psicorrayo'},
+        'elgyem': {'pokedex': 605, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'beheeyem': {'pokedex': 606, 'tipo': ['psiquico'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['confusion', 'psicorrayo', 'psiquico', 'premonicion'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'confusion', 'ataque_proyectil': 'psicorrayo'},
+        'wimpod': {'pokedex': 767, 'tipo': ['bicho', 'agua'], 'peso': None, 'altura': None, 'vida_base': 25, 'vida': 76, 'ataques': ['tijera_x', 'zumbido', 'pistola_agua', 'hidrobomba'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'zumbido'},
+        'golisopod': {'pokedex': 768, 'tipo': ['bicho', 'agua'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['tijera_x', 'zumbido', 'pistola_agua', 'hidrobomba'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'zumbido'},
+        'scyther': {'pokedex': 123, 'tipo': ['bicho', 'volador'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['tijera_x', 'tajo_aereo', 'zumbido', 'ataque_ala'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'tajo_aereo'},
+        'scizor': {'pokedex': 212, 'tipo': ['bicho', 'acero'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['garra_metal', 'cabeza_hierro', 'tijera_x', 'zumbido'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'cabeza_hierro'},
+        'kleavor': {'pokedex': 900, 'tipo': ['bicho', 'roca'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['tijera_x', 'avalancha', 'pedrada', 'zumbido'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'avalancha'},
+        'nincada': {'pokedex': 290, 'tipo': ['bicho', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 31, 'vida': 80, 'ataques': ['tijera_x', 'zumbido', 'bofeton_lodo', 'pin_misil'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'zumbido'},
+        'ninjask': {'pokedex': 291, 'tipo': ['bicho', 'volador'], 'peso': None, 'altura': None, 'vida_base': 61, 'vida': 100, 'ataques': ['tijera_x', 'tajo_aereo', 'zumbido', 'pin_misil'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'tajo_aereo'},
+        'shedinja': {'pokedex': 292, 'tipo': ['bicho', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 1, 'vida': 61, 'ataques': ['lenguetazo', 'zumbido', 'bola_sombra', 'pin_misil'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'zumbido'},
+        'joltik': {'pokedex': 595, 'tipo': ['bicho', 'electrico'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['chispa', 'zumbido', 'rayo', 'pin_misil'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'chispa', 'ataque_proyectil': 'zumbido'},
+        'galvantula': {'pokedex': 596, 'tipo': ['bicho', 'electrico'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['chispa', 'zumbido', 'rayo', 'pin_misil'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'chispa', 'ataque_proyectil': 'zumbido'},
+        'sewaddle': {'pokedex': 540, 'tipo': ['bicho', 'planta'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['tijera_x', 'hoja_afilada', 'zumbido', 'energia_bola'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'hoja_afilada'},
+        'swadloon': {'pokedex': 541, 'tipo': ['bicho', 'planta'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['tijera_x', 'hoja_afilada', 'zumbido', 'energia_bola'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'hoja_afilada'},
+        'leavanny': {'pokedex': 542, 'tipo': ['bicho', 'planta'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['tijera_x', 'hoja_afilada', 'zumbido', 'energia_bola'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'hoja_afilada'},
+        'rockruff': {'pokedex': 744, 'tipo': ['roca'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['mordisco', 'pedrada', 'avalancha', 'romperrocas'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pedrada'},
+        'lycanroc': {'pokedex': 745, 'tipo': ['roca'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['mordisco', 'pedrada', 'avalancha', 'romperrocas'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pedrada'},
+        'anorith': {'pokedex': 347, 'tipo': ['roca', 'bicho'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['tijera_x', 'pedrada', 'avalancha', 'zumbido'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'pedrada'},
+        'armaldo': {'pokedex': 348, 'tipo': ['roca', 'bicho'], 'peso': None, 'altura': None, 'vida_base': 75, 'vida': 108, 'ataques': ['tijera_x', 'pedrada', 'avalancha', 'zumbido'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'tijera_x', 'ataque_proyectil': 'pedrada'},
+        'tyrunt': {'pokedex': 696, 'tipo': ['roca', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 58, 'vida': 98, 'ataques': ['mordisco', 'pulso_dragon', 'pedrada', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pulso_dragon'},
+        'tyrantrum': {'pokedex': 697, 'tipo': ['roca', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 82, 'vida': 113, 'ataques': ['mordisco', 'pulso_dragon', 'pedrada', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pulso_dragon'},
+        'larvitar': {'pokedex': 246, 'tipo': ['roca', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['mordisco', 'pedrada', 'avalancha', 'terremoto'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pedrada'},
+        'pupitar': {'pokedex': 247, 'tipo': ['roca', 'tierra'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['mordisco', 'pedrada', 'avalancha', 'terremoto'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pedrada'},
+        'tyranitar': {'pokedex': 248, 'tipo': ['roca', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 124, 'ataques': ['mordisco', 'pedrada', 'avalancha', 'terremoto'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pedrada'},
+        'iron_thorns': {'pokedex': 995, 'tipo': ['roca', 'electrico'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 124, 'ataques': ['chispa', 'avalancha', 'rayo', 'pedrada'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'chispa', 'ataque_proyectil': 'avalancha'},
+        'shuppet': {'pokedex': 353, 'tipo': ['fantasma'], 'peso': None, 'altura': None, 'vida_base': 44, 'vida': 89, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'},
+        'banette': {'pokedex': 354, 'tipo': ['fantasma'], 'peso': None, 'altura': None, 'vida_base': 64, 'vida': 101, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'},
+        'litwick': {'pokedex': 607, 'tipo': ['fantasma', 'fuego'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['ascuas', 'bola_sombra', 'llamarada', 'infortunio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'bola_sombra'},
+        'lampent': {'pokedex': 608, 'tipo': ['fantasma', 'fuego'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['ascuas', 'bola_sombra', 'llamarada', 'infortunio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'bola_sombra'},
+        'chandelure': {'pokedex': 609, 'tipo': ['fantasma', 'fuego'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['ascuas', 'bola_sombra', 'llamarada', 'infortunio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'ascuas', 'ataque_proyectil': 'bola_sombra'},
+        'phantump': {'pokedex': 708, 'tipo': ['fantasma', 'planta'], 'peso': None, 'altura': None, 'vida_base': 43, 'vida': 88, 'ataques': ['latigo_cepa', 'bola_sombra', 'hoja_afilada', 'infortunio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'bola_sombra'},
+        'trevenant': {'pokedex': 709, 'tipo': ['fantasma', 'planta'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['latigo_cepa', 'bola_sombra', 'hoja_afilada', 'infortunio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'latigo_cepa', 'ataque_proyectil': 'bola_sombra'},
+        'greavard': {'pokedex': 971, 'tipo': ['fantasma'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['mordisco', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'bola_sombra'},
+        'houndstone': {'pokedex': 972, 'tipo': ['fantasma'], 'peso': None, 'altura': None, 'vida_base': 72, 'vida': 107, 'ataques': ['mordisco', 'bola_sombra', 'infortunio', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'bola_sombra'},
+        'axew': {'pokedex': 610, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 46, 'vida': 90, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'fraxure': {'pokedex': 611, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 66, 'vida': 103, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'haxorus': {'pokedex': 612, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 76, 'vida': 109, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'bagon': {'pokedex': 371, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'shelgon': {'pokedex': 372, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'salamence': {'pokedex': 373, 'tipo': ['dragon', 'volador'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['garra_dragon', 'pulso_dragon', 'tajo_aereo', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'roaring_moon': {'pokedex': 1005, 'tipo': ['dragon', 'siniestro'], 'peso': None, 'altura': None, 'vida_base': 105, 'vida': 128, 'ataques': ['garra_dragon', 'tajo_umbral', 'pulso_dragon', 'pulso_umbrio'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'tajo_umbral'},
+        'dreepy': {'pokedex': 885, 'tipo': ['dragon', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 28, 'vida': 78, 'ataques': ['lenguetazo', 'pulso_dragon', 'bola_sombra', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'pulso_dragon'},
+        'drakloak': {'pokedex': 886, 'tipo': ['dragon', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 68, 'vida': 104, 'ataques': ['lenguetazo', 'pulso_dragon', 'bola_sombra', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'pulso_dragon'},
+        'dragapult': {'pokedex': 887, 'tipo': ['dragon', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 88, 'vida': 117, 'ataques': ['lenguetazo', 'pulso_dragon', 'bola_sombra', 'cola_dragon'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'pulso_dragon'},
+        'druddigon': {'pokedex': 621, 'tipo': ['dragon'], 'peso': None, 'altura': None, 'vida_base': 77, 'vida': 110, 'ataques': ['garra_dragon', 'pulso_dragon', 'cola_dragon', 'enfado'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_dragon', 'ataque_proyectil': 'pulso_dragon'},
+        'zorua': {'pokedex': 570, 'tipo': ['siniestro'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['mordisco', 'pulso_umbrio', 'tajo_umbral', 'finta'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pulso_umbrio'},
+        'zoroark': {'pokedex': 571, 'tipo': ['siniestro'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['mordisco', 'pulso_umbrio', 'tajo_umbral', 'finta'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'pulso_umbrio'},
+        'zorua_hisui': {'pokedex': 570, 'tipo': ['normal', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 35, 'vida': 83, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'golpe_cuerpo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'},
+        'zoroark_hisui': {'pokedex': 571, 'tipo': ['normal', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 55, 'vida': 96, 'ataques': ['lenguetazo', 'bola_sombra', 'infortunio', 'golpe_cuerpo'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'lenguetazo', 'ataque_proyectil': 'bola_sombra'},
+        'pawniard': {'pokedex': 624, 'tipo': ['siniestro', 'acero'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['garra_metal', 'tajo_umbral', 'pulso_umbrio', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'tajo_umbral'},
+        'bisharp': {'pokedex': 625, 'tipo': ['siniestro', 'acero'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['garra_metal', 'tajo_umbral', 'pulso_umbrio', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'tajo_umbral'},
+        'kingambit': {'pokedex': 983, 'tipo': ['siniestro', 'acero'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 124, 'ataques': ['garra_metal', 'tajo_umbral', 'pulso_umbrio', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'tajo_umbral'},
+        'impidimp': {'pokedex': 859, 'tipo': ['siniestro', 'hada'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['mordisco', 'brillo_magico', 'pulso_umbrio', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'brillo_magico'},
+        'morgrem': {'pokedex': 860, 'tipo': ['siniestro', 'hada'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['mordisco', 'brillo_magico', 'pulso_umbrio', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'brillo_magico'},
+        'grimmsnarl': {'pokedex': 861, 'tipo': ['siniestro', 'hada'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['mordisco', 'brillo_magico', 'pulso_umbrio', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'brillo_magico'},
+        'mawile': {'pokedex': 303, 'tipo': ['acero', 'hada'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['mordisco', 'brillo_magico', 'cabeza_hierro', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'mordisco', 'ataque_proyectil': 'brillo_magico'},
+        'honedge': {'pokedex': 679, 'tipo': ['acero', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 45, 'vida': 89, 'ataques': ['garra_metal', 'bola_sombra', 'cabeza_hierro', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'bola_sombra'},
+        'doublade': {'pokedex': 680, 'tipo': ['acero', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 59, 'vida': 98, 'ataques': ['garra_metal', 'bola_sombra', 'cabeza_hierro', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'bola_sombra'},
+        'aegislash': {'pokedex': 681, 'tipo': ['acero', 'fantasma'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['garra_metal', 'bola_sombra', 'cabeza_hierro', 'garra_umbria'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'bola_sombra'},
+        'klink': {'pokedex': 599, 'tipo': ['acero'], 'peso': None, 'altura': None, 'vida_base': 40, 'vida': 86, 'ataques': ['garra_metal', 'cañon_flash', 'cabeza_hierro', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'cañon_flash'},
+        'klang': {'pokedex': 600, 'tipo': ['acero'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['garra_metal', 'cañon_flash', 'cabeza_hierro', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'cañon_flash'},
+        'klinklang': {'pokedex': 601, 'tipo': ['acero'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['garra_metal', 'cañon_flash', 'cabeza_hierro', 'chispa'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'cañon_flash'},
+        'aron': {'pokedex': 304, 'tipo': ['acero', 'roca'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['garra_metal', 'pedrada', 'cabeza_hierro', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'pedrada'},
+        'lairon': {'pokedex': 305, 'tipo': ['acero', 'roca'], 'peso': None, 'altura': None, 'vida_base': 60, 'vida': 99, 'ataques': ['garra_metal', 'pedrada', 'cabeza_hierro', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'pedrada'},
+        'aggron': {'pokedex': 306, 'tipo': ['acero', 'roca'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['garra_metal', 'pedrada', 'cabeza_hierro', 'avalancha'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'pedrada'},
+        'cleffa': {'pokedex': 173, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['carantoña', 'fuerza_lunar', 'brillo_magico', 'beso_drenaje'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'carantoña', 'ataque_proyectil': 'fuerza_lunar'},
+        'clefairy': {'pokedex': 35, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 70, 'vida': 105, 'ataques': ['carantoña', 'fuerza_lunar', 'brillo_magico', 'beso_drenaje'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'carantoña', 'ataque_proyectil': 'fuerza_lunar'},
+        'clefable': {'pokedex': 36, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 95, 'vida': 121, 'ataques': ['carantoña', 'fuerza_lunar', 'brillo_magico', 'beso_drenaje'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'carantoña', 'ataque_proyectil': 'fuerza_lunar'},
+        'tinkatink': {'pokedex': 957, 'tipo': ['hada', 'acero'], 'peso': None, 'altura': None, 'vida_base': 50, 'vida': 92, 'ataques': ['garra_metal', 'brillo_magico', 'carantoña', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'brillo_magico'},
+        'tinkatuff': {'pokedex': 958, 'tipo': ['hada', 'acero'], 'peso': None, 'altura': None, 'vida_base': 65, 'vida': 102, 'ataques': ['garra_metal', 'brillo_magico', 'carantoña', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'brillo_magico'},
+        'tinkaton': {'pokedex': 959, 'tipo': ['hada', 'acero'], 'peso': None, 'altura': None, 'vida_base': 85, 'vida': 115, 'ataques': ['garra_metal', 'brillo_magico', 'carantoña', 'cabeza_hierro'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'brillo_magico'},
+        'flabebe': {'pokedex': 669, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 44, 'vida': 89, 'ataques': ['beso_drenaje', 'fuerza_lunar', 'brillo_magico', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'beso_drenaje', 'ataque_proyectil': 'fuerza_lunar'},
+        'floette': {'pokedex': 670, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 54, 'vida': 95, 'ataques': ['beso_drenaje', 'fuerza_lunar', 'brillo_magico', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'beso_drenaje', 'ataque_proyectil': 'fuerza_lunar'},
+        'florges': {'pokedex': 671, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 78, 'vida': 110, 'ataques': ['beso_drenaje', 'fuerza_lunar', 'brillo_magico', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'beso_drenaje', 'ataque_proyectil': 'fuerza_lunar'},
+    }
+    pokemones.update(POKEMON_NUEVOS)
 
 
     INMUNE_MULT = 0.2
@@ -263,6 +434,157 @@ def armar_pokemones():
         'clodsire': 'tanque', 'samurott_hisui': 'atacante', 'fletchling': 'velocista', 'fletchinder': 'velocista', 'talonflame': 'velocista',
         'chikorita': 'estratega',
     }
+    ROL_POKEMON.update({
+        'lillipup': 'velocista',
+        'herdier': 'atacante',
+        'stoutland': 'tanque',
+        'zigzagoon': 'velocista',
+        'linoone': 'velocista',
+        'eevee': 'velocista',
+        'vaporeon': 'tanque',
+        'jolteon': 'velocista',
+        'flareon': 'atacante',
+        'espeon': 'estratega',
+        'umbreon': 'tanque',
+        'leafeon': 'atacante',
+        'glaceon': 'estratega',
+        'sylveon': 'estratega',
+        'whismur': 'estratega',
+        'loudred': 'estratega',
+        'exploud': 'atacante',
+        'wooloo': 'tanque',
+        'dubwool': 'tanque',
+        'charcadet': 'atacante',
+        'armarouge': 'estratega',
+        'ceruledge': 'atacante',
+        'litten': 'atacante',
+        'torracat': 'atacante',
+        'incineroar': 'tanque',
+        'growlithe_hisui': 'tanque',
+        'arcanine_hisui': 'atacante',
+        'shroomish': 'estratega',
+        'breloom': 'atacante',
+        'snivy': 'velocista',
+        'servine': 'velocista',
+        'serperior': 'estratega',
+        'fomantis': 'atacante',
+        'lurantis': 'atacante',
+        'bayleef': 'estratega',
+        'meganium': 'tanque',
+        'sprigatito': 'velocista',
+        'floragato': 'velocista',
+        'meowscarada': 'velocista',
+        'foongus': 'estratega',
+        'amoonguss': 'tanque',
+        'brute_bonnet': 'atacante',
+        'swinub': 'tanque',
+        'piloswine': 'tanque',
+        'mamoswine': 'atacante',
+        'zubat': 'velocista',
+        'golbat': 'velocista',
+        'crobat': 'velocista',
+        'grimer_alola': 'tanque',
+        'muk_alola': 'tanque',
+        'croagunk': 'atacante',
+        'toxicroak': 'atacante',
+        'skrelp': 'estratega',
+        'dragalge': 'estratega',
+        'sandile': 'velocista',
+        'krokorok': 'atacante',
+        'krookodile': 'atacante',
+        'diglett_alola': 'velocista',
+        'dugtrio_alola': 'velocista',
+        'phanpy': 'tanque',
+        'donphan': 'tanque',
+        'great_tusk': 'tanque',
+        'noibat': 'velocista',
+        'noivern': 'velocista',
+        'cramorant': 'estratega',
+        'arrokuda': 'velocista',
+        'barraskewda': 'velocista',
+        'ponyta_galar': 'velocista',
+        'rapidash_galar': 'estratega',
+        'espurr': 'estratega',
+        'meowstic': 'estratega',
+        'ralts': 'estratega',
+        'kirlia': 'estratega',
+        'gardevoir': 'estratega',
+        'gallade': 'atacante',
+        'elgyem': 'estratega',
+        'beheeyem': 'estratega',
+        'wimpod': 'velocista',
+        'golisopod': 'tanque',
+        'scyther': 'velocista',
+        'scizor': 'atacante',
+        'kleavor': 'atacante',
+        'nincada': 'tanque',
+        'ninjask': 'velocista',
+        'shedinja': 'estratega',
+        'joltik': 'velocista',
+        'galvantula': 'estratega',
+        'sewaddle': 'estratega',
+        'swadloon': 'tanque',
+        'leavanny': 'atacante',
+        'rockruff': 'velocista',
+        'lycanroc': 'velocista',
+        'anorith': 'atacante',
+        'armaldo': 'tanque',
+        'tyrunt': 'atacante',
+        'tyrantrum': 'atacante',
+        'larvitar': 'tanque',
+        'pupitar': 'tanque',
+        'tyranitar': 'tanque',
+        'iron_thorns': 'tanque',
+        'shuppet': 'estratega',
+        'banette': 'atacante',
+        'litwick': 'estratega',
+        'lampent': 'estratega',
+        'chandelure': 'atacante',
+        'phantump': 'estratega',
+        'trevenant': 'tanque',
+        'greavard': 'tanque',
+        'houndstone': 'tanque',
+        'axew': 'atacante',
+        'fraxure': 'atacante',
+        'haxorus': 'atacante',
+        'bagon': 'atacante',
+        'shelgon': 'tanque',
+        'salamence': 'atacante',
+        'roaring_moon': 'atacante',
+        'dreepy': 'velocista',
+        'drakloak': 'velocista',
+        'dragapult': 'velocista',
+        'druddigon': 'tanque',
+        'zorua': 'velocista',
+        'zoroark': 'atacante',
+        'zorua_hisui': 'velocista',
+        'zoroark_hisui': 'atacante',
+        'pawniard': 'atacante',
+        'bisharp': 'atacante',
+        'kingambit': 'tanque',
+        'impidimp': 'estratega',
+        'morgrem': 'velocista',
+        'grimmsnarl': 'tanque',
+        'mawile': 'tanque',
+        'honedge': 'atacante',
+        'doublade': 'tanque',
+        'aegislash': 'tanque',
+        'klink': 'tanque',
+        'klang': 'tanque',
+        'klinklang': 'atacante',
+        'aron': 'tanque',
+        'lairon': 'tanque',
+        'aggron': 'tanque',
+        'cleffa': 'estratega',
+        'clefairy': 'estratega',
+        'clefable': 'estratega',
+        'tinkatink': 'atacante',
+        'tinkatuff': 'atacante',
+        'tinkaton': 'atacante',
+        'flabebe': 'estratega',
+        'floette': 'estratega',
+        'florges': 'estratega',
+    })
 
     FORMA_HITBOX = {
         'lapras': (1.0, 0.8), 'swampert': (1.0, 0.8), 'walrein': (1.0, 0.85), 'golem': (1.0, 0.85), 'glalie': (1.0, 0.9), 'drifblim': (0.9, 1.0),
@@ -304,6 +626,10 @@ def armar_pokemones():
         'psicorrayo': {'tipo': 'psiquico'}, 'avalancha': {'tipo': 'roca', 'daño': 26}, 'bomba_lodo': {'tipo': 'veneno', 'daño': 26},
         'hiper_rayo': {'tipo': 'normal', 'daño': 32, 'enfriamiento': 1000}, 'rayo_solar': {'tipo': 'planta', 'daño': 30, 'enfriamiento': 950},
         'terremoto': {'daño': 26}, 'hoja_afilada': {'daño': 24},
+        # basicos nuevos de la expansion
+        'tijera_x': {'daño': 20}, 'carantoña': {'daño': 20}, 'beso_drenaje': {'daño': 16, 'drena': 0.5}, 'filo_amargo': {'daño': 20, 'drena': 0.25},
+        'zumbido': {'daño': 24}, 'pin_misil': {'daño': 11, 'cantidad': 3, 'abanico': 14, 'enfriamiento': 820},
+        'brillo_magico': {'daño': 24}, 'fuerza_lunar': {'daño': 28, 'enfriamiento': 900}, 'vozarron': {'daño': 22, 'atraviesa': True},
     }
     for _n, _mov in movimientos.items():
         if _n == 'sentencia': continue
@@ -431,7 +757,13 @@ def armar_pokemones():
         alto = max(14, round(tamaño * 0.7 * rh))
         return {'nombre': nombre, 'tipos': tipos, 'rol': rol, 'max_vida': vida, 'velocidad': round(velocidad, 2), 'tamaño': tamaño, 'ancho': ancho, 'alto': alto,
                 'mult_daño': round(r['daño'] * fuerza_especie(nombre), 3), 'mult_enfriamiento': r['enfriamiento'], 'basicos': [d.get('ataque_cuerpo'), d.get('ataque_proyectil')],
-                'especiales': _especiales_de(nombre, rol, tipos), 'sinergia': sinergia_de(nombre)}
+                'especiales': _con_mecanica(nombre, _especiales_de(nombre, rol, tipos)), 'sinergia': sinergia_de(nombre)}
+
+
+    def _con_mecanica(nombre, especiales):
+        """Si la linea tiene un especial propio (mecanicas.py), va en la casilla R en lugar del segundo especial del rol."""
+        propio = mecanicas.especial_de(nombre)
+        return [especiales[0], propio] if propio else especiales
 
 
     ASIST_MEC = {
@@ -729,6 +1061,8 @@ def armar_tienda():
         'revestimiento_metalico': {'nombre': 'Revest. Metalico', 'precio': 140, 'color': (180, 180, 200), 'tipo': ('acero', 1.2)},
         'semilla_milagro': {'nombre': 'Semilla Milagro', 'precio': 140, 'color': (120, 200, 80), 'tipo': ('planta', 1.2)},
         'pañuelo_seda': {'nombre': 'Pañuelo Seda', 'precio': 140, 'color': (230, 230, 210), 'tipo': ('normal', 1.2)},
+        'polvo_plata': {'nombre': 'Polvo Plata', 'precio': 140, 'color': (200, 200, 210), 'tipo': ('bicho', 1.2)},
+        'pluma_hada': {'nombre': 'Pluma Hada', 'precio': 140, 'color': (250, 160, 210), 'tipo': ('hada', 1.2)},
     }
     for _clave, _item in ITEMS.items():
         if 'tipo' in _item: _item['desc'] = '+20% de daño a los ataques de tipo ' + _item['tipo'][0]; _item['equipable'] = {}
@@ -742,7 +1076,20 @@ def armar_tienda():
         'piedra_alba': {'nombre': 'Piedra Alba', 'precio': 220, 'color': (120, 220, 230), 'objeto': True, 'desc': 'hace evolucionar a Snorunt en Froslass'},
         'garra_afilada': {'nombre': 'Garra Afilada', 'precio': 220, 'color': (200, 200, 220), 'objeto': True, 'desc': 'hace evolucionar a Sneasel'},
         'cordon_union': {'nombre': 'Cordon Union', 'precio': 240, 'color': (240, 140, 60), 'objeto': True,
-                         'desc': 'evoluciona a los que en los juegos evolucionan por intercambio (Graveler, Machoke, Gurdurr)'},
+                         'desc': 'evoluciona a los que en los juegos evolucionan por intercambio (Graveler, Machoke, Gurdurr, Scyther, Phantump)'},
+        'piedra_fuego': {'nombre': 'Piedra Fuego', 'precio': 220, 'color': (240, 110, 50), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Flareon y al Growlithe de Hisui'},
+        'piedra_agua': {'nombre': 'Piedra Agua', 'precio': 220, 'color': (70, 130, 235), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Vaporeon'},
+        'piedra_hoja': {'nombre': 'Piedra Hoja', 'precio': 220, 'color': (100, 190, 80), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Leafeon'},
+        'piedra_hielo': {'nombre': 'Piedra Hielo', 'precio': 220, 'color': (150, 220, 255), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Glaceon'},
+        'piedra_solar': {'nombre': 'Piedra Solar', 'precio': 220, 'color': (250, 160, 40), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Espeon'},
+        'piedra_lunar': {'nombre': 'Piedra Lunar', 'precio': 220, 'color': (120, 110, 160), 'objeto': True, 'desc': 'hace evolucionar a Eevee en Umbreon y a Clefairy'},
+        'piedra_dia': {'nombre': 'Piedra Dia', 'precio': 220, 'color': (240, 240, 200), 'objeto': True, 'desc': 'hace evolucionar a Floette'},
+        'piedra_noche': {'nombre': 'Piedra Noche', 'precio': 220, 'color': (60, 50, 90), 'objeto': True, 'desc': 'hace evolucionar a Lampent y a Doublade'},
+        'armadura_auspiciosa': {'nombre': 'Armadura Auspiciosa', 'precio': 240, 'color': (240, 180, 60), 'objeto': True, 'desc': 'hace evolucionar a Charcadet en Armarouge'},
+        'armadura_maldita': {'nombre': 'Armadura Maldita', 'precio': 240, 'color': (110, 70, 160), 'objeto': True, 'desc': 'hace evolucionar a Charcadet en Ceruledge'},
+        'mineral_negro': {'nombre': 'Mineral Negro', 'precio': 240, 'color': (60, 60, 60), 'objeto': True, 'desc': 'hace evolucionar a Scyther en Kleavor'},
+        'cristal_paradoja': {'nombre': 'Cristal Paradoja', 'precio': 400, 'color': (190, 120, 255), 'objeto': True,
+                             'desc': 'un pedazo del tiempo roto: transforma a Donphan, Salamence y Tyranitar en su forma paradoja'},
         'llave_tesoro': {'nombre': 'Llave del Tesoro', 'precio': 130, 'color': (200, 200, 220), 'objeto': True,
                          'desc': 'abre una puerta con candado: detras hay una sala del tesoro con premios para elegir'},
         'caramelo_raro': {'nombre': 'Caramelo Raro', 'precio': 260, 'color': (120, 140, 255), 'objeto': True,
@@ -759,12 +1106,97 @@ def armar_tienda():
         'lazo_amistad': {'nombre': 'Lazo Amistad', 'precio': 110, 'color': (250, 120, 170), 'temporal': ('amistad', 2.0, SALAS_X),
                          'desc': 'el doble de chance de que un pokemon quiera unirse por 3 salas'},
     })
+    # ---------- curaciones (las vende Chikorita rosa; se usan desde la mochila o con la tecla de curarse) ----------
+    # 'ps': cuanta vida cura ('todo' = toda), 'estados': cuales saca ('todos' = todos), 'revive': con que parte de la vida revive a un debilitado,
+    # 'amargo': baja un poco la amistad (como en los juegos), 'unico': solo se puede llevar uno
+    TODOS_ESTADOS = ('veneno', 'quemadura', 'paralisis', 'sueño', 'confusion', 'aturdido', 'congelado')
+    CURATIVOS = {
+        # bayas
+        'zumo_baya': ('Zumo de Baya', 25, {'ps': 20}, (230, 120, 160)),
+        'baya_aranja': ('Baya Aranja', 15, {'ps': 10}, (70, 130, 235)),
+        'baya_zidra': ('Baya Zidra', 40, {'ps': 30}, (240, 220, 80)),
+        'baya_zreza': ('Baya Zreza', 20, {'estados': ('paralisis',)}, (230, 60, 70)),
+        'baya_atania': ('Baya Atania', 20, {'estados': ('sueño',)}, (110, 80, 200)),
+        'baya_meloc': ('Baya Meloc', 20, {'estados': ('veneno',)}, (250, 170, 190)),
+        'baya_safre': ('Baya Safre', 20, {'estados': ('quemadura',)}, (90, 170, 220)),
+        'baya_perasi': ('Baya Perasi', 20, {'estados': ('congelado',)}, (240, 230, 150)),
+        'baya_caquic': ('Baya Caquic', 20, {'estados': ('confusion', 'aturdido')}, (240, 150, 60)),
+        'baya_ziuela': ('Baya Ziuela', 60, {'estados': 'todos'}, (120, 200, 90)),
+        # amargos (baratos, pero al pokemon no le gustan)
+        'polvo_curacion': ('Polvo Curación', 30, {'estados': 'todos', 'amargo': True}, (220, 220, 200)),
+        'polvo_energia': ('Polvo Energía', 35, {'ps': 50, 'amargo': True}, (200, 210, 140)),
+        'raiz_energia': ('Raíz Energía', 140, {'ps': 200, 'amargo': True}, (160, 120, 80)),
+        # liquidos
+        'agua_fresca': ('Agua Fresca', 55, {'ps': 50}, (140, 200, 250)),
+        'refresco': ('Refresco', 65, {'ps': 60}, (250, 220, 120)),
+        'limonada': ('Limonada', 85, {'ps': 80}, (250, 240, 150)),
+        'leche_mumu': ('Leche Mu-mu', 110, {'ps': 100}, (245, 245, 235)),
+        # remedios
+        'remedio': ('Remedio', 60, {'ps': 60}, (180, 140, 220)),
+        'superremedio': ('Superremedio', 100, {'ps': 100}, (150, 110, 220)),
+        'hiperremedio': ('Hiperremedio', 150, {'ps': 150}, (120, 80, 210)),
+        # pociones
+        'pocion': ('Poción', 30, {'ps': 20}, (160, 90, 220)),
+        'superpocion': ('Superpoción', 70, {'ps': 50}, (230, 140, 60)),
+        'hiperpocion': ('Hiperpoción', 220, {'ps': 200}, (240, 100, 160)),
+        'pocion_maxima': ('Poción Máxima', 0, {'ps': 'todo', 'unico': True}, (90, 160, 240)),   # no se vende: te la da Celebi
+        # comidas que curan estados
+        'galleta_lava': ('Galleta Lava', 70, {'estados': 'todos'}, (220, 90, 50)),
+        'porcehelado': ('Porcehelado', 70, {'estados': 'todos'}, (200, 230, 250)),
+        'crepe_luminalia': ('Crepe Luminalia', 70, {'estados': 'todos'}, (250, 200, 120)),
+        'bizcocho_jubileo': ('Bizcocho Jubileo', 70, {'estados': 'todos'}, (240, 190, 140)),
+        # revivir
+        'hierba_revivir': ('Hierba Revivir', 120, {'revive': 0.5, 'amargo': True}, (120, 180, 80)),
+        'revivir': ('Revivir', 200, {'revive': 0.5}, (250, 220, 90)),
+        'maximo_revivir': ('Máximo Revivir', 400, {'revive': 1.0}, (250, 180, 60)),
+    }
+
+    def _texto_cura(c):
+        """'cura 50 PS', 'saca el veneno', 'revive con la mitad de la vida'..."""
+        partes = []
+        if 'revive' in c: partes.append('revive a un debilitado con ' + ('toda la vida' if c['revive'] >= 1 else 'la mitad de la vida'))
+        if c.get('ps') == 'todo': partes.append('cura toda la vida')
+        elif c.get('ps'): partes.append('cura ' + str(c['ps']) + ' PS')
+        nombres = {'veneno': 'el veneno', 'quemadura': 'la quemadura', 'paralisis': 'la parálisis', 'sueño': 'el sueño', 'confusion': 'la confusión',
+                   'aturdido': 'el aturdimiento', 'congelado': 'el congelamiento'}
+        if c.get('estados') == 'todos': partes.append('saca todos los estados')
+        elif c.get('estados'): partes.append('saca ' + ' y '.join(nombres[e] for e in c['estados']))
+        if c.get('amargo'): partes.append('es amargo: baja un poco la amistad')
+        if c.get('unico'): partes.append('solo se puede llevar una y te la da Celebi')
+        return ', '.join(partes)
+
+    for _clave, (_nombre, _precio, _cura, _color) in CURATIVOS.items():
+        ITEMS[_clave] = {'nombre': _nombre, 'precio': _precio, 'color': _color, 'objeto': True, 'curativo': _cura, 'desc': _texto_cura(_cura)}
+    CURACIONES = tuple(k for k in CURATIVOS if ITEMS[k]['precio'] > 0)       # lo que vende Chikorita rosa
+
+    def usar_curativo(m, clave):
+        """Usa una curacion en un miembro del equipo. Devuelve (se uso, texto). No gasta nada si no hace falta."""
+        c = ITEMS[clave]['curativo']
+        nombre = m['nombre'].replace('_', ' ').title()
+        est = m.setdefault('estados', {})
+        if m['vida'] <= 0:
+            if 'revive' not in c: return False, nombre + ' está debilitado: hace falta algo para revivirlo'
+            m['vida'] = max(1, round(m['max_vida'] * c['revive'])); est.clear()
+            texto = nombre + ' revivió'
+        else:
+            if 'revive' in c: return False, nombre + ' no está debilitado'
+            cuales = TODOS_ESTADOS if c.get('estados') == 'todos' else (c.get('estados') or ())
+            saca = [e for e in cuales if e in est]
+            cura = (m['max_vida'] - m['vida']) if c.get('ps') == 'todo' else min(c.get('ps') or 0, m['max_vida'] - m['vida'])
+            if not saca and cura < 1: return False, nombre + (' no tiene ese problema' if cuales and not c.get('ps') else ' tiene la vida llena')
+            for e in saca: est.pop(e, None)
+            m['vida'] = min(m['max_vida'], m['vida'] + cura)
+            texto = nombre + (' recuperó ' + str(round(cura)) + ' PS' if cura >= 1 else ' se siente mejor')
+        if c.get('amargo'): m['amistad'] = max(0, m.get('amistad', 0) - 5); texto += ' (le pareció amargo)'
+        return True, texto
+
     for _clave, _mt in mts.MTS.items():
         ITEMS[_clave] = {'nombre': _mt['nombre'], 'precio': _mt['precio'], 'color': (90, 200, 120) if _mt['casillas'] == 'todas' else (90, 90, 200),
                          'objeto': True, 'mt': True,
                          'desc': ('MT de combate: ' if _mt['casillas'] == 'todas' else 'MT especial (solo Shift o R): ') + _mt['nombre'][3:]
                                  + ' (tipo ' + _mt['tipo'] + '). ' + describir_movimiento(_mt['datos'])}
-    EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union')
+    EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union', 'piedra_fuego', 'piedra_agua', 'piedra_hoja', 'piedra_hielo',
+                 'piedra_solar', 'piedra_lunar', 'piedra_dia', 'piedra_noche', 'armadura_auspiciosa', 'armadura_maldita', 'mineral_negro', 'cristal_paradoja')
 
     COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad')
     DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda', 'cinturon_focus', 'pluma_agil', 'caramelo_raro')
@@ -1031,7 +1463,8 @@ def armar_mundos():
         'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
         'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
-        'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # ayudante de Kecleon
+        'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # cura al equipo en la tienda
+        'riolu': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (90, 140, 220)},            # atiende el mostrador de la tienda
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
         # hall (a donde volves al perder; no se rompe nada)
@@ -1095,7 +1528,8 @@ def armar_mundos():
          'suelo': (196, 222, 236), 'pared': (85, 115, 140), 'clima_regi': 'granizo',
          'clima': {'nieve': 4, 'granizo': 2, 'nublado': 2, 'despejado': 1, 'niebla': 1},
          'enemigos': ['snorunt', 'glalie', 'froslass', 'spheal', 'sealeo', 'walrein', 'vanillite', 'vanillish', 'vanilluxe', 'sneasel',
-                      'weavile', 'lapras', 'squirtle', 'wartortle'],
+                      'weavile', 'lapras', 'squirtle', 'wartortle',
+                      'swinub', 'piloswine', 'zubat', 'golbat', 'wooloo', 'dubwool', 'cleffa', 'clefairy', 'glaceon', 'arrokuda', 'barraskewda', 'cramorant'],
          'variantes': {
              'glaciar': {'forma': {'rect': 2, 'esquinas': 2}, 'simetria': {'no': 2, 'h': 1}, 'terrenos': [('hielo', (2, 4), (8, 16)), ('nieve', (2, 3), (6, 12))],
                          'piezas': {'bloques de hielo': 2, 'estalagmitas': 1}, 'num_piezas': (1, 3), 'objetos': {'roca_nevada': 2, 'bloque_de_hielo': 2}, 'cantidad': (3, 6)},
@@ -1115,7 +1549,8 @@ def armar_mundos():
          'suelo': (150, 130, 95), 'pared': (70, 55, 40), 'clima_regi': 'tormenta_arena',
          'clima': {'despejado': 3, 'sol': 2, 'nublado': 2, 'lluvia': 2, 'tormenta_electrica': 0.5, 'niebla': 1, 'tormenta_arena': 1},
          'enemigos': ['geodude', 'graveler', 'golem', 'sandshrew', 'sandslash', 'cubone', 'marowak', 'mankey', 'primeape', 'timburr',
-                      'chikorita', 'riolu', 'torchic', 'wooper', 'quagsire'],
+                      'chikorita', 'riolu', 'torchic', 'wooper', 'quagsire',
+                      'lillipup', 'herdier', 'zigzagoon', 'linoone', 'anorith', 'armaldo', 'tyrunt', 'tyrantrum', 'larvitar', 'pupitar', 'rockruff', 'lycanroc', 'phanpy', 'donphan', 'sandile', 'krokorok', 'diglett_alola', 'shroomish', 'breloom', 'croagunk', 'litten', 'torracat', 'flareon', 'leafeon', 'eevee'],
          'variantes': {
              'pradera': {'forma': {'rect': 2, 'esquinas': 1}, 'simetria': {'no': 2, 'h': 1}, 'terrenos': [('hierba', (3, 5), (6, 14))],
                          'piezas': {'arboleda': 3, 'rocas': 2, 'fogata': 1}, 'num_piezas': (2, 4), 'objetos': {'arbusto': 3, 'roca': 2, 'arbol': 2}, 'cantidad': (3, 7)},
@@ -1137,7 +1572,8 @@ def armar_mundos():
          'suelo': (176, 132, 82), 'pared': (70, 45, 25), 'clima_regi': 'sol',
          'clima': {'despejado': 3, 'sol': 3, 'nublado': 2, 'tormenta_arena': 2, 'lluvia': 1},
          'enemigos': ['magnemite', 'magneton', 'machop', 'machoke', 'machamp', 'gurdurr', 'conkeldurr', 'combusken', 'blaziken', 'fletchling',
-                      'fletchinder', 'talonflame', 'corvisquire', 'lucario', 'mareanie'],
+                      'fletchinder', 'talonflame', 'corvisquire', 'lucario', 'mareanie',
+                      'aron', 'lairon', 'klink', 'klang', 'pawniard', 'bisharp', 'honedge', 'doublade', 'mawile', 'tinkatink', 'tinkatuff', 'scyther', 'scizor', 'nincada', 'ninjask', 'charcadet', 'whismur', 'loudred', 'growlithe_hisui', 'stoutland'],
          'variantes': {
              'forja': {'forma': {'rect': 2, 'columnas': 1}, 'interior': True, 'terrenos': [('ceniza', (1, 3), (4, 8))], 'maquinas': [('iman', (0, 1))],
                        'piezas': {'herreria': 3, 'carga de bronce': 1}, 'num_piezas': (2, 3), 'objetos': {'lingotes': 2, 'armadura': 2, 'caja': 1}, 'cantidad': (2, 5)},
@@ -1156,7 +1592,8 @@ def armar_mundos():
          'suelo': (128, 112, 88), 'pared': (52, 42, 32), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 3, 'niebla': 2, 'despejado': 2, 'tormenta_electrica': 1, 'sol': 1},
          'enemigos': ['gible', 'gabite', 'golett', 'golurk', 'samurott_hisui', 'oshawott', 'dewott', 'samurott', 'rookidee', 'drifloon',
-                      'drifblim', 'natu', 'xatu', 'hawlucha', 'froakie', 'frogadier'],
+                      'drifblim', 'natu', 'xatu', 'hawlucha', 'froakie', 'frogadier',
+                      'axew', 'fraxure', 'bagon', 'shelgon', 'druddigon', 'ralts', 'kirlia', 'gallade', 'ponyta_galar', 'rapidash_galar', 'flabebe', 'floette', 'impidimp', 'morgrem', 'phantump', 'trevenant', 'litwick', 'lampent', 'shuppet', 'banette', 'greavard', 'houndstone', 'sewaddle', 'swadloon', 'leavanny', 'fomantis', 'lurantis', 'sprigatito', 'floragato', 'foongus', 'kleavor', 'zorua_hisui', 'dreepy', 'drakloak', 'espeon', 'umbreon', 'sylveon', 'arcanine_hisui'],
          'variantes': {
              'patio del castillo': {'forma': {'rect': 2, 'columnas': 1}, 'simetria': {'h': 2, 'hv': 1, 'no': 1}, 'terrenos': [('arena', (1, 2), (5, 10))], 'maquinas': [('brasero', (2, 4))],
                                     'piezas': {'polvorin': 2, 'campamento': 2}, 'num_piezas': (2, 3), 'objetos': {'estatua_de_caballero': 2, 'estandarte': 2, 'carreta': 1, 'caja': 2}, 'cantidad': (3, 6)},
@@ -1178,7 +1615,8 @@ def armar_mundos():
          'suelo': (70, 78, 122), 'pared': (24, 24, 44), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 2, 'niebla': 2, 'tormenta_electrica': 2, 'despejado': 2, 'sol': 1},
          'enemigos': ['pichu', 'pikachu', 'raichu', 'mareep', 'flaaffy', 'ampharos', 'shinx', 'luxio', 'luxray', 'electrike',
-                      'manectric', 'magneton', 'toxapex', 'clodsire', 'greninja', 'annihilape'],
+                      'manectric', 'magneton', 'toxapex', 'clodsire', 'greninja', 'annihilape',
+                      'joltik', 'galvantula', 'elgyem', 'beheeyem', 'espurr', 'meowstic', 'grimer_alola', 'muk_alola', 'skrelp', 'dragalge', 'noibat', 'noivern', 'wimpod', 'golisopod', 'zorua', 'zoroark', 'snivy', 'servine', 'crobat', 'incineroar', 'vaporeon', 'jolteon', 'exploud', 'armarouge', 'ceruledge', 'klinklang', 'dugtrio_alola'],
          'variantes': {
              'fabrica': {'forma': {'rect': 1, 'columnas': 1}, 'interior': True, 'especiales': ['cintas'], 'terrenos': [('aceite', (1, 2), (3, 6))],
                          'maquinas': [('horno', (1, 2)), ('iman', (0, 1))], 'piezas': {'obra': 2}, 'num_piezas': (1, 2),
@@ -1201,7 +1639,8 @@ def armar_mundos():
          'suelo': (204, 194, 236), 'pared': (88, 78, 130), 'clima_regi': None, 'clima_final': 'sol',
          'plan_fijo': ['tienda', 'regi', 'final'],             # cuando caen los 5 Regis: tienda, Regigigas y despues Arceus
          'clima': {'despejado': 2, 'tormenta_electrica': 1, 'niebla': 1},
-         'enemigos': ['garchomp', 'lucario', 'annihilape', 'greninja', 'xatu', 'golurk', 'weavile', 'luxray', 'blaziken', 'corviknight'],
+         'enemigos': ['garchomp', 'lucario', 'annihilape', 'greninja', 'xatu', 'golurk', 'weavile', 'luxray', 'blaziken', 'corviknight',
+                      'great_tusk', 'roaring_moon', 'iron_thorns', 'dragapult', 'tyranitar', 'salamence', 'kingambit', 'haxorus', 'gardevoir', 'mamoswine', 'meowscarada', 'aegislash', 'tinkaton', 'florges', 'chandelure', 'krookodile', 'grimmsnarl', 'zoroark_hisui', 'serperior', 'clefable', 'aggron', 'toxicroak', 'golisopod'],
          'variantes': {
              'templo de los titanes': {'forma': {'columnas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('sombra', (2, 4), (5, 9))], 'maquinas': [('monolito', (1, 2))],
                                        'piezas': {'santuario': 2, 'ruinas': 2}, 'num_piezas': (2, 3), 'objetos': {'pilar_de_cristal': 2, 'columna_rota': 2, 'estatua_de_titan': 1}, 'cantidad': (2, 4)},

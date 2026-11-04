@@ -668,8 +668,9 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Chikorita atiende el mostrador, un estante arriba a la derecha,
-        otro abajo a la izquierda (asi el HUD no tapa nada) y dos mesas con los objetos destacados."""
+        """Salon de la tienda del tamaño de la pantalla: Riolu atiende el mostrador de arriba (objetos), Chikorita rosa el de
+        abajo a la derecha (curaciones), un estante arriba a la derecha, otro abajo a la izquierda (asi el HUD no tapa nada)
+        y dos mesas con los objetos destacados."""
         tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
         cc = columnas // 2
@@ -678,7 +679,8 @@ def armar_generacion():
         ancho = columnas * tam
         alto = filas * tam
         objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('chikorita_rosa', (ancho // 2, 66)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('riolu', (ancho // 2, 66)), crear_objeto('mostrador', (ancho // 2, 105)),
+                   crear_objeto('chikorita_rosa', (ancho - 160, 420)), crear_objeto('mostrador', (ancho - 160, 460)),
                    crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
                    crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
         for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
@@ -686,7 +688,7 @@ def armar_generacion():
         vitrinas += [{'pos': (80 + 60 + i * 120, alto - 68), 'destacado': False} for i in range(3)]       # estante de abajo
         vitrinas += [{'pos': (300, 325), 'destacado': True}, {'pos': (ancho - 300, 325), 'destacado': True}]   # mesas
         return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tienda', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas,
-                                                        'tendero': (ancho // 2, 62), 'interior': True})
+                                                        'tendero': (ancho // 2, 62), 'curandera': (ancho - 160, 420), 'interior': True})
 
 
     def generar_hall(era, estilo='celebi', semilla=None):

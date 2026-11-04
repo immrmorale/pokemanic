@@ -93,8 +93,32 @@ def armar_progreso():
         'sneasel': {'objeto': 'garra_afilada'}, 'magneton': {'objeto': 'piedra_trueno'}, 'pichu': {'amistad': AMISTAD_EVOLUCION},
         'riolu': {'amistad': AMISTAD_EVOLUCION}, 'primeape': {'nivel': 35},
     }
+    # lo mismo pero para un destino en particular (cuando un pokemon evoluciona a varios)
+    EVOLUCION_DESTINO = {
+        ('piloswine', 'mamoswine'): {'mt': 'mt_poder_pasado'},          # en los juegos: subir de nivel sabiendo Poder Pasado
+        ('bisharp', 'kingambit'): {'nivel': 64},                        # en los juegos: derrotar a 3 Bisharp lideres
+        ('zorua_hisui', 'zoroark'): None,                               # el de Hisui evoluciona en el Zoroark de Hisui (EVOLUCION_EXTRA)
+        ('nincada', 'shedinja'): None,                                  # Shedinja sale sola cuando Nincada evoluciona en Ninjask
+        ('scyther', 'scizor'): {'objeto': 'cordon_union'},
+    }
+    # las que se arman a mano: Eevee (una piedra por evolucion) y las que la PokeAPI no tiene (formas regionales, paradojas)
+    EVOLUCION_PROPIA = {
+        'eevee': [{'objeto': 'piedra_agua', 'a': 'vaporeon'}, {'objeto': 'piedra_trueno', 'a': 'jolteon'}, {'objeto': 'piedra_fuego', 'a': 'flareon'},
+                  {'objeto': 'piedra_solar', 'a': 'espeon'}, {'objeto': 'piedra_lunar', 'a': 'umbreon'}, {'objeto': 'piedra_hoja', 'a': 'leafeon'},
+                  {'objeto': 'piedra_hielo', 'a': 'glaceon'}, {'amistad': AMISTAD_EVOLUCION, 'a': 'sylveon'}],
+    }
+    EVOLUCION_EXTRA = {
+        'growlithe_hisui': [{'objeto': 'piedra_fuego', 'a': 'arcanine_hisui'}], 'diglett_alola': [{'nivel': 26, 'a': 'dugtrio_alola'}],
+        'grimer_alola': [{'nivel': 38, 'a': 'muk_alola'}], 'ponyta_galar': [{'nivel': 40, 'a': 'rapidash_galar'}],
+        'zorua_hisui': [{'nivel': 30, 'a': 'zoroark_hisui'}],
+        # formas paradoja: el viaje en el tiempo las trae (con un Cristal Paradoja)
+        'donphan': [{'objeto': 'cristal_paradoja', 'a': 'great_tusk'}], 'salamence': [{'objeto': 'cristal_paradoja', 'a': 'roaring_moon'}],
+        'tyranitar': [{'objeto': 'cristal_paradoja', 'a': 'iron_thorns'}], 'amoonguss': [{'objeto': 'cristal_paradoja', 'a': 'brute_bonnet'}],
+    }
     OBJETO_POKEAPI = {'thunder-stone': 'piedra_trueno', 'dawn-stone': 'piedra_alba', 'razor-claw': 'garra_afilada',
-                      'fire-stone': 'piedra_fuego', 'water-stone': 'piedra_agua', 'leaf-stone': 'piedra_hoja', 'ice-stone': 'piedra_hielo'}
+                      'fire-stone': 'piedra_fuego', 'water-stone': 'piedra_agua', 'leaf-stone': 'piedra_hoja', 'ice-stone': 'piedra_hielo',
+                      'moon-stone': 'piedra_lunar', 'sun-stone': 'piedra_solar', 'shiny-stone': 'piedra_dia', 'dusk-stone': 'piedra_noche',
+                      'auspicious-armor': 'armadura_auspiciosa', 'malicious-armor': 'armadura_maldita', 'black-augurite': 'mineral_negro'}
 
 
     def base(nombre, clave):
@@ -222,18 +246,22 @@ def armar_progreso():
 
     def requisitos(nombre):
         """Como evoluciona cada especie: lista de {'a', 'nivel' | 'objeto' | 'amistad'} (solo a pokemon que estan en el juego)."""
+        if nombre in EVOLUCION_PROPIA: return [dict(r) for r in EVOLUCION_PROPIA[nombre] if _jugable(r['a'])]
         salida = []
         for ev in (_oficiales.get(nombre) or {}).get('evoluciones') or []:
             destino = ev['a'].replace('-', '_')
             if not _jugable(destino): continue
-            req = dict(EVOLUCION_ESPECIAL.get(nombre, {}))
+            if (nombre, destino) in EVOLUCION_DESTINO and EVOLUCION_DESTINO[(nombre, destino)] is None: continue
+            req = dict(EVOLUCION_DESTINO.get((nombre, destino)) or EVOLUCION_ESPECIAL.get(nombre, {}))
             if not req:
                 if ev.get('disparador') == 'trade': req = {'objeto': 'cordon_union'}
                 elif ev.get('objeto'): req = {'objeto': OBJETO_POKEAPI.get(ev['objeto'], ev['objeto'].replace('-', '_'))}
                 elif ev.get('nivel'): req = {'nivel': ev['nivel']}
+                elif ev.get('amistad'): req = {'amistad': AMISTAD_EVOLUCION}
                 else: req = {'nivel': 35}
             req['a'] = destino
             salida.append(req)
+        salida += [dict(r) for r in EVOLUCION_EXTRA.get(nombre, []) if _jugable(r['a'])]
         return salida
 
 
@@ -241,6 +269,7 @@ def armar_progreso():
         """Texto de un requisito de evolucion ('nivel 16', 'amistad 220', 'piedra trueno')."""
         if 'nivel' in req: return 'nivel ' + str(req['nivel'])
         if 'amistad' in req: return 'amistad ' + str(req['amistad'])
+        if 'mt' in req: return 'saber ' + req['mt'][3:].replace('_', ' ').title()
         return req['objeto'].replace('_', ' ')
 
 
@@ -252,6 +281,7 @@ def armar_progreso():
             if 'nivel' in req and m['nivel'] >= req['nivel']: listas.append(req)
             elif 'amistad' in req and m['amistad'] >= req['amistad']: listas.append(req)
             elif 'objeto' in req and objetos.get(req['objeto'], 0) > 0: listas.append(req)
+            elif 'mt' in req and req['mt'] in (m.get('movs') or {}).values(): listas.append(req)
         return listas
 
 
@@ -456,7 +486,7 @@ def armar_ia():
         era = ctx.get('era', 0)
         apuro = max(0.55, 1 - POR_ERA * era)
         furioso = e['vida'] <= e['max_vida'] * FURIA['vida']
-        p['aviso'] = round(p['aviso'] * apuro)
+        p['aviso'] = round(p['aviso'] * apuro * ctx.get('aviso_mult', 1.0))   # Premonicion (Espeon): los avisos duran mas
         p['cd'] = round(p['cd'] * apuro * (FURIA['cd'] if furioso else 1))
         p['vel'] = p['vel'] * (FURIA['vel'] if furioso else 1)
         if 'rafaga' in p: p['rafaga'] += era // 2
@@ -490,6 +520,16 @@ def armar_ia():
         ent, j, ahora, enemigos = ctx['ent'], ctx['jugador'], ctx['ahora'], ctx['enemigos']
         if e['estado_hasta'] > ahora and e['estado'] in ('paralizar', 'dormir'): e['aviso'] = None; return   # aturdido: pierde el ataque
         p = _parametros(e, ctx)
+        if e.get('controlado_hasta', 0) > ahora:                       # Control mental (Elgyem): pelea de tu lado contra el mas cercano
+            e['aviso'] = None; e['embestida_ia'] = None
+            otros = [o for o in enemigos if o is not e and o['vida'] > 0 and not o.get('controlado_hasta', 0) > ahora]
+            if otros:
+                o = min(otros, key=lambda o: math.hypot(o['rect'].centerx - e['rect'].centerx, o['rect'].centery - e['rect'].centery))
+                _mover_hacia(ent, e, o['rect'].center, p['vel'], [])
+                if ahora >= e.get('control_golpe', 0) and e['rect'].colliderect(o['rect'].inflate(14, 14)):
+                    e['control_golpe'] = ahora + 900
+                    ctx['dañar_enemigo'](o, max(1, round(e['daño'] * 1.2)), e['tipo'], None)
+            return
         if e['estado_hasta'] > ahora and e['estado'] == 'confundir':   # confundido (por tu baile): camina sin rumbo, tropieza y le pega a los suyos
             e['aviso'] = None; e['embestida_ia'] = None
             if ahora >= e.get('confuso_rumbo', 0):                     # cada tanto cambia de rumbo y a veces se tropieza (Trip / LostBalance)
@@ -515,6 +555,7 @@ def armar_ia():
             rango = DETECCION * entorno.deteccion(ent, j)
             golpeado = e['vida'] < e['vida_ant']; e['vida_ant'] = e['vida']
             viendo = dist < OIDO or (dist < rango and ve(ent, (ex, ey), (jx, jy)))
+            if j.get('ilusion_hasta', 0) > ahora: viendo = False               # Ilusion de Zorua: no te reconoce
             if viendo or golpeado:
                 if e['estado_ia'] == 'patrulla':                    # primera vez que te ve: signo de exclamacion y avisa
                     e['grito'] = ahora + 700
@@ -539,7 +580,7 @@ def armar_ia():
             if not em['pego'] and e['rect'].colliderect(j['rect']):
                 em['pego'] = True
                 if ctx.get('parry', lambda e: False)(e): return              # te choco justo cuando golpeabas: parry
-                ctx['dañar_jugador'](e['daño'] * 1.3, e['tipo'])
+                ctx['dañar_jugador'](e['daño'] * 1.3, e['tipo'], e)
             if em['restante'] <= 0 or e['rect'].center == antes: e['embestida_ia'] = None; e['cd_ataque'] = ahora + p['cd']
             return
 
@@ -618,7 +659,7 @@ def armar_ia():
             entorno.mover(ctx['ent'], e['rect'], round((jx - ex) / d * paso), round((jy - ey) / d * paso), [e['tipo']])
             ex, ey = e['rect'].center
             if math.hypot(jx - ex, jy - ey) <= (p['alcance'] + max(j['rect'].size) / 2) * 1.2:
-                if not ctx.get('parry', lambda e: False)(e): ctx['dañar_jugador'](e['daño'], e['tipo'])   # salvo que le hagas parry
+                if not ctx.get('parry', lambda e: False)(e): ctx['dañar_jugador'](e['daño'], e['tipo'], e)   # salvo que le hagas parry
         elif a['clase'] == 'disparo':
             vx, vy = j.get('inercia', (0, 0))                        # apunta adelante de donde vas
             tiempo_bala = math.hypot(jx - ex, jy - ey) / p['vel_bala']
