@@ -669,7 +669,12 @@ def herramienta_tiles():
     PLAN = {
         '': {'arena': ('Side Path', 'suelo'), 'nieve': ('7th Station Pass', 'suelo'), 'hielo': ('7th Station Pass', 'agua'),
              'escarcha': ('7th Station Pass', 'agua'), 'hierba': ('4th Station Pass', 'pared'), 'lodo': ('Deep Dusk Forest 01F - 06F', 'suelo'),
-             'toxico': ('Brine Cave', 'agua'), 'sombra': ('Dark Wasteland', 'suelo'), 'agua': ('4th Station Pass', 'agua')},
+             'toxico': ('Brine Cave', 'agua'), 'sombra': ('Dark Wasteland', 'suelo'), 'agua': ('4th Station Pass', 'agua'),
+             'vacio': ('Chasm Cave B01F - B04F', 'pared'), 'ceniza': ('Barren Valley', 'suelo'), 'roca_volcanica': ('Deep Boulder Quarry', 'suelo'),
+             'torre_dragon': ('Temporal Tower', 'suelo'), 'charco': ('4th Station Pass', 'agua'),
+             # no hay hojas con lava, aceite ni arena movediza: el agua animada del PMD con otros colores (ver RETOQUES)
+             'lava': ('Brine Cave', 'agua', 'lava'), 'aceite': ('Brine Cave', 'agua', 'aceite'), 'arena_movediza': ('Shimmer Desert', 'agua', 'arena'),
+             'corriente': ('4th Station Pass', 'agua', 'viento')},
         'glaciacion': dict(base('Vast Ice Mountain'), agua=('Ice Aegis Cave', 'agua')),
         'glaciacion/cueva de hielo': base('Ice Aegis Cave'),
         'piedra': base('Tiny Meadow'),
@@ -702,6 +707,12 @@ def herramienta_tiles():
                  'Forest Path': (17, 13), 'Limestone Cavern': (13, 8), 'Deep Boulder Quarry': (13, 13), 'Temporal Tower': (18, 8), 'Side Path': (12, 8),
                  'Apple Woods': (17, 9), 'Lush Prairie': (12, 8), 'Amp Plains': (18, 6), 'Brine Cave': (18, 6), 'Deep Limestone Cavern': (13, 8),
                  'Shimmer Desert': (12, 8), 'Murky Forest': (16, 8)}
+    # retoques de color: el brillo de cada color (0 oscuro, 1 claro) se pasa a esta escala de colores. Se aplica al dibujo, a los brillos
+    # y a las paletas del agua, asi la lava sigue animada como el agua del PMD
+    RETOQUES = {'lava': ((0, (60, 8, 0)), (0.35, (170, 30, 0)), (0.6, (240, 100, 10)), (0.85, (255, 200, 60)), (1, (255, 250, 200))),
+                'aceite': ((0, (8, 6, 10)), (0.5, (38, 32, 30)), (0.8, (90, 80, 96)), (1, (210, 200, 230))),
+                'arena': ((0, (90, 60, 25)), (0.5, (165, 126, 70)), (0.8, (212, 178, 110)), (1, (240, 222, 170))),
+                'viento': ((0, (150, 190, 210)), (0.5, (196, 228, 244)), (1, (252, 255, 255)))}
     BITS = (128, 1, 2, 64, 0, 4, 32, 16, 8)       # cuadraditos de la leyenda (de arriba a la izquierda) -> bit: N=1 NE=2 E=4 SE=8 S=16 SO=32 O=64 NO=128
     MAGENTA = (255, 0, 255)
 
@@ -800,13 +811,34 @@ def herramienta_tiles():
         if puntos[mejor] < 2: return None
         return [list(map(list, fila)) for fila in filas[mejor:] + filas[:mejor]]
 
+    def retocar_color(c, escala):
+        """Un color pasado a la escala de un retoque segun que tan claro es (el magenta de los brillos no se toca)."""
+        c = tuple(c)[:3]
+        if c == MAGENTA: return c
+        luz = (0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]) / 255
+        for (a, ca), (b, cb) in zip(escala, escala[1:]):
+            if luz <= b:
+                k = (luz - a) / max(1e-6, b - a)
+                return tuple(round(ca[i] + (cb[i] - ca[i]) * k) for i in range(3))
+        return escala[-1][1]
+
+    def retocar_imagen(img, escala):
+        """La imagen con todos sus colores pasados por el retoque."""
+        img = img.copy()
+        pa = pygame.PixelArray(img)
+        for c in {tuple(img.get_at((x, y)))[:3] for x in range(img.get_width()) for y in range(img.get_height())}:
+            pa.replace(c, retocar_color(c, escala))
+        pa.close()
+        return img
+
     def main():
         """Arma cada tileset del PLAN: piezas, variantes, paletas del agua y brillos."""
         pygame.init(); pygame.display.set_mode((1, 1))
         hojas, hechos, faltan = {}, 0, set()
         for destino, terrenos in PLAN.items():
             carpeta = os.path.join(assets, 'mundo', *destino.split('/'), 'terrenos')
-            for terreno, (lugar, grupo) in terrenos.items():
+            for terreno, (lugar, grupo, *retoque) in terrenos.items():
+                escala = RETOQUES[retoque[0]] if retoque else None
                 if lugar not in hojas:
                     ruta = buscar_hoja(lugar)
                     hojas[lugar] = None
@@ -837,6 +869,18 @@ def herramienta_tiles():
                     if paleta: datos.update(paleta=paleta, cada=cada)
                     paleta_b = ordenar_paleta(filas_b, brillo) if filas_b else None
                     if paleta_b: datos.update(paleta_brillo=paleta_b, cada_brillo=cada_brillo)
+                    if escala:                                          # lava, aceite...: el agua con otros colores (dibujo, brillos y paletas)
+                        img = retocar_imagen(img, escala)
+                        for clave in ('paleta', 'paleta_brillo'):
+                            if datos.get(clave): datos[clave] = [[list(retocar_color(c, escala)) for c in fila] for fila in datos[clave]]
+                        if brillo is not None: pygame.image.save(retocar_imagen(brillo, escala), os.path.join(carpeta, terreno + '_brillo.png'))
+                if terreno == 'vacio':                                  # el abismo va arriba del piso: el fondo de la hoja queda transparente
+                    fondo_hoja = tuple(h['hoja'].get_at((0, 0)))[:3]
+                    con_alfa = img.convert_alpha()
+                    for x in range(con_alfa.get_width()):
+                        for y in range(con_alfa.get_height()):
+                            if tuple(con_alfa.get_at((x, y)))[:3] == fondo_hoja: con_alfa.set_at((x, y), (0, 0, 0, 0))
+                    img = con_alfa; datos.update(grupo='agua', transparente=True)
                 pygame.image.save(img, os.path.join(carpeta, terreno + '.png'))
                 with open(os.path.join(carpeta, terreno + '.json'), 'w', encoding='utf-8') as f: json.dump(datos, f)
                 for viejo in (terreno + '_2.png', terreno + '_3.png'):   # restos del formato viejo (una casilla suelta por variante)
@@ -1088,7 +1132,8 @@ def herramienta_objetos():
                 'agua_mistica': 173, 'carbon': 179, 'iman': 172, 'antiderretir': 176, 'cinturon_negro': 171, 'arena_fina': 167, 'pico_afilado': 174,
                 'piedra_dura': 168, 'colmillo_dragon': 180, 'gafas_de_sol': 170, 'hechizo': 177, 'cuchara_torcida': 178, 'flecha_venenosa': 175,
                 'revestimiento_metalico': 163, 'semilla_milagro': 169, 'pañuelo_seda': 181,
-                'piedra_trueno': 77, 'piedra_alba': 291, 'garra_afilada': 321, 'baya_oran': 106,
+                'piedra_trueno': 77, 'piedra_alba': 291, 'garra_afilada': 321, 'baya_oran': 106, 'caramelo_raro': 57, 'llave_tesoro': 439,
+                'mas_ps': 51, 'proteina': 52, 'hierro': 53, 'carburante': 54, 'calcio': 55, 'zinc': 56,
                 'mt_normal': 228, 'mt_lucha': 224, 'mt_volador': 239, 'mt_veneno': 237, 'mt_tierra': 238, 'mt_roca': 235, 'mt_bicho': 231,
                 'mt_fantasma': 229, 'mt_acero': 234, 'mt_fuego': 232, 'mt_agua': 226, 'mt_planta': 231, 'mt_electrico': 236, 'mt_psiquico': 227,
                 'mt_hielo': 230, 'mt_dragon': 225, 'mt_siniestro': 233}
@@ -1205,12 +1250,17 @@ def herramienta_hud():
     for k, estado in enumerate(('psn', 'brn', 'par', 'frz', 'fnt')): PIEZAS['estado_' + estado] = ('Miscellaneous Icons', (79, 311 + k * 9, 19, 6), AZUL)
     for fila in range(3):
         for col in range(4): PIEZAS['panel_%d_%d' % (fila, col)] = ('Party Screen', (5 + col * 128, 201 + fila * 48, 126, 46), (160, 234, 0))
+    # la alfombra roja del Secret Bazaar de Explorers of Sky (abajo a la izquierda, donde no la tapan las bolsas): se arma del tamaño que haga falta
+    BAZAR = 'Secret Bazaar'
+    PIEZAS.update({'alfombra_esquina': (BAZAR, (272, 232, 8, 8), None), 'alfombra_borde_h': (BAZAR, (300, 232, 24, 8), None),
+                   'alfombra_borde_v': (BAZAR, (272, 214, 8, 16), None), 'alfombra_rombo': (BAZAR, (281, 217, 14, 14), (255, 90, 90)),
+                   'alfombra_fondo': (BAZAR, (300, 232, 4, 3), None)})
 
     def buscar_hoja(nombre):
         for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas', 'blanco_negro', 'Miscellaneous'), assets):
             if not os.path.isdir(carpeta): continue
             for archivo in os.listdir(carpeta):
-                if archivo.endswith(' - ' + nombre + '.png') and 'Black _ White' in archivo: return os.path.join(carpeta, archivo)
+                if archivo.endswith(' - ' + nombre + '.png') and ('Black _ White' in archivo or 'Explorers of Sky' in archivo): return os.path.join(carpeta, archivo)
         return None
 
     def transparente(sup, color):

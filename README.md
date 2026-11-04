@@ -61,6 +61,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 | Cambiar al pokemon 1, 2 o 3 | 1 / 2 / 3 | cruz izq / arriba / der |
 | Interactuar, comprar, hablar | E | A |
 | Bailar (amigar / confundir) | V | palanca der (R3) |
+| Evolucionar (mantener) | C | cruz abajo |
 | Menú de equipo | TAB | Back |
 | Pausa | ESC | Start |
 
@@ -91,11 +92,27 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 - **Volver atrás:** con la sala completada, la puerta por la que entraste queda abierta y te lleva a la sala anterior. Las salas hechas quedan hechas (sin enemigos, sin monedas ni experiencia de nuevo); en ellas solo sigue abierta la puerta que tomaste.
 - **La vida no se recupera sola.** Al limpiar una sala, los que siguen en pie recuperan un **12%**. Si tu pokemon activo cae, entra solo el siguiente que esté vivo.
 - **Energía:** la barra azul debajo de la vida. Correr y esquivar la gastan; se recarga sola y también al pegar, hacer parry o esquivar perfecto. Si se vacía, quedás agotado hasta recuperar un poco. Al empezar a correr arrancás con un pique.
-- **Enemigos:** avisan antes de atacar. Un anillo rojo es un golpe, una línea con mira es un disparo y una línea naranja es una embestida. Como mucho dos te atacan cuerpo a cuerpo al mismo tiempo. Si te escondés en hierba o sombra (si tu tipo puede), casi no te ven.
+- **Enemigos:** avisan antes de atacar. Un anillo rojo es un golpe, una línea con mira es un disparo y una línea naranja es una embestida. Como mucho tres te atacan cuerpo a cuerpo al mismo tiempo. Si te escondés en hierba o sombra (si tu tipo puede), casi no te ven.
+- **IA de los enemigos:** son rápidos y atacan seguido (más todavía en cada era). Los que pegan de cerca te rodean desde distintos ángulos y se tiran hacia vos al pegar; los tiradores te siguen con la mira, se mueven de costado mientras recargan y en eras avanzadas tiran ráfagas; todos pueden esquivar tus disparos de un salto, y con poca vida se enfurecen (más rápidos y agresivos). Hay 13 enemigos + 3 por era + 1 cada 3 salas, en 2 a 4 oleadas (la primera más grande); la siguiente entra cuando quedan 3, así que no te dejan respirar.
+- **Si quedás trabado** adentro de algo que no podés pisar (se derritió el hielo debajo, cambiaste en el agua a uno que no nada), salís nadando solo hasta lo más cercano. A los enemigos les pasa lo mismo.
 - **Tipos de enemigo según su rol:**
   - **Pegadores** (tanques y atacantes): van directo hacia vos.
   - **Tiradores** (estrategas): disparan de lejos y se esconden para recargar.
   - **Rápidos** (velocistas): te rodean y embisten en línea recta.
+
+### Estilo, rachas y nota de la sala
+
+- **Estilo** (arriba a la derecha, de D a S): sube al pegar, matar, hacer parry, esquivar perfecto, usar asistencias y hacer relevos; baja si te pegan o si te quedás sin pelear. **Variá:** repetir siempre el mismo ataque rinde cada vez menos estilo. Cada rango pega más: C +5%, B +10%, A +17%, S +25%.
+- **Racha:** bajas seguidas en menos de 3 s dan monedas extra.
+- **Relevo:** cambiar de pokemon peleando hace que el primer golpe del que entra pegue x1,4.
+- **Nota de la sala** (S, A, B, C, D) al limpiarla: tiempo, daño recibido, estilo máximo y parrys. S y A dan monedas, experiencia y a veces un objeto.
+
+### Caminos, tesoros y premios por explorar
+
+- **Puertas del tesoro (TESORO llave):** cuando una sala tiene 2 o más salidas, a veces una lleva a una **sala del tesoro**. Hace falta una **Llave del Tesoro** (siempre hay una en la tienda; también salen al romper cosas o con buena nota). Adentro hay 3 premios y te llevás uno: **Caramelos Raros** (x2) o una **mejora para todo el equipo** para siempre: Proteína (+8% daño), Hierro (−8% daño recibido), Carburante (+6% velocidad), Calcio (−8% recargas), Zinc (energía y parry), Más PS (cura a todos y revive).
+- **Salas de desafío (★):** 50% más enemigos; la nota da el doble y más chance de objeto.
+- **Romper cosas** a veces suelta una Baya Oran (cura 15% al agarrarla), una llave o un caramelo.
+- **Caramelo Raro:** sube un nivel; se usa desde la ficha del pokemon.
 
 ### Ataques
 
@@ -189,8 +206,9 @@ Va de 4 a 15 en la primera era y sube 11 niveles por era. El semijefe tiene +3 y
 ## Evoluciones
 
 **Cómo evolucionar:**
-1. Cuando un pokemon puede evolucionar, aparece un cartel que avisa.
-2. Abrí el menú de equipo (TAB), entrá a su ficha y elegí **Evolucionar**.
+1. Peleando no se interrumpe nada: el que puede evolucionar muestra **EVO** en el HUD (junto a tu nombre o en su panel de la banca).
+2. Cuando no hay peligro (sala limpia) aparece abajo un aviso con los dos retratos: **mantené C** (abajo en la cruz del control) y evoluciona ahí mismo, con destello, sin menús. Si no querés, ignoralo y seguí.
+3. También podés hacerlo cuando quieras desde el menú de equipo (TAB): entrá a su ficha y elegí **Evolucionar**.
 
 La evolución conserva el nivel, los IV, los EV y las MT enseñadas.
 
@@ -259,7 +277,7 @@ Solo se evoluciona a pokemon que están en el juego, así que Chikorita no evolu
 
 En este juego **los pokemon no se capturan**. Cuando derrotás a uno, a veces se queda con corazones porque quiere unirse a vos:
 - Acercate y apretá **E** para hablarle.
-- Si tu equipo está lleno (3), el nuevo va a la **reserva**. Desde TAB > Reserva lo podés cambiar por uno del equipo.
+- Si tu equipo está lleno (3), el nuevo va a la **reserva** (hasta 3; si está llena, elegís a quién dejar ir). Los cambios entre el equipo y la reserva **solo se hacen en la tienda** (Chikorita la cuida), así no se puede ir cambiando cuando uno quiere.
 - Si te vas de la sala sin hablarle, se va.
 
 **Cuándo es más probable:**
@@ -476,7 +494,7 @@ Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los spri
 
 ## Tienda
 
-La atiende Chikorita. Acercate a una vitrina y apretá E para comprar.
+La atiende siempre Chikorita, pero el local cambia de nombre según la era: **Puesto de trueque** (Glacial), **Mercado de trueque** (Piedra), **Bazar** (Metales), **Mercado** (Edad Media), **Almacén** (Moderna) y **Bazar del tiempo** (El Origen). Acercate a una vitrina y apretá E para comprar.
 
 **Cómo están acomodadas las vitrinas:**
 - **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
@@ -732,6 +750,11 @@ Abreviaturas: NOR normal · FUE fuego · AGU agua · ELE eléctrico · PLA plant
 ## Gráficos e interfaz
 
 Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGold/SoulSilver, que es la misma de BW):
+
+- **Logo y títulos:** POKE con la letra de los nombres de mazmorra de Explorers of Sky (amarilla con borde azul) y MANIC con las **letras Unown** de la hoja de HGSS. Los títulos de los menús y los carteles grandes usan esa misma letra del PMD.
+- **Sección Ataques** (menú principal y pausa): todos los ataques del juego por categoría (básicos, especiales, asistencias, MT de combate y MT especiales), con qué hacen en palabras, sus números y quiénes los usan.
+- **Terrenos con tiles del PMD:** además de piso, paredes y agua, ahora hay tilesets de vacío (el abismo de Chasm Cave), ceniza, roca volcánica, charcos y el techo de la torre de Regidrago; la lava, el aceite, la arena movediza y las corrientes son el agua animada del PMD con otros colores. El fuego y el agua electrificada usan las llamas y chispas del PMD, las cascadas el agua de la era cayendo con la salpicadura del PMD, y la alfombra de la tienda es la del Secret Bazaar.
+- **Efectos:** estelas al esquivar, embestir y arrancar a correr; silueta blanca en el enemigo golpeado; pausa de impacto en remates, parrys y bajas; la cámara acompaña el golpe; nube de humo de Poké Transfer al morir.
 
 - **Letra:** la de los juegos de DS, recortada letra por letra de `assets/DS _ DSi - Pokemon HeartGold _ SoulSilver - Miscellaneous - Fonts.png` (`sistema.tipografia`). Tiene tildes, ñ, ¿ ¡ y el símbolo de Pokédólar (₽, que reemplaza al `$`). Se agranda en pixeles enteros (x1, x2, x3) para que no se vea borrosa, y tiene una versión con borde para leer sobre el piso.
 - **HUD del combate** (como la batalla de BW): tu pokemon con la barra de HP del jugador (con la placa oscura, la etiqueta HP y el ícono Lv) y las barras de experiencia y energía; la raya blanca de la energía marca cuánto gasta un esquive. El daño reciente queda en blanco en la barra y se vacía de a poco, y la placa tiembla al recibir un golpe. La banca va en los **paneles en flecha** del menú de equipo (verde: asistencia lista; rojo: debilitado). Los 4 movimientos son los **botones octogonales de la pantalla táctil** (con la textura de puntitos y el borde del color del tipo); la espera se cierra como un abanico. Los jefes usan la barra del rival.

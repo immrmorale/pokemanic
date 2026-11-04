@@ -223,6 +223,117 @@ def armar_tipografia():
             return sup
 
 
+    # ---------- letra de los titulos de Explorers of Sky y letras Unown de HGSS ----------
+    RUTA_TITULO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'DS _ DSi - Pokemon Mystery Dungeon_ Explorers of Sky - Miscellaneous - Dungeon Title Font.png')
+    CELDA_T = 25                                       # grilla de 20 columnas de 25 px (empieza en x=1)
+    FILAS_T = {0: ' !"&\'+,-./0123456789', 1: ':;?ABCDEFGHIJKLMNOPQ', 2: 'RSTUVWXYZabcdefghijk', 3: 'lmnopqrstuvwxyz',
+               4: '\0\0\0ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ', 5: 'ÑÒÓÔÕÖ×ØÙÚÛÜÝ\0ßàáâãä', 6: 'å\0çèéêëìíîï\0ñòóôõö÷', 7: 'ùúûü'}
+    UNOWN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ!?'                # la fila dorada de la hoja de HGSS: 28 letras Unown
+    _titulo, _unown = {}, {}
+
+
+    def _cargar_titulo():
+        """Lee la hoja de la letra de los titulos del PMD: cada letra como superficie blanca (con su sombreado) sin el fondo negro."""
+        if _titulo: return True
+        try: hoja = pygame.image.load(RUTA_TITULO)
+        except (pygame.error, FileNotFoundError): return False
+        for fila, letras in FILAS_T.items():
+            for col, letra in enumerate(letras):
+                if letra == '\0' or letra == ' ': continue
+                celda = hoja.subsurface((1 + col * CELDA_T, fila * CELDA_T, CELDA_T - 1, CELDA_T)).copy().convert_alpha()
+                for y in range(celda.get_height()):
+                    for x in range(celda.get_width()):
+                        c = celda.get_at((x, y))
+                        if c.r + c.g + c.b < 120: celda.set_at((x, y), (0, 0, 0, 0))     # el negro (fondo y borde) queda transparente
+                caja = celda.get_bounding_rect()
+                if not caja.width: continue
+                _titulo[letra] = celda.subsurface((caja.x, 0, caja.width, celda.get_height())).copy()
+        _titulo[' '] = pygame.Surface((7, CELDA_T), pygame.SRCALPHA)
+        return True
+
+
+    def _cargar_unown():
+        """Las 28 letras Unown de la fila dorada de la hoja de letras de HGSS, en negro sobre transparente."""
+        if _unown: return True
+        try: hoja = pygame.image.load(RUTA)
+        except (pygame.error, FileNotFoundError): return False
+        tinta = (115, 82, 49)
+        y0, alto = 360, 16
+        xs = [x for x in range(20, 520) if any(tuple(hoja.get_at((x, y)))[:3] == tinta for y in range(y0, y0 + alto))]
+        grupos, inicio, previo = [], xs[0], xs[0]
+        for x in xs[1:] + [10 ** 6]:
+            if x > previo + 1: grupos.append((inicio, previo)); inicio = x
+            previo = x
+        for letra, (a, b) in zip(UNOWN, grupos):
+            sup = pygame.Surface((b - a + 1, alto), pygame.SRCALPHA)
+            for y in range(alto):
+                for x in range(a, b + 1):
+                    if tuple(hoja.get_at((x, y0 + y)))[:3] == tinta: sup.set_at((x - a, y), (24, 24, 32, 255))
+            _unown[letra] = sup
+        return len(_unown) == len(UNOWN)
+
+
+    def _con_borde(sup, color, grosor):
+        """La superficie con un borde de 'grosor' pixeles del color pedido alrededor de lo que no es transparente."""
+        mascara = pygame.mask.from_surface(sup)
+        silueta = mascara.to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+        final = pygame.Surface((sup.get_width() + grosor * 2, sup.get_height() + grosor * 2), pygame.SRCALPHA)
+        for dx in range(-grosor, grosor + 1):
+            for dy in range(-grosor, grosor + 1):
+                if dx * dx + dy * dy <= grosor * grosor + 1: final.blit(silueta, (grosor + dx, grosor + dy))
+        final.blit(sup, (grosor, grosor))
+        return final
+
+
+    class FuenteTitulo:
+        """La letra de los nombres de mazmorra del PMD (blanca con borde negro). render(texto, aa, color) tiñe la letra con el color."""
+        def __init__(self, escala, borde=(0, 0, 0)):
+            self.escala, self.borde = escala, borde
+
+        def set_bold(self, valor): pass
+        def get_height(self): return (CELDA_T + 2) * self.escala
+        def get_linesize(self): return self.get_height()
+        def size(self, texto): return self.render(texto).get_size()
+
+        def render(self, texto, antialias=False, color=(255, 255, 255), fondo=None):
+            texto = str(texto); tinte = _color(color)
+            clave = ('titulo', texto, tinte, self.escala, self.borde)
+            if clave in _cache: return _cache[clave]
+            letras = [_titulo.get(c) or _titulo.get(PARECIDOS.get(c, c)) or _titulo.get(c.upper()) or _titulo.get('?') for c in texto
+                      if c not in '¡¿★']                               # la letra del PMD no los tiene
+            ancho = sum(l.get_width() + 1 for l in letras) + 1
+            base = pygame.Surface((max(1, ancho), CELDA_T), pygame.SRCALPHA)
+            x = 0
+            for l in letras: base.blit(l, (x, 0)); x += l.get_width() + 1
+            if tinte != (255, 255, 255): base.fill((*tinte, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            base = _con_borde(base, self.borde, 1)
+            sup = pygame.transform.scale(base, (base.get_width() * self.escala, base.get_height() * self.escala))
+            _cache[clave] = sup
+            return sup
+
+
+    def fuente_titulo(escala=2, borde=(0, 0, 0)):
+        """La letra de los titulos del PMD (o la de DS si falta la hoja)."""
+        clave = ('titulo', escala, borde)
+        if clave not in _fuentes: _fuentes[clave] = FuenteTitulo(escala, borde) if _cargar_titulo() else fuente(24 * escala)
+        return _fuentes[clave]
+
+
+    def unown(texto, escala=4, borde=(255, 255, 255)):
+        """Palabra escrita con letras Unown (las de HGSS), con borde. None si falta la hoja. Devuelve una superficie por letra."""
+        if not _cargar_unown(): return None
+        clave = ('unown', texto, escala, borde)
+        if clave not in _cache:
+            letras = []
+            for c in texto.upper():
+                l = _unown.get(c)
+                if not l: continue
+                l = _con_borde(l, borde, 1)
+                letras.append(pygame.transform.scale(l, (l.get_width() * escala, l.get_height() * escala)))
+            _cache[clave] = letras
+        return _cache[clave]
+
+
     def escala_de(tam):
         """Cuanto se agranda la letra para el tamaño de pygame que pedian (la letra de pygame de 24 se parece a la de DS al x1)."""
         return 1 if tam <= 26 else 2 if tam <= 52 else 3 if tam <= 76 else 4
@@ -348,15 +459,15 @@ def armar_controles():
                 ('correr', 'Correr'), ('basico1', 'Ataque cuerpo a cuerpo'), ('basico2', 'Ataque a distancia'), ('especial1', 'Especial 1'),
                 ('especial2', 'Especial 2'), ('asist1', 'Asistencia 1'), ('asist2', 'Asistencia 2'), ('poke1', 'Pokemon 1'), ('poke2', 'Pokemon 2'),
                 ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar'),
-                ('bailar', 'Bailar (amigar / confundir)')]
+                ('bailar', 'Bailar (amigar / confundir)'), ('evolucionar', 'Evolucionar (mantener)')]
     MOVIMIENTO = ('arriba', 'abajo', 'izquierda', 'derecha')
     PRESET_TECLADO = {'arriba': 'w', 'abajo': 's', 'izquierda': 'a', 'derecha': 'd', 'correr': 'left ctrl', 'basico1': 'e', 'basico2': 'q',
                       'especial1': 'left shift', 'especial2': 'r', 'asist1': 'f', 'asist2': 'g', 'poke1': '1', 'poke2': '2', 'poke3': '3',
-                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v'}
+                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v', 'evolucionar': 'c'}
     PRESET_CONTROL = {'arriba': 'ninguno', 'abajo': 'ninguno', 'izquierda': 'ninguno', 'derecha': 'ninguno',     # con control se camina con la palanca
                       'correr': 'LB', 'basico1': 'X', 'basico2': 'RT', 'especial1': 'RB', 'especial2': 'Y', 'asist1': 'LT', 'asist2': 'B',
                       'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq',
-                      'bailar': 'palanca der'}
+                      'bailar': 'palanca der', 'evolucionar': 'cruz abajo'}
 
     estado = {'config': None, 'contexto': 'menu', 'mandos': {}, 'konami': [], 'palanca_menu': (0, 0), 'repetir': 0}
 
@@ -387,6 +498,7 @@ def armar_controles():
         for dispositivo, preset in (('teclado', PRESET_TECLADO), ('control', PRESET_CONTROL)):   # acciones nuevas en perfiles viejos
             for perfil in config['controles'][dispositivo]:
                 for k, v in preset.items(): perfil.setdefault(k, v)
+                if perfil.get('evolucionar') == perfil.get('bailar'): perfil['evolucionar'] = preset['evolucionar']   # perfiles de antes: bailar y evolucionar en la misma tecla
         if _sdl:
             try:
                 _sdl.init()
@@ -1107,8 +1219,17 @@ def armar_animaciones():
                 return pygame.transform.smoothscale(imagen, (ancho, alto))
             return pygame.transform.scale(imagen, (ancho, alto))
 
+        def cuadro(self):
+            """(imagen, x, y) del frame actual ya escalado y donde va su esquina de arriba a la izquierda, o None (para estelas y destellos)."""
+            frames = self._frames_actuales()
+            if not frames or self.indice_frame >= len(frames): return None
+            self.dibujar(None)
+            imagen, ox, oy = self.cache[(self.animacion_actual, self._fila(), self.indice_frame)]
+            return imagen, round(self.rect.centerx - ox), round(self.rect.centery - oy)
+
         def dibujar(self, ventana):
-            """Dibuja el frame actual centrado en el rect (escalado una sola vez y guardado). False si no hay frames."""
+            """Dibuja el frame actual centrado en el rect (escalado una sola vez y guardado). False si no hay frames.
+            Con ventana None solo prepara el frame (lo usa cuadro)."""
             frames = self._frames_actuales()
             if not frames or self.indice_frame >= len(frames):
                 return False
@@ -1126,7 +1247,7 @@ def armar_animaciones():
                     imagen = self._escalar(original, max(1, round(original.get_width() * escala)), max(1, round(original.get_height() * escala)))
                     self.cache[clave] = (imagen, imagen.get_width() / 2, imagen.get_height() / 2)
             imagen, ox, oy = self.cache[clave]
-            ventana.blit(imagen, (round(self.rect.centerx - ox), round(self.rect.centery - oy)))
+            if ventana is not None: ventana.blit(imagen, (round(self.rect.centerx - ox), round(self.rect.centery - oy)))
             return True
 
 

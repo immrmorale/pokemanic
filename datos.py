@@ -85,6 +85,66 @@ sinergias = {
 
 ataques = SimpleNamespace(habilidades=habilidades, sinergias=sinergias)
 
+EFECTOS_FRASE = {'quemar': 'puede quemar (le va sacando vida de a poco)', 'paralizar': 'puede paralizar (no se mueve ni ataca un rato)',
+                 'dormir': 'duerme a los enemigos (el proximo golpe pega x1,5 y los despierta)', 'ralentizar': 'puede frenarlos (se mueven a la mitad)',
+                 'empujar': 'empuja lejos'}
+BUFF_FRASE = {'daño': 'pegas', 'defensa': 'recibis', 'velocidad': 'te moves', 'enfriamiento': 'tus recargas tardan'}
+
+
+def explicar_movimiento(datos, casilla=None):
+    """Lo que hace un movimiento contado en palabras (para la seccion de ataques y la ficha). casilla 0 = E (combo y parry)."""
+    if not datos: return 'Sin datos.'
+    forma, tipo = datos.get('forma'), datos.get('tipo') or 'normal'
+    cantidad = int(datos.get('cantidad') or 1)
+    if forma == 'cuerpo':
+        frase = 'Golpe cuerpo a cuerpo de tipo ' + tipo + '.'
+        if casilla in (None, 0): frase += ' En E sale como combo de 3 golpes con un remate que barre; apretalo justo cuando te van a pegar y es un parry.'
+    elif forma == 'proyectil':
+        frase = 'Dispara ' + ('un proyectil' if cantidad == 1 else str(cantidad) + ' proyectiles en abanico') + ' de tipo ' + tipo
+        frase += (' que atraviesan a los enemigos.' if cantidad > 1 else ' que atraviesa a los enemigos.') if datos.get('atraviesa') else '.'
+    elif forma == 'area':
+        frase = ('Una onda de tipo ' + tipo + ' alrededor tuyo que pega a todos los que esten cerca.') if datos.get('daño') else \
+                'Una onda alrededor tuyo que no hace daño pero afecta a todos los que alcanza.'
+    elif forma == 'embestida':
+        frase = 'Te tiras hacia adelante y golpeas a todo lo que tocas en el camino (tipo ' + tipo + ').'
+    elif forma == 'buff':
+        partes = []
+        for clave, valor in (datos.get('buffs') or {}).items():
+            if clave == 'sprint': partes.append('correr no gasta energia'); continue
+            cambio = round(abs(valor - 1) * 100)
+            if clave == 'defensa': partes.append('recibis ' + str(cambio) + '% menos daño')
+            elif clave == 'enfriamiento': partes.append('tus recargas son ' + str(cambio) + '% mas rapidas')
+            else: partes.append(BUFF_FRASE.get(clave, clave) + ' ' + str(cambio) + '% mas')
+        frase = 'Te potencia ' + str(round(float(datos.get('duracion', 0)) / 1000, 1)).replace('.0', '') + ' segundos: ' + ', '.join(partes) + '.'
+    elif forma == 'curar':
+        frase = 'Te curas el ' + str(int(datos.get('porcentaje', 0))) + '% de la vida al instante.'
+    else: frase = 'Movimiento de tipo ' + tipo + '.'
+    ef = datos.get('efecto')
+    if ef and ef.get('tipo') in EFECTOS_FRASE:
+        prob = ef.get('probabilidad', 100)
+        frase += ' ' + EFECTOS_FRASE[ef['tipo']].capitalize() + ('' if prob >= 100 else ' (' + str(int(prob)) + '% de las veces)') + '.'
+    return frase
+
+
+def describir_asistencia(a):
+    """Texto de lo que hace una asistencia (lo que el pokemon de la banca hace con F / G)."""
+    mec = a['mecanica']
+    if mec == 'impacto': return 'golpe de area en el punto apuntado (daño ' + str(a['daño']) + ', radio ' + str(a['area']) + ')'
+    if mec == 'escudo': return 'el activo recibe solo el 25% del daño durante ' + str(a['duracion'] // 1000) + ' s'
+    if mec == 'furia': return 'daño x1.6 y recargas x0.7 durante ' + str(a['duracion'] // 1000) + ' s'
+    if mec == 'carrera': return 'velocidad x1.6 y correr gratis durante ' + str(a['duracion'] // 1000) + ' s'
+    if mec == 'curar': return 'cura el ' + str(a['porcentaje']) + '% de la vida del activo'
+    if mec == 'desvanecer': return 'les saca el ' + str(a['porcentaje']) + '% de la vida a los enemigos comunes en un radio de ' + str(a['area']) + ' y el ' + str(a['porcentaje_jefe']) + '% a un jefe'
+    return 'aplica ' + str((a.get('efecto') or {}).get('tipo')) + ' a todos los enemigos cercanos'
+
+
+def nombre_ataque(clave):
+    """Nombre para mostrar ('fuerza_rayo' -> 'Rayo potenciado', 'onda_surf' -> 'Onda de Surf', 'mtb_rayo' -> 'Rayo')."""
+    if clave.startswith('fuerza_'): return clave[7:].replace('_', ' ').title() + ' potenciado'
+    if clave.startswith('onda_'): return 'Onda de ' + clave[5:].replace('_', ' ').title()
+    if clave.startswith('mtb_') or clave.startswith('mt_'): return clave.split('_', 1)[1].replace('_', ' ').title()
+    return clave.replace('_', ' ').title()
+
 ESTADOS_TXT = {'quemar': 'quema', 'paralizar': 'paraliza', 'dormir': 'duerme', 'ralentizar': 'frena', 'empujar': 'empuja'}
 BUFFS_TXT = {'defensa': 'daño recibido', 'daño': 'daño', 'velocidad': 'velocidad', 'enfriamiento': 'recargas'}
 
@@ -590,6 +650,34 @@ def armar_mts():
 mts = armar_mts()
 
 
+def catalogo_ataques():
+    """Todos los ataques del juego por categoria: [(nombre, tipo, explicacion, numeros, quienes lo usan)]."""
+    P = pokemones
+    nombre_p = lambda n: n.replace('_', ' ').title()
+    lista_usan = lambda usan: (', '.join(nombre_p(n) for n in sorted(usan)[:8]) + (' y ' + str(len(usan) - 8) + ' mas' if len(usan) > 8 else '')) if usan else 'nadie por ahora'
+    basicos, especiales, asistencias = {}, {}, {}
+    for n in P.JUGABLES:
+        g = P.datos_juego(n)
+        for k, mov in enumerate(g['basicos']):
+            if mov: basicos.setdefault(mov, (k, set()))[1].add(n)
+        for clave, dat in g['especiales']: especiales.setdefault(clave, (dat, set()))[1].add(n)
+        a = P.asistencia_de(n)
+        asistencias.setdefault(a['nombre'] + '|' + a['mecanica'], (a, set()))[1].add(n)
+    cat = {}
+    cat['Basicos'] = [(nombre_ataque(m), P.movimientos[m]['tipo'], explicar_movimiento(P.movimientos[m], k), describir_movimiento(P.movimientos[m]), lista_usan(usan))
+                      for m, (k, usan) in sorted(basicos.items()) if m in P.movimientos]
+    cat['Especiales'] = [(nombre_ataque(c), dat.get('tipo', 'normal'), explicar_movimiento(dat, 2), describir_movimiento(dat), lista_usan(usan))
+                         for c, (dat, usan) in sorted(especiales.items())]
+    cat['Asistencias'] = [(nombre_ataque(a['nombre']), a.get('tipo', 'normal'), 'Desde la banca (F / G): ' + describir_asistencia(a) + '.',
+                           'espera ' + str(a['enfriamiento'] // 1000) + ' s', lista_usan(usan)) for _, (a, usan) in sorted(asistencias.items())]
+    for titulo, casillas in (('MT de combate', 'todas'), ('MT especiales', 'especial')):
+        cat[titulo] = [(mt['nombre'][3:], mt['tipo'], explicar_movimiento(mt['datos'], 0 if casillas == 'todas' else 2) +
+                        (' Va en cualquier casilla.' if casillas == 'todas' else ' Solo va en Shift o R.'), describir_movimiento(mt['datos']),
+                        lista_usan([n for n in P.JUGABLES if mts.puede_aprender(n, clave)]))
+                       for clave, mt in sorted(mts.MTS.items(), key=lambda x: x[1]['nombre']) if mt['casillas'] == casillas]
+    return cat
+
+
 # ==================== tienda ====================
 
 def armar_tienda():
@@ -645,7 +733,7 @@ def armar_tienda():
     for _clave, _item in ITEMS.items():
         if 'tipo' in _item: _item['desc'] = '+20% de daño a los ataques de tipo ' + _item['tipo'][0]; _item['equipable'] = {}
         if 'equipable' in _item: _item['desc'] += ' (lo lleva un pokemon)'
-        elif not _item.get('objeto'): _item['desc'] += ' (todo el equipo)'
+        elif not _item.get('objeto') and not _item.get('recogible'): _item['desc'] += ' (todo el equipo)'
     MAX_EQUIPADOS = 2
 
     # objetos que van a la mochila: evolucion (se usan desde el menu de equipo con TAB) y las MT
@@ -655,6 +743,19 @@ def armar_tienda():
         'garra_afilada': {'nombre': 'Garra Afilada', 'precio': 220, 'color': (200, 200, 220), 'objeto': True, 'desc': 'hace evolucionar a Sneasel'},
         'cordon_union': {'nombre': 'Cordon Union', 'precio': 240, 'color': (240, 140, 60), 'objeto': True,
                          'desc': 'evoluciona a los que en los juegos evolucionan por intercambio (Graveler, Machoke, Gurdurr)'},
+        'llave_tesoro': {'nombre': 'Llave del Tesoro', 'precio': 130, 'color': (200, 200, 220), 'objeto': True,
+                         'desc': 'abre una puerta con candado: detras hay una sala del tesoro con premios para elegir'},
+        'caramelo_raro': {'nombre': 'Caramelo Raro', 'precio': 260, 'color': (120, 140, 255), 'objeto': True,
+                          'desc': 'sube un nivel al pokemon que elijas (desde su ficha)'},
+        # mejoras de las salas del tesoro: gratis (se elige una de tres) y para siempre, para todo el equipo
+        'proteina': {'nombre': 'Proteina', 'precio': 0, 'color': (230, 90, 70), 'mejora': True, 'permanente': {'daño': 1.08}, 'desc': '+8% de daño para todo el equipo, para siempre'},
+        'hierro': {'nombre': 'Hierro', 'precio': 0, 'color': (230, 210, 80), 'mejora': True, 'permanente': {'defensa': 0.92}, 'desc': '8% menos daño recibido para todo el equipo, para siempre'},
+        'carburante': {'nombre': 'Carburante', 'precio': 0, 'color': (90, 200, 230), 'mejora': True, 'permanente': {'velocidad': 1.06}, 'desc': '+6% de velocidad para todo el equipo, para siempre'},
+        'calcio': {'nombre': 'Calcio', 'precio': 0, 'color': (240, 150, 70), 'mejora': True, 'permanente': {'enfriamiento': 0.92}, 'desc': 'recargas 8% mas rapidas para todo el equipo, para siempre'},
+        'zinc': {'nombre': 'Zinc', 'precio': 0, 'color': (220, 190, 70), 'mejora': True, 'permanente': {'regen': 1.25, 'parry': 1.1}, 'desc': 'la energia vuelve 25% mas rapido y el parry dura 10% mas (todo el equipo)'},
+        'mas_ps': {'nombre': 'Mas PS', 'precio': 0, 'color': (90, 200, 120), 'mejora': True, 'cura_equipo': 0.5, 'desc': 'todo el equipo se cura la mitad de su vida (y revive a los debilitados con un 25%)'},
+        'baya_oran': {'nombre': 'Baya Oran', 'precio': 0, 'color': (60, 120, 230), 'recogible': True,
+                      'desc': 'cura el 15% de la vida del que pelea al agarrarla (la sueltan cosas rotas y salas con buena nota)'},
         'lazo_amistad': {'nombre': 'Lazo Amistad', 'precio': 110, 'color': (250, 120, 170), 'temporal': ('amistad', 2.0, SALAS_X),
                          'desc': 'el doble de chance de que un pokemon quiera unirse por 3 salas'},
     })
@@ -666,8 +767,14 @@ def armar_tienda():
     EVOLUCION = ('piedra_trueno', 'piedra_alba', 'garra_afilada', 'cordon_union')
 
     COMUNES = ('repelente', 'superrepelente', 'maxirepelente', 'ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo', 'eter', 'lazo_amistad')
-    DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda', 'cinturon_focus', 'pluma_agil')
+    DESTACADOS = ('cinta_fuerte', 'garra_rapida', 'polvo_veloz', 'chaleco_asalto', 'amuleto_moneda', 'cinturon_focus', 'pluma_agil', 'caramelo_raro')
     EQUIPABLES = tuple(k for k, v in ITEMS.items() if 'equipable' in v)
+    MEJORAS = tuple(k for k, v in ITEMS.items() if v.get('mejora'))
+
+
+    def premios_tesoro(azar):
+        """Los 3 premios de una sala del tesoro: dos mejoras distintas y caramelos raros."""
+        return azar.sample(MEJORAS, 2) + ['caramelo_raro']
     DE_TIPO = tuple(k for k, v in ITEMS.items() if 'tipo' in v)
 
 
@@ -723,6 +830,7 @@ def armar_tienda():
         comunes = azar.sample(COMUNES, min(len(COMUNES), sum(1 for v in vitrinas if not v['destacado'])))
         posibles = sorted({k for n in equipo for k in mts.aprendibles(n)})
         if posibles and comunes: comunes[-1] = azar.choice(posibles)
+        if comunes: comunes[0] = 'llave_tesoro'                   # siempre hay una llave para las salas del tesoro
         propios = [k for k in DE_TIPO if ITEMS[k]['tipo'][0] in tipos_equipo]
         destacados = azar.sample(DESTACADOS, 2)
         if propios and azar.random() < 0.6: destacados[1] = azar.choice(propios)
@@ -746,6 +854,10 @@ def armar_tienda():
         if 'temporal' in item: inv['temporal'].append(list(item['temporal']))
         if 'critico' in item: inv['critico'] = [item['critico'][0], inv['critico'][1] + item['critico'][1]]
         for c, v in item.get('permanente', {}).items(): inv['permanente'][c] = inv['permanente'].get(c, 1.0) * v
+        if 'cura_equipo' in item:
+            for m in j['equipo']:
+                m['vida'] = max(m['vida'], round(m['max_vida'] * 0.25)) if m['vida'] <= 0 else min(m['max_vida'], m['vida'] + m['max_vida'] * item['cura_equipo'])
+        if item.get('mejora'): return item['nombre'] + ': ' + item['desc']
         if 'equipable' in item: return 'Compraste ' + item['nombre'] + ': ponéselo a un pokemon desde su ficha'
         return 'Compraste ' + item['nombre']
 
@@ -792,6 +904,8 @@ def armar_mundos():
     TIENDA_COMPENSA = 15                   # si sale pronto, la siguiente tarda mas: hueco_siguiente >= 15 - hueco_anterior
     PUERTAS_POR_SALA = ((1, 20), (2, 50), (3, 30))   # (cantidad de salidas, peso) en las salas de combate
     PROB_SEGUIR_CLIMA = 0.6                # chance de que la sala siguiente tenga el mismo clima
+    PROB_TESORO = 0.4                      # chance de que una de las puertas (si hay 2 o mas) sea de una sala del tesoro
+    PROB_DESAFIO = 0.2                     # chance de que una puerta de combate sea de desafio (mas enemigos, mejor premio)
 
     # terrenos: color, si bloquea el paso, que tipos lo cruzan igual y si frena proyectiles (solido)
     TERRENOS = {
@@ -977,7 +1091,7 @@ def armar_mundos():
     #   'terrenos': [(terreno, (min, max) manchas, (min, max) casillas)]             'maquinas': [(maquina, (min, max))]
     #   'especiales': ['rio', 'foso', 'costa', 'cintas', 'cables']                  'objetos': {objeto: peso} sueltos, 'cantidad': (min, max)
     ERAS = [
-        {'clave': 'glaciacion', 'nombre': 'Era Glacial', 'regi': 'regice', 'jefe': 'walrein',
+        {'clave': 'glaciacion', 'nombre': 'Era Glacial', 'tienda': 'Puesto de trueque', 'regi': 'regice', 'jefe': 'walrein',
          'suelo': (196, 222, 236), 'pared': (85, 115, 140), 'clima_regi': 'granizo',
          'clima': {'nieve': 4, 'granizo': 2, 'nublado': 2, 'despejado': 1, 'niebla': 1},
          'enemigos': ['snorunt', 'glalie', 'froslass', 'spheal', 'sealeo', 'walrein', 'vanillite', 'vanillish', 'vanilluxe', 'sneasel',
@@ -997,7 +1111,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('hielo', (3, 4), (8, 12)), ('nieve', (1, 2), (5, 8))], 'maquinas': [('cascada', (2, 2))],
                    'piezas': {'estalagmitas': 1}, 'num_piezas': (1, 1), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'piedra', 'nombre': 'Edad de Piedra', 'regi': 'regirock', 'jefe': 'golem',
+        {'clave': 'piedra', 'nombre': 'Edad de Piedra', 'tienda': 'Mercado de trueque', 'regi': 'regirock', 'jefe': 'golem',
          'suelo': (150, 130, 95), 'pared': (70, 55, 40), 'clima_regi': 'tormenta_arena',
          'clima': {'despejado': 3, 'sol': 2, 'nublado': 2, 'lluvia': 2, 'tormenta_electrica': 0.5, 'niebla': 1, 'tormenta_arena': 1},
          'enemigos': ['geodude', 'graveler', 'golem', 'sandshrew', 'sandslash', 'cubone', 'marowak', 'mankey', 'primeape', 'timburr',
@@ -1019,7 +1133,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('arena', (3, 4), (6, 10))], 'maquinas': [('monolito', (2, 2))],
                    'piezas': {'rocas': 1}, 'num_piezas': (2, 2), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'metales', 'nombre': 'Edad de los Metales', 'regi': 'registeel', 'jefe': 'corviknight',
+        {'clave': 'metales', 'nombre': 'Edad de los Metales', 'tienda': 'Bazar', 'regi': 'registeel', 'jefe': 'corviknight',
          'suelo': (176, 132, 82), 'pared': (70, 45, 25), 'clima_regi': 'sol',
          'clima': {'despejado': 3, 'sol': 3, 'nublado': 2, 'tormenta_arena': 2, 'lluvia': 1},
          'enemigos': ['magnemite', 'magneton', 'machop', 'machoke', 'machamp', 'gurdurr', 'conkeldurr', 'combusken', 'blaziken', 'fletchling',
@@ -1038,7 +1152,7 @@ def armar_mundos():
          },
          'arena': {'forma': {'columnas': 1}, 'simetria': {'hv': 1}, 'maquinas': [('iman', (2, 2)), ('forja', (1, 1))], 'piezas': {'estatua': 1}, 'num_piezas': (1, 1), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'medieval', 'nombre': 'Edad Media', 'regi': 'regidrago', 'jefe': 'garchomp',
+        {'clave': 'medieval', 'nombre': 'Edad Media', 'tienda': 'Mercado', 'regi': 'regidrago', 'jefe': 'garchomp',
          'suelo': (128, 112, 88), 'pared': (52, 42, 32), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 3, 'niebla': 2, 'despejado': 2, 'tormenta_electrica': 1, 'sol': 1},
          'enemigos': ['gible', 'gabite', 'golett', 'golurk', 'samurott_hisui', 'oshawott', 'dewott', 'samurott', 'rookidee', 'drifloon',
@@ -1060,7 +1174,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('roca_volcanica', (2, 3), (4, 8))], 'maquinas': [('cristal_dragonico', (2, 2)), ('brasero', (2, 2))],
                    'piezas': {}, 'num_piezas': (0, 0), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'moderna', 'nombre': 'Edad Moderna', 'regi': 'regieleki', 'jefe': 'magnezone',
+        {'clave': 'moderna', 'nombre': 'Edad Moderna', 'tienda': 'Almacén', 'regi': 'regieleki', 'jefe': 'magnezone',
          'suelo': (70, 78, 122), 'pared': (24, 24, 44), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 2, 'niebla': 2, 'tormenta_electrica': 2, 'despejado': 2, 'sol': 1},
          'enemigos': ['pichu', 'pikachu', 'raichu', 'mareep', 'flaaffy', 'ampharos', 'shinx', 'luxio', 'luxray', 'electrike',
@@ -1083,7 +1197,7 @@ def armar_mundos():
          'arena': {'forma': {'rect': 1}, 'simetria': {'hv': 1}, 'especiales': ['cables'], 'terrenos': [('charco', (3, 4), (3, 6))], 'maquinas': [('generador', (2, 2))],
                    'piezas': {}, 'num_piezas': (0, 0), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'origen', 'nombre': 'El Origen', 'regi': 'regigigas', 'final': 'arceus', 'jefe': None,
+        {'clave': 'origen', 'nombre': 'El Origen', 'tienda': 'Bazar del tiempo', 'regi': 'regigigas', 'final': 'arceus', 'jefe': None,
          'suelo': (204, 194, 236), 'pared': (88, 78, 130), 'clima_regi': None, 'clima_final': 'sol',
          'plan_fijo': ['tienda', 'regi', 'final'],             # cuando caen los 5 Regis: tienda, Regigigas y despues Arceus
          'clima': {'despejado': 2, 'tormenta_electrica': 1, 'niebla': 1},
@@ -1189,7 +1303,10 @@ def armar_mundos():
             return [{'tipo': tipo, 'variante': variante, 'era': era, 'desde': rec['era']}]
         cantidad = azar.choices([c for c, _ in PUERTAS_POR_SALA], [p for _, p in PUERTAS_POR_SALA])[0]
         variantes = azar.sample(list(ERAS[era]['variantes']), min(cantidad, len(ERAS[era]['variantes'])))
-        return [{'tipo': 'combate', 'variante': v, 'era': era, 'desde': rec['era']} for v in variantes]
+        destinos = [{'tipo': 'combate', 'variante': v, 'era': era, 'desde': rec['era'], 'desafio': azar.random() < PROB_DESAFIO} for v in variantes]
+        if len(destinos) >= 2 and azar.random() < PROB_TESORO:       # una de las puertas lleva a una sala del tesoro (con candado)
+            destinos[-1] = {'tipo': 'tesoro', 'variante': None, 'era': era, 'desde': rec['era'], 'candado': True}
+        return destinos
 
 
     def jefe_de(era, tipo):
@@ -1202,18 +1319,19 @@ def armar_mundos():
         """Texto del cartel arriba de una puerta."""
         if destino['tipo'] == 'volver': return 'VOLVER'
         if destino['tipo'] == 'viaje': return 'VIAJE TEMPORAL'                # el portal del hall: empieza otro viaje desde la Era Glacial
+        if destino['tipo'] == 'tesoro': return 'TESORO (llave)' if destino.get('candado') else 'TESORO'
         if destino.get('cerrado'): return 'camino no tomado'
         era = ERAS[destino['era']]
-        if destino['tipo'] == 'tienda': return 'TIENDA'
+        if destino['tipo'] == 'tienda': return era['tienda'].upper()         # el nombre cambia con la era (siempre la atiende Chikorita)
         if destino['tipo'] in ('jefe', 'regi', 'final'): return destino['tipo'].upper() + ': ' + str(jefe_de(destino['era'], destino['tipo'])).title()
         if destino['tipo'] == 'fin': return 'FINAL'
         if destino['era'] != destino.get('desde', destino['era']): return era['nombre']
-        return destino['variante'].capitalize()
+        return destino['variante'].capitalize() + (' ★ desafío' if destino.get('desafio') else '')
 
 
     def escala(era, sala):
         """Cuanto mas fuertes son los enemigos segun por donde vas."""
-        return {'vida': 1 + 0.3 * era + 0.01 * sala, 'daño': 1 + 0.18 * era + 0.005 * sala, 'cantidad': 6 + era + sala // 6}
+        return {'vida': 1 + 0.3 * era + 0.01 * sala, 'daño': 1 + 0.18 * era + 0.005 * sala, 'cantidad': 13 + 3 * era + sala // 3}
 
     return SimpleNamespace(**locals())
 

@@ -313,19 +313,24 @@ def armar_ia():
     """
     ROL_POKEMON = datos.pokemones.ROL_POKEMON
 
-    MAX_ATACANTES = 2          # pegadores/rapidos atacando a la vez
-    DETECCION = 380            # distancia a la que te ven (si no hay nada en el medio)
-    OIDO = 130                 # tan cerca te sienten aunque no te vean
-    GRITO = 320                # al verte avisan a los compañeros que esten a esta distancia
-    PENSAR = 150               # ms entre decisiones (el movimiento es cada frame)
+    MAX_ATACANTES = 3          # pegadores/rapidos atacando a la vez
+    DETECCION = 460            # distancia a la que te ven (si no hay nada en el medio)
+    OIDO = 160                 # tan cerca te sienten aunque no te vean
+    GRITO = 420                # al verte avisan a los compañeros que esten a esta distancia
+    PENSAR = 120               # ms entre decisiones (el movimiento es cada frame)
     # confundido por el baile: rumbo nuevo cada 'cambio' ms, a veces se tropieza, camina mas lento y le pega a los compañeros que choca
     CONFUSION = {'cambio': (400, 900), 'tropiezo': 0.35, 'vel': 0.7, 'daño': 0.8, 'entre_golpes': 900}
 
+    # 'acometida': al soltar el golpe el pegador se tira unos pixeles hacia vos (no alcanza con dar un pasito para atras)
+    # 'rafaga': balas por disparo del tirador (suma una cada 2 eras), 'esquiva': chance de esquivar tus proyectiles
     ESTILOS = {
-        'pegador': {'vel': 1.9, 'alcance': 62, 'aviso': 380, 'cd': 1100},
-        'tirador': {'vel': 1.6, 'rango': (230, 400), 'aviso': 380, 'cd': 1700, 'vel_bala': 6.5, 'dist_bala': 560},
-        'rapido': {'vel': 2.4, 'orbita': 170, 'aviso': 480, 'cd': 2300, 'vel_embestida': 9.5, 'dist_embestida': 280},
+        'pegador': {'vel': 2.7, 'alcance': 64, 'aviso': 330, 'cd': 820, 'acometida': 34, 'esquiva': 0.2, 'flanqueo': 210},
+        'tirador': {'vel': 2.3, 'rango': (220, 380), 'aviso': 330, 'cd': 1250, 'vel_bala': 8.0, 'dist_bala': 600, 'rafaga': 1, 'esquiva': 0.45},
+        'rapido': {'vel': 3.3, 'orbita': 160, 'aviso': 400, 'cd': 1600, 'vel_embestida': 12.0, 'dist_embestida': 320, 'esquiva': 0.6},
     }
+    POR_ERA = 0.06             # en cada era los avisos y las esperas son un 6% mas cortos
+    FURIA = {'vida': 0.35, 'vel': 1.25, 'cd': 0.75}   # con poca vida se enfurecen: mas rapidos y atacan mas seguido
+    ESQUIVE = {'vel': 6.0, 'dura': 220, 'espera': 900, 'mira': 170}   # esquivar tus proyectiles: un salto de costado
     ESTILO_ROL = {'tanque': 'pegador', 'atacante': 'pegador', 'estratega': 'tirador', 'velocista': 'rapido'}
     VECINOS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
 
@@ -335,7 +340,8 @@ def armar_ia():
         estilo = estilo or ESTILO_ROL.get(ROL_POKEMON.get(e['nombre']), 'pegador')
         e.update({'estilo': estilo, 'estado_ia': 'patrulla', 'ultima_vista': None, 'cd_ataque': 0, 'aviso': None, 'embestida_ia': None,
                   'meta': None, 'cubrirse_hasta': 0, 'pensar': 0, 'resto_ia': [0.0, 0.0], 'vida_ant': e['vida'], 'grito': 0,
-                  'paseo': 0, 'giro': random.choice((-1, 1)), 'origen': e['rect'].center})
+                  'paseo': 0, 'giro': random.choice((-1, 1)), 'origen': e['rect'].center,
+                  'flanco': random.uniform(0, math.tau), 'esquiva_ia': None, 'proximo_esquive': 0})
 
 
     # ---------- mapa del lugar ----------
@@ -444,14 +450,46 @@ def armar_ia():
         return sum(1 for o in enemigos if o['vida'] > 0 and o.get('estilo') in ('pegador', 'rapido') and (o.get('aviso') or o.get('embestida_ia')))
 
 
+    def _parametros(e, ctx):
+        """Los numeros del estilo del enemigo ajustados por la era (mas apurados) y por la furia (con poca vida)."""
+        p = dict(ESTILOS[e['estilo']])
+        era = ctx.get('era', 0)
+        apuro = max(0.55, 1 - POR_ERA * era)
+        furioso = e['vida'] <= e['max_vida'] * FURIA['vida']
+        p['aviso'] = round(p['aviso'] * apuro)
+        p['cd'] = round(p['cd'] * apuro * (FURIA['cd'] if furioso else 1))
+        p['vel'] = p['vel'] * (FURIA['vel'] if furioso else 1)
+        if 'rafaga' in p: p['rafaga'] += era // 2
+        e['furioso'] = furioso
+        return p
+
+
+    def _esquivar_balas(e, ctx, p, ahora):
+        """Si una bala tuya viene derecho hacia el y esta por llegar, a veces salta de costado."""
+        if ahora < e['proximo_esquive'] or e['aviso'] or e['embestida_ia']: return
+        ex, ey = e['rect'].center
+        for b in ctx.get('proyectiles', ()):
+            vx, vy = b['vx'], b['vy']
+            dx, dy = ex - b['x'], ey - b['y']
+            adelante = dx * vx + dy * vy                            # cuanto le falta a la bala para llegar
+            if not 0 < adelante < ESQUIVE['mira']: continue
+            if abs(dx * vy - dy * vx) > max(e['rect'].size) / 2 + 18: continue   # pasa de largo
+            e['proximo_esquive'] = ahora + ESQUIVE['espera']
+            if random.random() >= p['esquiva']: return
+            lado = random.choice((-1, 1))
+            e['esquiva_ia'] = {'dx': -vy * lado, 'dy': vx * lado, 'hasta': ahora + ESQUIVE['dura']}
+            return
+
+
     def actualizar(e, ctx):
         """
-        ctx = {'ent': entorno, 'jugador': j, 'enemigos': [...], 'ahora': ms, 'dañar_jugador': f(daño, tipo),
-               'disparar': f(x, y, dx, dy, daño, tipo, vel, distancia), 'parry': f(enemigo) -> True si el jugador bloqueo su golpe}
+        ctx = {'ent': entorno, 'jugador': j, 'enemigos': [...], 'ahora': ms, 'dañar_jugador': f(daño, tipo), 'era': n,
+               'disparar': f(x, y, dx, dy, daño, tipo, vel, distancia), 'parry': f(enemigo) -> True si el jugador bloqueo su golpe,
+               'proyectiles': tus proyectiles (para esquivarlos)}
         """
         ent, j, ahora, enemigos = ctx['ent'], ctx['jugador'], ctx['ahora'], ctx['enemigos']
         if e['estado_hasta'] > ahora and e['estado'] in ('paralizar', 'dormir'): e['aviso'] = None; return   # aturdido: pierde el ataque
-        p = ESTILOS[e['estilo']]
+        p = _parametros(e, ctx)
         if e['estado_hasta'] > ahora and e['estado'] == 'confundir':   # confundido (por tu baile): camina sin rumbo, tropieza y le pega a los suyos
             e['aviso'] = None; e['embestida_ia'] = None
             if ahora >= e.get('confuso_rumbo', 0):                     # cada tanto cambia de rumbo y a veces se tropieza (Trip / LostBalance)
@@ -485,6 +523,13 @@ def armar_ia():
                             o['estado_ia'] = 'caza'; o['ultima_vista'] = (jx, jy)
                 e['estado_ia'] = 'caza'; e['ultima_vista'] = (jx, jy)
             e['te_ve'] = viendo
+            if e['estado_ia'] == 'caza': _esquivar_balas(e, ctx, p, ahora)
+
+        if e['esquiva_ia']:                                         # saltando de costado para esquivar una bala
+            es = e['esquiva_ia']
+            if ahora >= es['hasta']: e['esquiva_ia'] = None
+            else:
+                _mover_hacia(ent, e, (ex + es['dx'] * 40, ey + es['dy'] * 40), ESQUIVE['vel'], []); return
 
         if e['embestida_ia']:                                       # embestida en curso (rapido)
             em = e['embestida_ia']
@@ -499,7 +544,9 @@ def armar_ia():
             return
 
         if e['aviso']:                                              # avisando un ataque: se queda quieto y despues golpea
-            if ahora < e['aviso']['hasta']: return
+            if ahora < e['aviso']['hasta']:
+                if e['aviso']['clase'] == 'disparo': e['aviso']['mira'] = (jx, jy)   # el tirador te sigue con la mira mientras carga
+                return
             _soltar_ataque(e, ctx, p)
             e['aviso'] = None
             return
@@ -520,10 +567,16 @@ def armar_ia():
 
         libre = ahora >= e['cd_ataque']
         if e['estilo'] == 'pegador':
-            if dist <= p['alcance'] + max(j['rect'].size) / 2 and libre and _atacando(enemigos) < MAX_ATACANTES:
+            alcance = p['alcance'] + max(j['rect'].size) / 2
+            if dist <= alcance + p['acometida'] * 0.6 and libre and _atacando(enemigos) < MAX_ATACANTES:
                 e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'golpe', 'inicio': ahora}
-            elif _atacando(enemigos) >= MAX_ATACANTES and dist < 150:   # ya hay dos pegando: espera dando vueltas
-                _orbitar(ent, e, j, 150, vel * 0.7, enemigos)
+            elif _atacando(enemigos) >= MAX_ATACANTES and dist < 160:   # ya hay varios pegando: da vueltas cerca esperando su turno
+                _orbitar(ent, e, j, 140, vel * 0.8, enemigos)
+            elif dist < p['flanqueo']:                              # cerca: busca su lado para rodearte (cada uno tiene su angulo)
+                actual = math.atan2(ey - jy, ex - jx)
+                diferencia = (e['flanco'] - actual + math.pi) % math.tau - math.pi
+                ang = actual + max(-0.5, min(0.5, diferencia))
+                _mover_hacia(ent, e, (jx + math.cos(ang) * alcance * 0.8, jy + math.sin(ang) * alcance * 0.8), vel, enemigos)
             else: _ir_a(ent, e, (jx, jy), vel, enemigos)
         elif e['estilo'] == 'tirador':
             if ahora < e['cubrirse_hasta'] and e['meta']:           # recargando escondido
@@ -531,47 +584,54 @@ def armar_ia():
             cerca, lejos = p['rango']
             if dist < cerca: _ir_a(ent, e, (jx, jy), vel, enemigos, alejarse=True)       # te alejas: se va para atras
             elif dist > lejos: _ir_a(ent, e, (jx, jy), vel, enemigos)
-            elif libre:
+            elif libre and ve(ent, (ex, ey), (jx, jy)):
                 e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'disparo', 'inicio': ahora, 'mira': (jx, jy)}
-            else: _orbitar(ent, e, j, dist, vel * 0.6, enemigos)
+            else: _orbitar(ent, e, j, dist, vel * 0.9, enemigos)    # recargando: se mueve de costado (cuesta mas apuntarle)
         else:
-            if libre and dist < 320 and _atacando(enemigos) < MAX_ATACANTES:
+            if libre and dist < 340 and _atacando(enemigos) < MAX_ATACANTES:
                 n = dist or 1
                 e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'embestida', 'inicio': ahora, 'dir': ((jx - ex) / n, (jy - ey) / n)}
             else: _orbitar(ent, e, j, p['orbita'], vel, enemigos)
 
 
     def _orbitar(ent, e, j, radio, vel, enemigos):
-        """Da vueltas alrededor del jugador a cierta distancia (cambia de sentido si se choca)."""
+        """Da vueltas alrededor del jugador a cierta distancia (cambia de sentido si se choca o de vez en cuando)."""
         jx, jy = j['rect'].center
         ex, ey = e['rect'].center
         ang = math.atan2(ey - jy, ex - jx) + 0.35 * e['giro']
         destino = (jx + math.cos(ang) * radio, jy + math.sin(ang) * radio)
         antes = e['rect'].center
         _mover_hacia(ent, e, destino, vel, enemigos)
-        if e['rect'].center == antes and random.random() < 0.05: e['giro'] *= -1
+        if (e['rect'].center == antes and random.random() < 0.08) or random.random() < 0.004: e['giro'] *= -1
 
 
     def _soltar_ataque(e, ctx, p):
-        """Termina el aviso: golpe, disparo o embestida."""
+        """Termina el aviso: golpe (con una acometida hacia vos), disparo (rafaga apuntando adelante de donde vas) o embestida."""
         j, ahora = ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         ex, ey = e['rect'].center
         a = e['aviso']
         if a['clase'] == 'golpe':
             e['cd_ataque'] = ahora + p['cd']
-            if math.hypot(jx - ex, jy - ey) <= (p['alcance'] + max(j['rect'].size) / 2) * 1.25:
+            d = math.hypot(jx - ex, jy - ey) or 1
+            paso = min(p['acometida'], max(0, d - p['alcance'] * 0.6))    # se tira hacia vos antes de pegar
+            entorno.mover(ctx['ent'], e['rect'], round((jx - ex) / d * paso), round((jy - ey) / d * paso), [e['tipo']])
+            ex, ey = e['rect'].center
+            if math.hypot(jx - ex, jy - ey) <= (p['alcance'] + max(j['rect'].size) / 2) * 1.2:
                 if not ctx.get('parry', lambda e: False)(e): ctx['dañar_jugador'](e['daño'], e['tipo'])   # salvo que le hagas parry
         elif a['clase'] == 'disparo':
-            vx, vy = j.get('inercia', (0, 0))                        # apunta un poco adelante de donde vas
+            vx, vy = j.get('inercia', (0, 0))                        # apunta adelante de donde vas
             tiempo_bala = math.hypot(jx - ex, jy - ey) / p['vel_bala']
-            tx, ty = jx + vx * tiempo_bala * 0.5, jy + vy * tiempo_bala * 0.5
-            n = math.hypot(tx - ex, ty - ey) or 1
-            ctx['disparar'](ex, ey, (tx - ex) / n, (ty - ey) / n, e['daño'] * 0.8, e['tipo'], p['vel_bala'], p['dist_bala'])
+            tx, ty = jx + vx * tiempo_bala * 0.8, jy + vy * tiempo_bala * 0.8
+            base = math.atan2(ty - ey, tx - ex)
+            balas = p.get('rafaga', 1)
+            for k in range(balas):                                  # rafaga en abanico chiquito
+                ang = base + (k - (balas - 1) / 2) * 0.16
+                ctx['disparar'](ex, ey, math.cos(ang), math.sin(ang), e['daño'] * 0.8, e['tipo'], p['vel_bala'], p['dist_bala'])
             e['cd_ataque'] = ahora + p['cd']
-            if random.random() < 0.45:                              # a veces se esconde a recargar
+            if random.random() < 0.35:                              # a veces se esconde a recargar
                 e['meta'] = _cobertura(ctx['ent'], e, j)
-                if e['meta']: e['cubrirse_hasta'] = ahora + 1300
+                if e['meta']: e['cubrirse_hasta'] = ahora + 1100
         else:
             e['embestida_ia'] = {'dx': a['dir'][0], 'dy': a['dir'][1], 'restante': p['dist_embestida'], 'pego': False}
 

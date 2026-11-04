@@ -158,12 +158,29 @@ def armar_menus():
             ventana.blit(t, t.get_rect(midleft=(rect.x + 22, rect.centery)))
             v = fuente(tam).render('< ' + str(valor) + ' >', True, (255, 236, 120) if elegido else (220, 220, 220))
             ventana.blit(v, v.get_rect(midright=(rect.right - 22, rect.centery)))
-        if elegido: dibujar_esquinas(ventana, rect.inflate(12, 10))
+        if elegido: dibujar_esquinas(ventana, rect, margen=5, largo=12)
 
 
-    def titulo(ventana, texto, x=60, y=40, tam=72, color=None):
-        """Titulo grande de un menu."""
-        ventana.blit(fuente(tam).render(texto, True, color or TINTA), (x, y))
+    TITULO_POS = (40, 12)                                         # todos los menus ponen el titulo en el mismo lugar y del mismo tamaño
+    CONTENIDO_Y = 96                                              # debajo del titulo arranca el contenido
+    MARGEN_X = 40
+
+
+    def titulo(ventana, texto, x=None, y=None, tam=None, color=None):
+        """Titulo grande de un menu, con la letra de los titulos del PMD (blanca con borde negro).
+        Siempre en TITULO_POS y a escala 3 (x, y y tam quedan por compatibilidad: se ignoran)."""
+        ventana.blit(tipografia.fuente_titulo(3).render(texto, True, color if color not in (None, TINTA) else 'white'), TITULO_POS)
+
+
+    def pie(ventana, texto, color=(230, 230, 240)):
+        """La linea de ayuda de abajo (teclas) en el mismo lugar en todos los menus, sobre una franja oscura para que se lea."""
+        W, H = ventana.get_size()
+        t = fuente(22).render(texto, True, color)
+        franja = pygame.Surface((W, 30), pygame.SRCALPHA); franja.fill((0, 0, 0, 120)); ventana.blit(franja, (0, H - 30))
+        ventana.blit(t, t.get_rect(midleft=(MARGEN_X, H - 15)))
+
+
+    pie_menu = pie                                                # para las funciones que tienen un parametro que se llama 'pie'
 
 
     # ---------- logo: POKE con la letra de pokemon y MANIC en Unown ----------
@@ -226,7 +243,29 @@ def armar_menus():
 
 
     def dibujar_logo(ventana, alto, ahora, **donde):
-        """Dibuja POKEMANIC (las letras Unown flotan un poco). donde: como en get_rect (center=..., topright=...)."""
+        """POKEMANIC: POKE con la letra de los titulos del PMD (amarilla con borde azul, como el logo de Pokemon) y MANIC con letras
+        Unown de HGSS que flotan un poco. donde: como en get_rect (center=..., topright=...). Si faltan las hojas, el logo de antes."""
+        escala = max(2, round(alto / 24))
+        poke_f = tipografia.fuente_titulo(escala, (40, 70, 160))
+        letras = tipografia.unown('MANIC', max(2, round(alto / 14)))
+        if not hasattr(poke_f, 'escala') or not letras:
+            return _logo_viejo(ventana, alto, ahora, **donde)
+        poke = poke_f.render('POKE', True, (255, 214, 40))
+        sombra = pygame.mask.from_surface(poke).to_surface(setcolor=(20, 30, 80), unsetcolor=(0, 0, 0, 0))
+        sep = alto // 6
+        caja = pygame.Rect(0, 0, poke.get_width() + sep + sum(l.get_width() + sep // 2 for l in letras), max(poke.get_height(), alto))
+        for clave, valor in donde.items(): setattr(caja, clave, valor)
+        ventana.blit(sombra, (caja.x + escala * 2, caja.centery - poke.get_height() // 2 + escala * 2))
+        ventana.blit(poke, (caja.x, caja.centery - poke.get_height() // 2))
+        x = caja.x + poke.get_width() + sep
+        for i, l in enumerate(letras):
+            y = caja.centery - l.get_height() // 2 + round(math.sin(ahora / 450 + i * 1.3) * alto * 0.06)
+            ventana.blit(l, (x, y)); x += l.get_width() + sep // 2
+        return caja
+
+
+    def _logo_viejo(ventana, alto, ahora, **donde):
+        """El logo dibujado (por si faltan las hojas de las letras)."""
         if alto not in _logo: _logo[alto] = (_texto_pokemon('POKE', alto), [_letra_unown(l, round(alto * 0.8)) for l in 'MANIC'])
         poke, letras = _logo[alto]
         sep = alto // 8
@@ -725,9 +764,9 @@ def armar_menus():
             caja(ventana, caja_dialogo, 'panel', OSCURO, 2, (220, 220, 220))
             x = caja_dialogo.x + 20
             if retrato: ventana.blit(retrato, (x, caja_dialogo.y + 28)); x += 104
-            ventana.blit(fuente(26).render('Celebi', True, (150, 240, 140)), (x, caja_dialogo.y + 12))
-            for k, linea in enumerate(ajustar_texto(texto[:cuanto], fuente(30), caja_dialogo.right - x - 30)[:3]):
-                ventana.blit(fuente(30).render(linea, True, 'white'), (x, caja_dialogo.y + 42 + k * 28))
+            ventana.blit(fuente(30).render('Celebi', True, (150, 240, 140)), (x, caja_dialogo.y + 10))
+            for k, linea in enumerate(ajustar_texto(texto[:cuanto], fuente(30), caja_dialogo.right - x - 40)[:3]):
+                ventana.blit(fuente(30).render(linea, True, 'white'), (x, caja_dialogo.y + 46 + k * 28))
             return x
 
         def decir(texto, opciones_=None):
@@ -778,12 +817,14 @@ def armar_menus():
                     elif e.unicode and e.unicode.isprintable() and len(nombre) < LARGO_NOMBRE: nombre += e.unicode
                 escena(ahora)
                 x = caja_de_celebi(pregunta, len(pregunta))
-                campo = pygame.Rect(x, caja_dialogo.y + 80, 360, 40)
+                campo = pygame.Rect(x, caja_dialogo.y + 82, 360, 44)
                 caja(ventana, campo, 'boton_elegido', (60, 60, 90), 2)
-                texto_ = fuente(32).render(nombre or 'escribi tu nombre', True, 'white' if nombre else (170, 170, 200))
-                ventana.blit(texto_, (campo.x + 14, campo.y + 9))
-                if nombre and (ahora // 500) % 2: pygame.draw.line(ventana, 'white', (campo.x + 16 + texto_.get_width(), campo.y + 8), (campo.x + 16 + texto_.get_width(), campo.bottom - 8), 2)
-                ventana.blit(fuente(20).render('ENTER: listo', True, (200, 200, 200)), (campo.right + 14, campo.y + 12))
+                texto_ = fuente(32).render(nombre or 'escribí tu nombre', True, 'white' if nombre else (170, 170, 200))
+                lugar = texto_.get_rect(midleft=(campo.x + 16, campo.centery))
+                ventana.blit(texto_, lugar)
+                if nombre and (ahora // 500) % 2: pygame.draw.line(ventana, 'white', (lugar.right + 3, campo.y + 9), (lugar.right + 3, campo.bottom - 9), 2)
+                listo = fuente(24).render('ENTER: listo', True, (210, 210, 220))
+                ventana.blit(listo, listo.get_rect(midleft=(campo.right + 16, campo.centery)))
                 ui['presentar'](); reloj.tick(60)
 
         # se abre el tiempo, llega Celebi dormido, se despierta y te ve (cada paso puede cortarse con ESC o cerrando la ventana)
@@ -798,18 +839,18 @@ def armar_menus():
         r = esperar(1400)                                                # se despierta y te mira
         if r is None or r == 'salir': return r
         estado['celebi'] = 'despierto'
-        for texto in ('Mmm... ¿eh? ¿Hay alguien ahi?',
-                      'Te encontre flotando en el flujo del tiempo. Por suerte llegue antes de que te perdieras para siempre.',
-                      'Soy Celebi. Viajo entre las epocas cuidando que el tiempo siga su curso.'):
+        for texto in ('Mmm... ¿y esa lucecita?',
+                      'Hace siglos que no encontraba a nadie perdido acá adentro. Estabas dando vueltas en el flujo del tiempo.',
+                      'Soy Celebi. Me la paso yendo y viniendo entre épocas... alguien tiene que cuidar el tiempo, ¿no?'):
             r = decir(texto)
             if r is None or r == 'salir': return r
-        nombre = escribir_nombre('¿Como te llamas?')
+        nombre = escribir_nombre('¿Cómo te llamás?')
         if nombre is None or nombre == 'salir': return nombre
-        r = decir(nombre + '... ¡que lindo nombre! ¿Y vos sos...?', ['Chico', 'Chica', 'Prefiero no decirlo'])
+        r = decir(nombre + '. Me lo voy a acordar, y mirá que tengo memoria para rato. ¿Y vos sos...?', ['Chico', 'Chica', 'Prefiero no decirlo'])
         if r is None or r == 'salir': return r
         genero = GENEROS[r]
-        for texto in ('Que raro... el viaje te dejo sin forma. Sos apenas una lucecita.',
-                      'Concentrate. Acordate de quien sos... Decime: ¿que pokemon sos?'):
+        for texto in ('El tiempo te desarmó. Pasa, aunque no muy seguido... Por ahora sos una lucecita.',
+                      'Cerrá los ojos y acordate de cómo eras. ¿Qué pokemon sos?'):
             r = decir(texto)
             if r is None or r == 'salir': return r
         inicial = elegir_inicial(ui, lambda ahora: fondo_viaje(ui, ahora), '¿Que pokemon sos?')
@@ -819,9 +860,9 @@ def armar_menus():
         estado['cuerpo'], estado['forma'] = cuerpo, pygame.time.get_ticks()
         r = esperar(1300)                                                # el destello y tu forma nueva
         if r is None or r == 'salir': return r
-        for texto in ('¡Eso es! Sos ' + inicial.title() + '. ' + segun_genero(genero, 'Bienvenido', 'Bienvenida', 'Te doy la bienvenida') + ' de vuelta, ' + nombre + '.',
-                      'Algo esta rompiendo las eras, desde la Glacial hasta hoy... y te necesito para arreglarlo.',
-                      'Cuando termines cada era te abro un portal a la siguiente. Agarrate fuerte: vamos a la Era Glacial.'):
+        for texto in ('¡Ahí estás! ' + inicial.title() + '. ' + segun_genero(genero, 'Bienvenido de vuelta', 'Bienvenida de vuelta', 'Qué bueno tenerte de vuelta') + ', ' + nombre + '.',
+                      'Te cuento rápido: algo está quebrando las eras, una por una, desde la Glacial para acá. Yo solo no llego.',
+                      'Vos arreglás cada era y yo te abro el portal a la que sigue. Agarrate, que arrancamos por el hielo.'):
             r = decir(texto)
             if r is None or r == 'salir': return r
         for k in range(40):                                              # destello blanco: entran a la era
@@ -933,7 +974,7 @@ def armar_menus():
                 config['hall'] = lista[(lista.index(config['hall']) + paso) % len(lista)] if config.get('hall') in lista else lista[0]
 
         while True:
-            botones = [pygame.Rect(100, 110 + i * 50, 520, 44) for i in range(len(filas))]   # (mas juntos: con el Hall son 9 filas)
+            botones = [pygame.Rect(MARGEN_X, CONTENIDO_Y + i * 50, 520, 42) for i in range(len(filas))]   # (mas juntos: con el Hall son 9 filas)
             accion = None
             for e in controles.eventos():
                 if e.type == pygame.QUIT: opciones.guardar(config); return 'salir'
@@ -956,18 +997,22 @@ def armar_menus():
             if accion == 'glosario' and glosario(ui) == 'salir': return 'salir'
             if accion in ('modo', 'resolucion', 'pantalla_completa', 'estilo_equipo', 'hall', 'volumen'): cambiar(accion, 1)
             fondo(ventana)
-            titulo(ventana, 'AJUSTES', 100, 40)
+            titulo(ventana, 'Ajustes')
             valores = {'volumen': config['volumen'], 'modo': config['modo'].title(), 'resolucion': config['resolucion'],
                        'pantalla_completa': 'Si' if config['pantalla_completa'] else 'No', 'estilo_equipo': config['estilo_equipo'].title(),
                        'hall': NOMBRE_HALL.get(config.get('hall'), 'Automatico')}
             for i, clave in enumerate(filas): boton(ventana, botones[i], textos[clave], i == elegido, 32, valores.get(clave))
             clave = filas[elegido]
             ayuda = ayudas.get(clave, {}).get(config.get(clave)) if clave in ayudas else None
+            info = pygame.Rect(600, CONTENIDO_Y, ui['W'] - 600 - MARGEN_X, 120)   # al costado: que hace la opcion elegida
+            if clave == 'volumen' or ayuda:
+                caja(ventana, info, 'panel', PANEL)
+                ventana.blit(fuente(30).render(textos[clave], True, (255, 236, 120)), (info.x + 16, info.y + 10))
             if clave == 'volumen':
-                for i in range(10): pygame.draw.rect(ventana, 'white' if i < config['volumen'] // 10 else (90, 90, 90), (660 + i * 28, 140, 22, 16))
+                for i in range(10): pygame.draw.rect(ventana, 'white' if i < config['volumen'] // 10 else (90, 90, 90), (info.x + 16 + i * 30, info.y + 62, 24, 18))
             if ayuda:
-                for k, linea in enumerate(ajustar_texto(ayuda, fuente(26), 300)): ventana.blit(fuente(26).render(linea, True, 'white'), (660, 120 + elegido * 50 + k * 24))
-            ventana.blit(fuente(22).render('Flechas: elegir y cambiar   ENTER: entrar   ESC: volver', True, (240, 240, 240)), (100, H - 40))
+                for k, linea in enumerate(ajustar_texto(ayuda, fuente(24), info.width - 32)[:3]): ventana.blit(fuente(24).render(linea, True, 'white'), (info.x + 16, info.y + 52 + k * 20))
+            pie(ventana, 'Flechas: elegir y cambiar   ENTER: entrar   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -986,7 +1031,7 @@ def armar_menus():
             scroll = max(0, min(scroll, len(filas) - visibles))
             if elegido < scroll: scroll = elegido
             if elegido >= scroll + visibles: scroll = elegido - visibles + 1
-            botones = {i: pygame.Rect(100, 110 + (i - scroll) * alto, 640, alto - 6) for i in range(scroll, min(len(filas), scroll + visibles))}
+            botones = {i: pygame.Rect(MARGEN_X, CONTENIDO_Y + (i - scroll) * alto, 680, alto - 6) for i in range(scroll, min(len(filas), scroll + visibles))}
             accion = None
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
@@ -1019,9 +1064,10 @@ def armar_menus():
                 nueva = controles.esperar_entrada(dispositivo, ui['presentar'], dibujar_espera)
                 if nueva: perfil_actual[accion] = nueva
             fondo(ventana)
-            titulo(ventana, 'CONTROLES', 100, 36, 60)
+            titulo(ventana, 'Controles')
             if dispositivo == 'control' and not controles.hay_control():
-                ventana.blit(fuente(24).render('(no hay ningun control conectado)', True, TINTA), (440, 56))
+                aviso = fuente(24).render('(no hay ningún control conectado)', True, TINTA)
+                ventana.blit(aviso, aviso.get_rect(topright=(ui['W'] - MARGEN_X, 40)))
             for i, b in botones.items():
                 clave = filas[i]
                 if clave == 'dispositivo': boton(ventana, b, 'Dispositivo', i == elegido, 28, dispositivo.title())
@@ -1030,11 +1076,11 @@ def armar_menus():
                 elif clave == 'volver': boton(ventana, b, 'Volver', i == elegido, 28)
                 else:
                     caja(ventana, b, 'boton_elegido' if i == elegido else 'boton', OSCURO, 2)
-                    ventana.blit(fuente(28).render(nombres[clave], True, 'white'), (b.x + 16, b.y + 8))
+                    t_ = fuente(28).render(nombres[clave], True, 'white'); ventana.blit(t_, t_.get_rect(midleft=(b.x + 16, b.centery)))
                     tecla = fuente(28).render(str(perfil_actual.get(clave, '-')).upper(), True, (240, 220, 120))
                     ventana.blit(tecla, tecla.get_rect(midright=(b.right - 16, b.centery)))
-                    if i == elegido: dibujar_esquinas(ventana, b.inflate(8, 8))
-            ventana.blit(fuente(22).render('ENTER sobre una accion: cambiarla   izq/der: dispositivo y perfil   ESC: volver', True, (240, 240, 240)), (100, H - 36))
+                    if i == elegido: dibujar_esquinas(ventana, b, margen=5, largo=12)
+            pie(ventana, 'ENTER sobre una acción: cambiarla   izq/der: dispositivo y perfil   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1066,12 +1112,12 @@ def armar_menus():
                 clave = TRUCOS[accion][0]
                 t[clave] = (t.get(clave, 0) + 1) if clave == 'subir_niveles' else not t.get(clave)
             ventana.fill((70, 40, 90))
-            titulo(ventana, 'MENU DEBUG', 100, 40, 64, (250, 220, 120))
+            titulo(ventana, 'Menu debug', color=(250, 220, 120))
             for i, (clave, texto) in enumerate(TRUCOS):
                 valor = ('x' + str(t.get(clave, 0))) if clave == 'subir_niveles' else ('Si' if t.get(clave) else 'No')
                 boton(ventana, botones[i], texto, i == elegido, 28, valor)
             boton(ventana, botones[-1], 'Volver', elegido == len(TRUCOS), 28)
-            ventana.blit(fuente(22).render('Truquitos de prueba: no se guardan', True, (230, 230, 230)), (100, H - 36))
+            pie(ventana, 'Truquitos de prueba: no se guardan')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1118,7 +1164,17 @@ def armar_menus():
             'Congelado: solo te congela un golpe fuerte de hielo (un rayo de Regice, un pokemon de hielo que te pega de lleno). Pisar hielo solo resbala.',
             'Al limpiar una sala todo el equipo recupera un poco de vida. Golpear a uno dormido lo despierta pero pega x1.5.',
             'Los enemigos avisan antes de atacar: anillo rojo = golpe, linea con mira = disparo, linea naranja = embestida.',
-            'Escondido en hierba o sombra (si tu tipo puede) los enemigos casi no te ven.']
+            'Escondido en hierba o sombra (si tu tipo puede) los enemigos casi no te ven.',
+            'Los enemigos te rodean, esquivan tus disparos, los tiradores se mueven de costado y tiran rafagas, y con poca vida se enfurecen.']
+        s['Estilo'] = [
+            'El medidor de ESTILO (arriba a la derecha) va de D a S. Cuanto mas alto, mas pegas: C +5%, B +10%, A +17%, S +25%.',
+            'Sube al pegar, matar, hacer parry, esquivar perfecto, usar asistencias (F / G) y hacer relevos.',
+            'Variá: si repetis siempre el mismo ataque, cada golpe da cada vez menos (sale el aviso "variá tus ataques").',
+            'Baja si te pegan y si te quedas sin pelear un rato.',
+            'Racha: bajas seguidas en menos de 3 segundos dan monedas extra.',
+            'Relevo: si cambias de pokemon peleando, el primer golpe del que entra pega x1,4.',
+            'Al limpiar la sala te ponen nota (S, A, B, C, D) por el tiempo, el daño que recibiste, tu estilo maximo y los parrys.',
+            'S y A dan monedas, experiencia y a veces un objeto (baya, llave o caramelo). En las salas de desafio (★), el doble.']
         tipos = sorted({t for tabla in (entorno.PISADAS, ) for terreno in tabla.values() for t in terreno if t != 'todos'} |
                        {t for _, (_, por_tipo) in entorno.AURAS.items() for t in por_tipo} | {t for _, t in entorno.REACCIONES})
         lineas = []
@@ -1144,6 +1200,8 @@ def armar_menus():
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
         s['Tienda'] = ['Aparece cada 5 a 10 salas. Chikorita vende objetos: acercate y apreta ' + tecla('interactuar') + '.',
+                       'Cambia de nombre segun la era (' + ', '.join(e['tienda'] for e in datos.mundos.ERAS) + '), pero siempre atiende Chikorita.',
+                       'Siempre hay una Llave del Tesoro a la venta. Tambien cuida tu reserva: los cambios con la reserva se hacen aca.',
                        'Los objetos que dicen "lo lleva un pokemon" se equipan desde su ficha (hasta 2 cada uno) y solo cuentan mientras pelea.',
                        'Los que dicen "todo el equipo" valen para todos.',
                        'MT de combate: van en cualquier casilla (E, Q, Shift o R). MT especiales: solo en Shift o R.', ''] + \
@@ -1158,9 +1216,11 @@ def armar_menus():
         s['Evoluciones'] = ['La mayoria evoluciona al llegar a un nivel. Otros con una piedra (Piedra Trueno, Piedra Alba...).',
                             'Los que en los juegos evolucionan por intercambio usan el Cordon Union.',
                             'Pichu y Riolu evolucionan por amistad: sube cada sala que pasan en tu equipo.',
-                            'Cuando alguien puede evolucionar te avisa: entra al menu de equipo (' + tecla('equipo') + ') y elegi Evolucionar.']
+                            'Peleando, el que puede evolucionar muestra EVO en el HUD. Con la sala limpia aparece el aviso abajo:',
+                            'mantené ' + tecla('evolucionar') + ' y evoluciona ahi mismo. Tambien se puede desde el menu de equipo (' + tecla('equipo') + ').']
         s['Amistad'] = ['Los pokemon no se capturan: a veces uno que derrotaste se queda con corazones porque quiere unirse a vos.',
-                        'Acercate y apreta ' + tecla('interactuar') + ' para hablarle. Si tu equipo esta lleno (3), elegi a quien mandar a la reserva.',
+                        'Acercate y apreta ' + tecla('interactuar') + ' para hablarle. Con el equipo lleno (3) va a la reserva (hasta 3; si esta llena, elegis a quien dejar ir).',
+                        'Los cambios entre el equipo y la reserva solo se hacen en la tienda.',
                         'Es mas probable con los pokemon comunes, si sos de mas nivel y con el Lazo Amistad. Los jefes no se unen.',
                         'Si te vas de la sala sin hablarle, se va.',
                         '[Naturaleza] Cada pokemon nace con una de las 25 de los juegos: sube un 10% un stat y baja otro. Tambien dice que tan facil se amiga:',
@@ -1173,7 +1233,11 @@ def armar_menus():
                              'Semijefe en la sala 15 y el Regi de la era en la 30. Las puertas muestran que hay detras.',
                              'Limpia la sala para que aparezca la llave; con la llave se abren las puertas.',
                              'La vida no se recupera sola: al limpiar una sala el equipo recupera un 12%.',
-                             'Con la sala completada podes volver por la puerta por la que entraste; las salas hechas quedan hechas.']
+                             'Con la sala completada podes volver por la puerta por la que entraste; las salas hechas quedan hechas.',
+                             'Algunas puertas dicen TESORO (llave): con una Llave del Tesoro entras a una sala con 3 premios y te llevas uno',
+                             '(Caramelos Raros o mejoras para todo el equipo: Proteina, Hierro, Carburante, Calcio, Zinc, Mas PS).',
+                             'Las puertas con ★ desafio llevan a salas con 50% mas enemigos y mejor premio.',
+                             'Romper cosas a veces suelta bayas (curan), llaves o caramelos: explorar rinde.']
         s['Partidas'] = ['Hay 3 partidas guardadas (Jugar > elegis una ranura).',
                          'Se guarda sola al entrar a cada sala, al completarla y al comprar: equipo, niveles, experiencia, EV, MT, objetos, monedas y por donde ibas.',
                          'Si cae todo el equipo, Celebi te lleva al hall: el viaje se pierde, pero tus amigos se quedan.']
@@ -1192,12 +1256,13 @@ def armar_menus():
         nombres = list(secciones)
         elegido, scroll = 0, 0
         reloj = pygame.time.Clock()
-        panel = pygame.Rect(320, 100, W - 350, H - 150)
+        panel = pygame.Rect(320, CONTENIDO_Y, W - 320 - MARGEN_X, H - CONTENIDO_Y - 44)
         while True:
             lineas = []
             for linea in secciones[nombres[elegido]]: lineas += ajustar_texto(linea, fuente(24), panel.width - 30) or ['']
             maximo = max(0, len(lineas) * 22 - panel.height + 30)
-            botones = [pygame.Rect(40, 96 + i * 44, 250, 38) for i in range(len(nombres))]
+            paso = min(44, (H - CONTENIDO_Y - 44) // len(nombres))            # que entren todas las secciones arriba del pie
+            botones = [pygame.Rect(MARGEN_X, CONTENIDO_Y + i * paso, 250, paso - 6) for i in range(len(nombres))]
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
                 if e.type == pygame.KEYDOWN:
@@ -1211,7 +1276,7 @@ def armar_menus():
                     for i, b in enumerate(botones):
                         if b.collidepoint(ui['a_logico'](e.pos)): elegido = i; scroll = 0
             fondo(ventana)
-            titulo(ventana, 'GLOSARIO', 40, 26, 60)
+            titulo(ventana, 'Glosario')
             for i, b in enumerate(botones): boton(ventana, b, nombres[i], i == elegido, 26)
             caja(ventana, panel, 'panel', PANEL)
             ventana.set_clip(panel.inflate(-10, -10))
@@ -1221,7 +1286,7 @@ def armar_menus():
                     color = (240, 200, 80) if linea.startswith('[') else (235, 235, 235)
                     ventana.blit(fuente(24).render(linea, True, color), (panel.x + 15, y))
             ventana.set_clip(None)
-            ventana.blit(fuente(22).render('arriba/abajo: seccion   izq/der o rueda: desplazar   ESC: volver', True, (240, 240, 240)), (40, H - 36))
+            pie(ventana, 'arriba/abajo: sección   izq/der o rueda: desplazar   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1233,7 +1298,7 @@ def armar_menus():
         elegido, reloj = 0, pygame.time.Clock()
         abierto = pygame.time.get_ticks()
         while True:
-            cajas = [pygame.Rect(60, 120 + k * 140, W - 120, 120) for k in range(len(resumenes))]
+            cajas = [pygame.Rect(MARGEN_X, CONTENIDO_Y + 6 + k * 144, W - 2 * MARGEN_X - 12, 126) for k in range(len(resumenes))]
             accion = None
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
@@ -1260,26 +1325,94 @@ def armar_menus():
                     partidas.borrar(ranura); resumenes[accion] = None
             fondo(ventana)
             t = pygame.time.get_ticks() - abierto
-            titulo(ventana, 'Partidas', 60, 30, 64)
+            titulo(ventana, 'Partidas')
             for k, r in enumerate(cajas):
                 r = r.move(-round((1 - aparecer(t, k * 80)) * (r.right + 40)) + (12 if k == elegido else 0), 0)
                 resumen = resumenes[k]
                 panel_flecha(ventana, r, (2 if resumen else 0, 1 if k == elegido else 0))
-                ventana.blit(fuente(34).render(resumen['nombre'] if resumen and resumen.get('nombre') else 'Partida ' + str(k + 1), True, 'white'), (r.x + 18, r.y + 12))
+                ventana.blit(fuente(34).render(resumen['nombre'] if resumen and resumen.get('nombre') else 'Partida ' + str(k + 1), True, 'white'), (r.x + 24, r.y + 12))
                 if not resumen:
-                    ventana.blit(fuente(26).render('Vacia - empezar una partida nueva', True, (190, 190, 190)), (r.x + 18, r.y + 54)); continue
+                    ventana.blit(fuente(30).render('Vacía: empezar una partida nueva', True, (200, 210, 225)), (r.x + 24, r.y + 66))
+                    if k == elegido: dibujar_esquinas(ventana, r, margen=5, largo=12)
+                    continue
                 donde = 'En el hall' if resumen.get('hall') else resumen.get('era', '') + ' - sala ' + str(resumen.get('sala', '?')) + '/' + str(resumen.get('salas', '?'))
                 amigos = ('   ' + str(resumen['amigos']) + ' amigos') if resumen.get('amigos') else ''
-                ventana.blit(fuente(24).render(donde + '   $ ' + str(resumen.get('monedas', 0)) + amigos, True, (240, 220, 120)), (r.x + 200, r.y + 18))
-                ventana.blit(fuente(20).render('guardada ' + str(resumen.get('fecha', '')), True, (190, 190, 190)), (r.right - 210, r.y + 18))
-                x = r.x + 18
+                info_ = fuente(24).render(donde + '   $ ' + str(resumen.get('monedas', 0)) + amigos, True, (240, 220, 120))
+                ventana.blit(info_, info_.get_rect(topright=(r.right - 30, r.y + 16)))
+                fecha_ = fuente(22).render('guardada ' + str(resumen.get('fecha', '')), True, (200, 200, 210))
+                ventana.blit(fecha_, fecha_.get_rect(topright=(r.right - 30, r.y + 36)))
+                x = r.x + 24
                 for nombre, nivel in resumen.get('equipo', []):
                     img = ui['retrato'](nombre, 44)
-                    if img: ventana.blit(img, (x, r.y + 56))
-                    ventana.blit(fuente(24).render(nombre.replace('_', ' ').title() + ' Nv ' + str(nivel), True, 'white'), (x + 50, r.y + 70))
+                    if img: ventana.blit(img, (x, r.y + 62))
+                    nom_ = fuente(24).render(nombre.replace('_', ' ').title() + ' Nv ' + str(nivel), True, 'white')
+                    ventana.blit(nom_, nom_.get_rect(midleft=(x + 52, r.y + 84)))
                     x += 250
-                if k == elegido: dibujar_esquinas(ventana, r.inflate(8, 8))
-            ventana.blit(fuente(22).render('ENTER o clic: elegir   ESC: volver   (se guarda sola al entrar a cada sala y al completarla)', True, 'white'), (60, H - 36))
+                if k == elegido: dibujar_esquinas(ventana, r, margen=5, largo=12)
+            pie(ventana, 'ENTER o clic: elegir   ESC: volver   (se guarda sola al entrar a cada sala y al completarla)')
+            ui['presentar'](); reloj.tick(60)
+
+
+    # ---------- ataques: todos los movimientos del juego y que hacen ----------
+
+    def ataques(ui):
+        """Todos los ataques del juego por categoria (basicos, especiales, asistencias, MT): izq/der cambia de categoria,
+        arriba/abajo elige y a la derecha se ve que hace, sus numeros y quienes lo usan."""
+        ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        catalogo = datos.catalogo_ataques()
+        categorias = list(catalogo)
+        cat, elegido, reloj = 0, 0, pygame.time.Clock()
+        abierto = pygame.time.get_ticks()
+        alto, lista = 30, pygame.Rect(MARGEN_X, CONTENIDO_Y + 42, 330, H - CONTENIDO_Y - 42 - 44)
+        visibles = lista.height // alto
+        while True:
+            filas = catalogo[categorias[cat]]
+            elegido = max(0, min(elegido, len(filas) - 1))
+            inicio = max(0, min(elegido - visibles // 2, len(filas) - visibles))
+            pestañas = []
+            x = 30
+            for k, nombre in enumerate(categorias):
+                ancho = fuente(24).size(nombre)[0] + 34
+                pestañas.append(pygame.Rect(x, CONTENIDO_Y, ancho, 32)); x += ancho + 8
+            for e in controles.eventos():
+                if e.type == pygame.QUIT: return 'salir'
+                if e.type == pygame.KEYDOWN:
+                    if e.key in (pygame.K_ESCAPE, pygame.K_TAB): return None
+                    if e.key in (pygame.K_LEFT, pygame.K_a, pygame.K_PAGEUP): cat = (cat - 1) % len(categorias); elegido = 0
+                    if e.key in (pygame.K_RIGHT, pygame.K_d, pygame.K_PAGEDOWN): cat = (cat + 1) % len(categorias); elegido = 0
+                    if e.key in (pygame.K_UP, pygame.K_w): elegido = (elegido - 1) % len(filas)
+                    if e.key in (pygame.K_DOWN, pygame.K_s): elegido = (elegido + 1) % len(filas)
+                if e.type == pygame.MOUSEWHEEL: elegido = max(0, min(len(filas) - 1, elegido - e.y))
+                if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                    pos = ui['a_logico'](e.pos)
+                    for k, r in enumerate(pestañas):
+                        if r.collidepoint(pos): cat = k; elegido = 0
+                    if lista.collidepoint(pos): elegido = min(len(filas) - 1, inicio + (pos[1] - lista.y) // alto)
+            fondo(ventana)
+            titulo(ventana, 'Ataques')
+            for k, r in enumerate(pestañas):
+                panel_flecha(ventana, r, (0, 1) if k == cat else (0, 0))
+                t = fuente(24).render(categorias[k], True, 'white'); ventana.blit(t, t.get_rect(center=r.center))
+            caja(ventana, lista.inflate(10, 10), 'panel', PANEL)
+            for k in range(inicio, min(len(filas), inicio + visibles)):
+                nombre, tipo, *_ = filas[k]
+                r = pygame.Rect(lista.x, lista.y + (k - inicio) * alto, lista.width, alto - 4)
+                if k == elegido: panel_flecha(ventana, r, (0, 1))
+                ventana.blit(fuente(24).render(nombre, True, 'white'), (r.x + 10, r.y + 6))
+                pygame.draw.circle(ventana, COLORES_TIPO.get(normalizar_tipo(tipo), (150, 150, 150)), (r.right - 14, r.centery), 6)
+            if filas:                                                    # el detalle del elegido
+                nombre, tipo, explicacion, numeros, usan = filas[elegido]
+                panel = pygame.Rect(lista.right + 24, lista.y, W - lista.right - 24 - MARGEN_X, lista.height)
+                entra = aparecer(pygame.time.get_ticks() - abierto, 0, 200)
+                caja(ventana, panel.move(round((1 - entra) * 60), 0), 'panel', PANEL)
+                ventana.blit(fuente(48).render(nombre, True, 'white'), (panel.x + 18, panel.y + 14))
+                chip_tipo(ventana, normalizar_tipo(tipo), panel.x + 20, panel.y + 56)
+                y = panel.y + 96
+                for bloque, color in ((explicacion, (240, 240, 240)), ('Numeros: ' + numeros, (240, 220, 120)), ('Lo usan: ' + usan, (170, 220, 255))):
+                    for linea in ajustar_texto(bloque, fuente(24), panel.width - 36):
+                        ventana.blit(fuente(24).render(linea, True, color), (panel.x + 18, y)); y += 20
+                    y += 12
+            pie(ventana, str(len(filas)) + ' ' + categorias[cat].lower() + '   izq/der: categoría   arriba/abajo: elegir   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1327,8 +1460,8 @@ def armar_menus():
             if confirmado is not None and pygame.time.get_ticks() - confirmado > 700: return INICIALES[elegido]   # deja ver el salto de alegria
             if dibujar_fondo: dibujar_fondo(pygame.time.get_ticks())
             else: fondo_menu(ui, pygame.time.get_ticks(), False)
-            velo = pygame.Surface((W, 90), pygame.SRCALPHA); velo.fill((0, 0, 0, 120)); ventana.blit(velo, (0, 36))   # que el titulo se lea sobre el fondo
-            titulo(ventana, texto_titulo, 60, 50, 64, 'white')
+            velo = pygame.Surface((W, 100), pygame.SRCALPHA); velo.fill((0, 0, 0, 120)); ventana.blit(velo, (0, 0))   # que el titulo se lea sobre el fondo
+            titulo(ventana, texto_titulo)
             for i, (n, a) in enumerate(zip(INICIALES, animadores)):
                 c = cajas[i]
                 velo = pygame.Surface(c.size, pygame.SRCALPHA); velo.fill((0, 0, 0, 170 if i == elegido else 110)); ventana.blit(velo, c)
@@ -1346,7 +1479,7 @@ def armar_menus():
                 for k, linea in enumerate(ajustar_texto(ESTILO_INICIAL.get(n, ''), fuente(20), c.width - 32)[:3]):
                     ventana.blit(fuente(20).render(linea, True, (200, 200, 200)), (c.x + 16, c.y + 298 + k * 18))
                 if i == elegido: dibujar_esquinas(ventana, c.inflate(6, 6))
-            ventana.blit(fuente(24).render('izq/der: elegir   ENTER: confirmar   ESC: volver', True, 'white'), (60, H - 40))
+            pie(ventana, 'izq/der: elegir   ENTER: confirmar   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1488,7 +1621,8 @@ def armar_menus():
                 animador = AnimadorPokemon(m['nombre'], pygame.Rect(0, 0, 10, 10), 120); animador.rect.center = (170, 170); animador.cambiar('idle', 0, True)
             evos = progreso.evoluciones(m, j['inventario']['objetos'])
             filas = [('stat', s_) for s_ in progreso.STATS] + [('sinergia', None)] + [('mov', k_) for k_ in range(4)] + [('item', r_) for r_ in range(tienda.MAX_EQUIPADOS)]
-            filas += [('evo', r_) for r_ in evos] + ([('activar', None)] if i != j['activo'] else []) + [('volver', None)]
+            filas += [('evo', r_) for r_ in evos] + ([('caramelo', None)] if j['inventario']['objetos'].get('caramelo_raro', 0) > 0 else [])
+            filas += ([('activar', None)] if i != j['activo'] else []) + [('volver', None)]
             elegido = min(elegido, len(filas) - 1)
             accion = None
             for e in controles.eventos():
@@ -1517,6 +1651,7 @@ def armar_menus():
                     actual = sinergias.index(m['sinergia']) if m['sinergia'] in sinergias else 0
                     acc['sinergia'](i, sinergias[(actual + 1) % len(sinergias)])
                 if clase == 'activar': acc['activar'](i)
+                if clase == 'caramelo': acc['caramelo'](i)
                 if clase == 'evo':
                     if preguntar(ui, 'Evolucionar a ' + m['nombre'].title() + ' en ' + valor['a'].title() + '?', ['Si', 'Todavia no'],
                                  'requisito: ' + progreso.texto_requisito(valor)) == 0:
@@ -1561,7 +1696,7 @@ def armar_menus():
             y_a, y_b = 52, 52
             movs_txt = acc['movs'](m)
             for k_, (clase, valor) in enumerate(filas):
-                if clase in ('stat', 'sinergia', 'evo', 'activar', 'volver'):
+                if clase in ('stat', 'sinergia', 'evo', 'caramelo', 'activar', 'volver'):
                     if clase == 'sinergia': y_a += 6
                     if clase == 'evo' and filas[k_ - 1][0] != 'evo': y_a += 6
                     r = pygame.Rect(col_a, y_a, ancho_col, 30); y_a += 34
@@ -1592,6 +1727,10 @@ def armar_menus():
                     if icono: ventana.blit(icono, (r.x + 6, r.y + 4))
                     ventana.blit(fuente(24).render(tienda.ITEMS[clave]['nombre'] if clave else '(vacio)', True, 'white' if clave else (150, 150, 150)), (r.x + 34, r.y + 7))
                 elif clase == 'evo': ventana.blit(fuente(24).render('Evolucionar a ' + valor['a'].title() + '!', True, (250, 220, 90)), (r.x + 8, r.y + 7))
+                elif clase == 'caramelo':
+                    icono = icono_objeto('caramelo_raro', 22)
+                    if icono: ventana.blit(icono, (r.x + 6, r.y + 4))
+                    ventana.blit(fuente(24).render('Usar Caramelo Raro (x' + str(j['inventario']['objetos'].get('caramelo_raro', 0)) + ')', True, 'white'), (r.x + 34, r.y + 7))
                 elif clase == 'activar': ventana.blit(fuente(24).render('Poner a pelear', True, 'white'), (r.x + 8, r.y + 7))
                 else: ventana.blit(fuente(24).render('Volver', True, 'white'), (r.x + 8, r.y + 7))
                 if k_ == elegido: dibujar_esquinas(ventana, r.inflate(6, 4), margen=4, largo=10, grosor=2)
@@ -1623,13 +1762,14 @@ def armar_menus():
                     'Asistencia (F / G desde la banca): ' + acc['asistencia'](m)]
         if clase == 'mov':
             nombres = ['E (cuerpo a cuerpo)', 'Q (a distancia)', 'Shift (especial 1)', 'R (especial 2)']
-            return [nombres[valor] + ': ' + acc['movs'](m)[valor] + ' - ' + acc['info_movs'](m)[valor] + '.',
+            return [nombres[valor] + ': ' + acc['movs'](m)[valor] + '. ' + acc['info_movs'](m)[valor],
                     'ENTER: enseñar una MT. Las de combate van en cualquier casilla; las especiales solo en Shift o R.']
         if clase == 'item':
             clave = m['items'][valor] if valor < len(m['items']) else None
             if clave: return [tienda.ITEMS[clave]['nombre'] + ': ' + tienda.ITEMS[clave]['desc'] + '.', 'Solo cuenta mientras este pokemon pelea. ENTER: cambiar o sacar.']
             return ['Ranura vacia. ENTER: equipar un objeto de la mochila (Cinta Fuerte, Carbon, Eter...).', 'Cada pokemon lleva hasta ' + str(tienda.MAX_EQUIPADOS) + ' objetos.']
         if clase == 'evo': return ['Requisito: ' + progreso.texto_requisito(valor) + '. Conserva nivel, IV, EV, MT y objetos.']
+        if clase == 'caramelo': return ['Caramelo Raro: ' + m['nombre'].title() + ' sube al nivel ' + str(m['nivel'] + 1) + ' al instante (con su punto de EV).']
         if clase == 'activar': return ['Lo pone a pelear ahora (sin la espera del cambio).']
         return ['Volver al equipo.']
 
@@ -1693,7 +1833,7 @@ def armar_menus():
                             elegido = k
                             if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1: return k
             fondo(ventana)
-            titulo(ventana, titulo_, 40, 26, 48)
+            titulo(ventana, titulo_)
             for k in range(inicio, min(len(filas), inicio + visibles)):
                 r = pygame.Rect(40, 100 + (k - inicio) * alto, W - 80, alto - 6)
                 caja(ventana, r, 'boton_elegido' if k == elegido else 'boton', OSCURO, 2)
@@ -1701,7 +1841,7 @@ def armar_menus():
                 ventana.blit(fuente(26).render(nombre, True, 'white'), (r.x + 12, r.y + 5))
                 ventana.blit(fuente(20).render(desc, True, (205, 205, 205)), (r.x + 12, r.y + 26))
                 if k == elegido: dibujar_esquinas(ventana, r.inflate(6, 4), margen=4, largo=10, grosor=2)
-            ventana.blit(fuente(22).render(pie + '   ENTER: elegir   ESC: volver', True, 'white'), (40, H - 36))
+            pie_menu(ventana, pie + '   ENTER: elegir   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1722,10 +1862,14 @@ def armar_menus():
 
 
     def reserva(ui, j, acc):
-        """Los que se unieron con el equipo lleno. Se pueden traer al equipo."""
+        """Los que se unieron con el equipo lleno (como mucho 3). Solo se cambian con el equipo en la tienda: Chikorita los cuida."""
         lista = acc['reserva']()
         if not lista:
             r = preguntar(ui, 'La reserva esta vacia', ['Ok'], 'cuando se te une alguien con el equipo lleno, viene aca')
+            return 'salir' if r == 'salir' else None
+        if not acc['cambiar_reserva']():
+            filas = [(m['nombre'].replace('_', ' ').title() + ' Nv ' + str(m['nivel']), 'Esta con Chikorita: se puede traer al equipo en la tienda') for m in lista]
+            r = lista_detallada(ui, 'Reserva (' + str(len(lista)) + ')', filas, 'Los cambios con la reserva se hacen en la tienda.')
             return 'salir' if r == 'salir' else None
         nombres = [m['nombre'].title() + ' Nv ' + str(m['nivel']) for m in lista[:7]]
         i = preguntar(ui, 'A quien traes al equipo?', nombres + ['Cancelar'])

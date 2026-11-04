@@ -731,6 +731,21 @@ def armar_generacion():
                                                          'interior': False, 'inicio': (ancho // 2, alto // 2 + 2 * tam)})
 
 
+    def generar_tesoro(era, salidas=('oeste', 'este'), semilla=None):
+        """Sala del tesoro: el salon de la tienda sin tendero, con tres pedestales en el medio (se elige uno de los premios)."""
+        tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
+        m = _matriz_base(columnas, filas, 'sur', salidas)
+        cc = columnas // 2
+        for f in range(2, filas - 1):                                 # alfombra desde la entrada hasta los pedestales
+            for c in range(cc - 1, cc + 2): m[f][c] = 'alfombra'
+        ancho, alto = columnas * tam, filas * tam
+        objetos = [crear_objeto('mesa', (ancho // 2 + dx, alto // 2 - 40)) for dx in (-220, 0, 220)]
+        objetos += [crear_objeto('maceta', (70, 120)), crear_objeto('maceta', (ancho - 60, 120)), crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
+        for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+        vitrinas = [{'pos': (ancho // 2 + dx, alto // 2 - 45), 'destacado': True} for dx in (-220, 0, 220)]
+        return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tesoro', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas, 'interior': True})
+
+
     def generar_nivel(semilla=None):
         """Compatibilidad con mainprubag.py: sala con las claves viejas (paredes, piedras, puertas, agua)."""
         sala = generar_sala(3, 'patio del castillo', 'sur', ['norte', 'este', 'oeste'], semilla)
@@ -935,7 +950,7 @@ def armar_entorno():
         """Lee un tileset (.png + .json) y arma el indice mascara -> piezas. None si esta roto o vacio."""
         try:
             with open(ruta + '.json', encoding='utf-8') as f: d = json.load(f)
-            img = pygame.image.load(ruta + '.png').convert()
+            img = pygame.image.load(ruta + '.png').convert_alpha() if d.get('transparente') else pygame.image.load(ruta + '.png').convert()
             brillo = pygame.image.load(ruta + '_brillo.png').convert() if d.get('brillo') and os.path.isfile(ruta + '_brillo.png') else None
         except (OSError, ValueError, pygame.error): return None
         piezas = {}                                                  # mascara -> piezas que la tienen (puede haber varias)
@@ -1111,11 +1126,44 @@ def armar_entorno():
         return sup
 
 
-    def _maquina(ventana, t, r, ahora, lados=(False, False)):
+    def _cascada_pmd(ventana, t, r, ahora, lados, ent):
+        """Cascada con el agua animada del tileset del PMD de la era cayendo (se desplaza para abajo), el borde de roca con la pared
+        de la sala y la salpicadura de agua del PMD al pie. La helada: el hielo del PMD quieto. False si faltan los tilesets."""
+        if not ent: return False
+        era, variante = ent['era']['clave'], ent['sala'].get('variante')
+        cp = capa('agua' if t == 'cascada' else 'hielo', era, variante)
+        roca = capa('pared', era, variante)
+        if not cp: return False
+        tam = r.width
+        i, var = _pieza(cp, 255, 0, 0)                              # la pieza de agua llena (todos los vecinos iguales)
+        frame = _frame(ahora, cp['cada'], len(cp['paleta'])) if cp['paleta'] and t == 'cascada' else 0
+        tile = _tile(cp, i, var, tam, frame)
+        ancho_roca = round(tam * 0.12)
+        izq, der = (0 if lados[0] else ancho_roca), (0 if lados[1] else ancho_roca)
+        agua = pygame.Rect(r.x + izq, r.y, r.width - izq - der, r.height)
+        corrida = (ahora // 16) % tam if t == 'cascada' else 0       # el agua baja
+        ventana.set_clip(agua.clip(ventana.get_clip() or ventana.get_rect()))
+        for dy in (-tam, 0): ventana.blit(tile, (r.x, r.y + dy + corrida))
+        ventana.set_clip(None)
+        if roca:
+            pi, pv = _pieza(roca, 255, 0, 0)
+            pared = _tile(roca, pi, pv, tam)
+            if not lados[0]: ventana.blit(pared, (r.x, r.y), (0, 0, izq, tam))
+            if not lados[1]: ventana.blit(pared, (r.right - der, r.y), (tam - der, 0, der, tam))
+        if t == 'cascada':
+            if not _loop(ventana, 'golpe_agua', (agua.centerx, r.bottom - round(tam * 0.12)), round(tam * 0.9), ahora, 60):
+                return True
+        elif (ahora // 400 + r.x) % 5 == 0:
+            _loop(ventana, 'destello', (agua.centerx, r.y + round(tam * 0.25)), round(tam * 0.5), ahora, 60)
+        return True
+
+
+    def _maquina(ventana, t, r, ahora, lados=(False, False), ent=None):
         """Una maquina en el rect r de la pantalla: la base y lo que se mueve (agua que cae, llamas, chispas, brillos)."""
         tam = r.width
         u = tam / 80
         x, y = r.center
+        if t.startswith('cascada') and _cascada_pmd(ventana, t, r, ahora, lados, ent): return
         ventana.blit(_base_maquina(t, tam, lados if t.startswith('cascada') else (False, False)), r)
         izq, der = (round(0 if lados[0] else 8 * u), round(0 if lados[1] else 8 * u)) if t.startswith('cascada') else (0, 0)
         if t == 'cascada':                                          # agua que cae: rayitas que bajan y espuma abajo
@@ -1851,6 +1899,33 @@ def armar_entorno():
             ent['animadas'].append((r.x, r.y, cp, i, variante, brillo, terreno, mancha))
 
 
+    HUD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'hud')
+    _alfombras = {}
+
+
+    def _alfombra(ancho, alto):
+        """Alfombra roja del Secret Bazaar del tamaño pedido (pixeles al doble): bordes y esquinas recortados de la hoja y rombos
+        escalonados como en el original. None si faltan las piezas (python herramientas.py hud)."""
+        clave = (ancho, alto)
+        if clave not in _alfombras:
+            try: p = {n: pygame.image.load(os.path.join(HUD, 'alfombra_' + n + '.png')) for n in ('esquina', 'borde_h', 'borde_v', 'rombo', 'fondo')}
+            except (pygame.error, FileNotFoundError): _alfombras[clave] = None; return None
+            w, h = max(16, ancho // 2), max(16, alto // 2)
+            sup = pygame.Surface((w, h))
+            sup.fill(p['fondo'].get_at((0, 0)))
+            for fila, y in enumerate(range(6, h - 6, 16)):                # rombos: filas cada 16 px, una si y una no corridas 12 px
+                for x in range(6 + (12 if fila % 2 else 0), w - 8, 24): sup.blit(p['rombo'], (x, y))
+            abajo, arriba = p['borde_h'], pygame.transform.flip(p['borde_h'], False, True)
+            izq, der = p['borde_v'], pygame.transform.flip(p['borde_v'], True, False)
+            for x in range(0, w, abajo.get_width()): sup.blit(abajo, (x, h - abajo.get_height())); sup.blit(arriba, (x, 0))
+            for y in range(0, h, izq.get_height()): sup.blit(izq, (0, y)); sup.blit(der, (w - der.get_width(), y))
+            e = p['esquina']; ew, eh = e.get_size()
+            sup.blit(e, (0, h - eh)); sup.blit(pygame.transform.flip(e, True, False), (w - ew, h - eh))
+            sup.blit(pygame.transform.flip(e, False, True), (0, 0)); sup.blit(pygame.transform.flip(e, True, True), (w - ew, 0))
+            _alfombras[clave] = pygame.transform.scale(sup, (ancho, alto))
+        return _alfombras[clave]
+
+
     def _armar_fondo(ent):
         """Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno).
         Con tilesets del PMD cada casilla elige su pieza segun los vecinos (bordes, esquinas, orillas); si no, el dibujo provisorio."""
@@ -1892,10 +1967,9 @@ def armar_entorno():
                     pygame.draw.ellipse(charco, (220, 240, 255, 150), (tam * 0.3, tam * 0.38, tam * 0.25, tam * 0.08))
                     fondo.blit(charco, r)
                     continue
-                if t == 'alfombra':                                      # alfombra corrida con bordes dorados donde termina
-                    pygame.draw.rect(fondo, color, r)
-                    for df, dc, a, b in ((-1, 0, r.topleft, r.topright), (1, 0, r.bottomleft, r.bottomright), (0, -1, r.topleft, r.bottomleft), (0, 1, r.topright, r.bottomright)):
-                        if not (0 <= f + df < len(m) and 0 <= c + dc < len(m[0])) or m[f + df][c + dc] != 'alfombra': pygame.draw.line(fondo, (220, 180, 60), a, b, 3)
+                if t == 'alfombra':                                      # la alfombra entera se pone despues (ver abajo)
+                    if not _alfombra(tam, tam):
+                        pygame.draw.rect(fondo, color, r)
                     continue
                 if mundos.TERRENOS[t].get('maquina') or t == 'puerta': continue   # maquinas (animadas) y puertas (cambian con la llave) se dibujan cada frame
                 if t == 'entrada': entrada = r if entrada is None else entrada.union(r); continue   # se dibuja entera al final
@@ -1907,6 +1981,19 @@ def armar_entorno():
                     pygame.draw.circle(fondo, (200, 200, 60), (cx + dx * tam // 4, cy + dy * tam // 4), 5)
                 if t == 'cable': pygame.draw.line(fondo, (40, 40, 40), r.topleft, r.bottomright, 4)
                 _dibujar_textura(fondo, t, r, f, c)
+        vistos_a = set()                                                # cada zona de alfombra: una alfombra del Secret Bazaar encima
+        for f, fila in enumerate(m):
+            for c, t in enumerate(fila):
+                if t != 'alfombra' or (f, c) in vistos_a: continue
+                zona, pendientes = [], [(f, c)]; vistos_a.add((f, c))
+                while pendientes:
+                    a, b = pendientes.pop(); zona.append((a, b))
+                    for na, nb in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                        if 0 <= na < len(m) and 0 <= nb < len(m[0]) and (na, nb) not in vistos_a and m[na][nb] == 'alfombra':
+                            vistos_a.add((na, nb)); pendientes.append((na, nb))
+                f0, f1 = min(a for a, _ in zona), max(a for a, _ in zona); c0, c1 = min(b for _, b in zona), max(b for _, b in zona)
+                img = _alfombra((c1 - c0 + 1) * tam, (f1 - f0 + 1) * tam)
+                if img: fondo.blit(img, (c0 * tam, f0 * tam))
         if entrada: _puerta(fondo, entrada, False, 0)                   # por donde entraste: una sola puerta cerrada
         vistos = set()                                                  # un cartel por cada mancha de terreno
         for f, fila in enumerate(m):
@@ -1949,14 +2036,17 @@ def armar_entorno():
             if not vista.collidepoint(x, y): continue
             f, c = casilla(ent, x, y)
             lados = tuple(0 <= c + d < len(ent['m'][0]) and ent['m'][f][c + d] == maquina for d in (-1, 1))   # cascadas pegadas: una sola
-            _maquina(ventana, maquina, pygame.Rect(round(x - cx - tam / 2), round(y - cy - tam / 2), tam, tam), ahora, lados)
+            _maquina(ventana, maquina, pygame.Rect(round(x - cx - tam / 2), round(y - cy - tam / 2), tam, tam), ahora, lados, ent)
         for x, y, maquina in ent['maquinas']:                          # radio de ayuda de las maquinas que te sirven
             if maquina in AURAS and any(t in AURAS[maquina][1] for t in tipos_jugador): pygame.draw.circle(ventana, mundos.TERRENOS[maquina]['color'], (round(x - cx), round(y - cy)), round(AURAS[maquina][0] * tam), 1)
-        for (f, c) in ent['fuego']:                                    # fuego que titila
+        for (f, c) in ent['fuego']:                                    # fuego sobre el piso: la llama del PMD en loop (cada casilla desfasada)
             r = rect_casilla(ent, f, c).move(-cx, -cy)
-            pygame.draw.rect(ventana, (255, 200, 40) if (ahora // 120 + f + c) % 2 else (240, 90, 20), r.inflate(-10, -10))
-        for (f, c) in ent['electrico']:                                # agua electrificada: chispas en zigzag que cambian
+            if not vista.move(-cx, -cy).colliderect(r): continue
+            if not _loop(ventana, 'golpe_fuego', r.center, round(tam * 1.1), ahora + (f * 7 + c * 13) * 37, 55):
+                pygame.draw.rect(ventana, (255, 200, 40) if (ahora // 120 + f + c) % 2 else (240, 90, 20), r.inflate(-10, -10))
+        for (f, c) in ent['electrico']:                                # agua electrificada: las chispas del PMD (o rayitas si faltan)
             r = rect_casilla(ent, f, c).move(-cx, -cy)
+            if _loop(ventana, 'golpe_electrico', r.center, tam, ahora + (f * 5 + c * 11) * 41, 50): continue
             azar = random.Random(ahora // 70 + f * 31 + c)
             ventana.blit(_velo(r.size, (40, 40, 0)), r, special_flags=pygame.BLEND_RGB_ADD)
             for _ in range(2):
