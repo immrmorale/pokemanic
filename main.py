@@ -121,24 +121,73 @@ def main():
                         ventana.blit(f_texto.render('(activo)', True, (120, 220, 120)), (r.x + 12, r.bottom - 32))
                 pantalla.presentar()
 
+        TIPOS_ORDEN = list(_pk.TABLA_TIPOS)                 # el orden de la tabla de tipos: normal, fuego, agua, electrico, planta...
+        GENERACIONES = (151, 251, 386, 493, 649, 721, 809, 905, 1025)   # ultimo numero de la pokedex de cada generacion
+
+        def generacion_de(nombre):
+            """Generacion del pokemon segun su numero de la pokedex (las formas regionales cuentan con el de la especie)."""
+            dex = pokemones[nombre].get('pokedex')
+            if not isinstance(dex, int): return 99
+            return next((i + 1 for i, tope in enumerate(GENERACIONES) if dex <= tope), 99)
+
+        def hijos_de(nombre):
+            """A quienes evoluciona (aunque todavia no tengan sprites): PokeAPI, Eevee, formas regionales y paradojas."""
+            if nombre in progreso.EVOLUCION_PROPIA: destinos = [r['a'] for r in progreso.EVOLUCION_PROPIA[nombre]]
+            else:
+                destinos = [ev['a'].replace('-', '_') for ev in (_pk._oficiales.get(nombre) or {}).get('evoluciones') or []]
+                destinos = [d for d in destinos if (nombre, d) != ('zorua_hisui', 'zoroark')]   # el de Hisui va con el Zoroark de Hisui
+            destinos += [r['a'] for r in progreso.EVOLUCION_EXTRA.get(nombre, [])]
+            return [d for d in dict.fromkeys(destinos) if d in pokemones and d != nombre]
+
+        def ordenar_debug(nombres):
+            """Lista del menu F1 agrupada: por tipo (el principal de la primera forma de la linea, en el orden de la tabla de tipos),
+            adentro de cada tipo por generacion y cada linea evolutiva junta (Pichu, Pikachu y Raichu van seguidos aunque Pichu sea de
+            la 2da generacion). Devuelve [(tipo, [nombres])] solo con los tipos que tienen alguno."""
+            padre = {}
+            for n in pokemones:
+                for h in hijos_de(n): padre.setdefault(h, n)
+            def raiz(n):
+                vistos = set()
+                while n in padre and n not in vistos: vistos.add(n); n = padre[n]
+                return n
+            def linea(r):
+                salida = [r]
+                for h in sorted(hijos_de(r), key=lambda x: (generacion_de(x), pokemones[x].get('pokedex') if isinstance(pokemones[x].get('pokedex'), int) else 9999)):
+                    if padre.get(h) == r: salida += linea(h)
+                return salida
+            lineas = {}
+            for n in nombres: lineas.setdefault(raiz(n), []).append(n)
+            grupos = {}
+            for r, miembros in lineas.items():
+                orden = linea(r)
+                miembros.sort(key=lambda x: orden.index(x) if x in orden else len(orden))
+                tipo = normalizar_tipo((pokemones[r].get('tipo') or ['normal'])[0])
+                gen = min(generacion_de(m) for m in orden if m in pokemones)
+                dex = min((pokemones[m]['pokedex'] for m in orden if isinstance(pokemones[m].get('pokedex'), int)), default=9999)
+                grupos.setdefault(tipo, []).append(((gen, dex, r), miembros))
+            return [(t, [n for _, ms in sorted(grupos[t]) for n in ms]) for t in TIPOS_ORDEN + sorted(set(grupos) - set(TIPOS_ORDEN)) if t in grupos]
+
         def debug_menu(equipo, activo):
-            """Menu debug (F1): grilla con todos los pokemon jugables (con el Konami tambien los jefes).
+            """Menu debug (F1): grilla con todos los pokemon jugables (con el Konami tambien los jefes), ordenados por tipo,
+            generacion y linea evolutiva (ver ordenar_debug). Cada tipo arranca en una fila nueva con su titulo.
             Devuelve (resultado, nombre elegido, espacio)."""
             pygame.mouse.set_visible(True)
             lista = list(JUGABLES)                           # con el codigo Konami adentro de este menu se suman los jefes
+            grupos = ordenar_debug(lista)
             scroll = 0
             botones = []
             f_titulo = tipografia.fuente(32)
             while True:
-                columnas, bw, bh, bn, sy = 4, 210, 62, 28, 18
-                filas = math.ceil(len(lista) / columnas)
-                max_scroll = max(0, 80 + filas * (bh + bn + sy) - H)
+                columnas, bw, bh, bn, sy, alto_titulo = 4, 210, 62, 28, 18, 34
+                filas = sum(math.ceil(len(ns) / columnas) for _, ns in grupos)
+                max_scroll = max(0, 80 + filas * (bh + bn + sy) + len(grupos) * alto_titulo - H)
 
                 for e in controles.eventos():
                     if e.type == pygame.QUIT:
                         return 'salir', None, None
                     if e.type == controles.KONAMI:
                         lista = list(JUGABLES) + [n for n, d in pokemones.items() if d.get('boss') and tiene_sprites(n) and n not in JUGABLES]
+                        grupos = ordenar_debug(lista)
                     if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_F1):
                         return 'ok', None, None
                     if e.type == pygame.MOUSEWHEEL:
@@ -155,14 +204,20 @@ def main():
 
                 ventana.fill((20, 20, 20))
                 botones = []
-                ventana.blit(f_titulo.render('MENU DEBUG', True, 'white'), (25, 15))
-                ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte - clic para elegir espacio', True, (200, 200, 200)), (25, 45))
-                for i, nombre in enumerate(lista):
-                    x = 30 + i % columnas * 240
-                    y = 85 + i // columnas * (bh + bn + sy) - scroll
+                posiciones, y_grupo = [], 85 - scroll
+                for tipo, nombres_t in grupos:                   # titulo del tipo y sus pokemon (cada tipo arranca en una fila nueva)
+                    if 64 <= y_grupo < H:
+                        color_t = COLORES_TIPO.get(tipo, (200, 200, 200))
+                        pygame.draw.rect(ventana, color_t, (30, y_grupo + 6, 6, alto_titulo - 14))
+                        ventana.blit(f_titulo.render(tipo.title() + '  (' + str(len(nombres_t)) + ')', True, color_t), (44, y_grupo + 2))
+                    y_grupo += alto_titulo
+                    for k_, nombre in enumerate(nombres_t):
+                        posiciones.append((nombre, 30 + k_ % columnas * 240, y_grupo + k_ // columnas * (bh + bn + sy)))
+                    y_grupo += math.ceil(len(nombres_t) / columnas) * (bh + bn + sy)
+                for nombre, x, y in posiciones:
                     r = pygame.Rect(x, y, bw, bh)
                     nr = pygame.Rect(x, y + bh, bw, bn)
-                    if r.bottom < 65 or nr.top > H:
+                    if nr.bottom < 64 or nr.top > H:
                         continue
                     en_equipo = nombre in equipo
                     pygame.draw.rect(ventana, (80, 160, 80) if en_equipo else (200, 200, 200), r)
@@ -173,7 +228,10 @@ def main():
                     detalle = ROL_POKEMON.get(nombre, '') or ('JEFE' if pokemones[nombre].get('boss') else '')
                     if en_equipo: detalle += ' - espacio ' + str(equipo.index(nombre) + 1)
                     ventana.blit(fuente.render(detalle, True, 'white'), (x + 8, y + bh + 5))
-                    botones.append((r, nombre))
+                    if r.top >= 64: botones.append((r, nombre))     # las que pasan por debajo del titulo no se pueden tocar
+                pygame.draw.rect(ventana, (20, 20, 20), (0, 0, W, 64))      # el titulo queda fijo arriba: lo que se desplaza pasa por debajo
+                ventana.blit(f_titulo.render('MENU DEBUG', True, 'white'), (25, 15))
+                ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte - clic para elegir espacio', True, (200, 200, 200)), (25, 45))
                 pantalla.presentar()
 
         def asignar_equipo(lista, nombre, espacio):
@@ -1973,13 +2031,12 @@ def main():
                 mundo['ef']['parts'], mundo['ef']['anims'] = [], []
                 mundo['nivel'] = nivel
                 if tipo == 'tienda':
-                    if registro['vitrinas'] is None:
-                        tipos_equipo = {normalizar_tipo(t) for m in j['equipo'] for t in pokemones[m['nombre']].get('tipo', [])}
+                    if registro['vitrinas'] is None or len(registro['vitrinas']) != len(sala['vitrinas']):   # (las partidas de antes tenian otra tienda)
                         necesita = {r.get('objeto') or r.get('mt') for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r or 'mt' in r}
-                        items = tienda.surtido(random, tipos_equipo, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
+                        items = tienda.surtido_mostradores(random, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
                         registro['vitrinas'] = [[i_, False] for i_ in items]
                     nivel['vitrinas'] = [dict(v, item=i_, vendido=vendido) for v, (i_, vendido) in zip(sala['vitrinas'], registro['vitrinas'])]
-                    titulo = datos_era['tienda'] + ' de Riolu'
+                    titulo = datos_era['tienda']
                 elif tipo == 'tesoro':                                  # tres premios: te llevas uno
                     if registro['vitrinas'] is None: registro['vitrinas'] = [[i_, False] for i_ in tienda.premios_tesoro(random)]
                     nivel['vitrinas'] = [dict(v, item=i_, vendido=vendido) for v, (i_, vendido) in zip(sala['vitrinas'], registro['vitrinas'])]
@@ -2071,11 +2128,12 @@ def main():
                 if inv[k] <= 0: del inv[k]
                 return mts.MTS[k]['nombre'] if k in mts.MTS else tienda.ITEMS.get(k, {}).get('nombre', k)
 
-            def usar_curacion(j, m, clave):
-                """Gasta una curacion de la mochila en el miembro m (el congelamiento solo lo tiene el que pelea). Devuelve el texto."""
-                objetos = j['inventario']['objetos']
-                item = tienda.ITEMS[clave]
-                if objetos.get(clave, 0) <= 0: return 'No tenés ' + item['nombre']
+            def usar_curacion(j, m, indice):
+                """Gasta la curacion de ese lugar del cinturon en el miembro m (el congelamiento solo lo tiene el que pelea).
+                Si no le hace nada (vida llena, no tiene ese estado...) no se gasta. Devuelve (se uso, texto)."""
+                cinturon = j['inventario'].setdefault('cinturon', [])
+                if not 0 <= indice < len(cinturon): return False, 'Ese lugar del cinturón está vacío'
+                clave = cinturon[indice]
                 activo = m is j['equipo'][j['activo']]
                 if activo: guardar_activo(j)
                 marcado = activo and tiempo() < j['congelado_hasta']
@@ -2083,48 +2141,37 @@ def main():
                 ok, texto = tienda.usar_curativo(m, clave)
                 if marcado and 'congelado' not in m['estados']: j['congelado_hasta'] = 0; j['frio'] = 0.0   # se descongelo
                 m['estados'].pop('congelado', None)
-                if not ok: return texto
-                objetos[clave] -= 1
+                if not ok: return False, texto
+                cinturon.pop(indice)                                     # los de atras avanzan un lugar
                 if activo:
                     j['vida'] = m['vida']
                     efectos.cura(mundo['ef'], *j['rect'].center)
                 actualizar_sinergia(j)
-                return texto
+                return True, texto
 
             def curarse_rapido(j, nivel):
-                """Tecla de curarse: usa sola la curacion que conviene. Primero saca un estado (la baya justa si la hay), si no cura la vida
-                gastando lo menos posible (la Pocion Maxima solo con menos de un tercio). Tiene una espera corta para que no sea spam."""
+                """Tecla de curarse (Z): usa la curacion del lugar 1 del cinturon en el que pelea (el orden se acomoda en la mochila).
+                Si esa no le sirve ahora, no se gasta y te avisa. Tiene una espera corta para que no sea spam."""
                 ahora = tiempo()
                 if ahora < j.get('curar_listo', 0) or ocupado(j): return
-                objetos = j['inventario']['objetos']
-                tengo = [k for k, n in objetos.items() if n > 0 and 'curativo' in tienda.ITEMS.get(k, {}) and 'revive' not in tienda.ITEMS[k]['curativo']]
-                estados = [e for e in ESTADOS_J if tiene_estado(j, e)] + (['congelado'] if ahora < j['congelado_hasta'] else [])
-                elegido = None
-                if estados:
-                    justas = [k for k in tengo if isinstance(tienda.ITEMS[k]['curativo'].get('estados'), tuple) and set(tienda.ITEMS[k]['curativo']['estados']) & set(estados)]
-                    generales = [k for k in tengo if tienda.ITEMS[k]['curativo'].get('estados') == 'todos']
-                    elegido = min(justas or generales, key=lambda k: tienda.ITEMS[k]['precio'], default=None)
-                if not elegido and j['vida'] < j['max_vida']:
-                    falta = j['max_vida'] - j['vida']
-                    cura = [(k, tienda.ITEMS[k]['curativo']['ps']) for k in tengo if tienda.ITEMS[k]['curativo'].get('ps')]
-                    cura = [(k, falta if ps == 'todo' else ps) for k, ps in cura if ps != 'todo' or j['vida'] < j['max_vida'] / 3]
-                    alcanzan = [c for c in cura if c[1] >= falta * 0.8]
-                    if alcanzan: elegido = min(alcanzan, key=lambda c: (c[1], tienda.ITEMS[c[0]]['precio']))[0]
-                    elif cura: elegido = max(cura, key=lambda c: c[1])[0]
-                if not elegido:
-                    cartel(nivel, 'No hace falta curarse' if not estados and j['vida'] >= j['max_vida'] else 'No tenés curaciones para esto (las vende Chikorita rosa)', 1200)
+                cinturon = j['inventario'].setdefault('cinturon', [])
+                if not cinturon:
+                    cartel(nivel, 'El cinturón está vacío (las curaciones las vende Chikorita rosa)', 1200)
                     j['curar_listo'] = ahora + 600; return
-                texto = usar_curacion(j, j['equipo'][j['activo']], elegido)
-                cartel(nivel, tienda.ITEMS[elegido]['nombre'] + ': ' + texto, 1400)
-                j['curar_listo'] = ahora + CURAR_ESPERA
+                clave = cinturon[0]
+                ok, texto = usar_curacion(j, j['equipo'][j['activo']], 0)
+                cartel(nivel, tienda.ITEMS[clave]['nombre'] + ': ' + texto + ('' if ok else ' (no se gastó)'), 1400)
+                j['curar_listo'] = ahora + (CURAR_ESPERA if ok else 600)
+                j['cinturon_usado'] = ahora if ok else j.get('cinturon_usado', -10000)
+                if not ok: return
                 a = j['animador']
                 if 'eat' in a.sprites: j['atacando'], j['anim_ataque'] = True, 'eat'; a.cambiar('eat', j['dir_ataque'], False); a.indice_frame = 0; a.terminada = False
 
             def dar_pocion_maxima(j, nivel=None):
-                """Celebi te da una Pocion Maxima si no tenes (solo se puede llevar una)."""
-                objetos = j['inventario']['objetos']
-                if objetos.get('pocion_maxima', 0) >= 1: return False
-                objetos['pocion_maxima'] = 1
+                """Celebi te da una Pocion Maxima si no tenes (solo se puede llevar una) y si hay lugar en el cinturon."""
+                cinturon = j['inventario'].setdefault('cinturon', [])
+                if 'pocion_maxima' in cinturon or len(cinturon) >= tienda.CINTURON_MAX: return False
+                cinturon.append('pocion_maxima')
                 if nivel: cartel(nivel, 'Celebi te dio una Poción Máxima', 2000, 'cura toda la vida (solo se puede llevar una)')
                 return True
 
@@ -2322,11 +2369,14 @@ def main():
                 return True
 
             def vitrina_cercana(nivel, j):
-                """La vitrina sin vender mas cerca del jugador (si esta al alcance)."""
+                """La vitrina sin vender mas cerca del jugador (si esta al alcance y no esta mas cerca el lugar donde cura Chikorita)."""
                 libres = [v for v in nivel['vitrinas'] if not v['vendido']]
                 if not libres: return None
-                v = min(libres, key=lambda v: math.hypot(v['pos'][0] - j['rect'].centerx, v['pos'][1] - j['rect'].centery))
-                return v if math.hypot(v['pos'][0] - j['rect'].centerx, v['pos'][1] - j['rect'].centery) <= DISTANCIA_COMPRA else None
+                distancia = lambda p: math.hypot(p[0] - j['rect'].centerx, p[1] - j['rect'].centery)
+                v = min(libres, key=lambda v: distancia(v['pos']))
+                punto = nivel['sala'].get('curandera') if nivel['tipo'] == 'tienda' else None
+                if punto and distancia(punto) < distancia(v['pos']): return None
+                return v if distancia(v['pos']) <= DISTANCIA_COMPRA else None
 
             def bloque_cercano(j):
                 """El bloque de hielo de Regice que tenes al lado (si hay)."""
@@ -2349,7 +2399,7 @@ def main():
             def curandera_cerca(nivel, j):
                 """Si estas al lado del mostrador de Chikorita rosa (curaciones) en la tienda."""
                 punto = nivel['sala'].get('curandera') if nivel['tipo'] == 'tienda' else None
-                return punto is not None and math.hypot(punto[0] - j['rect'].centerx, punto[1] - j['rect'].centery) <= 110
+                return punto is not None and math.hypot(punto[0] - j['rect'].centerx, punto[1] - j['rect'].centery) <= 95
 
             def hablar_curandera(nivel, j):
                 """E al lado de Chikorita rosa: curar al que pelea o curar (y revivir) a todo el equipo, por monedas. True si estaba cerca."""
@@ -2360,12 +2410,11 @@ def main():
                 activo = j['equipo'][j['activo']]
                 herido = activo['vida'] < activo['max_vida'] or bool(activo.get('estados'))
                 algun_herido = any(m['vida'] < m['max_vida'] or m.get('estados') for m in j['equipo'])
-                saludo = 'Chikorita: ¿Te curo? Para eso estoy.' if algun_herido else 'Chikorita: ¡Están todos enteros! ¿Querés llevar algo para el camino?'
+                saludo = 'Chikorita: ¿Te curo? Para eso estoy.' if algun_herido else 'Chikorita: ¡Están todos enteros! Mirá lo que tengo en el mostrador.'
                 r = pausado(menus.preguntar, ui, saludo,
                             ['Curar a ' + activo['nombre'].replace('_', ' ').title() + ' (' + str(precio['activo']) + ' $)',
-                             'Curar y revivir a todo el equipo (' + str(precio['equipo']) + ' $)', 'Comprar curaciones', 'Nada'],
+                             'Curar y revivir a todo el equipo (' + str(precio['equipo']) + ' $)', 'Nada'],
                             'tenés ' + str(j['monedas']) + ' $')
-                if r == 2: comprar_curaciones(nivel, j); return True
                 if r not in (0, 1): return True
                 if (r == 0 and not herido) or (r == 1 and not algun_herido): cartel(nivel, 'No hace falta'); return True
                 clave = 'activo' if r == 0 else 'equipo'
@@ -2378,20 +2427,6 @@ def main():
                 cartel(nivel, 'Chikorita te curó' if clave == 'activo' else 'Chikorita curó a todo el equipo')
                 nivel['guardar'] = True
                 return True
-
-            def comprar_curaciones(nivel, j):
-                """El mostrador de Chikorita rosa: la lista de curaciones con su precio. Se compra de a una y la lista queda abierta."""
-                elegido = 0
-                while True:
-                    filas = [(tienda.ITEMS[k]['nombre'] + '  -  ' + str(tienda.ITEMS[k]['precio']) + ' $   (tenés ' + str(j['inventario']['objetos'].get(k, 0)) + ')',
-                              tienda.ITEMS[k]['desc']) for k in tienda.CURACIONES]
-                    r = pausado(menus.lista_detallada, ui, 'Curaciones de Chikorita', filas, 'tenés ' + str(j['monedas']) + ' $', elegido)
-                    if r is None or r == 'salir': return
-                    elegido = r
-                    clave = tienda.CURACIONES[r]
-                    if j['monedas'] < tienda.ITEMS[clave]['precio']: cartel(nivel, 'No te alcanza (' + str(tienda.ITEMS[clave]['precio']) + ' $)'); continue
-                    tienda.comprar(j, clave)
-                    nivel['guardar'] = True
 
             def comprar_cercano(nivel, j):
                 """E en la tienda: compra lo que tenes adelante. Devuelve True si habia algo para comprar."""
@@ -3013,15 +3048,16 @@ def main():
             def dibujar_minimapa(nivel, j, derecha, arriba):
                 """Minimapa como el de la pantalla de arriba del Mystery Dungeon: el piso de la sala, las puertas (escaleras), la llave
                 (baldosa), los objetos del piso, los que quieren ser tus amigos, los enemigos, el jefe (outlaw), el portal y vos (titila).
-                Solo en salas de pelea (la tienda, el tesoro y el hall entran en la pantalla)."""
-                if nivel['tipo'] in ('tienda', 'tesoro', 'hall') or not nivel.get('ent'): return
+                Solo en salas de pelea (la tienda, el tesoro y el hall no lo necesitan). (derecha, arriba) es la esquina del mapa;
+                devuelve el rect del panel dibujado (o None si no hay mapa)."""
+                if nivel['tipo'] in ('tienda', 'tesoro', 'hall') or not nivel.get('ent'): return None
                 m = nivel['ent']['m']
                 c = max(4, min(MINIMAPA['casilla'], MINIMAPA['ancho'] // len(m[0]), MINIMAPA['alto'] // len(m)))
                 c -= c % 4                                                # las piezas son de 4 px: escala entera
                 if _mini['nivel'] is not nivel or nivel['frame'] - _mini['cuadro'] >= MINIMAPA['cada']:   # el piso cambia (hielo que se derrite...)
                     _mini.update({'nivel': nivel, 'fondo': fondo_minimapa(nivel, c), 'cuadro': nivel['frame']})
                 fondo_m = _mini['fondo']
-                if fondo_m is None: return
+                if fondo_m is None: return None
                 capa = fondo_m.copy()
                 tam = nivel['sala']['tam']
                 esc = c // 4 or 1
@@ -3047,6 +3083,132 @@ def main():
                 ventana.blit(panel_m, marco)
                 capa.set_alpha(MINIMAPA['alfa'])
                 ventana.blit(capa, lugar_m)
+                return marco
+
+            CINTURON_HUD = {'radio': 168, 'alfa': 165, 'anillo': 120, 'hueco': 17, 'desde': 192, 'hasta': 258}   # el cuarto de circulo (centro en la esquina)
+            ATAQUES_HUD = {'radio': 248, 'boton': 24, 'desde': 192, 'hasta': 262}                                # el arco de los 6 ataques
+            _tela = {}
+
+            def tela_cinturon():
+                """El cuarto de circulo marron medio transparente, como la tela de un mostrador (con flecos y una costura). Se arma una vez."""
+                if 'sup' not in _tela:
+                    R = CINTURON_HUD['radio']
+                    sup = pygame.Surface((R + 8, R + 8), pygame.SRCALPHA)
+                    esquina = (R + 8, R + 8)
+                    pygame.draw.circle(sup, (120, 78, 44, CINTURON_HUD['alfa']), esquina, R)
+                    pygame.draw.circle(sup, (92, 58, 32, CINTURON_HUD['alfa']), esquina, R, 6)
+                    for k in range(0, 91, 6):                             # flecos en el borde
+                        ang = math.radians(180 + k)
+                        x, y = esquina[0] + (R + 3) * math.cos(ang), esquina[1] + (R + 3) * math.sin(ang)
+                        pygame.draw.circle(sup, (92, 58, 32, CINTURON_HUD['alfa']), (round(x), round(y)), 3)
+                    for k in range(0, 90, 4):                             # costura punteada
+                        ang = math.radians(180 + k + 1)
+                        x, y = esquina[0] + (R - 16) * math.cos(ang), esquina[1] + (R - 16) * math.sin(ang)
+                        pygame.draw.circle(sup, (230, 200, 150, 150), (round(x), round(y)), 1)
+                    _tela['sup'] = sup
+                return _tela['sup']
+
+            def lugares_cinturon():
+                """Centros de los 5 circulos del cinturon (del 1 abajo a la izquierda al 5 arriba a la derecha)."""
+                c = CINTURON_HUD
+                return [(round(W + c['anillo'] * math.cos(math.radians(c['desde'] + (c['hasta'] - c['desde']) * i / 4))),
+                         round(H + c['anillo'] * math.sin(math.radians(c['desde'] + (c['hasta'] - c['desde']) * i / 4)))) for i in range(5)]
+
+            def dibujar_cinturon(j, ahora):
+                """Abajo a la derecha: la tela marron y adentro las 5 curaciones (circulos negros con el numero del orden en que se usan con
+                la tecla de curarse). La primera, que es la que sale, tiene el borde dorado."""
+                tela = tela_cinturon()
+                ventana.blit(tela, tela.get_rect(bottomright=(W, H)))
+                cinturon = j['inventario'].get('cinturon', [])
+                usado = ahora - j.get('cinturon_usado', -10000) < 250       # al usar una: el lugar 1 destella
+                for i, centro in enumerate(lugares_cinturon()):
+                    r = CINTURON_HUD['hueco']
+                    pygame.draw.circle(ventana, (12, 12, 14), centro, r)
+                    clave = cinturon[i] if i < len(cinturon) else None
+                    if clave:
+                        icono = menus.icono_objeto(clave, 24)
+                        if icono: ventana.blit(icono, icono.get_rect(center=centro))
+                        else: pygame.draw.circle(ventana, tienda.ITEMS[clave]['color'], centro, r - 7)
+                    borde = (255, 215, 90) if i == 0 and clave else (90, 70, 50)
+                    pygame.draw.circle(ventana, (255, 255, 255) if i == 0 and usado else borde, centro, r, 2)
+                    n = render(f_borde, str(i + 1), 'white' if clave else (190, 170, 150))   # el numero, del lado de la esquina
+                    k_n = (CINTURON_HUD['anillo'] - r - 10) / CINTURON_HUD['anillo']
+                    ventana.blit(n, n.get_rect(center=(round(W + (centro[0] - W) * k_n), round(H + (centro[1] - H) * k_n))))
+                t = render(f_borde2, tecla_de('curar'), (255, 230, 150))  # la tecla, en la esquina
+                ventana.blit(t, t.get_rect(center=(W - 30, H - 28)))
+                if cinturon and ahora < j.get('curar_listo', 0):          # espera corta despues de usar una
+                    menus.barra_exp(ventana, W - 60, H - 8, 50, (j['curar_listo'] - ahora) / max(1, CURAR_ESPERA), (255, 215, 90))
+
+            def dibujar_ataques(j, ahora, congelado):
+                """Alrededor del cuarto de circulo: E, Q, Shift y R (los 4 movimientos) y F y G (las asistencias de la banca), en botones
+                de la pantalla tactil de BW con el nombre abajo. La espera se cierra como un abanico."""
+                c = ATAQUES_HUD
+                banca = [m for i, m in enumerate(j['equipo']) if i != j['activo']]
+                botones = [('E', j['juego']['basicos'][0], 0), ('Q', j['juego']['basicos'][1], 1),
+                           ('Shift', j['juego']['especiales'][0][0], 2), ('R', j['juego']['especiales'][1][0], 3),
+                           ('F', banca[0] if len(banca) > 0 else None, 4), ('G', banca[1] if len(banca) > 1 else None, 5)]
+                for k, (tecla, cosa, n) in enumerate(botones):
+                    ang = math.radians(c['desde'] + (c['hasta'] - c['desde']) * k / (len(botones) - 1))
+                    cx, cy = round(W + c['radio'] * math.cos(ang)), round(H + c['radio'] * math.sin(ang))
+                    radio = c['boton']
+                    restante, k_espera, apagado = 0, 0.0, ocupado(j) or congelado
+                    if n >= 4:                                            # asistencias: las tira el de la banca
+                        m = cosa
+                        if m is None:
+                            menus.boton_tactil(ventana, (cx, cy), radio, 0.0, None, True)
+                            nombre = '-'
+                        else:
+                            restante = max(0, m['asist_listo'] - ahora)
+                            k_espera = min(1.0, restante / max(1, m['asist']['enfriamiento']))
+                            apagado = apagado or m['vida'] <= 0 or ahora - j['ultimo_cambio'] < COOLDOWN_CAMBIO
+                            acento = COLORES_TIPO.get(normalizar_tipo((pokemones[m['nombre']].get('tipo') or ['normal'])[0]))
+                            menus.boton_tactil(ventana, (cx, cy), radio, k_espera, acento, apagado)
+                            nombre = m['asist']['nombre'].replace('_', ' ').title()
+                    else:
+                        mov = cosa
+                        datos_m = j['juego']['especiales'][n - 2][1] if n >= 2 else (datos_mov(mov) or {})
+                        if n >= 2:
+                            enfriamiento = max(1, enfriamiento_de(j, datos_m))
+                            restante = max(0, enfriamiento - (ahora - j['esp_ultimo'][n - 2])); k_espera = restante / enfriamiento
+                        elif n == 1:
+                            espera = enfriamiento_de(j, dict(datos_m, enfriamiento=float(datos_m.get('enfriamiento', 800)) * BASICO_DISTANCIA['enfriamiento']))
+                            restante = max(0, espera - (ahora - j['ultimo_proyectil'])); k_espera = restante / max(1, espera)
+                        acento = COLORES_TIPO.get(normalizar_tipo(datos_m.get('tipo') or (j['tipos'][0] if j['tipos'] else 'normal')))
+                        menus.boton_tactil(ventana, (cx, cy), radio, k_espera, acento, apagado)
+                        if n == 0 and j.get('combo') and ahora - j.get('ultimo_golpe', -10000) <= COMBO['ventana']:   # combo en curso
+                            pygame.draw.arc(ventana, (255, 210, 60), (cx - radio - 3, cy - radio - 3, radio * 2 + 6, radio * 2 + 6), math.pi / 2, math.pi / 2 + math.tau * j['combo'] / 3, 4)
+                        nombre = nombre_mov(mov)
+                    lento = restante > 0 and (n >= 2)
+                    t = render(f_borde2 if len(tecla) == 1 else f_borde, tecla, 'white')
+                    ventana.blit(t, t.get_rect(center=(cx, cy - (6 if lento else 0))))
+                    if lento:
+                        sg = render(f_borde, str(round(restante / 1000, 1)) if restante < 10000 else str(restante // 1000), (255, 230, 120))
+                        ventana.blit(sg, sg.get_rect(center=(cx, cy + 11)))
+                    nombre_t = render(f_borde, cortar(f_borde, nombre, 66), 'white')
+                    lugar_n = nombre_t.get_rect(midtop=(cx, cy + radio - 1))
+                    lugar_n.right = min(lugar_n.right, W - 2)
+                    ventana.blit(nombre_t, lugar_n)
+
+            def dibujar_estilo(j, xe, ye, ahora):
+                """El estilo (la letra de D a S, la barra hasta la proxima y la racha), con el centro en (xe, ye)."""
+                est = j['estilo']
+                letra, minimo, mult, color = ESTILO['rangos'][est['rango']]
+                siguiente = ESTILO['rangos'][est['rango'] + 1][1] if est['rango'] + 1 < len(ESTILO['rangos']) else ESTILO['maximo']
+                salto = 1 if ahora - est['subio'] < 160 else 0               # al subir de rango la letra salta un tamaño
+                letra_t = tipografia.fuente(20, borde=True, escala=4 + salto).render(letra, True, color)
+                ventana.blit(letra_t, letra_t.get_rect(center=(xe, ye)))
+                ventana.blit(render(f_borde, 'ESTILO', 'white'), render(f_borde, 'ESTILO', 'white').get_rect(midbottom=(xe, ye - 22)))
+                menus.barra_exp(ventana, xe - 97, ye + 26, 194, (est['puntos'] - minimo) / max(1, siguiente - minimo), color)
+                y_est = ye + 36                                               # lo de abajo se apila: nada se pisa
+                if mult > 1:
+                    bonus = render(f_borde, 'daño +' + str(round((mult - 1) * 100)) + '%', color)
+                    ventana.blit(bonus, bonus.get_rect(midtop=(xe, y_est))); y_est += bonus.get_height() + 2
+                if est['racha'] >= 2 and ahora - est['ultima_baja'] <= ESTILO['racha_ms']:
+                    racha = render(f_borde2, 'x' + str(est['racha']), (255, 230, 120))
+                    ventana.blit(racha, racha.get_rect(midtop=(xe, y_est))); y_est += racha.get_height() + 2
+                if est['repite'] >= 3 and ahora - est['actividad'] < 1500:   # spameando lo mismo: aviso chiquito
+                    variar = render(f_borde, 'variá tus ataques', (255, 160, 140))
+                    ventana.blit(variar, variar.get_rect(midtop=(xe, y_est)))
 
             def dibujar_hud(j, nivel, rec):
                 """HUD como el combate de BW: arriba a la izquierda tu pokemon (barra de HP con la placa, experiencia y energia), la banca en
@@ -3110,53 +3272,15 @@ def main():
                     estado_t = render(f_borde, 'LISTO' if listo else ('-' if m['vida'] <= 0 else str(resto // 1000 + 1) + 's'), (140, 255, 150) if listo else 'white')
                     ventana.blit(estado_t, estado_t.get_rect(midright=(r.right - 18, r.centery)))
                     k += 1
-                # ----- los 4 movimientos: botones de la pantalla tactil de BW -----
-                botones = (('E', j['juego']['basicos'][0], W - 318, H - 46, 27), ('Q', j['juego']['basicos'][1], W - 250, H - 46, 27),
-                           ('Shift', j['juego']['especiales'][0][0], W - 168, H - 56, 36), ('R', j['juego']['especiales'][1][0], W - 72, H - 60, 40))
-                for n, (tecla, mov, cx, cy, radio) in enumerate(botones):
-                    datos_m = j['juego']['especiales'][n - 2][1] if n >= 2 else (datos_mov(mov) or {})
-                    k_espera = 0.0
-                    if n >= 2:
-                        enfriamiento = max(1, enfriamiento_de(j, datos_m))
-                        restante = max(0, enfriamiento - (ahora - j['esp_ultimo'][n - 2])); k_espera = restante / enfriamiento
-                    elif n == 1:
-                        espera = enfriamiento_de(j, dict(datos_m, enfriamiento=float(datos_m.get('enfriamiento', 800)) * BASICO_DISTANCIA['enfriamiento']))
-                        restante = max(0, espera - (ahora - j['ultimo_proyectil'])); k_espera = restante / max(1, espera)
-                    else: restante = 0
-                    acento = COLORES_TIPO.get(normalizar_tipo(datos_m.get('tipo') or (j['tipos'][0] if j['tipos'] else 'normal')))
-                    menus.boton_tactil(ventana, (cx, cy), radio, k_espera, acento, ocupado(j) or congelado)
-                    if n == 0 and j.get('combo') and ahora - j.get('ultimo_golpe', -10000) <= COMBO['ventana']:   # combo en curso
-                        pygame.draw.arc(ventana, (255, 210, 60), (cx - radio - 3, cy - radio - 3, radio * 2 + 6, radio * 2 + 6), math.pi / 2, math.pi / 2 + math.tau * j['combo'] / 3, 5)
-                    t = render(f_borde2 if len(tecla) == 1 else f_borde, tecla, 'white')
-                    ventana.blit(t, t.get_rect(center=(cx, cy - (6 if restante and n >= 2 else 0))))
-                    if restante and n >= 2:
-                        sg = render(f_borde, str(round(restante / 1000, 1)), (255, 230, 120))
-                        ventana.blit(sg, sg.get_rect(center=(cx, cy + 11)))
-                    ancho_t = radio * 2 + 14 if n >= 2 else 62                # E y Q estan pegados: que sus nombres no se pisen
-                    nombre_t = render(f_borde, cortar(f_borde, nombre_mov(mov), ancho_t), 'white')
-                    ventana.blit(nombre_t, nombre_t.get_rect(midtop=(cx, cy + radio - 2)))
-                # ----- estilo: la letra (D a S), la barra hasta la proxima y la racha -----
-                est = j['estilo']
-                letra, minimo, mult, color = ESTILO['rangos'][est['rango']]
-                siguiente = ESTILO['rangos'][est['rango'] + 1][1] if est['rango'] + 1 < len(ESTILO['rangos']) else ESTILO['maximo']
-                xe, ye = W - 84, (112 if nivel['jefe'] else 60)
-                salto = 1 if ahora - est['subio'] < 160 else 0               # al subir de rango la letra salta un tamaño
-                letra_t = tipografia.fuente(20, borde=True, escala=4 + salto).render(letra, True, color)
-                ventana.blit(letra_t, letra_t.get_rect(center=(xe, ye)))
-                ventana.blit(render(f_borde, 'ESTILO', 'white'), render(f_borde, 'ESTILO', 'white').get_rect(midbottom=(xe, ye - 22)))
-                menus.barra_exp(ventana, xe - 60, ye + 26, 120, (est['puntos'] - minimo) / max(1, siguiente - minimo), color)
-                y_est = ye + 36                                               # lo de abajo se apila: nada se pisa
-                if mult > 1:
-                    bonus = render(f_borde, 'daño +' + str(round((mult - 1) * 100)) + '%', color)
-                    ventana.blit(bonus, bonus.get_rect(midtop=(xe, y_est))); y_est += bonus.get_height() + 2
-                if est['racha'] >= 2 and ahora - est['ultima_baja'] <= ESTILO['racha_ms']:
-                    racha = render(f_borde2, 'x' + str(est['racha']), (255, 230, 120))
-                    ventana.blit(racha, racha.get_rect(midtop=(xe, y_est))); y_est += racha.get_height() + 2
-                if est['repite'] >= 3 and ahora - est['actividad'] < 1500:   # spameando lo mismo: aviso chiquito
-                    variar = render(f_borde, 'variá tus ataques', (255, 160, 140))
-                    ventana.blit(variar, variar.get_rect(midtop=(min(xe, W - 8 - variar.get_width() // 2), y_est)))
-                # ----- minimapa (debajo del estilo) -----
-                dibujar_minimapa(nivel, j, W - 14, ye + 112)
+                # ----- abajo a la derecha: el cinturon (cuarto de circulo) y los ataques alrededor -----
+                dibujar_cinturon(j, ahora)
+                dibujar_ataques(j, ahora, congelado)
+                # ----- arriba a la derecha: el minimapa en la esquina y el estilo a su izquierda (debajo de la barra del jefe si hay) -----
+                arriba = 100 if nivel['jefe'] else 8
+                marco_m = dibujar_minimapa(nivel, j, W - 10, arriba + 7)
+                xe = (marco_m.left if marco_m else W - 2) - 108             # la barra del estilo mide 194: que no se meta abajo del mapa
+                ye = arriba + 46
+                dibujar_estilo(j, xe, ye, ahora)
                 # ----- donde estas -----
                 if nivel['tipo'] == 'hall': lugar = render(f_borde, 'Hall  ·  ' + viaje['perfil']['nombre'], 'white')
                 else: lugar = render(f_borde, mundos.ERAS[rec['era']]['nombre'] + '  ·  Sala ' + str(rec['sala'] + 1) + '/' + str(mundos.salas_de(rec)), 'white')
@@ -3179,7 +3303,7 @@ def main():
                         total = ia.TOTAL_FASES.get(b['estilo'], len(cortes) + 1)
                         ventana.blit(render(f_borde, 'Fase ' + str(b['fase']) + '/' + str(total), (255, 230, 120)), (W - 404, rb.bottom + 2))
 
-            ZONAS_HUD = [pygame.Rect(0, 0, 370, 250), pygame.Rect(W - 410, 0, 410, 80), pygame.Rect(W - 360, H - 110, 360, 110), pygame.Rect(W - 150, 0, 150, 220),
+            ZONAS_HUD = [pygame.Rect(0, 0, 370, 250), pygame.Rect(W - 410, 0, 410, 80), pygame.Rect(W - 270, H - 270, 270, 270), pygame.Rect(W - 340, 0, 340, 250),
                          pygame.Rect(W // 2 - 110, 0, 220, 44)]                                      # donde no van las flechas
 
             def dibujar_indicadores(nivel, cx, cy):
@@ -3273,50 +3397,71 @@ def main():
                         caida = round((1 - menus.aparecer(t, 0, 160)) * -30)
                         ventana.blit(capa, capa.get_rect(midtop=(W // 2, y_chico + caida))); y_chico += alto + 6
 
+            SECCIONES_TIENDA = {'chikorita': ('Curaciones', 'Chikorita'), 'riolu': ('Objetos', 'Riolu'), 'kecleon': ('MT', 'Kecleon')}
+
+            def panel_tienda(color):
+                """El panel de abajo a la izquierda donde se lee que vas a comprar (no lo tapa el cuarto de circulo de los ataques)."""
+                panel = pygame.Rect(14, H - 72, 600, 58)
+                pygame.draw.rect(ventana, (25, 25, 25), panel, border_radius=8)
+                pygame.draw.rect(ventana, color, panel, 2, border_radius=8)
+                return panel
+
             def dibujar_tienda(nivel, j, cx, cy):
-                """Objetos en los estantes y mesas con nombre y precio, y que vas a comprar con E."""
+                """Tienda: el cartel de cada mostrador y sus objetos con el precio (el que tenes mas cerca se marca y muestra el nombre).
+                Tesoro: los tres premios con nombre. Abajo, que vas a comprar con E."""
+                cercana = vitrina_cercana(nivel, j)
+                en_tienda = nivel['tipo'] == 'tienda'
+                for sec in nivel['sala'].get('secciones', ()) if en_tienda else ():      # cartel arriba de cada tendero
+                    titulo, quien = SECCIONES_TIENDA.get(sec['clave'], ('', ''))
+                    letrero = render(f_hud_b, titulo + '  ·  ' + quien, 'white')
+                    caja_l = letrero.get_rect(midbottom=(sec['centro'] - cx, sec['tendero'][1] - cy - 24)).inflate(18, 6)
+                    velo = pygame.Surface(caja_l.size, pygame.SRCALPHA); velo.fill((20, 14, 24, 190)); ventana.blit(velo, caja_l)
+                    pygame.draw.rect(ventana, sec['color'], caja_l, 2, border_radius=4)
+                    ventana.blit(letrero, letrero.get_rect(center=caja_l.center))
                 for v in nivel['vitrinas']:
                     item = tienda.ITEMS[v['item']]
                     x, y = v['pos'][0] - cx, v['pos'][1] - cy
+                    if not -60 < x < W + 60 or not -60 < y < H + 60: continue
+                    if v is cercana and en_tienda:                       # el que vas a comprar: un aro de luz atras
+                        pygame.draw.circle(ventana, (255, 240, 150), (x, y - 6), 22, 2)
                     caja = pygame.Rect(0, 0, 30, 30); caja.center = (x, y - 4)
                     icono = None if v['vendido'] else menus.icono_objeto(v['item'], 34)   # icono del objeto de BW si esta
                     if icono:
                         brillo = 3 + round(2 * math.sin(tiempo() / 300 + x / 50))      # el objeto flota un poquito
                         pygame.draw.ellipse(ventana, (20, 20, 20), (x - 13, y + 8, 26, 7))
                         ventana.blit(icono, icono.get_rect(center=(x, y - 4 - brillo)))
+                    elif v['vendido'] and en_tienda: pass                # el lugar queda vacio sobre el mostrador
                     else:
                         pygame.draw.rect(ventana, (60, 60, 60) if v['vendido'] else item['color'], caja, border_radius=6)
                         pygame.draw.rect(ventana, (20, 20, 20), caja, 2, border_radius=6)
+                    if en_tienda:                                        # en el mostrador: solo el precio (los nombres no entran); el nombre del que tenes cerca
+                        if v['vendido']: texto_p = render(f_borde, 'vendido', (170, 170, 170))
+                        else: texto_p = render(f_borde, str(item['precio']) + ' $', (250, 215, 60) if j['monedas'] >= item['precio'] else (230, 100, 100))
+                        ventana.blit(texto_p, texto_p.get_rect(midtop=(x, y + 22)))
+                        if v is cercana:
+                            nombre = render(f_borde, item['nombre'], 'white')
+                            ventana.blit(nombre, nombre.get_rect(midbottom=(x, y - 26)))
+                        continue
                     nombre = render(f_tipo, 'VENDIDO' if v['vendido'] else item['nombre'], 'white')
                     ventana.blit(nombre, nombre.get_rect(midtop=(x, y + 14)))
-                    if not v['vendido'] and nivel['tipo'] == 'tesoro':
+                    if not v['vendido']:
                         precio = render(f_tipo, 'elegi uno', (140, 255, 150))
                         ventana.blit(precio, precio.get_rect(midtop=(x, y + 28)))
-                    elif not v['vendido']:
-                        precio = render(f_tipo, str(item['precio']) + ' $', (250, 215, 60) if j['monedas'] >= item['precio'] else (220, 90, 90))
-                        ventana.blit(precio, precio.get_rect(midtop=(x, y + 28)))
-                punto = nivel['sala'].get('curandera') if nivel['tipo'] == 'tienda' else None
-                if punto:                                                 # el mostrador de Chikorita rosa: curaciones
-                    letrero = render(f_hud_b, 'Curaciones', (255, 190, 225))
-                    caja_l = letrero.get_rect(midbottom=(punto[0] - cx, punto[1] - cy - 26)).inflate(14, 6)
-                    velo = pygame.Surface(caja_l.size, pygame.SRCALPHA); velo.fill((40, 10, 30, 170)); ventana.blit(velo, caja_l)
-                    ventana.blit(letrero, letrero.get_rect(center=caja_l.center))
-                v = vitrina_cercana(nivel, j)
-                if punto and not v and curandera_cerca(nivel, j):         # el aviso va en el panel de abajo (como al comprar), no tapa nada
-                    panel = pygame.Rect(0, 0, 600, 58); panel.bottomright = (W - 340, H - 14)   # a la izquierda de los botones de ataque
-                    pygame.draw.rect(ventana, (25, 25, 25), panel, border_radius=8)
-                    pygame.draw.rect(ventana, (255, 150, 200), panel, 2, border_radius=8)
-                    ventana.blit(render(f_hud_b, tecla_de('interactuar') + ': hablar con Chikorita (curaciones)', 'white'), (panel.x + 14, panel.y + 8))
+                punto = nivel['sala'].get('curandera') if en_tienda else None
+                if punto:                                                 # la punta del mostrador de Chikorita rosa: ahi cura por monedas
+                    cura_t = render(f_borde, '♥ Curar', (255, 225, 240))
+                    ventana.blit(cura_t, cura_t.get_rect(midtop=(punto[0] - cx, punto[1] - cy + 22)))
+                if punto and not cercana and curandera_cerca(nivel, j):   # el aviso va en el panel de abajo (como al comprar), no tapa nada
+                    panel = panel_tienda((255, 150, 200))
+                    ventana.blit(render(f_hud_b, tecla_de('interactuar') + ': hablar con Chikorita (curar)', 'white'), (panel.x + 14, panel.y + 8))
                     ventana.blit(render(f_hud, 'cura al que pelea o cura y revive a todo el equipo, por monedas', (210, 210, 210)), (panel.x + 14, panel.y + 34))
-                if v:
-                    item = tienda.ITEMS[v['item']]
-                    panel = pygame.Rect(0, 0, 600, 58); panel.bottomright = (W - 340, H - 14)   # a la izquierda de los botones de ataque
-                    pygame.draw.rect(ventana, (25, 25, 25), panel, border_radius=8)
-                    pygame.draw.rect(ventana, item['color'], panel, 2, border_radius=8)
-                    accion_t = ('E: llevarte ' + item['nombre'] + (' x2' if v['item'] == 'caramelo_raro' else '')) if nivel['tipo'] == 'tesoro' else \
+                if cercana:
+                    item = tienda.ITEMS[cercana['item']]
+                    panel = panel_tienda(item['color'])
+                    accion_t = ('E: llevarte ' + item['nombre'] + (' x2' if cercana['item'] == 'caramelo_raro' else '')) if nivel['tipo'] == 'tesoro' else \
                         'E: comprar ' + item['nombre'] + ' (' + str(item['precio']) + ' $)'
                     ventana.blit(render(f_hud_b, accion_t, 'white'), (panel.x + 14, panel.y + 8))
-                    ventana.blit(render(f_hud, item['desc'], (210, 210, 210)), (panel.x + 14, panel.y + 34))
+                    ventana.blit(render(f_hud, cortar(f_hud, item['desc'], panel.width - 28), (210, 210, 210)), (panel.x + 14, panel.y + 34))
 
             def dibujar_numeros(nivel, cx, cy, ahora):
                 """Numeros de daño que saltan y suben: blancos, amarillos si fue super eficaz, grises si resistio, naranjas y grandes en
@@ -3669,17 +3814,17 @@ def main():
                     if i == j['activo']: j['nivel'] = m['nivel']
                     return True
 
-                def usar(i, clave):
-                    """Usa una curacion de la mochila en el miembro i (o en el de la reserva si i es ('r', k)). Devuelve el texto."""
+                def usar(i, indice):
+                    """Usa la curacion de ese lugar del cinturon en el miembro i (o en el de la reserva si i es ('r', k)). Devuelve el texto."""
                     guardar_activo(j)
                     m = j['reserva'][i[1]] if isinstance(i, tuple) else j['equipo'][i]
-                    return usar_curacion(j, m, clave)
+                    return usar_curacion(j, m, indice)[1]
 
                 return {'usar': usar,
                         'movs': movs, 'evolucionar': evolucionar, 'enseñar': enseñar, 'activar': lambda i: cambiar_slot(j, i, True),
                         'cambiar_reserva': lambda: mundo.get('nivel', {}).get('tipo') == 'tienda' or any(trucos.values()),   # solo en la tienda
                         'refrescar': refrescar, 'reserva': lambda: j['reserva'], 'traer': traer, 'info_movs': info_movs, 'equipar': equipar,
-                        'sinergia': elegir_sinergia, 'asistencia': texto_asistencia, 'caramelo': caramelo}
+                        'sinergia': elegir_sinergia, 'asistencia': texto_asistencia, 'caramelo': caramelo, 'tecla_curar': tecla_de('curar')}
 
             def aplicar_trucos(nivel, j):
                 """Los trucos que hacen algo una sola vez (subir niveles)."""
@@ -3762,6 +3907,7 @@ def main():
                 if j['equipo'][j['activo']]['vida'] <= 0: j['activo'] = next((i for i, m in enumerate(equipo) if m['vida'] > 0), 0)
                 j['monedas'] = jd.get('monedas', 0)
                 j['inventario'] = dict(tienda.inventario_nuevo(), **jd.get('inventario', {}))
+                j['monedas'] = j.get('monedas', 0) + tienda.migrar_cinturon(j['inventario'])   # partidas de antes: las curaciones pasan al cinturon
                 aplicar_pokemon(j, j['equipo'][j['activo']]['nombre'], j['equipo'][j['activo']]['vida'])
                 actualizar_sinergia(j)
                 azar = random.Random()

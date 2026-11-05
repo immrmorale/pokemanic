@@ -50,7 +50,10 @@ def armar_generacion():
     """
     TAM_CASILLA = 80
     COLUMNAS, FILAS = 21, 15                    # 1680 x 1200 pixeles
-    TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS = 40, 25, 15   # 1000 x 600: entra justo en la pantalla
+    TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS = 40, 25, 15   # 1000 x 600: entra justo en la pantalla (hall y tesoro)
+    TIENDA_GRANDE_COLUMNAS, TIENDA_GRANDE_FILAS = 37, 19          # la tienda: 1480 x 760, mas grande que la pantalla (la camara la recorre)
+    TIENDA_DIVISION, TIENDA_ALTO_DIVISION = 13, 7                 # columna de las paredes que separan los 3 mostradores y hasta que fila bajan (la del mostrador)
+    TIENDA_Y_MOSTRADOR = 300                                      # altura de los mostradores (los tenderos van atras, los objetos arriba)
     PROFUNDIDAD_PUERTA = 2                      # casillas libres en frente de cada puerta
     CANDIDATAS = 5                              # salas validas que se comparan
     INTENTOS = 30
@@ -668,27 +671,53 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda del tamaño de la pantalla: Riolu atiende el mostrador de arriba (objetos), Chikorita rosa el de
-        abajo a la derecha (curaciones), un estante arriba a la derecha, otro abajo a la izquierda (asi el HUD no tapa nada)
-        y dos mesas con los objetos destacados."""
-        tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
+        """Salon de la tienda: mas grande que la pantalla (la camara lo recorre) y partido en 3 por dos paredes.
+        De izquierda a derecha, tres mostradores del color del pokemon que los atiende, con 5 objetos cada uno:
+            Chikorita rosa  curaciones (y en la punta de su mostrador cura al equipo por monedas)
+            Riolu           3 objetos que potencian (los X o los de tipo) y 2 objetos de evolucion
+            Kecleon         5 MT
+        Los mostradores van de pared a pared (atras queda el lugar de los tenderos) y estan lejos del borde de arriba, asi con la
+        camara sobre el mostrador el HUD no tapa ni a los tenderos ni a los objetos. Chikorita y Kecleon atienden en la punta que da
+        al medio por lo mismo. Las puertas quedan en el medio de cada lado y la entrada abajo, con la alfombra hasta Riolu."""
+        tam, columnas, filas = TIENDA_CASILLA, TIENDA_GRANDE_COLUMNAS, TIENDA_GRANDE_FILAS
         m = _matriz_base(columnas, filas, 'sur', salidas)
+        ancho, alto = columnas * tam, filas * tam
         cc = columnas // 2
-        for f in range(4, filas - 1):                                 # alfombra desde la entrada hasta el mostrador
+        divisiones = (TIENDA_DIVISION, columnas - 1 - TIENDA_DIVISION)
+        for c in divisiones:                                          # las dos paredes que separan los mostradores
+            for f in range(1, TIENDA_ALTO_DIVISION + 1): m[f][c] = 'pared'
+        for f in range(TIENDA_ALTO_DIVISION + 1, filas - 1):          # alfombra desde la entrada hasta el mostrador del medio
             for c in range(cc - 1, cc + 2): m[f][c] = 'alfombra'
-        ancho = columnas * tam
-        alto = filas * tam
-        objetos = [crear_objeto('estante', (ancho - 80 - 180, 65)), crear_objeto('estante', (80 + 180, alto - 65)),
-                   crear_objeto('riolu', (ancho // 2, 66)), crear_objeto('mostrador', (ancho // 2, 105)),
-                   crear_objeto('chikorita_rosa', (ancho - 160, 420)), crear_objeto('mostrador', (ancho - 160, 460)),
-                   crear_objeto('mesa', (300, 330)), crear_objeto('mesa', (ancho - 300, 330)),
-                   crear_objeto('maceta', (70, 450)), crear_objeto('maceta', (ancho - 60, 450))]
-        for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
-        vitrinas = [{'pos': (ancho - 80 - 300 + i * 120, 62), 'destacado': False} for i in range(3)]      # estante de arriba
-        vitrinas += [{'pos': (80 + 60 + i * 120, alto - 68), 'destacado': False} for i in range(3)]       # estante de abajo
-        vitrinas += [{'pos': (300, 325), 'destacado': True}, {'pos': (ancho - 300, 325), 'destacado': True}]   # mesas
-        return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tienda', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas,
-                                                        'tendero': (ancho // 2, 62), 'curandera': (ancho - 160, 420), 'interior': True})
+        y_mostrador, y_tendero = TIENDA_Y_MOSTRADOR, TIENDA_Y_MOSTRADOR - 58
+        tramos = {'chikorita': (tam, divisiones[0] * tam), 'riolu': ((divisiones[0] + 1) * tam, divisiones[1] * tam),
+                  'kecleon': ((divisiones[1] + 1) * tam, ancho - tam)}   # de pared a pared
+        objetos, vitrinas, secciones = [], [], []
+        for clave, tendero in (('chikorita', 'chikorita_rosa'), ('riolu', 'riolu'), ('kecleon', 'kecleon')):
+            x0, x1 = tramos[clave]
+            mostrador = crear_objeto('mostrador_' + clave, ((x0 + x1) // 2, y_mostrador))
+            mostrador['rect'].width = x1 - x0; mostrador['rect'].x = x0          # cada tramo tiene su largo
+            objetos.append(mostrador)
+            if clave == 'chikorita':                                  # atiende en la punta de la derecha (ahi cura); sus 5 curaciones a la izquierda
+                x_tendero = x1 - 50
+                xs = [x_tendero - 110 - i * 60 for i in range(5)][::-1]
+            elif clave == 'kecleon':                                  # atiende en la punta de la izquierda; sus 5 MT a la derecha
+                x_tendero = x0 + 50
+                xs = [x_tendero + 90 + i * 60 for i in range(5)]
+            else:
+                x_tendero = (x0 + x1) // 2
+                xs = [x_tendero + d for d in (-136, -68, 0, 68, 136)]
+            objetos.append(crear_objeto(tendero, (x_tendero, y_tendero)))
+            vitrinas += [{'pos': (vx, y_mostrador - 4), 'mostrador': clave, 'destacado': False} for vx in xs]
+            secciones.append({'clave': clave, 'tendero': (x_tendero, y_tendero), 'centro': x_tendero, 'color': mundos.OBJETOS['mostrador_' + clave]['color']})
+        objetos += [crear_objeto('maceta', (70, alto - 70)), crear_objeto('maceta', (ancho - 70, alto - 70))]
+        for o in objetos:
+            if o['nombre'].startswith('mostrador_'):
+                r = o['rect']
+                o['celdas'] = {(f, c) for f in range(r.top // tam, (r.bottom - 1) // tam + 1) for c in range(r.left // tam, (r.right - 1) // tam + 1)}
+            else: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+        curandera = (secciones[0]['tendero'][0], y_mostrador)
+        return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tienda', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas, 'secciones': secciones,
+                                                        'tendero': secciones[1]['tendero'], 'curandera': curandera, 'interior': True})
 
 
     def generar_hall(era, estilo='celebi', semilla=None):
@@ -2014,6 +2043,30 @@ def armar_entorno():
         ent['fondo'] = fondo
 
 
+    def _tono(color, k):
+        """El color aclarado (k > 1) u oscurecido (k < 1)."""
+        return tuple(max(0, min(255, round(v * k if k < 1 else v + (255 - v) * (k - 1)))) for v in color)
+
+
+    def _dibujar_mostrador(ventana, r, color, franja=None):
+        """Mostrador de la tienda: el frente de madera, la tela del color del tendero colgando con flecos y la tapa clara arriba."""
+        madera, borde = (120, 80, 48), (45, 28, 18)
+        frente = pygame.Rect(r.x, r.y + 8, r.width, r.height - 8)
+        pygame.draw.rect(ventana, madera, frente, border_radius=4)
+        for x in range(frente.x + 18, frente.right - 6, 36):            # tablas del frente
+            pygame.draw.line(ventana, _tono(madera, 0.75), (x, frente.y + 2), (x, frente.bottom - 3), 2)
+        tela = pygame.Rect(r.x + 6, r.y + 6, r.width - 12, round(r.height * 0.62))
+        pygame.draw.rect(ventana, color, tela)
+        pygame.draw.rect(ventana, _tono(color, 0.7), (tela.x, tela.bottom - 4, tela.width, 4))
+        if franja: pygame.draw.rect(ventana, franja, (tela.x, tela.y + tela.height // 2 - 2, tela.width, 4))   # la raya roja de Kecleon
+        for x in range(tela.x + 4, tela.right - 4, 12):                 # flecos
+            pygame.draw.polygon(ventana, _tono(color, 0.7), [(x, tela.bottom), (x + 8, tela.bottom), (x + 4, tela.bottom + 5)])
+        tapa = pygame.Rect(r.x - 4, r.y, r.width + 8, 9)
+        pygame.draw.rect(ventana, _tono(color, 1.45), tapa, border_radius=3)
+        pygame.draw.rect(ventana, borde, tapa, 2, border_radius=3)
+        pygame.draw.rect(ventana, borde, frente, 2, border_radius=4)
+
+
     def dibujar(ent, ventana, cx, cy, ahora, tipos_jugador=()):
         """Dibuja la sala vista desde la camara (cx, cy). Las maquinas muestran su radio solo si ayudan a tus tipos."""
         if ent['fondo'] is None: _armar_fondo(ent)
@@ -2067,6 +2120,9 @@ def armar_entorno():
                 o['animador'].rect.center = r.center
                 o['animador'].actualizar()
                 if o['animador'].dibujar(ventana): continue
+            if d.get('mostrador') and not img:                         # mostrador de la tienda: madera con la tela del color de su tendero
+                _dibujar_mostrador(ventana, r, d['color'], d.get('franja'))
+                continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
                 sprite = _escalada(img, r.width)
                 ventana.blit(sprite, sprite.get_rect(midbottom=r.midbottom))

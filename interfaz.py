@@ -1202,14 +1202,20 @@ def armar_menus():
             ['  ' + mat + ': ' + ', '.join(t + ' x' + str(v) for t, v in tabla.items()) for mat, tabla in entorno.MATERIALES.items()] + \
             ['', 'Los que tienen un punto rojo explotan (y encadenan). Lucha y psiquico empujan cajas y barriles.',
              'Lo que arde se rompe de un golpe de fuego. A veces sueltan monedas.']
-        s['Tienda'] = ['Aparece cada 5 a 10 salas. Riolu vende objetos en el mostrador: acercate a una vitrina y apretá ' + tecla('interactuar') + '.',
-                       'Cambia de nombre segun la era (' + ', '.join(e['tienda'] for e in datos.mundos.ERAS) + '), pero siempre atiende Riolu.',
-                       'Curaciones: Chikorita rosa tiene su mostrador abajo a la derecha. Por monedas cura al que pelea o cura y revive a todo el equipo.',
-                       'Siempre hay una Llave del Tesoro a la venta. Tambien cuida tu reserva: los cambios con la reserva se hacen aca.',
+        s['Tienda'] = ['Aparece cada 5 a 10 salas. Cambia de nombre segun la era (' + ', '.join(e['tienda'] for e in datos.mundos.ERAS) + ').',
+                       'Esta partida en 3: tres mostradores, cada uno del color del pokemon que lo atiende, con 5 objetos al azar.',
+                       'Acercate a un objeto del mostrador y apretá ' + tecla('interactuar') + ' para comprarlo.',
+                       '[Chikorita rosa] (izquierda) 5 curaciones (vida o estados). Van al cinturón: como mucho ' + str(tienda.CINTURON_MAX) + '.',
+                       '   En la punta de su mostrador (♥ Curar) cura al que pelea o cura y revive a todo el equipo, por monedas.',
+                       '   Tambien cuida tu reserva: los cambios con la reserva se hacen en la tienda.',
+                       '[Riolu] (medio) 3 objetos que potencian (Ataque X, Defensa X, Velocidad X, Especial X, Directo o los de tipo)',
+                       '   y 2 objetos de evolucion (piedras, Cordon Union...). Si alguien de tu equipo necesita uno, casi siempre esta.',
+                       '[Kecleon] (derecha) 5 MT. Si hay alguna que tu equipo puede aprender, al menos una de esas.',
                        'Los objetos que dicen "lo lleva un pokemon" se equipan desde su ficha (hasta 2 cada uno) y solo cuentan mientras pelea.',
                        'Los que dicen "todo el equipo" valen para todos.',
                        'MT de combate: van en cualquier casilla (E, Q, Shift o R). MT especiales: solo en Shift o R.', ''] + \
-            [it['nombre'] + ' (' + str(it['precio']) + ' $): ' + it['desc'] for k, it in tienda.ITEMS.items() if not it.get('mt')]
+            [it['nombre'] + ' (' + str(it['precio']) + ' $): ' + it['desc'] for k, it in tienda.ITEMS.items()
+             if k in tienda.POTENCIADORES or k in tienda.EVOLUCION_TIENDA]
         s['Niveles y stats'] = [
             'Ganas experiencia derrotando pokemon, rompiendo cosas, completando salas y comprando. Los de la banca ganan la mitad.',
             'Cada nivel da ' + str(progreso.PUNTOS_POR_NIVEL) + ' punto de esfuerzo (EV): lo pones en el stat que quieras desde el menu de equipo.',
@@ -1253,8 +1259,10 @@ def armar_menus():
             '[Envenenado] pierde vida de a poco (nunca te deja en 0). [Quemado] pierde vida y pega 20% menos. [Paralizado] más lento y a veces',
             'no le sale el especial. [Dormido] no se mueve ni ataca hasta que le pegan. [Confundido] camina al revés. [Aturdido] un instante quieto.',
             'Cada pokemon tiene sus propios estados: si cambiás, el que entra no los trae. Los de veneno y acero no se envenenan, los de fuego no se queman...',
-            'Curarse: con ' + tecla('curar') + ' usás sola la curación que conviene (primero el estado, después la vida). Desde la mochila elegís cuál y en quién.',
-            'Chikorita rosa vende todas las curaciones. La Poción Máxima no se vende: Celebi te da una al empezar cada viaje y en cada era nueva (solo se lleva una).',
+            'Cinturón: las curaciones van en el cuarto de círculo de abajo a la derecha (como mucho ' + str(tienda.CINTURON_MAX) + '). Con ' + tecla('curar') + ' usás la del lugar 1',
+            'en el que pelea (si no le sirve, no se gasta) y las de atrás avanzan. En la mochila las usás en quien quieras, las acomodás o las tirás.',
+            'Chikorita rosa vende 5 curaciones al azar en cada tienda. La Poción Máxima no se vende: Celebi te da una al empezar cada viaje',
+            'y en cada era nueva si tenés lugar en el cinturón (solo se lleva una).',
             ''] + [it['nombre'] + ' (' + (str(it['precio']) + ' $' if it['precio'] else 'de Celebi') + '): ' + it['desc'] for k, it in tienda.ITEMS.items() if it.get('curativo')]
         s['Pokemon únicos'] = ['Cada línea de la expansión (y Chikorita) tiene algo propio, sacado de su Pokédex: una pasiva o un especial en R.',
                                'Los especiales fuertes tienen mucha espera (Predicción 40 s, Control mental 25 s, Ilusión 20 s).', ''] + \
@@ -1871,36 +1879,57 @@ def armar_menus():
 
 
     def mochila(ui, j, acc):
-        """Lo que tenes: curaciones (se usan aca: elegis a quien), objetos para equipar, MT, piedras, lo que llevan puesto tus pokemon
-        y lo que es de todo el equipo, con lo que hace cada cosa."""
+        """Lo que tenes: arriba el cinturon (las curaciones, como mucho 5, en el orden en que se usan con la tecla de curarse: aca se
+        usan en quien elijas, se suben, se bajan o se tiran), despues objetos para equipar, MT, piedras, lo que llevan puesto tus
+        pokemon y lo que es de todo el equipo, con lo que hace cada cosa."""
         inv = j['inventario']
+        cinturon = inv.setdefault('cinturon', [])
         elegido = 0
         while True:
             filas, claves = [], []
-            curativos = [k_ for k_, n in inv['objetos'].items() if n > 0 and 'curativo' in tienda.ITEMS.get(k_, {})]
-            for k_ in curativos:
-                filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(inv['objetos'][k_]) + '   (ENTER: usar)', tienda.ITEMS[k_]['desc'])); claves.append(k_)
+            filas.append(('Cinturón  (' + str(len(cinturon)) + '/' + str(tienda.CINTURON_MAX) + ')',
+                          'Las curaciones se usan en este orden con ' + acc.get('tecla_curar', 'Z') + ' (en el que pelea). ENTER en una: usar, subir, bajar o tirar.'))
+            claves.append(None)
+            for i_, k_ in enumerate(cinturon):
+                filas.append(('   ' + str(i_ + 1) + '.  ' + tienda.ITEMS[k_]['nombre'], tienda.ITEMS[k_]['desc'])); claves.append(('cinturon', i_))
+            for i_ in range(len(cinturon), tienda.CINTURON_MAX):
+                filas.append(('   ' + str(i_ + 1) + '.  (vacío)', 'Las curaciones las vende Chikorita rosa en la tienda.')); claves.append(None)
             for k_, n in inv['objetos'].items():
-                if n > 0 and k_ not in curativos: filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(n), tienda.ITEMS[k_]['desc'])); claves.append(None)
+                if n > 0 and not tienda.es_curativo(k_): filas.append((tienda.ITEMS[k_]['nombre'] + '  x' + str(n), tienda.ITEMS[k_]['desc'])); claves.append(None)
             for m in j['equipo'] + j.get('reserva', []):
                 for k_ in m.get('items', []): filas.append((tienda.ITEMS[k_]['nombre'] + '  (lo lleva ' + m['nombre'].title() + ')', tienda.ITEMS[k_]['desc'])); claves.append(None)
             for k_ in dict.fromkeys(inv['comprados']):
                 if 'permanente' in tienda.ITEMS[k_]: filas.append((tienda.ITEMS[k_]['nombre'] + '  (equipo)', tienda.ITEMS[k_]['desc'])); claves.append(None)
             for linea in tienda.activos(inv): filas.append((linea, 'activo para todo el equipo (el numero son las salas que le quedan)')); claves.append(None)
-            if not filas: filas, claves = [('Vacia', 'Las cosas se consiguen en la tienda, con Chikorita rosa y de los jefes.')], [None]
-            r = lista_detallada(ui, 'Mochila', filas, 'Las curaciones se usan aca. Objetos, MT y piedras, desde la ficha de cada pokemon.', elegido)
+            r = lista_detallada(ui, 'Mochila', filas, 'Curaciones: en el cinturón. Objetos, MT y piedras, desde la ficha de cada pokemon.', elegido)
             if r == 'salir': return 'salir'
             if r is None: return None
             elegido = r
             clave = claves[r]
             if not clave: continue
-            miembros = [(i_, m) for i_, m in enumerate(j['equipo'])] + [(('r', i_), m) for i_, m in enumerate(j.get('reserva', []))]
+            i_ = clave[1]
+            item = tienda.ITEMS[cinturon[i_]]
+            acciones_ = [('usar', 'Usar')] + ([('subir', 'Subir (lugar ' + str(i_) + ')')] if i_ > 0 else []) + \
+                        ([('bajar', 'Bajar (lugar ' + str(i_ + 2) + ')')] if i_ < len(cinturon) - 1 else []) + [('tirar', 'Tirar'), ('nada', 'Cancelar')]
+            q = preguntar(ui, str(i_ + 1) + '. ' + item['nombre'], [t for _, t in acciones_], item['desc'])
+            if q == 'salir': return 'salir'
+            if q is None: continue
+            accion = acciones_[q][0]
+            if accion == 'subir': cinturon[i_ - 1], cinturon[i_] = cinturon[i_], cinturon[i_ - 1]; elegido = r - 1; acc['refrescar'](); continue
+            if accion == 'bajar': cinturon[i_ + 1], cinturon[i_] = cinturon[i_], cinturon[i_ + 1]; elegido = r + 1; acc['refrescar'](); continue
+            if accion == 'tirar':
+                c = preguntar(ui, '¿Tirar ' + item['nombre'] + '?', ['Tirar', 'No'], 'se pierde (no te devuelven las monedas)')
+                if c == 'salir': return 'salir'
+                if c == 0: cinturon.pop(i_); acc['refrescar']()
+                continue
+            if accion != 'usar': continue
+            miembros = [(k, m) for k, m in enumerate(j['equipo'])] + [(('r', k), m) for k, m in enumerate(j.get('reserva', []))]
             opciones_ = [m['nombre'].replace('_', ' ').title() + '  ' + (('debilitado' if m['vida'] <= 0 else str(round(m['vida'])) + '/' + str(m['max_vida']) + ' PS')
                          + (' - con estado' if m.get('estados') else '')) for _, m in miembros]
-            q = preguntar(ui, '¿En quién usás ' + tienda.ITEMS[clave]['nombre'] + '?', opciones_ + ['Cancelar'], tienda.ITEMS[clave]['desc'])
+            q = preguntar(ui, '¿En quién usás ' + item['nombre'] + '?', opciones_ + ['Cancelar'], item['desc'])
             if q == 'salir': return 'salir'
             if q is None or q >= len(miembros): continue
-            texto = acc['usar'](miembros[q][0], clave)
+            texto = acc['usar'](miembros[q][0], i_)
             if preguntar(ui, texto, ['Ok']) == 'salir': return 'salir'
 
 

@@ -356,6 +356,18 @@ def armar_pokemones():
         'florges': {'pokedex': 671, 'tipo': ['hada'], 'peso': None, 'altura': None, 'vida_base': 78, 'vida': 110, 'ataques': ['beso_drenaje', 'fuerza_lunar', 'brillo_magico', 'carantoña'], 'jugable': True, 'boss': False, 'ataque_cuerpo': 'beso_drenaje', 'ataque_proyectil': 'fuerza_lunar'},
     }
     pokemones.update(POKEMON_NUEVOS)
+    # formas origen del trio de la creacion (sprites de SpriteCollab: <dex>/0001). Por ahora son jefes cargados: todavia no aparecen en ninguna era
+    pokemones.update({
+        'dialga_origen': {'pokedex': 483, 'tipo': ['acero', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 100, 'vida': 200,
+                          'ataques': ['garra_metal', 'pulso_dragon', 'cabeza_hierro', 'garra_dragon'], 'jugable': False, 'boss': True,
+                          'ataque_cuerpo': 'garra_metal', 'ataque_proyectil': 'pulso_dragon'},
+        'palkia_origen': {'pokedex': 484, 'tipo': ['agua', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 90, 'vida': 180,
+                          'ataques': ['acua_jet', 'hidrobomba', 'garra_dragon', 'pulso_dragon'], 'jugable': False, 'boss': True,
+                          'ataque_cuerpo': 'acua_jet', 'ataque_proyectil': 'hidrobomba'},
+        'giratina_origen': {'pokedex': 487, 'tipo': ['fantasma', 'dragon'], 'peso': None, 'altura': None, 'vida_base': 150, 'vida': 300,
+                            'ataques': ['garra_umbria', 'bola_sombra', 'garra_dragon', 'pulso_dragon'], 'jugable': False, 'boss': True,
+                            'ataque_cuerpo': 'garra_umbria', 'ataque_proyectil': 'bola_sombra'},
+    })
 
 
     INMUNE_MULT = 0.2
@@ -1212,7 +1224,27 @@ def armar_tienda():
 
     def inventario_nuevo():
         """Inventario vacio de una partida nueva."""
-        return {'permanente': {}, 'temporal': [], 'repelente': 0, 'tipos': {}, 'critico': [0.0, 0], 'comprados': [], 'objetos': {}}
+        return {'permanente': {}, 'temporal': [], 'repelente': 0, 'tipos': {}, 'critico': [0.0, 0], 'comprados': [], 'objetos': {}, 'cinturon': []}
+
+
+    CINTURON_MAX = 5     # curaciones que se pueden llevar: van en el cinturon (el cuarto de circulo de abajo a la derecha) y se usan en orden
+
+
+    def es_curativo(clave):
+        """Si el objeto es una curacion (va al cinturon en vez de a la mochila)."""
+        return 'curativo' in ITEMS.get(clave, {})
+
+
+    def migrar_cinturon(inv):
+        """Partidas de antes: las curaciones estaban sueltas en la mochila. Pasan al cinturon en orden hasta llenarlo; las que no
+        entran se venden solas. Devuelve cuantas monedas te devuelven por esas."""
+        cinturon = inv.setdefault('cinturon', [])
+        devolver = 0
+        for clave in [k for k in list(inv['objetos']) if es_curativo(k)]:
+            for _ in range(max(0, inv['objetos'].pop(clave))):
+                if len(cinturon) < CINTURON_MAX: cinturon.append(clave)
+                else: devolver += ITEMS[clave]['precio']
+        return devolver
 
 
     def mult(inv, clave):
@@ -1275,12 +1307,48 @@ def armar_tienda():
         return salida
 
 
+    # los 3 mostradores de la tienda (5 objetos cada uno, al azar)
+    POTENCIADORES = ('ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo') + DE_TIPO   # Riolu: los X y los de tipo
+    EVOLUCION_TIENDA = tuple(k for k in EVOLUCION if k != 'cristal_paradoja')                     # Riolu: sin el Cristal Paradoja (lo suelta el Regi)
+    MTS_TIENDA = tuple(k for k, v in ITEMS.items() if v.get('mt'))                                # Kecleon
+    POR_MOSTRADOR = 5
+
+
+    def surtido_mostradores(azar, vitrinas, equipo=(), necesita=()):
+        """Que objeto va en cada vitrina segun su mostrador ('chikorita', 'riolu' o 'kecleon'):
+            Chikorita rosa  5 curaciones distintas (vida o estados) al azar
+            Riolu           3 potenciadores (Ataque X, Defensa X..., Directo o los de tipo) y 2 objetos de evolucion; si alguien del
+                            equipo necesita uno para evolucionar, casi siempre esta
+            Kecleon         5 MT al azar (si hay alguna que tu equipo puede aprender, al menos una de esas)"""
+        necesarios = [k for k in necesita if k in EVOLUCION_TIENDA]
+        evolucion = azar.sample(EVOLUCION_TIENDA, 2)
+        if necesarios and azar.random() < 0.7 and not set(necesarios) & set(evolucion):
+            evolucion[0] = azar.choice(necesarios)
+        mts_ = azar.sample(MTS_TIENDA, min(POR_MOSTRADOR, len(MTS_TIENDA)))
+        posibles = sorted({k for n in equipo for k in mts.aprendibles(n)})
+        if posibles and not set(posibles) & set(mts_): mts_[-1] = azar.choice(posibles)
+        listas = {'chikorita': azar.sample(CURACIONES, POR_MOSTRADOR), 'riolu': azar.sample(POTENCIADORES, 3) + evolucion, 'kecleon': mts_}
+        usados = {k: 0 for k in listas}
+        salida = []
+        for v in vitrinas:
+            lista = listas.get(v.get('mostrador'), listas['riolu'])
+            salida.append(lista[usados.get(v.get('mostrador'), 0) % len(lista)])
+            if v.get('mostrador') in usados: usados[v['mostrador']] += 1
+        return salida
+
+
     def comprar(j, clave):
         """Intenta comprar: devuelve el texto para el cartel."""
         item, inv = ITEMS[clave], j['inventario']
         if j['monedas'] < item['precio']: return 'No te alcanza (' + str(item['precio']) + ' $)'
+        cinturon = inv.setdefault('cinturon', [])
+        if es_curativo(clave) and len(cinturon) >= CINTURON_MAX:
+            return 'Cinturón lleno: ya llevás ' + str(CINTURON_MAX) + ' curaciones (en la mochila podés tirar alguna)'
         j['monedas'] -= item['precio']
         inv['comprados'].append(clave)
+        if es_curativo(clave):                                            # las curaciones van al cinturon, al final de la fila
+            cinturon.append(clave)
+            return 'Compraste ' + item['nombre'] + ' (lugar ' + str(len(cinturon)) + ' del cinturón)'
         if item.get('objeto') or 'equipable' in item: inv['objetos'][clave] = inv['objetos'].get(clave, 0) + 1   # a la mochila
         if 'repelente' in item: inv['repelente'] += item['repelente']
         if 'temporal' in item: inv['temporal'].append(list(item['temporal']))
@@ -1465,6 +1533,10 @@ def armar_mundos():
         'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
         'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # cura al equipo en la tienda
         'riolu': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (90, 140, 220)},            # atiende el mostrador de la tienda
+        # los 3 mostradores de la tienda: cada uno del color del pokemon que atiende ('mostrador': se dibuja la madera con la tela de ese color)
+        'mostrador_chikorita': {'tam': (400, 36), 'material': 'madera', 'vida': None, 'color': (240, 150, 200), 'mostrador': True},
+        'mostrador_riolu': {'tam': (360, 36), 'material': 'madera', 'vida': None, 'color': (90, 140, 220), 'mostrador': True},
+        'mostrador_kecleon': {'tam': (360, 36), 'material': 'madera', 'vida': None, 'color': (120, 200, 90), 'mostrador': True, 'franja': (220, 60, 70)},
         'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
         # hall (a donde volves al perder; no se rompe nada)

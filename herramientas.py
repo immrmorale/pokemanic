@@ -45,8 +45,9 @@ def herramienta_descargar():
     BASE = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/'
     DESTINO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sprites', 'pokemones')
     RETRATOS = ('Normal', 'Pain')
-    FORMAS = {'samurott_hisui': '0001'}
-    SALTEAR = ('missigno', 'arceus_beta')
+    FORMAS = {'samurott_hisui': '0001', 'dialga_origen': '0001', 'palkia_origen': '0001', 'giratina_origen': '0001', 'arceus_beta': '0019'}
+    SALTEAR = ('missigno',)
+    SOLO_RETRATO = ('amoonguss', 'brute_bonnet')     # SpriteCollab todavia no tiene sus animaciones: se baja el retrato solo
 
 
     def bajar(url, intentos=3):
@@ -85,6 +86,8 @@ def herramienta_descargar():
         subruta = dex + ('/' + forma if forma else '')
         carpeta = os.path.join(DESTINO, 'sprite_' + nombre)
         if not guardar(BASE + 'sprite/' + subruta + '/AnimData.xml', os.path.join(carpeta, 'AnimData.xml')):
+            if nombre in SOLO_RETRATO:                              # sin animaciones: al menos el retrato para los menus
+                for emocion in RETRATOS: guardar(BASE + 'portrait/' + subruta + '/' + emocion + '.png', os.path.join(carpeta, 'portrait', emocion + '.png'))
             return nombre, 0, ['AnimData.xml']
         animaciones = []
         for anim in ET.parse(os.path.join(carpeta, 'AnimData.xml')).getroot().find('Anims').findall('Anim'):
@@ -118,7 +121,8 @@ def herramienta_datos():
     """Pide a la PokeAPI stats, movimientos, descripcion y evoluciones y los guarda en datos_pokeapi.json."""
     pokemones = datos.pokemones.pokemones
 
-    CAMBIOS = {'samurott_hisui': 'samurott-hisui', 'meowstic': 'meowstic-male', 'lycanroc': 'lycanroc-midday', 'aegislash': 'aegislash-shield'}
+    CAMBIOS = {'samurott_hisui': 'samurott-hisui', 'meowstic': 'meowstic-male', 'lycanroc': 'lycanroc-midday', 'aegislash': 'aegislash-shield',
+               'dialga_origen': 'dialga-origin', 'palkia_origen': 'palkia-origin', 'giratina_origen': 'giratina-origin'}
     SALTAR = ('arceus_beta', 'missigno')
     ESPEJO = 'https://raw.githubusercontent.com/PokeAPI/api-data/master/data'   # la misma PokeAPI guardada en GitHub (si pokeapi.co no responde)
     _indices = {}

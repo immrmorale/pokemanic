@@ -65,7 +65,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 | Interactuar, comprar, hablar | E | A |
 | Bailar (amigar / confundir) | V | palanca der (R3) |
 | Evolucionar (mantener) | C | cruz abajo |
-| Curarse (usa la curación que conviene) | H | sin asignar (se elige en Controles) |
+| Usar la curación del lugar 1 del [cinturón](#estados-y-curaciones) | Z | sin asignar (se elige en Controles) |
 | Menú de equipo | TAB | Back |
 | Pausa | ESC | Start |
 
@@ -75,7 +75,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 - **mixto:** usa teclas hasta que movés el mouse.
 
 **Teclas secretas:**
-- **F1** (en el menú principal o jugando): menú debug para poner cualquier pokemon en el equipo.
+- **F1** (en el menú principal o jugando): menú debug para poner cualquier pokemon en el equipo. Están agrupados por tipo (en el orden de la [tabla de tipos](#tabla-de-tipos), según el tipo principal de la primera forma de cada línea), y adentro de cada tipo por generación, con cada línea evolutiva junta (Pichu, Pikachu y Raichu van seguidos aunque Pichu sea de la 2ª). Con el Konami se suman los jefes, ordenados igual.
 - **F2** (jugando): saltar a cualquier sala, tienda o jefe. TAB o Shift cambian de era.
 - **Código Konami** (↑ ↑ ↓ ↓ ← → ← → B A) en Ajustes o en la pausa: menú de trucos (vida infinita, sin recarga, todas las MT, monedas infinitas, un golpe mata, subir 5 niveles). Los trucos no se guardan.
 
@@ -106,7 +106,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 
 ### Estilo, rachas y nota de la sala
 
-- **Estilo** (arriba a la derecha, de D a S): sale de cinco cosas:
+- **Estilo** (arriba a la derecha, a la izquierda del minimapa; de D a S): sale de cinco cosas:
   - **Ritmo:** cada cuánto le pegás a un enemigo. Golpes seguidos (menos de 0,7 s entre uno y otro) rinden todo; si pasan 3 s, casi nada.
   - **Movimiento:** moverte mientras peleás suma de a poco; quedarte quieto lo baja rápido.
   - **Combos:** terminar el combo de 3 golpes.
@@ -119,8 +119,8 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 ### Caminos, tesoros y premios por explorar
 
 - **La llave de la sala:** al limpiar una sala aparece una llave que vuela sola hacia vos y abre las puertas. Si tocás una puerta cerrada, te dice por qué no se abre.
-- **Minimapa** (arriba a la derecha, debajo del estilo): el mapa del Mystery Dungeon, con el piso en azul, los bordes de las paredes en blanco, vos (titilando), los enemigos en rojo, el jefe en violeta, los que quieren ser tus amigos en amarillo, los objetos en celeste, la llave y las puertas (cruces rojas mientras están cerradas, escaleras cuando se abren). No aparece en la tienda, el tesoro ni el hall.
-- **Puertas del tesoro (TESORO llave):** cuando una sala tiene 2 o más salidas, a veces una lleva a una **sala del tesoro**. Hace falta una **Llave del Tesoro** (siempre hay una en la tienda; también salen al romper cosas o con buena nota). Adentro hay 3 premios y te llevás uno: **Caramelos Raros** (x2) o una **mejora para todo el equipo** para siempre: Proteína (+8% daño), Hierro (−8% daño recibido), Carburante (+6% velocidad), Calcio (−8% recargas), Zinc (energía y parry), Más PS (cura a todos y revive).
+- **Minimapa** (en la esquina de arriba a la derecha; con jefe, debajo de su barra): el mapa del Mystery Dungeon, con el piso en azul, los bordes de las paredes en blanco, vos (titilando), los enemigos en rojo, el jefe en violeta, los que quieren ser tus amigos en amarillo, los objetos en celeste, la llave y las puertas (cruces rojas mientras están cerradas, escaleras cuando se abren). No aparece en la tienda, el tesoro ni el hall.
+- **Puertas del tesoro (TESORO llave):** cuando una sala tiene 2 o más salidas, a veces una lleva a una **sala del tesoro**. Hace falta una **Llave del Tesoro** (salen al romper cosas o con buena nota; ya no se venden en la tienda). Adentro hay 3 premios y te llevás uno: **Caramelos Raros** (x2) o una **mejora para todo el equipo** para siempre: Proteína (+8% daño), Hierro (−8% daño recibido), Carburante (+6% velocidad), Calcio (−8% recargas), Zinc (energía y parry), Más PS (cura a todos y revive).
 - **Salas de desafío (★):** 50% más enemigos; la nota da el doble y más chance de objeto.
 - **Romper cosas** a veces suelta una Baya Oran (cura 15% al agarrarla), una llave o un caramelo.
 - **Caramelo Raro:** sube un nivel; se usa desde la ficha del pokemon.
@@ -225,7 +225,7 @@ La evolución conserva el nivel, los IV, los EV y las MT enseñadas.
 
 **Tipos de requisito:**
 - **Nivel:** llegar a ese nivel.
-- **Piedra u objeto:** tenerlo en la mochila. Se compran en la tienda, y el Regi lo suelta si alguien de tu equipo lo necesita.
+- **Piedra u objeto:** tenerlo en la mochila. Riolu los vende en la tienda (2 por tienda; el Cristal Paradoja no), y el Regi lo suelta si alguien de tu equipo lo necesita.
 - **Cordón Unión:** reemplaza a las evoluciones por intercambio de los juegos.
 - **Amistad:** sube con cada sala que completás: +2 para el que pelea y +1 para los de la banca. Pichu y Riolu necesitan 20.
 - **Saber una MT:** Piloswine evoluciona en Mamoswine sabiendo **Poder Pasado**.
@@ -234,7 +234,7 @@ La evolución conserva el nivel, los IV, los EV y las MT enseñadas.
 - **Eevee:** Piedra Agua → Vaporeon, Trueno → Jolteon, Fuego → Flareon, Solar → Espeon, Lunar → Umbreon, Hoja → Leafeon, Hielo → Glaceon, y con amistad → Sylveon.
 - **Formas regionales:** el Growlithe de Hisui evoluciona con Piedra Fuego; Diglett de Alola (26), Grimer de Alola (38), Ponyta de Galar (40) y Zorua de Hisui (30) evolucionan en su misma forma.
 - **Nincada** evoluciona en Ninjask a nivel 20 y, si hay lugar en el equipo o la reserva, aparece también **Shedinja**.
-- **Formas paradoja:** el viaje en el tiempo las trae. Con un Cristal Paradoja, Donphan se vuelve **Colmilargo**, Salamence **Bramaluna** y Tyranitar **Ferropúas**.
+- **Formas paradoja:** el viaje en el tiempo las trae. Con un Cristal Paradoja (no se vende: lo suelta el Regi), Donphan se vuelve **Colmilargo**, Salamence **Bramaluna**, Tyranitar **Ferropúas** y Amoonguss **Furioseta**.
 
 | Pokemon | Evoluciona a | Requisito |
 |---|---|---|
@@ -375,7 +375,9 @@ Se sumaron **más de 60 líneas evolutivas** (datos de la PokeAPI y sprites de S
 | Acero | Mawile, Honedge, Klink, Aron |
 | Hada | Cleffa, Tinkatink, Flabébé |
 
-Amoonguss y Furioseta están cargados, pero SpriteCollab todavía no tiene sus sprites: aparecen solos el día que estén en `assets/sprites/pokemones`.
+Amoonguss y Furioseta están cargados con su retrato (se ven en los menús), pero SpriteCollab todavía no tiene sus animaciones: en el juego aparecen solos el día que estén en `assets/sprites/pokemones` (`python herramientas.py descargar`).
+
+**Formas origen y Arceus Beta:** también están los sprites de **Dialga, Palkia y Giratina en su forma origen** (`dialga_origen`, `palkia_origen`, `giratina_origen`, cargados como jefes con sus stats de la PokeAPI; todavía no aparecen en ninguna era) y los de **Arceus Beta**.
 
 **Dónde aparecen:** cada era suma los suyos (los de hielo y frío en la Glacial, fósiles y bestias en la de Piedra, los de acero en la de los Metales, dragones, hadas y fantasmas en la Edad Media, ciudad y tecnología en la Moderna, y las formas paradoja y las evoluciones finales en El Origen).
 
@@ -411,7 +413,11 @@ Amoonguss y Furioseta están cargados, pero SpriteCollab todavía no tiene sus s
 - **Dormido:** no se mueve ni ataca hasta que le pegan. **Confundido:** camina al revés. **Aturdido:** un instante sin poder hacer nada.
 - Cada pokemon tiene los suyos: si cambiás, el que entra no los trae. Los de veneno y acero no se envenenan, los de fuego no se queman y los eléctricos no se paralizan.
 
-**Curaciones** (las vende Chikorita rosa en la tienda): se usan desde la mochila (elegís en quién, también en la banca o la reserva) o con **H**, que usa sola la que conviene: primero saca el estado (la baya justa si la tenés), si no cura la vida gastando lo menos posible.
+**Curaciones** (Chikorita rosa vende 5 al azar en cada tienda): van al **cinturón**, el cuarto de círculo marrón de abajo a la derecha, que tiene **5 lugares** numerados del 1 al 5. Con el cinturón lleno no se puede comprar otra.
+- Con **Z** se usa la del **lugar 1** en el que pelea; las de atrás avanzan un lugar. Si esa no le sirve ahora (vida llena, no tiene ese estado, un Revivir en alguien que está en pie), no se gasta y te avisa.
+- En la **mochila** (arriba de todo) se pueden **usar** en quien quieras (también en la banca o la reserva), **subir**, **bajar** o **tirar**.
+- Las partidas de antes: las curaciones que tenías pasan al cinturón en orden; las que no entran se venden solas y te devuelven lo que costaron.
+- La Poción Máxima de Celebi también va al cinturón (si hay lugar).
 
 | Grupo | Objetos |
 |---|---|
@@ -573,7 +579,7 @@ Arceus no tira el anillo de balas ni las piedras verdes.
 
 **Fases 2 y 3:** al terminar la fase 1 la pantalla se pone blanca y **el piso se vuelve un triángulo** (la imagen `assets/interfaz/arena_arceus_beta.png`), con Arceus Beta arriba de la punta. Por ahora sigue con las tablas sobre el triángulo; los movimientos propios de estas fases están **por definir**.
 
-Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites se buscan en `assets/sprites/pokemones/sprite_arceus_beta`; si no están, usa los de Arceus. Los números de cada movimiento están en `MOVS_BETA` en `combate.py` y los de las tablas en `BETA` y `TABLAS_BETA`.
+Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los sprites están en `assets/sprites/pokemones/sprite_arceus_beta` (la forma Beta de SpriteCollab, `0493/0019`). Los números de cada movimiento están en `MOVS_BETA` en `combate.py` y los de las tablas en `BETA` y `TABLAS_BETA`.
 
 **Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
@@ -588,25 +594,25 @@ Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los spri
 
 ## Tienda
 
-La atiende siempre **Riolu**, pero el local cambia de nombre según la era: **Puesto de trueque** (Glacial), **Mercado de trueque** (Piedra), **Bazar** (Metales), **Mercado** (Edad Media), **Almacén** (Moderna) y **Bazar del tiempo** (El Origen). Acercate a una vitrina y apretá E para comprar.
+El local cambia de nombre según la era: **Puesto de trueque** (Glacial), **Mercado de trueque** (Piedra), **Bazar** (Metales), **Mercado** (Edad Media), **Almacén** (Moderna) y **Bazar del tiempo** (El Origen). Es una sala más grande que la pantalla (la cámara la recorre) y está **partida en 3** por dos paredes: arriba, de izquierda a derecha, tres mostradores **del color del pokemon que los atiende**, con **5 objetos al azar** cada uno. Acercate a un objeto del mostrador y apretá E para comprarlo (el que tenés más cerca se marca y muestra su nombre; abajo a la izquierda dice qué hace).
 
-**Curaciones:** en el mostrador de abajo a la derecha está **Chikorita rosa**. Hablale con E: cura al que pelea (30 $ + 15 por era), cura y revive a todo el equipo (70 $ + 30 por era) y también **vende todas las curaciones** (ver [Estados y curaciones](#estados-y-curaciones)).
+| Mostrador | Atiende | Vende |
+|---|---|---|
+| Izquierda (rosa) | **Chikorita rosa** | 5 curaciones (vida o estados). Van al [cinturón](#estados-y-curaciones). En la punta de su mostrador (**♥ Curar**) cura al que pelea (30 $ + 15 por era) o cura y revive a todo el equipo (70 $ + 30 por era). También cuida la reserva |
+| Medio (azul) | **Riolu** | 3 que potencian (Ataque X, Defensa X, Velocidad X, Especial X, Directo o los de tipo) y 2 de evolución (piedras, Cordón Unión, armaduras, Mineral Negro, Garra Afilada). Si alguien de tu equipo necesita uno, casi siempre está. El Cristal Paradoja no se vende |
+| Derecha (verde con la raya roja) | **Kecleon** | 5 MT. Si hay alguna que tu equipo puede aprender, al menos una de esas |
 
-**Cómo están acomodadas las vitrinas:**
-- **Estantes:** objetos comunes y una MT que alguien de tu equipo puede aprender.
-- **Mesas:** objetos permanentes. Uno suele ser del tipo de tu equipo o el objeto de evolución que alguien necesita.
+Ya no se venden Repelentes, Lazo Amistad, la Llave del Tesoro, el Caramelo Raro, el Amuleto Moneda ni los equipables que no son de tipo (Éter, Cinta Fuerte, Garra Rápida, Polvo Veloz, Chaleco Asalto, Cinta Focus, Pluma Ágil). Las llaves y los caramelos siguen saliendo al romper cosas y en las salas del tesoro.
 
 **Objetos equipables y de equipo:** los que dicen *(lo lleva un pokemon)* van a la mochila y se equipan desde la ficha: **cada pokemon lleva hasta 2** y solo cuentan mientras ese pokemon pelea. Los que dicen *(todo el equipo)* valen para todos.
 
 | Tipo de objeto | Ejemplos | Para quién |
 |---|---|---|
-| Por 3 salas | Ataque X (+25% daño), Defensa X (−20% daño recibido), Velocidad X, Especial X (recargas más rápidas), Directo (20% de críticos x1,8), Lazo Amistad | todo el equipo |
-| Repelentes | Repelente, Superrepelente, Maxirepelente: 35% menos enemigos por 3, 5 u 8 salas | todo el equipo |
-| Amuleto Moneda | +50% de monedas | todo el equipo |
-| Equipables | Éter (energía), Cinta Fuerte (+15% daño), Garra Rápida (−12% recargas), Polvo Veloz (+12% velocidad), Chaleco Asalto (−15% daño recibido), Cinta Focus (ventana de parry +50%), Pluma Ágil (esquive más largo) | un pokemon |
-| De tipo | +20% de daño a los ataques de ese tipo (ver cada tipo) | un pokemon |
-| Evolución | Piedra Trueno, Piedra Alba, Garra Afilada, Cordón Unión |
-| MT | enseñan un movimiento en una casilla. Se gastan al usarlas |
+| Por 3 salas (Riolu) | Ataque X (+25% daño), Defensa X (−20% daño recibido), Velocidad X, Especial X (recargas más rápidas), Directo (20% de críticos x1,8) | todo el equipo |
+| De tipo (Riolu) | +20% de daño a los ataques de ese tipo (ver cada tipo) | un pokemon |
+| Evolución (Riolu) | Piedras, Garra Afilada, Cordón Unión, Armadura Auspiciosa y Maldita, Mineral Negro | el que evoluciona |
+| MT (Kecleon) | enseñan un movimiento en una casilla. Se gastan al usarlas | un pokemon |
+| Curaciones (Chikorita rosa) | bayas, pociones, remedios, polvos, comidas y revivir | el que elijas (van al cinturón) |
 
 ---
 
@@ -853,7 +859,7 @@ Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGol
 - **Efectos:** estelas al esquivar, embestir y arrancar a correr; silueta blanca en el enemigo golpeado; pausa de impacto en remates, parrys y bajas; la cámara acompaña el golpe; nube de humo de Poké Transfer al morir.
 
 - **Letra:** la de los juegos de DS, recortada letra por letra de `assets/DS _ DSi - Pokemon HeartGold _ SoulSilver - Miscellaneous - Fonts.png` (`sistema.tipografia`). Tiene tildes, ñ, ¿ ¡ y el símbolo de Pokédólar (₽, que reemplaza al `$`). Se agranda en pixeles enteros (x1, x2, x3) para que no se vea borrosa, y tiene una versión con borde para leer sobre el piso.
-- **HUD del combate** (como la batalla de BW): tu pokemon con la barra de HP del jugador (con la placa oscura, la etiqueta HP y el ícono Lv) y las barras de experiencia y energía; la raya blanca de la energía marca cuánto gasta un esquive. El daño reciente queda en blanco en la barra y se vacía de a poco, y la placa tiembla al recibir un golpe. La banca va en los **paneles en flecha** del menú de equipo (verde: asistencia lista; rojo: debilitado). Los 4 movimientos son los **botones octogonales de la pantalla táctil** (con la textura de puntitos y el borde del color del tipo); la espera se cierra como un abanico. Los jefes usan la barra del rival.
+- **HUD del combate** (como la batalla de BW): tu pokemon con la barra de HP del jugador (con la placa oscura, la etiqueta HP y el ícono Lv) y las barras de experiencia y energía; la raya blanca de la energía marca cuánto gasta un esquive. El daño reciente queda en blanco en la barra y se vacía de a poco, y la placa tiembla al recibir un golpe. La banca va en los **paneles en flecha** del menú de equipo (verde: asistencia lista; rojo: debilitado). Abajo a la derecha, un **cuarto de círculo marrón medio transparente** (como la tela de un mostrador, con flecos y costura) es el **cinturón**: 5 círculos negros con las curaciones y su número (el orden en que se usan con Z; el 1 tiene el borde dorado). **Alrededor** van los 6 ataques, **E, Q, Shift, R** (tus movimientos) y **F, G** (las asistencias de la banca), en los **botones octogonales de la pantalla táctil** (con la textura de puntitos y el borde del color del tipo) y con el nombre debajo; la espera se cierra como un abanico. Arriba a la derecha va el **minimapa** en la esquina y el **estilo** a su izquierda. Los jefes usan la barra del rival.
 - **En la pelea:** números de daño que saltan (amarillos si es súper eficaz, grises si resiste, naranjas en contraataques, rojos los que recibís), íconos de estado de BW arriba de los enemigos (BRN, PAR, FRZ), destello de pantalla en el parry, el esquive perfecto y el remate, y aviso amarillo con "!" en el momento del parry.
 - **Carteles:** el nombre de la sala y los jefes entran barriendo en una franja inclinada con rayas de color (rojas en los jefes); los avisos chicos caen desde arriba con una raya de color.
 - **Menús:** el logo (POKE + MANIC en letras Unown) cae al abrir el título; los botones son los paneles en flecha de BW y entran escalonados desde la izquierda (el elegido se corre y titila). El fondo de grilla de BW se mueve en diagonal con la **Pokéball de la pantalla táctil** girando. La pausa entra con una franja inclinada y la Pokéball grande girando detrás.

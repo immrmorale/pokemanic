@@ -459,11 +459,11 @@ def armar_controles():
                 ('correr', 'Correr'), ('basico1', 'Ataque cuerpo a cuerpo'), ('basico2', 'Ataque a distancia'), ('especial1', 'Especial 1'),
                 ('especial2', 'Especial 2'), ('asist1', 'Asistencia 1'), ('asist2', 'Asistencia 2'), ('poke1', 'Pokemon 1'), ('poke2', 'Pokemon 2'),
                 ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar'),
-                ('bailar', 'Bailar (amigar / confundir)'), ('evolucionar', 'Evolucionar (mantener)'), ('curar', 'Curarse (usa una curación)')]
+                ('bailar', 'Bailar (amigar / confundir)'), ('evolucionar', 'Evolucionar (mantener)'), ('curar', 'Usar curación (lugar 1 del cinturón)')]
     MOVIMIENTO = ('arriba', 'abajo', 'izquierda', 'derecha')
     PRESET_TECLADO = {'arriba': 'w', 'abajo': 's', 'izquierda': 'a', 'derecha': 'd', 'correr': 'left ctrl', 'basico1': 'e', 'basico2': 'q',
                       'especial1': 'left shift', 'especial2': 'r', 'asist1': 'f', 'asist2': 'g', 'poke1': '1', 'poke2': '2', 'poke3': '3',
-                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v', 'evolucionar': 'c', 'curar': 'h'}
+                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v', 'evolucionar': 'c', 'curar': 'z'}
     PRESET_CONTROL = {'arriba': 'ninguno', 'abajo': 'ninguno', 'izquierda': 'ninguno', 'derecha': 'ninguno',     # con control se camina con la palanca
                       'correr': 'LB', 'basico1': 'X', 'basico2': 'RT', 'especial1': 'RB', 'especial2': 'Y', 'asist1': 'LT', 'asist2': 'B',
                       'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq',
@@ -499,6 +499,7 @@ def armar_controles():
             for perfil in config['controles'][dispositivo]:
                 for k, v in preset.items(): perfil.setdefault(k, v)
                 if perfil.get('evolucionar') == perfil.get('bailar'): perfil['evolucionar'] = preset['evolucionar']   # perfiles de antes: bailar y evolucionar en la misma tecla
+                if dispositivo == 'teclado' and perfil.get('curar') == 'h' and 'z' not in perfil.values(): perfil['curar'] = 'z'   # curarse paso de H a Z (el cinturon)
         if _sdl:
             try:
                 _sdl.init()
@@ -752,9 +753,19 @@ def armar_animaciones():
         return hoja
 
 
+    _CON_ANIMACIONES = {}
+
     def tiene_sprites(nombre):
-        """Si el pokemon (o el pokemon base de un tinte, como chikorita_rosa) tiene sprites."""
-        return _buscar_carpeta(_base(nombre)) is not None
+        """Si el pokemon (o el pokemon base de un tinte, como chikorita_rosa) tiene sprites para animarse. Una carpeta con solo el
+        retrato (Amoonguss y Brute Bonnet: SpriteCollab todavia no tiene sus animaciones) no cuenta: el retrato sale en los menus
+        pero en el juego no aparece hasta que esten sus hojas."""
+        carpeta = _buscar_carpeta(_base(nombre))
+        if carpeta is None: return False
+        if carpeta not in _CON_ANIMACIONES:
+            try: _CON_ANIMACIONES[carpeta] = any(a.lower().endswith('.xml') or a.lower().endswith('.png') or os.path.isdir(os.path.join(carpeta, a))
+                                                 and a.lower() not in ('portrait', 'portraits', 'retrato', 'retratos') for a in os.listdir(carpeta))
+            except OSError: _CON_ANIMACIONES[carpeta] = False
+        return _CON_ANIMACIONES[carpeta]
 
 
     def _numero_direccion(nombre):
