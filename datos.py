@@ -1455,6 +1455,7 @@ def armar_mundos():
         'escarcha': {'color': (200, 238, 255), 'bloquea': False},                 # piso que congela el rayo hielo de Regice
         'torre_dragon': {'color': (128, 128, 136), 'bloquea': False},             # techo de la torre a donde te lleva Regidrago
         'arena_movediza': {'color': (186, 150, 86), 'bloquea': False},            # la que deja Regirock alrededor de sus rocas
+        'abismo': {'color': (44, 32, 68), 'bloquea': False},                      # piso de la arena de los subjefes de Arceus Beta (World Abyss)
     }
 
     # objetos: tamaño en pixeles, material, vida (None = no se rompe), forma y color del dibujo provisorio

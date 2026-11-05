@@ -717,7 +717,7 @@ def main():
                           'umbral_de': {'regidrago': ia.REGIDRAGO['refuerzos'], 'regirock': 0.9, 'registeel': 0.9}}   # (estos en su primera fase)
         MINI_REGI = {'cada': 11000, 'primera': 4000, 'de_a': 2, 'max': 4, 'vida': 1.6, 'daño': 0.8, 'tam': 58, 'niveles_menos': 4}   # Regigigas invoca Regis chiquitos
         FASES_TEXTO = {'arceus': {2: 'Sentencia: el sello cae del cielo', 3: 'Sentencia grande, Proteccion y Recuperacion'},
-                       'beta': {2: 'El piso se vuelve un triangulo', 3: 'Fase 3'},
+                       'beta': {2: 'La última piedad: elegí contra quién pelear', 3: 'Fase 3'},
                        'regidrago': {2: 'Te llevo a lo alto de su torre', 3: 'Se rompio la torre: ahora usa todo'},
                        'regice': {2: 'Coraza de hielo: chocale un bloque de hielo'},
                        'regirock': {2: 'Fuerza Bruta y arena movediza', 3: 'Se partio en 5 rocas rodantes'},
@@ -899,7 +899,7 @@ def main():
                 j.update({'direccion': 'norte', 'moviendose': False, 'corriendo': False, 'llave': False, 'energia': ENERGIA_MAX, 'agotado': False, 'buffs': {},
                           'resto': [0.0, 0.0], 'inercia': [0.0, 0.0], 'entorno': {}, 'oculto': False, 'frio': 0.0, 'congelado_hasta': 0, 'a_la_orilla': None,
                           'esquive': None, 'inv_hasta': 0, 'combo': 0, 'combo_listo': 0, 'contra_hasta': 0, 'parry_hasta': 0, 'parry_libre': 0,
-                          'atrapado_hasta': 0, 'en_arena': False})
+                          'atrapado_hasta': 0, 'en_arena': False, 'fx_jefe': {}, 'remolino': None})
                 aplicar_pokemon(j, j['nombre'], j['equipo'][j['activo']]['vida'], centro=centro)
                 actualizar_sinergia(j)
 
@@ -913,7 +913,7 @@ def main():
                 sprint = (ARRANQUE['mult'] if tiempo() < j.get('pique_hasta', 0) else MULT_SPRINT) if j['corriendo'] else 1.0
                 paralisis = ESTADOS_J['paralisis']['vel'] if tiene_estado(j, 'paralisis') else 1.0
                 return (j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * sprint * mod(j, 'velocidad') * j['mults']['velocidad'] * paralisis
-                        * mec.mult_velocidad(j))
+                        * mec.mult_velocidad(j) * ia.mult_vel_fx(j, tiempo()))       # Cara Susto (Giratina) y Gravedad (Palkia)
 
             return (crear_miembro, juego_de, nombre_mov, datos_mov, actualizar_sinergia, aplicar_pokemon, crear_jugador, guardar_activo,
                     cambiar_slot, equipar_debug, reiniciar_jugador, mult_buff, velocidad_actual)
@@ -929,11 +929,12 @@ def main():
                     j['moviendose'] = j['corriendo'] = False; j['inercia'] = [0.0, 0.0]; return
                 dx, dy = controles.direccion()                   # teclas del perfil, palanca o cruz del control
                 if tiene_estado(j, 'confusion'): dx, dy = -dx, -dy           # confundido: camina para el otro lado
+                if ia.fx(j, 'invertido', tiempo()): dx, dy = -dx, -dy        # el mundo al reves de Giratina
                 j['moviendose'] = bool(dx or dy)
                 if j['agotado'] and j['energia'] >= ENERGIA_MIN: j['agotado'] = False
                 gratis = mult_buff(j, 'sprint') > 1 or j['entorno'].get('sprint_gratis')     # en el hielo los de hielo corren gratis
                 antes = j['corriendo']
-                j['corriendo'] = j['moviendose'] and controles.mantiene('correr') and (gratis or not j['agotado'])
+                j['corriendo'] = j['moviendose'] and controles.mantiene('correr') and (gratis or not j['agotado']) and not ia.fx(j, 'gravedad', tiempo())
                 ahora = tiempo()
                 if j['corriendo'] and not antes and ahora - j.get('dejo_de_correr', -10000) >= ARRANQUE['reposo']: j['pique_hasta'] = ahora + ARRANQUE['dura']
                 if antes and not j['corriendo']: j['dejo_de_correr'] = ahora
@@ -1376,11 +1377,13 @@ def main():
                 """Esquive: salto corto hacia donde caminas (si estas quieto, para atras) con invulnerabilidad. Gasta energia."""
                 ahora = tiempo()
                 if ocupado(j) or ahora < max(j['congelado_hasta'], j.get('atrapado_hasta', 0), j.get('esquive_listo', 0)): return
+                if ia.fx(j, 'gravedad', ahora): cartel(nivel, 'La gravedad no te deja esquivar', 500); return
                 gratis = mult_buff(j, 'sprint') > 1
                 costo = ESQUIVE['energia'] * mod(j, 'gasto')
                 if not gratis and (j['agotado'] or j['energia'] < costo): cartel(nivel, 'Sin energía para esquivar', 500); return
                 if not gratis: j['energia'] -= costo
                 dx, dy = controles.direccion()
+                if ia.fx(j, 'invertido', ahora): dx, dy = -dx, -dy
                 if not (dx or dy): dx, dy = -j['aim'][0], -j['aim'][1]
                 n = math.hypot(dx, dy) or 1
                 largo = mod(j, 'esquive')
@@ -1537,6 +1540,7 @@ def main():
                 if daño <= 0: return 0
                 if tipo: daño = daño_con_tipo(daño, tipo, j['tipos'])
                 daño *= mult_buff(j, 'defensa') * (1 - j['sinergia'].get('defensa', 0)) * mod(j, 'defensa') * j['mults']['defensa']
+                daño *= ia.mult_daño_fx(j, tiempo())                              # Cola Ferrea y Eco Metalico de Dialga
                 if trucos.get('vida_infinita'): return 0
                 j['vida'] = max(0, j['vida'] - daño)
                 if daño >= 1 and evitable: j['estados'].pop('sueño', None)        # un golpe te despierta
@@ -1728,6 +1732,9 @@ def main():
                     efectos.explosion(mundo['ef'], *jefe['rect'].center, 200); nivel['temblor'] = ahora + 700
                 marcar = lambda **extra: nivel['apariciones'].append(dict({'pos': entorno.punto_libre(nivel['ent'], random, j['rect'].center, 260), 'hasta': ahora + 900}, **extra))
                 if jefe['estilo'] == 'regidrago': torre_regidrago(nivel, j, jefe, ahora)
+                if jefe['estilo'] == 'beta' and jefe.get('pedido') and jefe['pedido'][0] == 'subjefe':   # la ultima piedad: elegiste subjefe
+                    nombre_sub = jefe['pedido'][1]; jefe['pedido'] = None
+                    empezar_subjefe(nivel, j, jefe, nombre_sub)
                 umbral = REFUERZOS_REGI['umbral_de'].get(jefe['estilo'], REFUERZOS_REGI['umbral'])
                 if jefe['nombre'] in mundos.REGIS and not jefe.get('refuerzos') and jefe['vida'] <= jefe['max_vida'] * umbral:
                     jefe['refuerzos'] = True
@@ -1851,7 +1858,7 @@ def main():
                 if proyectil['distancia'] >= distancia_maxima or not ESC.colliderect(proyectil['rect']) or proyectil['rect'].collidelist(piedras) != -1:
                     proyectil['activo'] = False
 
-            def crear_jefe(nivel, nombre, vida, nv, tam=None, centro=None):
+            def crear_jefe(nivel, nombre, vida, nv, tam=None, centro=None, tam_sprite=None):
                 """Jefe, Regi o Arceus: aparece arriba del centro de la arena (o donde se pida)."""
                 r = pygame.Rect(0, 0, *(tam or (TAM_JEFE, TAM_JEFE)))
                 r.center = centro or (ESC.centerx, ESC.centery - nivel['sala']['tam'] * 2)
@@ -1860,7 +1867,7 @@ def main():
                 sprite = nombre if tiene_sprites(nombre) else nombre.split('_')[0]        # sin sprites de Arceus Beta usa los de Arceus
                 jefe = {'rect': r, 'nombre': nombre, 'nivel': nv, 'jefe': True, 'vida': vida, 'max_vida': vida, 'daño': round(DAÑO_JEFE * progreso.crecimiento(nombre, nv, 'attack')), 'tipo': tipo,
                         'color': COLORES_TIPO.get(tipo, (255, 140, 0)), 'ultimo_golpe': 0, 'ultimo_disparo': ahora, 'ultimo_poder': ahora,
-                        'animador': AnimadorPokemon(sprite, r, ia.BETA['tam'] if tam else TAM_JEFE), 'direccion': 'sur', 'prev': r.center, 'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'entorno': {}}
+                        'animador': AnimadorPokemon(sprite, r, tam_sprite or (ia.BETA['tam'] if tam else TAM_JEFE)), 'direccion': 'sur', 'prev': r.center, 'estado': None, 'estado_hasta': 0, 'proximo_estado': 0, 'entorno': {}}
                 ia.preparar_jefe(jefe)
                 return jefe
 
@@ -2109,6 +2116,39 @@ def main():
                 nivel['llegada'] = None
                 cartel(nivel, 'Arceus Beta', 2800, 'flota sobre el vacío, frente a vos', grande=True)
                 impacto(nivel, cx_, cy_ - libre, 250, 900)
+
+            def empezar_subjefe(nivel, j, beta, nombre):
+                """La ultima piedad de Arceus Beta: elegiste un circulo del triangulo. Arceus Beta espera afuera, se arma la arena de
+                World Abyss (un poco mas grande que el circulo de la fase 1) y aparece Giratina, Dialga o Palkia origen arriba tuyo."""
+                ahora, ent, S = tiempo(), nivel['ent'], ia.SUBJEFE
+                nivel['beta_espera'] = beta
+                nivel['proyectiles_enemigos'] = []
+                j['atrapado_hasta'] = 0; ia.salir_arena(j, ahora)
+                zona = ia.armar_arena_subjefe(ent, j, ESC.center)
+                arena = zona['rect']
+                vida = round(beta['max_vida'] * S['vida'])
+                sub = crear_jefe(nivel, nombre, vida, beta['nivel'], S['tam'], (arena.centerx, arena.top + S['tam'][1] // 2 + S['margen']), S['sprite'])
+                sub.update(subjefe=True, zona=zona)
+                nivel['jefe'] = sub
+                efectos.evolucion(mundo['ef'], *sub['rect'].center)
+                impacto(nivel, *arena.center, 200, 700)
+                cartel(nivel, ia.NOMBRE_SUBJEFE[nombre], 2800, {'giratina_origen': 'el mundo al revés', 'dialga_origen': 'el reloj del tiempo',
+                                                                 'palkia_origen': 'los bordes del espacio están conectados'}[nombre], grande=True)
+
+            def terminar_subjefe(nivel, j, sub, contexto):
+                """Le ganaste al subjefe: monedas y experiencia, vuelve el triangulo y Arceus Beta sigue la pelea."""
+                ahora = tiempo()
+                ia.cerrar_subjefe(sub, contexto)
+                beta = nivel.pop('beta_espera', None)
+                nivel['proyectiles_enemigos'] = []
+                soltar_monedas(nivel, j, *sub['rect'].center, MONEDAS_JEFE)
+                ganar_xp(nivel, j, progreso.xp_por_derrota(sub['nombre'], sub['nivel'], j['nivel'], True))
+                efectos.explosion(mundo['ef'], *sub['rect'].center, 160)
+                cartel(nivel, ia.NOMBRE_SUBJEFE.get(sub['nombre'], sub['nombre']) + ' fue derrotado!', 2400, 'Arceus Beta te espera', grande=True)
+                if beta is None: nivel['jefe'] = None; return
+                ia.volver_al_triangulo(beta, dict(contexto, ahora=ahora))
+                nivel['jefe'] = beta
+                impacto(nivel, *beta['rect'].center, 200, 600)
 
             def forzar_cambio(j):
                 """Llave Giro de Arceus Beta: te cambia al siguiente pokemon vivo (por la espera de cambio no podes volver por 2 s).
@@ -2567,6 +2607,8 @@ def main():
                     actualizar_animacion_enemigo(jefe)
                     if jefe['vida'] <= 0 and jefe['estilo'] == 'arceus' and nivel['tipo'] == 'final':
                         empezar_llegada_beta(nivel, j, jefe)
+                    elif jefe['vida'] <= 0 and jefe.get('subjefe'):
+                        terminar_subjefe(nivel, j, jefe, contexto)
                     elif jefe['vida'] <= 0:
                         nivel['jefe'] = None
                         j['atrapado_hasta'] = 0
@@ -2658,10 +2700,11 @@ def main():
                             break
 
             return (menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque, hablar_portal, bailar,
-                    soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima)
+                    soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima, empezar_subjefe)
 
         (menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque,
-         hablar_portal, bailar, soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima) = armar_salas()
+         hablar_portal, bailar, soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima,
+         empezar_subjefe) = armar_salas()
 
         def armar_mecanicas():
             """Las mecanicas unicas de cada linea (mecanicas.py): le pasa lo que necesitan del juego."""
@@ -3656,8 +3699,8 @@ def main():
                     if math.hypot(gx - j['rect'].centerx, gy - j['rect'].centery) <= DISTANCIA_HABLAR + 20:
                         t = render(f_hud_b, tecla_de('interactuar') + ': hablar con Celebi', 'white')
                         ventana.blit(t, t.get_rect(midbottom=(gx - cx, gy - cy - 34)))
-                if j.get('en_arena'):                                      # Bucle Arena de Arceus Beta
-                    t = render(f_hud_b, tecla_de('interactuar') + ': salir de la arena', 'white')
+                if j.get('en_arena'):                                      # Bucle Arena de Arceus Beta / Torbellino de Palkia
+                    t = render(f_hud_b, tecla_de('interactuar') + (': escapar del remolino' if j.get('remolino') else ': salir de la arena'), 'white')
                     ventana.blit(t, t.get_rect(midbottom=(j['rect'].centerx - cx, j['rect'].top - cy - 22)))
                 bloque = bloque_cercano(j)
                 if bloque:
@@ -3668,6 +3711,7 @@ def main():
                     if not dibujar_enemigo(b, cx, cy): dibujar_rect(b['rect'].move(0, -b.get('altura', 0)),cx,cy,b.get('color',(255,140,0)))
                     barra((b['rect'].x-cx,b['rect'].y-cy-12-b.get('altura', 0),b['rect'].width,8),b['vida'],b['max_vida'],8)
                 ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b, COLORES_TIPO)
+                if j.get('fx_jefe'): ia.dibujar_pantalla_fx(ventana, j, ahora, f_hud_b)   # Foco Resplandor (pantalla blanca) y efectos encima
                 dibujar_numeros(nivel, cx, cy, ahora)
                 ventana_parry = PARRY['ventana'] * mod(j, 'parry')
                 for e in nivel['enemigos']:                                # el momento justo del parry: el aviso brilla amarillo

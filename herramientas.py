@@ -704,7 +704,8 @@ def herramienta_tiles():
              'torre_dragon': ('Temporal Tower', 'suelo'), 'charco': ('4th Station Pass', 'agua'),
              # no hay hojas con lava, aceite ni arena movediza: el agua animada del PMD con otros colores (ver RETOQUES)
              'lava': ('Brine Cave', 'agua', 'lava'), 'aceite': ('Brine Cave', 'agua', 'aceite'), 'arena_movediza': ('Shimmer Desert', 'agua', 'arena'),
-             'corriente': ('4th Station Pass', 'agua', 'viento')},
+             'corriente': ('4th Station Pass', 'agua', 'viento'),
+             'abismo': ('World Abyss B16F - B30F', 'suelo')},          # arena de Giratina, Dialga y Palkia origen (fase 2 de Arceus Beta)
         'glaciacion': dict(base('Vast Ice Mountain'), agua=('Ice Aegis Cave', 'agua')),
         'glaciacion/cueva de hielo': base('Ice Aegis Cave'),
         'piedra': base('Tiny Meadow'),

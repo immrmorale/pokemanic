@@ -949,7 +949,7 @@ def armar_entorno():
     ESQUINAS = ((2, 1, 4), (8, 4, 16), (32, 16, 64), (128, 64, 1))
     MUROS = ('pared', 'puerta', 'entrada')                       # lo que cuenta como pared para los bordes
     IGUALES = {'pared': MUROS, 'agua': ('agua', 'puente'), 'hielo': ('hielo', 'escarcha'), 'escarcha': ('hielo', 'escarcha')}
-    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'escarcha', 'torre_dragon', 'arena_movediza', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
+    SIN_CARTEL = ('suelo', 'pared', 'vacio', 'escarcha', 'torre_dragon', 'abismo', 'arena_movediza', 'puente', 'alfombra', 'charco', 'fuego', 'lava', 'cable', 'puerta', 'entrada')   # se entienden sin el nombre
     MAGENTA = (255, 0, 255)
     _capas, _por_ruta = {}, {}
 

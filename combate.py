@@ -722,7 +722,8 @@ def armar_ia():
     # Para cambiar de tabla tarda 'anim_tabla' ms (se saca la puesta y se pone la nueva) y entre un cambio y otro pasan 'cambio_tabla' ms,
     # salvo Voltio Cambio (cambio rapido) e Ida y Vuelta (cambio al instante, sin animacion).
     #   1  en el circulo de piso que te queda
-    #   2 y 3  al terminar la fase 1 el piso se vuelve el triangulo de assets/interfaz/arena_arceus_beta.png (por ahora siguen las tablas)
+    #   2 y 3  al terminar la fase 1 el piso se vuelve el triangulo de assets/interfaz/arena_arceus_beta.png y te deja elegir un subjefe
+    #          (Giratina, Dialga o Palkia origen, ver ELECCION y SUBJEFE); al ganarle volves al triangulo y siguen las tablas
     BETA = {'tam': 300, 'ancho': 240, 'alto': 200, 'fases': (2 / 3, 1 / 3), 'orbita': (310, 420), 'giro': 0.00035,
             'cambio_tabla': 10000, 'anim_tabla': 2000, 'anim_rapida': 600, 'primer_mov': 1800, 'pausa': (900, 1500), 'vel_vuelta': 13,
             'transicion': (1500, 3000), 'escala_triangulo': 1.1, 'baja_triangulo': 40, 'margen_triangulo': 14, 'piso_extra': 45, 'muestra_nombre': 1600}
@@ -793,7 +794,14 @@ def armar_ia():
     TRIANGULO = {'imagen': ('assets', 'interfaz', 'arena_arceus_beta.png'), 'tam': (934, 417),
                  'borde': ((466, 0), (0, 416), (933, 416)), 'piso': ((466, 22), (51, 392), (882, 392))}
     ESTILO_JEFE = {'regigigas': 'regigigas', 'arceus': 'arceus', 'arceus_beta': 'beta', 'regice': 'regice', 'regirock': 'regirock',
-                   'registeel': 'registeel', 'regieleki': 'regieleki', 'regidrago': 'regidrago'}
+                   'registeel': 'registeel', 'regieleki': 'regieleki', 'regidrago': 'regidrago',
+                   'giratina_origen': 'giratina', 'dialga_origen': 'dialga', 'palkia_origen': 'palkia'}
+    # La ultima piedad: al aparecer el triangulo Arceus Beta se queda quieto y te deja elegir contra cual subjefe pelear.
+    # Tenes 'tiempo' ms para pararte arriba de un circulo (hay que quedarse 'confirmar' ms); si no elegis, elige Arceus.
+    # Circulos en pixeles de la imagen original del triangulo: (subjefe, centro, radio x, radio y, color)
+    ELECCION = {'tiempo': 7000, 'confirmar': 500, 'inicio': (466, 262),        # 'inicio': el anillo gris del medio, donde quedas parado al empezar
+                'circulos': (('giratina_origen', (466, 130), 104, 50, (205, 45, 55)), ('dialga_origen', (245, 326), 112, 62, (80, 125, 225)),
+                             ('palkia_origen', (687, 326), 112, 62, (195, 80, 225)))}
 
     # Regice: 2 fases (50%)
     #   1  rayo hielo que deja escarcha y al final un bloque de hielo (se empuja con E y se desliza por la escarcha); muros de hielo
@@ -2258,6 +2266,57 @@ def armar_ia():
         return False
 
 
+    def circulos_eleccion(b):
+        """Los 3 circulos del triangulo en el mundo: (subjefe, centro, radio x, radio y, color)."""
+        td = b.get('triangulo_dibujo')
+        if not td: return []
+        (x0, y0), e = td['pos'], td['escala']
+        return [(n, (x0 + c[0] * e, y0 + c[1] * e), rx * e, ry * e, col) for n, c, rx, ry, col in ELECCION['circulos']]
+
+
+    def _circulo_bajo(b, p):
+        """El subjefe del circulo donde esta parado p (None si no esta arriba de ninguno)."""
+        for n, (ex, ey), rx, ry, _ in circulos_eleccion(b):
+            if ((p[0] - ex) / rx) ** 2 + ((p[1] - ey) / ry) ** 2 <= 1: return n
+        return None
+
+
+    def _eleccion(b, ctx):
+        """La ultima piedad: Arceus Beta espera quieto (sin recibir daño) a que te pares arriba de un circulo.
+        Al elegir (o al acabarse el tiempo) pide el subjefe: main.py arma la arena y lo pone. True mientras dura."""
+        j, ahora = ctx['jugador'], ctx['ahora']
+        el = b.get('eleccion')
+        if el is None:
+            el = b['eleccion'] = {'inicio': ahora, 'hasta': ahora + ELECCION['tiempo'], 'sobre': None, 'desde': ahora, 'elegido': None}
+            td = b['triangulo_dibujo']
+            j['rect'].center = (round(td['pos'][0] + ELECCION['inicio'][0] * td['escala']), round(td['pos'][1] + ELECCION['inicio'][1] * td['escala']))
+            _soltar_en_piso(ctx['ent'], j, b['zona'])
+            b['mensajes'].append(('Pisá un círculo: rojo Giratina, azul Dialga, violeta Palkia', 3000))
+        b['invulnerable'] = True
+        if el['elegido']: return True                                # esperando que main.py arme la pelea
+        sobre = _circulo_bajo(b, j['rect'].center)
+        if sobre != el['sobre']: el['sobre'], el['desde'] = sobre, ahora
+        elegido = sobre if sobre and ahora - el['desde'] >= ELECCION['confirmar'] else None
+        if not elegido and ahora >= el['hasta']:
+            elegido = random.choice([c[0] for c in ELECCION['circulos']])
+            b['mensajes'].append(('No elegiste: Arceus eligió por vos', 2000))
+        if elegido:
+            el['elegido'] = elegido
+            b['pedido'] = ('subjefe', elegido)
+        return True
+
+
+    def volver_al_triangulo(b, ctx):
+        """Ganaste contra el subjefe: vuelve el piso del triangulo, quedas en el medio y Arceus Beta sigue con sus tablas."""
+        ent, j, ahora, z = ctx['ent'], ctx['jugador'], ctx['ahora'], b['zona']
+        j['rect'].center = tuple(round(v) for v in z['centro'])
+        entorno.armar_plataforma(ent, lambda f, c: _celda_cerca(z, f, c, ent['tam'], BETA['piso_extra']), j['rect'])
+        _soltar_en_piso(ent, j, z)
+        b['rect'].center = tuple(round(v) for v in b['casa']); b['pos_f'] = b['casa']
+        b.update(subjefe_hecho=True, eleccion=None, invulnerable=False, pedido=None, tabla_desde=ahora, libre_en=ahora + 1500)
+        _limpiar_beta(b, ctx)
+
+
     def actualizar_beta(b, ctx):
         """Arceus Beta: quieto en su lugar con las tablas girando; usa los movimientos de la tabla puesta y cada 10 s cambia de tabla.
         Al terminar la fase 1 el piso pasa a ser el triangulo."""
@@ -2289,6 +2348,7 @@ def armar_ia():
         if b['triangulo'] and not b['lanzado']:                     # no salis del dibujo del triangulo (las casillas son mas grandes que el borde)
             if not dentro_zona(b['zona'], j['rect'].center, BETA['margen_triangulo']):
                 j['rect'].center = tuple(round(v) for v in ajustar_zona(b['zona'], j['rect'].center, BETA['margen_triangulo']))
+        if b['triangulo'] and not b.get('subjefe_hecho') and _eleccion(b, ctx): b['jugador_pos'] = j['rect'].center; return
         b['jugador_pos'] = j['rect'].center
         if b['cambio']: _actualizar_cambio(b, ahora); return
         if b['guion']:
@@ -2333,7 +2393,9 @@ def armar_ia():
 
 
     def dibujar_suelo(ventana, b, cx, cy, ahora, colores=None):
-        """Lo de Arceus Beta que va en el piso, debajo de los pokemon: el triangulo de las fases 2 y 3 y los charcos, rastros y arena."""
+        """Lo de Arceus Beta que va en el piso, debajo de los pokemon: el triangulo de las fases 2 y 3 y los charcos, rastros y arena.
+        Tambien lo del piso de los subjefes (Giratina, Dialga y Palkia origen)."""
+        if b and b.get('estilo') in ESTILOS_SUB: _dibujar_suelo_sub(ventana, b, cx, cy, ahora, colores or {}); return
         if not b or b.get('estilo') != 'beta': return
         td = b.get('triangulo_dibujo')
         if td:
@@ -2345,7 +2407,22 @@ def armar_ia():
                 pygame.draw.rect(ventana, (70, 40, 110), r, 2)
                 azar = random.Random(f * 1000 + c)
                 for _ in range(4): ventana.set_at((r.x + azar.randint(4, tam - 5), r.y + azar.randint(4, tam - 5)), (200, 180, 255))
+        if b.get('eleccion'): _dibujar_eleccion(ventana, b, cx, cy, ahora)
         _dibujar_golpes(ventana, b, cx, cy, ahora, colores or {}, True)
+
+
+    def _dibujar_eleccion(ventana, b, cx, cy, ahora):
+        """Los 3 circulos titilan con su color; el que pisas se va llenando hasta que queda elegido."""
+        el = b['eleccion']
+        capa = pygame.Surface(ventana.get_size(), pygame.SRCALPHA)
+        for n, (ex, ey), rx, ry, col in circulos_eleccion(b):
+            caja = pygame.Rect(0, 0, round(rx * 2), round(ry * 2)); caja.center = (round(ex - cx), round(ey - cy))
+            pulso = 0.5 + 0.5 * math.sin(ahora / 160)
+            if el['elegido'] == n or el['sobre'] == n:
+                k = 1.0 if el['elegido'] == n else min(1.0, (ahora - el['desde']) / ELECCION['confirmar'])
+                pygame.draw.ellipse(capa, (*col, 60 + round(140 * k)), caja)
+            pygame.draw.ellipse(capa, (*col, 120 + round(120 * pulso)), caja.inflate(8, 8), 4)
+        ventana.blit(capa, (0, 0))
 
 
     def _forma(sup, g, color, cx, cy, borde=0, escala=1.0):
@@ -2507,6 +2584,18 @@ def armar_ia():
         """Todo lo de Arceus Beta que va arriba de los pokemon: golpes, balas, tablas, embestidas, viento, destellos y el Brillo Magico."""
         colores = colores or {}
         y -= e.get('altura', 0)
+        el = e.get('eleccion')
+        if el and fuente:                                           # la ultima piedad: nombres arriba de cada circulo y la cuenta
+            for n, (ex, ey), _, ry, col in circulos_eleccion(e):
+                t = fuente.render(NOMBRE_SUBJEFE[n], True, col)
+                fondo = pygame.Surface((t.get_width() + 10, t.get_height() + 4), pygame.SRCALPHA); fondo.fill((0, 0, 0, 150))
+                pos = (round(ex - cx), round(ey - ry - cy) - 14)
+                ventana.blit(fondo, fondo.get_rect(center=pos)); ventana.blit(t, t.get_rect(center=pos))
+            if not el['elegido']:
+                quedan = max(0, math.ceil((el['hasta'] - ahora) / 1000))
+                t = fuente.render('Elegí a quién enfrentar: ' + str(quedan), True, (255, 240, 200))
+                t = pygame.transform.smoothscale_by(t, 1.6) if hasattr(pygame.transform, 'smoothscale_by') else t
+                ventana.blit(t, t.get_rect(midtop=(ventana.get_width() // 2, 70)))
         _dibujar_golpes(ventana, e, cx, cy, ahora, colores, False)
         for c in e['cargas']:                                       # hojas, rocas y bolas esperando para salir
             k = min(1.0, (ahora - c['nace']) / 300)
@@ -3376,10 +3465,1089 @@ def armar_ia():
         if math.hypot(jx - bx, jy - by) > 260: _ir_a(ent, b, (jx, jy), R['vel'], [])
 
 
+    # ---------- subjefes de Arceus Beta: Giratina, Dialga y Palkia origen ----------
+    # Se pelean en una arena de 'arena' casillas (columnas, filas) de piso 'abismo' (World Abyss del Explorers of Time/Darkness) rodeada de vacio.
+    # Usan un movimiento por vez, al azar entre los que ya estan listos; 'espera' es lo que tarda en poder repetirse desde que termino.
+    # Daños: multiplicador del daño del subjefe; tiempos en ms; vel en pixeles por frame. Los efectos sobre vos van en jugador['fx_jefe'].
+    SUBJEFE = {'vida': 0.55, 'tam': (150, 150), 'sprite': 230, 'arena': (10, 8), 'vel': 1.7, 'cerca': 170, 'pausa': (600, 1100), 'primer_mov': 1300,
+               'margen': 30}
+    NOMBRE_SUBJEFE = {'giratina_origen': 'Giratina Origen', 'dialga_origen': 'Dialga Origen', 'palkia_origen': 'Palkia Origen'}
+    ESTILOS_SUB = ('giratina', 'dialga', 'palkia')
+    # efectos sobre el jugador: lento y gravedad multiplican la velocidad; vulnerable (+15%) y defensa baja multiplican el daño que recibis
+    FX = {'lento': 0.55, 'gravedad': 0.6, 'vulnerable': 1.15, 'defensa_baja': 1.3}
+    NOMBRE_FX = {'invertido': 'Al revés', 'lento': 'Lento', 'gravedad': 'Gravedad', 'vulnerable': 'Vulnerable', 'defensa_baja': 'Defensa baja'}
+
+    # Giratina Origen: cada 'cada' ms la sala se da vuelta (tinte rojo oscuro) y por 'dura' ms los controles van al reves. Arranca con Cara Susto.
+    #   Golpe Umbrio   se vuelve una sombra que persigue tu ultima posicion 3 s y sale de golpe donde termina
+    #   Bola Sombra    carga 3 s quieto (sin daño de contacto) y tira 3 bolas grandes y lentas hacia tu ultima posicion
+    #   Garra Dragon   3 embestidas cortas seguidas con zarpazo; la ultima es mas grande y te empuja mas lejos
+    #   Cometa Draco   caen 10 meteoritos en lugares al azar de la arena; Giratina queda quieto 3 s
+    #   Esfera Aural   esfera naranja que te sigue 7 s y rompe el piso por donde pasa durante 3 s
+    #   Cara Susto     grito en onda que cubre toda la arena: si te alcanza quedas lento 3 s (se esquiva con el esquive)
+    GIRATINA = {'primero': 'cara_susto', 'reves': {'primero': 9000, 'cada': 15000, 'aviso': 1200, 'dura': 5000},
+                'golpe_umbrio': {'espera': 5000, 'dura': 3000, 'vel': 4.4, 'retraso': 250, 'radio': 62, 'tick': 600, 'daño': 0.5,
+                                 'sale_aviso': 400, 'sale_radio': 120, 'sale_daño': 1.0, 'tam': (150, 116)},
+                'bola_sombra': {'espera': 4000, 'carga': 3000, 'bolas': 3, 'abanico': 0.32, 'vel': 3.0, 'radio': 38, 'dist': 1300, 'daño': 0.9},
+                'garra_dragon': {'espera': 3000, 'zarpazos': 3, 'aviso': 420, 'largo': 190, 'vel': 17, 'radio': 95, 'radio_ultimo': 150,
+                                 'daño': 0.7, 'daño_ultimo': 1.1, 'empuje': 90, 'empuje_ultimo': 280, 'entre': 120},
+                'cometa_draco': {'espera': 6000, 'meteoros': 10, 'cada': 160, 'aviso': 1000, 'radio': 70, 'daño': 0.9, 'quieto': 3000},
+                'esfera_aural': {'espera': 4000, 'dura': 7000, 'vel': 3.4, 'retraso': 350, 'radio': 34, 'daño': 0.8, 'entre_golpes': 900, 'rompe': 3000},
+                'cara_susto': {'espera': 7000, 'aviso': 700, 'dura': 1400, 'grosor': 36, 'lento': 3000}}
+    # Dialga Origen: un reloj en el medio de la arena; cada vuelta completa ('vuelta' ms) te rebobina a donde estabas 'atras' ms antes
+    # (se ve una marca de a donde volverias). Arranca con Eco Metalico.
+    #   Distorsion       carga 2 s con el piso azul salvo unas zonas seguras; la onda te congela 1 s y te lastima en lo azul, 0,5 s sin daño en lo seguro
+    #   Pulso Dragon     3 ondas con un hueco que va cambiando de lado: hay que moverse en zigzag
+    #   Cola Ferrea      coletazo en semicirculo detras de el: si te pega recibis +15% de daño por unos segundos
+    #   Foco Resplandor  3 bolas de luz en lugares al azar: explotan en un area chica que lastima y una 3 veces mas grande que te encandila 0,5 s
+    #   Joya de Luz      7 rocas que rebotan 6 s dejando hilos de luz (poco daño, pero muchos); se rompen pegandoles y a los 7 s se van
+    #   Eco Metalico     3 arcos hacia tu ultima posicion que rebotan en las paredes hasta 10 s; si te tocan solo te bajan la defensa
+    DIALGA = {'primero': 'eco_metalico', 'reloj': {'vuelta': 12000, 'atras': 3000, 'radio': 70},
+              'distorsion': {'espera': 5000, 'carga': 2000, 'zonas': 3, 'radio_zona': 85, 'onda': 450, 'daño': 1.0, 'congela': 1000, 'congela_seguro': 500},
+              'pulso_dragon': {'espera': 4000, 'ondas': 3, 'entre': 750, 'aviso': 500, 'vel': 6.5, 'largo': 1500, 'grosor': 28, 'hueco': 170, 'lado': 190,
+                               'max': 1100, 'daño': 0.8},
+              'cola_ferrea': {'espera': 3000, 'aviso': 650, 'radio': 230, 'cerca': 300, 'daño': 0.9, 'vulnerable': 5000},
+              'foco_resplandor': {'espera': 5000, 'bolas': 3, 'aviso': 1200, 'radio': 60, 'grande': 3, 'daño': 1.0, 'ciega': 500},
+              'joya_luz': {'espera': 5000, 'rocas': 7, 'vel': 5.0, 'mueve': 6000, 'dura': 7000, 'radio': 18, 'hilo': 1400, 'cada_hilo': 90,
+                           'tick': 450, 'daño': 0.15, 'romper': 80},
+              'eco_metalico': {'espera': 7000, 'aviso': 500, 'arcos': 3, 'abanico': 0.25, 'vel': 6.0, 'dura': 10000, 'radio': 30, 'defensa': 6000}}
+    # Palkia Origen: los bordes de la arena estan conectados (si salis por un lado aparecés del otro, igual que las balas). Arranca con Gravedad.
+    #   Corte Vacio    2 cortes que pasan por el medio y abren vacio partiendo la arena en 4 durante 5 s
+    #   Vasto Impacto  salta, su sombra te sigue y cae haciendo un pliegue: te tira hacia el centro y despues te empuja lejos
+    #   Torbellino     3 remolinos que se mueven 3 s: si te agarran quedas girando (E para escapar) y te lastiman cada 0,5 s
+    #   Hidrobomba     chorro que va girando hacia tu ultima posicion 5 s; si te pega te empuja hasta la pared
+    #   Trueno         4 rayos rapidos que rebotan de pared en pared 2 s hasta pegarte
+    #   Gravedad       6 s sin correr ni esquivar, mas lento, piso violeta; los ataques de Palkia tambien van mas lentos
+    PALKIA = {'primero': 'gravedad', 'lento_gravedad': 0.6,
+              'corte_vacio': {'espera': 6000, 'aviso': 1000, 'dura': 5000, 'ancho': 60, 'daño': 1.0},
+              'vasto_impacto': {'espera': 4000, 'sube': 400, 'sigue': 1100, 'quieto': 300, 'vel': 7, 'tira': 700, 'fuerza': 4.0, 'radio': 380,
+                                'radio_daño': 130, 'daño': 1.2, 'empuje': 260},
+              'torbellino': {'espera': 5000, 'aviso': 500, 'remolinos': 3, 'dura': 3000, 'vel': 3.2, 'radio': 58, 'tick': 500, 'daño': 0.18, 'giro': 0.012},
+              'hidrobomba': {'espera': 7000, 'aviso': 700, 'dura': 5000, 'retraso': 400, 'giro': 0.011, 'largo': 1150, 'ancho': 46, 'daño': 0.6,
+                             'empuje': 13, 'entre': 800},
+              'trueno': {'espera': 3000, 'aviso': 450, 'rayos': 4, 'abanico': 0.33, 'vel': 11, 'dura': 2000, 'radio': 16, 'daño': 0.6},
+              'gravedad': {'espera': 7000, 'aviso': 500, 'dura': 6000}}
+    DATOS_SUB = {'giratina': GIRATINA, 'dialga': DIALGA, 'palkia': PALKIA}
+    TIPO_MOV_SUB = {'golpe_umbrio': 'fantasma', 'bola_sombra': 'fantasma', 'garra_dragon': 'dragon', 'cometa_draco': 'dragon', 'esfera_aural': 'lucha',
+                    'cara_susto': 'normal', 'distorsion': 'dragon', 'pulso_dragon': 'dragon', 'cola_ferrea': 'acero', 'foco_resplandor': 'acero',
+                    'joya_luz': 'roca', 'eco_metalico': 'acero', 'corte_vacio': 'dragon', 'vasto_impacto': 'dragon', 'torbellino': 'agua',
+                    'hidrobomba': 'agua', 'trueno': 'electrico', 'gravedad': 'psiquico'}
+    NOMBRE_MOV_SUB = {'golpe_umbrio': 'Golpe Umbrío', 'bola_sombra': 'Bola Sombra', 'garra_dragon': 'Garra Dragón', 'cometa_draco': 'Cometa Draco',
+                      'esfera_aural': 'Esfera Aural', 'cara_susto': 'Cara Susto', 'distorsion': 'Distorsión', 'pulso_dragon': 'Pulso Dragón',
+                      'cola_ferrea': 'Cola Férrea', 'foco_resplandor': 'Foco Resplandor', 'joya_luz': 'Joya de Luz', 'eco_metalico': 'Eco Metálico',
+                      'corte_vacio': 'Corte Vacío', 'vasto_impacto': 'Vasto Impacto', 'torbellino': 'Torbellino', 'hidrobomba': 'Hidrobomba',
+                      'trueno': 'Trueno', 'gravedad': 'Gravedad'}
+
+
+    # ----- efectos sobre el jugador (los lee main.py al moverte y al recibir daño) -----
+
+    def fx(j, nombre, ahora):
+        """Si el jugador tiene ese efecto de un subjefe (invertido, lento, gravedad, vulnerable, defensa_baja, cegado)."""
+        return ahora < (j.get('fx_jefe') or {}).get(nombre, 0)
+
+
+    def poner_fx(j, nombre, ahora, ms):
+        """Le pone un efecto al jugador por ms milisegundos (si ya lo tenia, dura hasta lo que termine mas tarde)."""
+        d = j.setdefault('fx_jefe', {})
+        d[nombre] = max(d.get(nombre, 0), ahora + ms)
+
+
+    def mult_vel_fx(j, ahora):
+        """Cuanto te frenan los efectos (Cara Susto y Gravedad)."""
+        m = 1.0
+        if fx(j, 'lento', ahora): m *= FX['lento']
+        if fx(j, 'gravedad', ahora): m *= FX['gravedad']
+        return m
+
+
+    def mult_daño_fx(j, ahora):
+        """Cuanto mas daño recibis por los efectos (Cola Ferrea y Eco Metalico)."""
+        m = 1.0
+        if fx(j, 'vulnerable', ahora): m *= FX['vulnerable']
+        if fx(j, 'defensa_baja', ahora): m *= FX['defensa_baja']
+        return m
+
+
+    # ----- la arena -----
+
+    def armar_arena_subjefe(ent, j, centro):
+        """Arena de los subjefes: un rectangulo de piso 'abismo' en el medio y vacio alrededor. Te pone abajo en el medio.
+        Devuelve la zona (con 'rect' y lo que habia antes en cada casilla, para devolverlo al terminar)."""
+        cols, filas = SUBJEFE['arena']
+        tam, m = ent['tam'], ent['m']
+        f0, c0 = entorno.casilla(ent, *centro)
+        fi, ci = max(1, f0 - filas // 2), max(1, c0 - cols // 2)
+        filas, cols = min(filas, len(m) - 1 - fi), min(cols, len(m[0]) - 1 - ci)
+        rect = pygame.Rect(ci * tam, fi * tam, cols * tam, filas * tam)
+        j['rect'].center = (rect.centerx, rect.bottom - round(tam * 1.5))
+        adentro = lambda f, c: fi <= f < fi + filas and ci <= c < ci + cols
+        entorno.armar_plataforma(ent, adentro, j['rect'])
+        antes = {}
+        for f in range(fi, fi + filas):
+            for c in range(ci, ci + cols):
+                t = m[f][c]
+                if t not in ('abismo', 'puerta', 'entrada') and entorno.cambiar(ent, f, c, 'abismo'): antes[(f, c)] = t
+        _soltar_en_piso(ent, j, {'centro': rect.center})
+        z = zona_poligono([rect.topleft, rect.topright, rect.bottomright, rect.bottomleft])
+        z.update(rect=rect, antes=antes)
+        return z
+
+
+    def cerrar_subjefe(b, ctx):
+        """Termino la pelea con el subjefe: vuelve el piso que rompio, se le sacan los efectos al jugador y lo suelta si estaba atrapado."""
+        ent, j = ctx['ent'], ctx['jugador']
+        S = b.get('sub')
+        if S:
+            for (f, c), (t, _) in S['grietas'].items(): entorno.cambiar(ent, f, c, t)
+            S['grietas'].clear()
+        for (f, c), t in (b.get('zona') or {}).get('antes', {}).items():
+            if ent['m'][f][c] == 'abismo': entorno.cambiar(ent, f, c, t)
+        j['fx_jefe'] = {}
+        j['remolino'] = None
+        salir_arena(j, ctx['ahora'])
+        j['atrapado_hasta'] = 0
+
+
+    def _rect_arena(b):
+        return b['zona']['rect']
+
+
+    def _lento_sub(b, ahora):
+        """Palkia con la Gravedad puesta: sus ataques tambien van mas lentos."""
+        S = b['sub']
+        return PALKIA['lento_gravedad'] if b['estilo'] == 'palkia' and ahora < S.get('gravedad_hasta', 0) else 1.0
+
+
+    def _limitar_sub(b, p):
+        """El punto mas cercano a p donde el subjefe entra entero en la arena."""
+        r = _rect_arena(b).inflate(-b['rect'].width, -b['rect'].height)
+        return max(r.left, min(r.right, p[0])), max(r.top, min(r.bottom, p[1]))
+
+
+    def _mover_sub(b, hacia, vel):
+        """El subjefe camina (o vuela) hacia un punto. Devuelve True si llego."""
+        x, y = b['pos_f'] or b['rect'].center
+        tx, ty = _limitar_sub(b, hacia)
+        d = math.hypot(tx - x, ty - y)
+        if d <= vel or d < 0.5:
+            b['pos_f'] = (tx, ty); b['rect'].center = (round(tx), round(ty))
+            return True
+        dx, dy = (tx - x) / d, (ty - y) / d
+        b['pos_f'] = (x + dx * vel, y + dy * vel); b['rect'].center = (round(b['pos_f'][0]), round(b['pos_f'][1]))
+        b['sub']['mira'] = (dx, dy)
+        return False
+
+
+    def _poner_sub(b, pos):
+        pos = _limitar_sub(b, pos)
+        b['pos_f'] = pos; b['rect'].center = (round(pos[0]), round(pos[1]))
+
+
+    def _toca_punto(j, pos, radio):
+        return math.hypot(j['rect'].centerx - pos[0], j['rect'].centery - pos[1]) <= radio + max(j['rect'].size) / 2
+
+
+    def _esquivando(j, ahora):
+        """Si el jugador esta en la invulnerabilidad del esquive (los efectos sin daño tambien se esquivan)."""
+        return ahora < j.get('inv_hasta', 0)
+
+
+    def _romper_piso(b, ctx, f, c, ms):
+        """Una casilla de la arena se vuelve vacio por ms milisegundos (no la de abajo tuyo)."""
+        ent, j, S = ctx['ent'], ctx['jugador'], b['sub']
+        m = ent['m']
+        if not (0 <= f < len(m) and 0 <= c < len(m[0])): return
+        t = m[f][c]
+        if (f, c) in S['grietas']: S['grietas'][(f, c)] = (S['grietas'][(f, c)][0], max(S['grietas'][(f, c)][1], ctx['ahora'] + ms)); return
+        if t != 'abismo': return
+        ocupadas, ent['ocupadas'] = ent['ocupadas'], set(entorno._casillas_rect(ent, j['rect']))
+        if entorno.cambiar(ent, f, c, 'vacio'): S['grietas'][(f, c)] = (t, ctx['ahora'] + ms)
+        ent['ocupadas'] = ocupadas
+
+
+    def _actualizar_grietas(b, ctx):
+        """El piso roto vuelve cuando se le acaba el tiempo."""
+        S, ahora = b['sub'], ctx['ahora']
+        for (f, c), (t, hasta) in list(S['grietas'].items()):
+            if ahora >= hasta:
+                del S['grietas'][(f, c)]
+                entorno.cambiar(ctx['ent'], f, c, t)
+
+
+    def _empujar(b, j, direccion, vel, restante=None, pared=False, ahora=0):
+        """Empuja al jugador: 'restante' pixeles, o hasta que choca contra algo (pared=True, la Hidrobomba)."""
+        b['sub']['empuje'] = {'dir': direccion, 'vel': vel, 'restante': restante, 'pared': pared, 'hasta': ahora + 1800, 'resto': [0.0, 0.0]}
+
+
+    def _actualizar_empuje(b, ctx):
+        ent, j, ahora, S = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sub']
+        e = S['empuje']
+        if not e: return
+        e['resto'][0] += e['dir'][0] * e['vel']; e['resto'][1] += e['dir'][1] * e['vel']
+        px, py = int(e['resto'][0]), int(e['resto'][1])
+        e['resto'][0] -= px; e['resto'][1] -= py
+        antes = j['rect'].center
+        entorno.mover(ent, j['rect'], px, py, j['tipos'])
+        j['inercia'] = [0.0, 0.0]
+        se_movio = j['rect'].center != antes or not (px or py)
+        if e['restante'] is not None: e['restante'] -= e['vel']
+        if not se_movio or ahora >= e['hasta'] or (e['restante'] is not None and e['restante'] <= 0):
+            S['empuje'] = None
+            if e['pared'] and not se_movio: ctx['impacto'](*j['rect'].center, 40, 250)
+
+
+    # ----- balas, ondas y otras cosas que andan sueltas -----
+
+    def _bala_sub(b, pos, ang, vel, radio, daño, tipo, clase, dist=None, dura=None, rebota=False, efecto=None):
+        b['sub']['proys'].append({'pos': pos, 'dir': (math.cos(ang), math.sin(ang)), 'vel': vel, 'radio': radio, 'daño': daño, 'tipo': tipo,
+                                  'clase': clase, 'dist': dist, 'hasta': None if dura is None else dura, 'rebota': rebota, 'efecto': efecto, 'nace': None})
+
+
+    def _envolver(p, rect):
+        """Palkia: lo que sale por un borde de la arena aparece por el otro."""
+        x, y = p
+        if x < rect.left: x += rect.width
+        elif x > rect.right: x -= rect.width
+        if y < rect.top: y += rect.height
+        elif y > rect.bottom: y -= rect.height
+        return x, y
+
+
+    def _actualizar_proys(b, ctx):
+        j, ahora, S = ctx['jugador'], ctx['ahora'], b['sub']
+        A = _rect_arena(b)
+        k = _lento_sub(b, ahora)
+        for p in S['proys'][:]:
+            if p['nace'] is None:
+                p['nace'] = ahora
+                if p['hasta'] is not None: p['hasta'] += ahora
+            if p['hasta'] is not None and ahora >= p['hasta']: S['proys'].remove(p); continue
+            x, y = p['pos'][0] + p['dir'][0] * p['vel'] * k, p['pos'][1] + p['dir'][1] * p['vel'] * k
+            if p['dist'] is not None:
+                p['dist'] -= p['vel'] * k
+                if p['dist'] <= 0: S['proys'].remove(p); continue
+            if p['rebota']:                                         # rebota contra los bordes de la arena
+                dx, dy = p['dir']
+                if x - p['radio'] < A.left or x + p['radio'] > A.right: dx = -dx; x = max(A.left + p['radio'], min(A.right - p['radio'], x))
+                if y - p['radio'] < A.top or y + p['radio'] > A.bottom: dy = -dy; y = max(A.top + p['radio'], min(A.bottom - p['radio'], y))
+                p['dir'] = (dx, dy)
+            elif b['estilo'] == 'palkia': x, y = _envolver((x, y), A)
+            elif not A.inflate(400, 400).collidepoint(x, y): S['proys'].remove(p); continue
+            p['pos'] = (x, y)
+            if not _toca_punto(j, p['pos'], p['radio']): continue
+            if p['efecto']:                                         # Eco Metalico: no lastima, te baja la defensa
+                if _esquivando(j, ahora): continue
+                poner_fx(j, p['efecto'], ahora, DIALGA['eco_metalico']['defensa'])
+                b['mensajes'].append(('Eco Metálico: te bajó la defensa', 1400))
+                S['proys'].remove(p); continue
+            if _pegar(b, ctx, p['daño'], p['tipo']): S['proys'].remove(p)
+
+
+    def _actualizar_ondas(b, ctx):
+        """Cara Susto: una onda que se agranda hasta cubrir toda la arena; si te alcanza (y no la esquivas) quedas lento."""
+        j, ahora, S = ctx['jugador'], ctx['ahora'], b['sub']
+        for o in S['ondas'][:]:
+            k = (ahora - o['inicio']) / o['dura']
+            if k >= 1: S['ondas'].remove(o); continue
+            if o['pego'] or k < 0: continue
+            d = math.hypot(j['rect'].centerx - o['centro'][0], j['rect'].centery - o['centro'][1])
+            if abs(d - o['max'] * k) <= o['grosor'] / 2 + max(j['rect'].size) / 2:
+                o['pego'] = True
+                if _esquivando(j, ahora): continue
+                poner_fx(j, 'lento', ahora, GIRATINA['cara_susto']['lento'])
+                b['mensajes'].append(('Cara Susto: estás lento', 1400))
+
+
+    # ----- mecanica de cada sala -----
+
+    def _mecanica_giratina(b, ctx):
+        """El mundo al reves: cada tanto la sala se da vuelta y los controles se invierten."""
+        j, ahora, M = ctx['jugador'], ctx['ahora'], b['sub']['mec']
+        R = GIRATINA['reves']
+        if 'prox' not in M: M['prox'] = ahora + R['primero']
+        if ahora >= M['prox']:
+            M['prox'] = ahora + R['cada']; M['hasta'] = ahora + R['dura']
+            poner_fx(j, 'invertido', ahora, R['dura'])
+            b['mensajes'].append(('¡El mundo se dio vuelta! Los controles están invertidos', 1800))
+            ctx['impacto'](*_rect_arena(b).center, 80, 400)
+
+
+    def _mecanica_dialga(b, ctx):
+        """El reloj: cada vuelta completa Dialga rebobina y volves a donde estabas unos segundos antes."""
+        ent, j, ahora, S = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sub']
+        M, R = S['mec'], DIALGA['reloj']
+        if 'inicio' not in M: M['inicio'] = ahora; M['hist'] = []
+        M['hist'].append((ahora, j['rect'].center))
+        while len(M['hist']) > 2 and M['hist'][1][0] < ahora - R['atras'] - 500: M['hist'].pop(0)
+        M['vuelta'] = M.get('vuelta', 0)
+        vueltas = (ahora - M['inicio']) // R['vuelta']
+        if vueltas > M['vuelta']:
+            M['vuelta'] = vueltas
+            destino = _pos_hace(M['hist'], ahora - R['atras'], j['rect'].center)
+            if j.get('remolino') or S['empuje']: return
+            antes = j['rect'].center
+            j['rect'].center = (round(destino[0]), round(destino[1]))
+            if j['rect'].collidelist(entorno.solidos(ent, j['tipos'])) != -1: j['rect'].center = antes   # el piso de ahi ya no esta
+            else:
+                S['destellos'].append({'pos': antes, 'inicio': ahora}); S['destellos'].append({'pos': j['rect'].center, 'inicio': ahora})
+                b['mensajes'].append(('Dialga rebobinó el tiempo', 1200))
+
+
+    def _pos_hace(hist, t, defecto):
+        for tt, pos in reversed(hist):
+            if tt <= t: return pos
+        return hist[0][1] if hist else defecto
+
+
+    def _mecanica_palkia(b, ctx):
+        """Los bordes conectados: si empujas contra un borde de la arena aparecés del otro lado (las balas tuyas tambien pasan)."""
+        ent, j, ahora, S = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sub']
+        A = _rect_arena(b)
+        if not (S['empuje'] or j.get('remolino') or j.get('en_arena')):
+            r = j['rect']
+            vx, vy = j.get('inercia', (0, 0))
+            if j.get('esquive'): vx, vy = j['esquive']['vx'], j['esquive']['vy']
+            nuevo = None
+            if r.left <= A.left + 2 and vx < -0.1: nuevo = (A.right - r.width // 2 - 3, r.centery)
+            elif r.right >= A.right - 2 and vx > 0.1: nuevo = (A.left + r.width // 2 + 3, r.centery)
+            elif r.top <= A.top + 2 and vy < -0.1: nuevo = (r.centerx, A.bottom - r.height // 2 - 3)
+            elif r.bottom >= A.bottom - 2 and vy > 0.1: nuevo = (r.centerx, A.top + r.height // 2 + 3)
+            if nuevo:
+                prueba = r.copy(); prueba.center = nuevo
+                if prueba.collidelist(entorno.solidos(ent, j['tipos'])) == -1:
+                    S['destellos'].append({'pos': r.center, 'inicio': ahora}); r.center = nuevo
+                    S['destellos'].append({'pos': r.center, 'inicio': ahora})
+        for p in ctx.get('proyectiles') or ():                      # tus ataques a distancia tambien cruzan
+            if not p.get('activo', True) or 'x' not in p: continue
+            x, y = _envolver((p['x'], p['y']), A)
+            if (x, y) != (p['x'], p['y']):
+                p['x'], p['y'] = x, y
+                if p.get('rect'): p['rect'].center = (round(x), round(y))
+
+
+    MECANICAS_SUB = {'giratina': _mecanica_giratina, 'dialga': _mecanica_dialga, 'palkia': _mecanica_palkia}
+
+
+    # ----- movimientos de Giratina -----
+
+    def _mov_golpe_umbrio(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['golpe_umbrio']
+        if 't0' not in a:
+            a.update(t0=ahora, pos=b['rect'].center, prox=0)
+            b.update(escondido=True, invulnerable=True, sin_contacto=True)
+            b['sub']['sombra'] = a
+        if ahora < a['t0'] + D['dura']:
+            tx, ty = _pos_anterior(b, j, ahora, D['retraso'])
+            x, y = a['pos']
+            d = math.hypot(tx - x, ty - y)
+            if d > 1: a['pos'] = (x + (tx - x) / d * min(d, D['vel']), y + (ty - y) / d * min(d, D['vel']))
+            if ahora >= a['prox'] and _toca_punto(j, a['pos'], D['radio']):
+                a['prox'] = ahora + D['tick']; _pegar(b, ctx, D['daño'], 'fantasma')
+            return True
+        b['sub']['sombra'] = None
+        _poner_sub(b, a['pos'])
+        b.update(escondido=False, invulnerable=False, sin_contacto=False)
+        _golpe(b, ahora, 'circulo', D['sale_aviso'], 'fantasma', D['sale_daño'], pos=b['rect'].center, radio=D['sale_radio'], temblor=250)
+        _animar(b, ('attack', 'swing'), ahora, 600)
+        return False
+
+
+    def _mov_bola_sombra(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['bola_sombra']
+        if 't0' not in a:
+            a['t0'] = ahora; b['sin_contacto'] = True
+            _animar(b, ('charge', 'shoot'), ahora, D['carga'])
+        if ahora < a['t0'] + D['carga']: return True
+        bx, by = b['rect'].center
+        base = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        for i in range(D['bolas']):
+            _bala_sub(b, (bx, by), base + (i - (D['bolas'] - 1) / 2) * D['abanico'], D['vel'], D['radio'], D['daño'], 'fantasma', 'sombra', dist=D['dist'])
+        _animar(b, ('shoot', 'attack'), ahora, 500)
+        b['sin_contacto'] = False
+        return False
+
+
+    def _mov_garra_dragon(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['garra_dragon']
+        if 't0' not in a: a.update(t0=ahora, i=0, etapa=None)
+        if a['etapa'] is None:                                      # apunta el proximo zarpazo
+            if a['i'] >= D['zarpazos']: return False
+            bx, by = b['rect'].center
+            ang = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+            a.update(etapa='aviso', desde=ahora, dir=(math.cos(ang), math.sin(ang)),
+                     destino=_limitar_sub(b, (bx + math.cos(ang) * D['largo'], by + math.sin(ang) * D['largo'])))
+        if a['etapa'] == 'aviso':
+            if ahora < a['desde'] + D['aviso']: return True
+            a['etapa'] = 'dash'
+        if a['etapa'] == 'dash':
+            if not _mover_sub(b, a['destino'], D['vel']): return True
+            ultimo = a['i'] == D['zarpazos'] - 1
+            radio = D['radio_ultimo'] if ultimo else D['radio']
+            pos = (b['rect'].centerx + a['dir'][0] * 60, b['rect'].centery + a['dir'][1] * 60)
+            b['sub']['zarpazos'].append({'pos': pos, 'radio': radio, 'inicio': ahora, 'dir': a['dir']})
+            _animar(b, ('scratch', 'attack'), ahora, 350)
+            if _toca_punto(j, pos, radio) and _pegar(b, ctx, D['daño_ultimo'] if ultimo else D['daño'], 'dragon'):
+                ex, ey = j['rect'].centerx - b['rect'].centerx, j['rect'].centery - b['rect'].centery
+                n = math.hypot(ex, ey) or 1
+                _empujar(b, j, (ex / n, ey / n), 12 if ultimo else 9, D['empuje_ultimo'] if ultimo else D['empuje'], ahora=ahora)
+            if ultimo: ctx['impacto'](*pos, radio, 250)
+            a.update(etapa='pausa', desde=ahora)
+        if a['etapa'] == 'pausa':
+            if ahora < a['desde'] + D['entre']: return True
+            a['i'] += 1; a['etapa'] = None
+        return True
+
+
+    def _mov_cometa_draco(b, ctx, a):
+        ahora, D = ctx['ahora'], GIRATINA['cometa_draco']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('charge', 'rotate'), ahora, D['quieto'])
+            for i in range(D['meteoros']):
+                _golpe(b, ahora + i * D['cada'], 'circulo', D['aviso'], 'dragon', D['daño'], pos=punto_zona(b['zona'], 50), radio=D['radio'],
+                       dibujo='cae', objeto='roca', temblor=180)
+        return ahora < a['t0'] + D['quieto']
+
+
+    def _mov_esfera_aural(b, ctx, a):
+        ahora = ctx['ahora']
+        b['sub']['esferas'].append({'pos': b['rect'].center, 'inicio': ahora, 'prox': 0})
+        _animar(b, ('shoot', 'attack'), ahora, 500)
+        return False
+
+
+    def _actualizar_esferas(b, ctx):
+        """Esfera Aural: sigue tu ultima posicion, te lastima si te toca y rompe el piso por donde pasa."""
+        ent, j, ahora, S, D = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sub'], GIRATINA['esfera_aural']
+        for e in S['esferas'][:]:
+            if ahora >= e['inicio'] + D['dura']: S['esferas'].remove(e); continue
+            tx, ty = _pos_anterior(b, j, ahora, D['retraso'])
+            x, y = e['pos']
+            d = math.hypot(tx - x, ty - y)
+            if d > 1: e['pos'] = (x + (tx - x) / d * min(d, D['vel']), y + (ty - y) / d * min(d, D['vel']))
+            if ahora >= e['prox'] and _toca_punto(j, e['pos'], D['radio']):
+                e['prox'] = ahora + D['entre_golpes']; _pegar(b, ctx, D['daño'], 'lucha')
+            f, c = entorno.casilla(ent, *e['pos'])
+            _romper_piso(b, ctx, f, c, D['rompe'])
+
+
+    def _mov_cara_susto(b, ctx, a):
+        ahora, D = ctx['ahora'], GIRATINA['cara_susto']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('charge', 'rotate'), ahora, D['aviso'] + 400)
+        if ahora < a['t0'] + D['aviso']: return True
+        A = _rect_arena(b)
+        c = b['rect'].center
+        lejos = max(math.hypot(px - c[0], py - c[1]) for px, py in (A.topleft, A.topright, A.bottomleft, A.bottomright))
+        b['sub']['ondas'].append({'centro': c, 'inicio': ahora, 'dura': D['dura'], 'max': lejos + 40, 'grosor': D['grosor'], 'pego': False})
+        ctx['impacto'](*c, 60, 300)
+        return False
+
+
+    # ----- movimientos de Dialga -----
+
+    def _mov_distorsion(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['distorsion']
+        if 't0' not in a:
+            a['t0'] = ahora
+            a['zonas'] = [punto_zona(b['zona'], D['radio_zona'] + 10) for _ in range(D['zonas'])]
+            b['sub']['distorsion'] = a
+            _animar(b, ('charge', 'rearup'), ahora, D['carga'])
+        if ahora < a['t0'] + D['carga']: return True
+        if not a.get('solto'):
+            a['solto'] = ahora
+            seguro = any(_toca_punto(j, z, D['radio_zona'] - max(j['rect'].size) / 2) for z in a['zonas'])
+            ctx['impacto'](*b['rect'].center, 120, 400)
+            if not _esquivando(j, ahora):
+                if seguro: j['congelado_hasta'] = max(j['congelado_hasta'], ahora + D['congela_seguro'])
+                else:
+                    _pegar(b, ctx, D['daño'], 'dragon')
+                    j['congelado_hasta'] = max(j['congelado_hasta'], ahora + D['congela'])
+        if ahora < a['solto'] + D['onda']: return True
+        b['sub']['distorsion'] = None
+        return False
+
+
+    def _mov_pulso_dragon(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['pulso_dragon']
+        if 't0' not in a:
+            bx, by = b['rect'].center
+            ang = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+            a.update(t0=ahora, i=0, origen=(bx, by), dir=(math.cos(ang), math.sin(ang)), perp=(-math.sin(ang), math.cos(ang)),
+                     lado=random.choice((-1, 1)))
+            _animar(b, ('charge', 'attack'), ahora, D['aviso'])
+        if a['i'] >= D['ondas']: return False
+        if ahora < a['t0'] + D['aviso'] + a['i'] * D['entre']: return True
+        b['sub']['muros'].append({'origen': a['origen'], 'dir': a['dir'], 'perp': a['perp'], 'dist': 0.0, 'hueco_en': a['lado'] * D['lado'],
+                                  'pego': False})
+        a['lado'] = -a['lado']; a['i'] += 1
+        _animar(b, ('attack', 'swing'), ahora, 300)
+        return True
+
+
+    def _actualizar_muros(b, ctx):
+        """Las ondas del Pulso Dragon avanzan; pegan salvo que estes en el hueco."""
+        j, S, D = ctx['jugador'], b['sub'], DIALGA['pulso_dragon']
+        mitad = max(j['rect'].size) / 2
+        px, py = j['rect'].center
+        for m in S['muros'][:]:
+            m['dist'] += D['vel']
+            if m['dist'] > D['max']: S['muros'].remove(m); continue
+            if m['pego']: continue
+            rx, ry = px - m['origen'][0], py - m['origen'][1]
+            s = rx * m['dir'][0] + ry * m['dir'][1]
+            t = rx * m['perp'][0] + ry * m['perp'][1]
+            if abs(s - m['dist']) <= D['grosor'] / 2 + mitad and abs(t) <= D['largo'] / 2 and abs(t - m['hueco_en']) > D['hueco'] / 2 - mitad * 0.5:
+                if _pegar(b, ctx, D['daño'], 'dragon'): m['pego'] = True
+
+
+    def _mov_cola_ferrea(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['cola_ferrea']
+        if 't0' not in a:
+            mx, my = b['sub'].get('mira', (0, 1))
+            a.update(t0=ahora, atras=math.atan2(-my, -mx))
+            b['sub']['cola'] = a
+            _animar(b, ('swing', 'attack'), ahora, D['aviso'] + 300)
+        if ahora < a['t0'] + D['aviso']: return True
+        bx, by = b['rect'].center
+        px, py = j['rect'].center
+        d = math.hypot(px - bx, py - by)
+        dif = (math.atan2(py - by, px - bx) - a['atras'] + math.pi) % math.tau - math.pi
+        if d <= D['radio'] + max(j['rect'].size) / 2 and abs(dif) <= math.pi / 2 and _pegar(b, ctx, D['daño'], 'acero'):
+            poner_fx(j, 'vulnerable', ahora, D['vulnerable'])
+            b['mensajes'].append(('Cola Férrea: recibís +15% de daño', 1400))
+        ctx['impacto'](bx + math.cos(a['atras']) * 100, by + math.sin(a['atras']) * 100, 60, 200)
+        b['sub']['cola'] = None
+        return False
+
+
+    def _mov_foco_resplandor(b, ctx, a):
+        ahora, D = ctx['ahora'], DIALGA['foco_resplandor']
+        for _ in range(D['bolas']):
+            pos = punto_zona(b['zona'], 40)
+            _golpe(b, ahora, 'circulo', D['aviso'], 'acero', D['daño'], pos=pos, radio=D['radio'], temblor=120)
+            b['sub']['focos'].append({'pos': pos, 'estalla': ahora + D['aviso'], 'radio': D['radio'] * D['grande']})
+        _animar(b, ('charge', 'rearup'), ahora, 700)
+        return False
+
+
+    def _actualizar_focos(b, ctx):
+        """Foco Resplandor: al explotar, el area grande te encandila (pantalla blanca medio segundo)."""
+        j, ahora, S = ctx['jugador'], ctx['ahora'], b['sub']
+        for f in S['focos'][:]:
+            if ahora < f['estalla']: continue
+            S['focos'].remove(f)
+            S['explosiones'].append({'pos': f['pos'], 'radio': f['radio'], 'inicio': ahora})
+            if _toca_punto(j, f['pos'], f['radio']) and not _esquivando(j, ahora): poner_fx(j, 'cegado', ahora, DIALGA['foco_resplandor']['ciega'])
+
+
+    def _mov_joya_luz(b, ctx, a):
+        ahora, D = ctx['ahora'], DIALGA['joya_luz']
+        for i in range(D['rocas']):
+            ang = i * math.tau / D['rocas'] + random.uniform(-0.2, 0.2)
+            b['sub']['rocas'].append({'pos': b['rect'].center, 'dir': (math.cos(ang), math.sin(ang)), 'inicio': ahora, 'ult_hilo': b['rect'].center,
+                                      'prox_hilo': ahora})
+        _animar(b, ('attack', 'rearup'), ahora, 500)
+        return False
+
+
+    def _actualizar_rocas(b, ctx):
+        """Joya de Luz: las rocas rebotan dejando hilos de luz; los hilos lastiman poquito; las rocas se rompen pegandoles."""
+        j, ahora, S, D = ctx['jugador'], ctx['ahora'], b['sub'], DIALGA['joya_luz']
+        A = _rect_arena(b)
+        for r in S['rocas'][:]:
+            if ahora >= r['inicio'] + D['dura']: S['rocas'].remove(r); continue
+            roto = any(p.get('activo', True) and 'x' in p and math.hypot(p['x'] - r['pos'][0], p['y'] - r['pos'][1]) <= D['radio'] + p.get('tam', 16) / 2
+                       for p in ctx.get('proyectiles') or ())
+            if roto:
+                for p in ctx['proyectiles']:
+                    if p.get('activo', True) and 'x' in p and math.hypot(p['x'] - r['pos'][0], p['y'] - r['pos'][1]) <= D['radio'] + p.get('tam', 16) / 2:
+                        p['activo'] = False; break
+            if roto or (j.get('atacando') and _toca_punto(j, r['pos'], D['romper'] - max(j['rect'].size) / 2)):
+                S['rocas'].remove(r); S['destellos'].append({'pos': r['pos'], 'inicio': ahora}); continue
+            if ahora >= r['inicio'] + D['mueve']: continue
+            x, y = r['pos'][0] + r['dir'][0] * D['vel'], r['pos'][1] + r['dir'][1] * D['vel']
+            dx, dy = r['dir']
+            if x - D['radio'] < A.left or x + D['radio'] > A.right: dx = -dx; x = max(A.left + D['radio'], min(A.right - D['radio'], x))
+            if y - D['radio'] < A.top or y + D['radio'] > A.bottom: dy = -dy; y = max(A.top + D['radio'], min(A.bottom - D['radio'], y))
+            r['pos'], r['dir'] = (x, y), (dx, dy)
+            if ahora >= r['prox_hilo']:
+                S['hilos'].append({'a': r['ult_hilo'], 'b': r['pos'], 'hasta': ahora + D['hilo']})
+                r['ult_hilo'], r['prox_hilo'] = r['pos'], ahora + D['cada_hilo']
+        S['hilos'] = [h for h in S['hilos'] if ahora < h['hasta']]
+        if ahora >= S.get('prox_hilo', 0) and _toca_linea_hilos(j, S['hilos']):
+            S['prox_hilo'] = ahora + D['tick']
+            _pegar(b, ctx, D['daño'], 'roca')
+
+
+    def _toca_linea_hilos(j, hilos):
+        mitad = max(j['rect'].size) / 2
+        return any(_dist_segmento(j['rect'].center, h['a'], h['b']) <= 3 + mitad * 0.7 for h in hilos)
+
+
+    def _mov_eco_metalico(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['eco_metalico']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('rearup', 'charge'), ahora, D['aviso'])
+        if ahora < a['t0'] + D['aviso']: return True
+        bx, by = b['rect'].center
+        base = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        for i in range(D['arcos']):
+            _bala_sub(b, (bx, by), base + (i - (D['arcos'] - 1) / 2) * D['abanico'], D['vel'], D['radio'], 0, 'acero', 'eco', dura=D['dura'],
+                      rebota=True, efecto='defensa_baja')
+        return False
+
+
+    # ----- movimientos de Palkia -----
+
+    def _mov_corte_vacio(b, ctx, a):
+        ent, j, ahora, D = ctx['ent'], ctx['jugador'], ctx['ahora'], PALKIA['corte_vacio']
+        A = _rect_arena(b)
+        if 't0' not in a:
+            base = random.choice((0.0, math.pi / 4))                 # en cruz (+) o en equis (x)
+            a.update(t0=ahora, cortes=[])
+            for ang in (base, base + math.pi / 2):
+                p, q = cruzar_zona(b['zona'], A.center, ang, 0)
+                a['cortes'].append((p, q))
+                _golpe(b, ahora, 'linea', D['aviso'], 'dragon', D['daño'], a=p, b=q, ancho=D['ancho'], suelo=True)
+            _animar(b, ('swing', 'attack'), ahora, D['aviso'])
+        if ahora < a['t0'] + D['aviso']: return True
+        tam = ent['tam']
+        celdas = set()
+        for p, q in a['cortes']:
+            pasos = max(1, int(math.hypot(q[0] - p[0], q[1] - p[1]) // (tam / 4)))
+            for i in range(pasos + 1):
+                x, y = p[0] + (q[0] - p[0]) * i / pasos, p[1] + (q[1] - p[1]) * i / pasos
+                if A.collidepoint(x, y): celdas.add(entorno.casilla(ent, x, y))
+        r = j['rect']
+        for _ in range(24):                                         # estabas en el corte: te corre para el lado donde estabas
+            if not celdas & set(entorno._casillas_rect(ent, r)): break
+            p, q = min(a['cortes'], key=lambda c: _dist_segmento(r.center, *c))
+            largo = math.hypot(q[0] - p[0], q[1] - p[1]) or 1
+            nx, ny = -(q[1] - p[1]) / largo, (q[0] - p[0]) / largo
+            if (r.centerx - p[0]) * nx + (r.centery - p[1]) * ny < 0: nx, ny = -nx, -ny
+            r.move_ip(round(nx * 10), round(ny * 10))
+        _soltar_en_piso(ent, j, b['zona'])
+        for f, c in celdas: _romper_piso(b, ctx, f, c, D['dura'])
+        ctx['impacto'](*A.center, 90, 350)
+        return False
+
+
+    def _mov_vasto_impacto(b, ctx, a):
+        ent, j, ahora, D = ctx['ent'], ctx['jugador'], ctx['ahora'], PALKIA['vasto_impacto']
+        k = _lento_sub(b, ahora)
+        if 't0' not in a:
+            a.update(t0=ahora, etapa='sube', sombra=b['rect'].center)
+            _animar(b, ('hop', 'rotate'), ahora, D['sube'])
+        if a['etapa'] == 'sube':
+            if ahora < a['t0'] + D['sube']: return True
+            a.update(etapa='sigue', desde=ahora); b.update(escondido=True, invulnerable=True, sin_contacto=True)
+            b['sub']['salto'] = a
+        if a['etapa'] == 'sigue':                                   # la sombra te sigue
+            tx, ty = _limitar_sub(b, j['rect'].center)
+            x, y = a['sombra']
+            d = math.hypot(tx - x, ty - y)
+            if d > 1: a['sombra'] = (x + (tx - x) / d * min(d, D['vel'] * k), y + (ty - y) / d * min(d, D['vel'] * k))
+            if ahora < a['desde'] + D['sigue'] / k: return True
+            a.update(etapa='quieto', desde=ahora)
+        if a['etapa'] == 'quieto':
+            if ahora < a['desde'] + D['quieto']: return True
+            _poner_sub(b, a['sombra'])
+            b.update(escondido=False, invulnerable=False, sin_contacto=False)
+            ctx['impacto'](*b['rect'].center, 140, 500)
+            a.update(etapa='tira', desde=ahora)
+        if a['etapa'] == 'tira':                                    # el pliegue: te tira hacia el centro
+            cx_, cy_ = b['rect'].center
+            dx, dy = cx_ - j['rect'].centerx, cy_ - j['rect'].centery
+            d = math.hypot(dx, dy)
+            if 1 < d <= D['radio'] and not _esquivando(j, ahora):
+                a['resto'] = a.get('resto', [0.0, 0.0])
+                a['resto'][0] += dx / d * D['fuerza'] * k; a['resto'][1] += dy / d * D['fuerza'] * k
+                px, py = int(a['resto'][0]), int(a['resto'][1])
+                a['resto'][0] -= px; a['resto'][1] -= py
+                entorno.mover(ent, j['rect'], px, py, j['tipos'])
+            if ahora < a['desde'] + D['tira']: return True
+            b['sub']['salto'] = None
+            ctx['impacto'](cx_, cy_, D['radio'] * 0.5, 400)
+            if _toca_punto(j, (cx_, cy_), D['radio_daño']): _pegar(b, ctx, D['daño'], 'dragon')
+            if 1 < d <= D['radio'] + 40 and not _esquivando(j, ahora): _empujar(b, j, (-dx / d, -dy / d), 13, D['empuje'], ahora=ahora)
+            b['sub']['pliegues'].append({'pos': (cx_, cy_), 'inicio': ahora, 'radio': D['radio']})
+            return False
+        return True
+
+
+    def _mov_torbellino(b, ctx, a):
+        ahora, D = ctx['ahora'], PALKIA['torbellino']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('charge', 'rotate'), ahora, D['aviso'])
+        if ahora < a['t0'] + D['aviso']: return True
+        for _ in range(D['remolinos']):
+            ang = random.uniform(0, math.tau)
+            b['sub']['remolinos'].append({'pos': punto_zona(b['zona'], 70), 'dir': (math.cos(ang), math.sin(ang)), 'inicio': ahora,
+                                          'hasta': ahora + D['dura'], 'prox': 0, 'giro': 0.0})
+        return False
+
+
+    def _actualizar_remolinos(b, ctx):
+        """Torbellino: se mueven (cruzando los bordes, como todo en la sala de Palkia); si te agarran quedas girando hasta apretar E."""
+        j, ahora, S, D = ctx['jugador'], ctx['ahora'], b['sub'], PALKIA['torbellino']
+        A, k = _rect_arena(b), _lento_sub(b, ahora)
+        for w in S['remolinos'][:]:
+            atrapado = j.get('remolino') is w
+            if ahora >= w['hasta']:
+                S['remolinos'].remove(w)
+                if atrapado: j['remolino'] = None; salir_arena(j, ahora)
+                continue
+            if random.random() < 0.02:                              # cambia un poco el rumbo
+                ang = math.atan2(w['dir'][1], w['dir'][0]) + random.uniform(-0.8, 0.8)
+                w['dir'] = (math.cos(ang), math.sin(ang))
+            w['pos'] = _envolver((w['pos'][0] + w['dir'][0] * D['vel'] * k, w['pos'][1] + w['dir'][1] * D['vel'] * k), A)
+            w['giro'] += D['giro'] * 16
+            if atrapado:
+                if not j.get('en_arena'): j['remolino'] = None; continue   # apretaste E
+                ang = ahora * 0.012
+                j['rect'].center = (round(w['pos'][0] + math.cos(ang) * 16), round(w['pos'][1] + math.sin(ang) * 16))
+                j['inercia'] = [0.0, 0.0]
+                if ahora >= w['prox']: w['prox'] = ahora + D['tick']; _pegar(b, ctx, D['daño'], 'agua')
+            elif (not j.get('remolino') and not j.get('en_arena') and ahora >= j.get('arena_libre', 0) and not _esquivando(j, ahora)
+                  and _toca_punto(j, w['pos'], D['radio'] * 0.6)):
+                j['remolino'] = w; j['en_arena'] = True; j['atrapado_hasta'] = w['hasta']
+                b['mensajes'].append(('¡Te atrapó el remolino! Apretá E para escapar', 1600))
+
+
+    def _mov_hidrobomba(b, ctx, a):
+        j, ahora, D, S = ctx['jugador'], ctx['ahora'], PALKIA['hidrobomba'], b['sub']
+        k = _lento_sub(b, ahora)
+        bx, by = b['rect'].center
+        if 't0' not in a:
+            a.update(t0=ahora, ang=math.atan2(j['rect'].centery - by, j['rect'].centerx - bx), prox=0)
+            S['chorro'] = a
+            _animar(b, ('charge', 'attack'), ahora, D['aviso'] + D['dura'])
+        tx, ty = _pos_anterior(b, j, ahora, D['retraso'])
+        a['ang'] = _girar_hacia(a['ang'], math.atan2(ty - by, tx - bx), D['giro'] * k)
+        a['b'] = (bx + math.cos(a['ang']) * D['largo'], by + math.sin(a['ang']) * D['largo'])
+        if ahora < a['t0'] + D['aviso']: return True
+        if ahora >= a['t0'] + D['aviso'] + D['dura']: S['chorro'] = None; return False
+        if not S['empuje'] and ahora >= a['prox'] and _dist_segmento(j['rect'].center, (bx, by), a['b']) <= D['ancho'] / 2 + max(j['rect'].size) / 2:
+            a['prox'] = ahora + D['entre']
+            if _pegar(b, ctx, D['daño'], 'agua'): _empujar(b, j, (math.cos(a['ang']), math.sin(a['ang'])), D['empuje'] * k, pared=True, ahora=ahora)
+        return True
+
+
+    def _mov_trueno(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], PALKIA['trueno']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('charge', 'attack'), ahora, D['aviso'])
+        if ahora < a['t0'] + D['aviso']: return True
+        bx, by = b['rect'].center
+        base = math.atan2(j['rect'].centery - by, j['rect'].centerx - bx)
+        for i in range(D['rayos']):
+            _bala_sub(b, (bx, by), base + (i - (D['rayos'] - 1) / 2) * D['abanico'], D['vel'], D['radio'], D['daño'], 'electrico', 'rayo',
+                      dura=D['dura'], rebota=True)
+        return False
+
+
+    def _mov_gravedad(b, ctx, a):
+        j, ahora, D = ctx['jugador'], ctx['ahora'], PALKIA['gravedad']
+        if 't0' not in a:
+            a['t0'] = ahora
+            _animar(b, ('charge', 'rotate'), ahora, D['aviso'])
+        if ahora < a['t0'] + D['aviso']: return True
+        poner_fx(j, 'gravedad', ahora, D['dura'])
+        b['sub']['gravedad_hasta'] = ahora + D['dura']
+        b['mensajes'].append(('Gravedad: no podés correr ni esquivar', 1600))
+        ctx['impacto'](*_rect_arena(b).center, 100, 400)
+        return False
+
+
+    MOVS_SUB = {'giratina': {'golpe_umbrio': _mov_golpe_umbrio, 'bola_sombra': _mov_bola_sombra, 'garra_dragon': _mov_garra_dragon,
+                             'cometa_draco': _mov_cometa_draco, 'esfera_aural': _mov_esfera_aural, 'cara_susto': _mov_cara_susto},
+                'dialga': {'distorsion': _mov_distorsion, 'pulso_dragon': _mov_pulso_dragon, 'cola_ferrea': _mov_cola_ferrea,
+                           'foco_resplandor': _mov_foco_resplandor, 'joya_luz': _mov_joya_luz, 'eco_metalico': _mov_eco_metalico},
+                'palkia': {'corte_vacio': _mov_corte_vacio, 'vasto_impacto': _mov_vasto_impacto, 'torbellino': _mov_torbellino,
+                           'hidrobomba': _mov_hidrobomba, 'trueno': _mov_trueno, 'gravedad': _mov_gravedad}}
+
+
+    def _puede_sub(b, j, mov):
+        """Condiciones extra de algunos movimientos (Cola Ferrea solo si estas cerca)."""
+        if mov == 'cola_ferrea':
+            return math.hypot(j['rect'].centerx - b['rect'].centerx, j['rect'].centery - b['rect'].centery) <= DIALGA['cola_ferrea']['cerca']
+        return True
+
+
+    def actualizar_subjefe(b, ctx):
+        """Giratina, Dialga o Palkia origen: la mecanica de su sala, lo que dejo suelto y un movimiento por vez (ver GIRATINA, DIALGA, PALKIA)."""
+        j, ahora = ctx['jugador'], ctx['ahora']
+        datos_ = DATOS_SUB[b['estilo']]
+        S = b.get('sub')
+        if S is None:
+            S = b['sub'] = {'listo': {}, 'accion': None, 'libre_en': ahora + SUBJEFE['primer_mov'], 'ultimo': None, 'primero': datos_['primero'],
+                            'proys': [], 'ondas': [], 'muros': [], 'rocas': [], 'hilos': [], 'focos': [], 'explosiones': [], 'esferas': [],
+                            'remolinos': [], 'zarpazos': [], 'pliegues': [], 'destellos': [], 'grietas': {}, 'empuje': None, 'mec': {},
+                            'sombra': None, 'salto': None, 'chorro': None, 'cola': None, 'distorsion': None, 'mira': (0, 1)}
+            b['casa'] = b['pos_f'] = b['rect'].center
+        _rastrear(b, j, ahora)
+        MECANICAS_SUB[b['estilo']](b, ctx)
+        _actualizar_golpes(b, ctx)
+        _actualizar_proys(b, ctx)
+        _actualizar_ondas(b, ctx)
+        _actualizar_muros(b, ctx)
+        _actualizar_focos(b, ctx)
+        _actualizar_rocas(b, ctx)
+        _actualizar_esferas(b, ctx)
+        _actualizar_remolinos(b, ctx)
+        _actualizar_empuje(b, ctx)
+        _actualizar_grietas(b, ctx)
+        S['zarpazos'] = [z for z in S['zarpazos'] if ahora - z['inicio'] < 250]
+        S['pliegues'] = [p for p in S['pliegues'] if ahora - p['inicio'] < 500]
+        S['explosiones'] = [e for e in S['explosiones'] if ahora - e['inicio'] < 400]
+        S['destellos'] = [d for d in S['destellos'] if ahora - d['inicio'] < 400]
+        if j.get('en_arena') and not j.get('remolino') and ahora >= j.get('atrapado_hasta', 0): j['en_arena'] = False
+        a = S['accion']
+        if a:
+            if MOVS_SUB[b['estilo']][a['mov']](b, ctx, a): return
+            S['listo'][a['mov']] = ahora + datos_[a['mov']]['espera']
+            S['accion'] = None
+            S['libre_en'] = ahora + random.randint(*SUBJEFE['pausa'])
+            b.update(sin_contacto=False, invulnerable=False, escondido=False)
+            return
+        jx, jy = j['rect'].center
+        if math.hypot(jx - b['rect'].centerx, jy - b['rect'].centery) > SUBJEFE['cerca']:
+            _mover_sub(b, (jx, jy), SUBJEFE['vel'] * _lento_sub(b, ahora))
+        if ahora < S['libre_en']: return
+        if S['primero']: mov, S['primero'] = S['primero'], None   # cada uno arranca con su movimiento de efecto
+        else:
+            listos = [m for m in MOVS_SUB[b['estilo']] if ahora >= S['listo'].get(m, 0) and m != S['ultimo'] and _puede_sub(b, j, m)]
+            if not listos: return
+            mov = random.choice(listos)
+        S['ultimo'] = mov
+        S['accion'] = {'mov': mov}
+        S['anuncio'] = (NOMBRE_MOV_SUB[mov], ahora)                 # el nombre del movimiento arriba suyo
+
+
+    # ----- dibujo de los subjefes -----
+
+    _CACHE_SOMBRA = {}
+
+
+    def _imagen_sombra(tam):
+        """La sombra de Golpe Umbrio (assets/interfaz/sombra_giratina.png) escalada; None si no esta."""
+        if tam not in _CACHE_SOMBRA:
+            try:
+                img = pygame.image.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'sombra_giratina.png')).convert_alpha()
+                _CACHE_SOMBRA[tam] = pygame.transform.smoothscale(img, tam)
+            except (pygame.error, OSError): _CACHE_SOMBRA[tam] = None
+        return _CACHE_SOMBRA[tam]
+
+
+    def _dibujar_suelo_sub(ventana, b, cx, cy, ahora, colores):
+        """Lo de los subjefes que va en el piso: tinte de la sala, reloj, piso azul, gravedad, bordes conectados, sombras y remolinos."""
+        S = b.get('sub')
+        if not S: return
+        A = _rect_arena(b).move(-cx, -cy)
+        capa = pygame.Surface(ventana.get_size(), pygame.SRCALPHA)
+        if b['estilo'] == 'palkia':
+            if ahora < S.get('gravedad_hasta', 0):                  # piso violeta de la Gravedad
+                pygame.draw.rect(capa, (150, 60, 210, 70 + round(25 * math.sin(ahora / 200))), A)
+                for i in range(0, A.width, 40):
+                    y = A.top + (ahora // 8 + i * 7) % A.height
+                    pygame.draw.line(capa, (210, 150, 255, 120), (A.left + i, y), (A.left + i, y + 14), 2)
+            k = 0.5 + 0.5 * math.sin(ahora / 250)                   # los bordes conectados titilan
+            pygame.draw.rect(capa, (255, 140, 230, 90 + round(90 * k)), A, 5)
+        if b['estilo'] == 'dialga':
+            d = S.get('distorsion')
+            if d:                                                   # Distorsion: todo azul salvo las zonas seguras
+                k = min(1.0, (ahora - d['t0']) / DIALGA['distorsion']['carga'])
+                azul = pygame.Surface(A.size, pygame.SRCALPHA); azul.fill((40, 90, 255, 40 + round(110 * k)))
+                for z in d['zonas']: pygame.draw.circle(azul, (0, 0, 0, 0), (round(z[0] - cx - A.left), round(z[1] - cy - A.top)), DIALGA['distorsion']['radio_zona'])
+                capa.blit(azul, A.topleft)
+                for z in d['zonas']: pygame.draw.circle(capa, (220, 240, 255, 220), (round(z[0] - cx), round(z[1] - cy)), DIALGA['distorsion']['radio_zona'], 3)
+                if d.get('solto'):
+                    r = round(max(A.size) * min(1.0, (ahora - d['solto']) / DIALGA['distorsion']['onda']))
+                    pygame.draw.circle(capa, (150, 200, 255, 200), (round(b['rect'].centerx - cx), round(b['rect'].centery - cy)), max(3, r), 10)
+            _dibujar_reloj(capa, b, A.center, ahora)
+            M = S['mec']
+            R = DIALGA['reloj']
+            if M.get('hist') and (ahora - M['inicio']) % R['vuelta'] >= R['vuelta'] - R['atras']:   # a donde te va a llevar
+                px, py = _pos_hace(M['hist'], ahora - R['atras'], (0, 0))
+                pygame.draw.circle(capa, (255, 230, 120, 140), (round(px - cx), round(py - cy)), 26, 3)
+                pygame.draw.circle(capa, (255, 230, 120, 60), (round(px - cx), round(py - cy)), 22)
+            c = S.get('cola')
+            if c:                                                   # Cola Ferrea: el semicirculo de atras
+                bx, by = b['rect'].centerx - cx, b['rect'].centery - cy
+                r = DIALGA['cola_ferrea']['radio']
+                pts = [(bx, by)] + [(bx + math.cos(c['atras'] - math.pi / 2 + math.pi * i / 16) * r, by + math.sin(c['atras'] - math.pi / 2 + math.pi * i / 16) * r)
+                                    for i in range(17)]
+                k = min(1.0, (ahora - c['t0']) / DIALGA['cola_ferrea']['aviso'])
+                pygame.draw.polygon(capa, (200, 200, 215, 50 + round(90 * k)), pts)
+                pygame.draw.polygon(capa, (230, 230, 245, 220), pts, 3)
+            for f in S['focos']:                                    # Foco Resplandor: el area grande que encandila
+                pygame.draw.circle(capa, (255, 255, 220, 50), (round(f['pos'][0] - cx), round(f['pos'][1] - cy)), round(f['radio']))
+                pygame.draw.circle(capa, (255, 255, 230, 150), (round(f['pos'][0] - cx), round(f['pos'][1] - cy)), round(f['radio']), 2)
+        if b['estilo'] == 'giratina':
+            s = S.get('sombra')
+            if s:                                                   # Golpe Umbrio: la sombra que te persigue
+                img = _imagen_sombra(GIRATINA['golpe_umbrio']['tam'])
+                pos = (round(s['pos'][0] - cx), round(s['pos'][1] - cy))
+                if img:
+                    capa.blit(img, img.get_rect(center=(pos[0], pos[1] + round(3 * math.sin(ahora / 90)))))
+                else:
+                    pygame.draw.ellipse(capa, (10, 5, 15, 220), pygame.Rect(0, 0, 150, 110).move(pos[0] - 75, pos[1] - 55))
+        for w in S['remolinos']:                                    # Torbellino
+            p = (round(w['pos'][0] - cx), round(w['pos'][1] - cy))
+            r = PALKIA['torbellino']['radio']
+            pygame.draw.circle(capa, (60, 130, 230, 120), p, r)
+            for i in range(3):
+                ang = w['giro'] + i * math.tau / 3
+                pygame.draw.arc(capa, (200, 235, 255, 220), pygame.Rect(p[0] - r + 8 + i * 8, p[1] - r + 8 + i * 8, 2 * (r - 8 - i * 8), 2 * (r - 8 - i * 8)),
+                                ang, ang + 2.2, 3)
+        salto = S.get('salto')
+        if salto and salto.get('etapa') in ('sigue', 'quieto'):     # Vasto Impacto: la sombra de Palkia en el aire
+            p = (round(salto['sombra'][0] - cx), round(salto['sombra'][1] - cy))
+            pygame.draw.ellipse(capa, (20, 10, 40, 150), pygame.Rect(p[0] - 80, p[1] - 30, 160, 60))
+            pygame.draw.circle(capa, (255, 140, 230, 140), p, PALKIA['vasto_impacto']['radio'], 2)
+        if salto and salto.get('etapa') == 'tira':                  # el pliegue tirando hacia el centro
+            p = b['rect'].center
+            for i in range(4):
+                r = round(PALKIA['vasto_impacto']['radio'] * (1 - ((ahora / 600 + i / 4) % 1)))
+                pygame.draw.circle(capa, (255, 150, 235, 150), (p[0] - cx, p[1] - cy), max(4, r), 3)
+        ventana.blit(capa, (0, 0))
+        _dibujar_golpes(ventana, b, cx, cy, ahora, colores, True)
+
+
+    def _dibujar_reloj(capa, b, centro, ahora):
+        """El reloj de Dialga en el medio de la arena: la aguja da una vuelta por rebobinada."""
+        R = DIALGA['reloj']
+        M = b['sub']['mec']
+        k = ((ahora - M.get('inicio', ahora)) % R['vuelta']) / R['vuelta']
+        r = R['radio']
+        pygame.draw.circle(capa, (30, 40, 70, 150), centro, r)
+        pygame.draw.circle(capa, (120, 170, 255, 220), centro, r, 4)
+        for i in range(12):
+            a = i * math.tau / 12
+            pygame.draw.line(capa, (170, 210, 255, 220), (centro[0] + math.cos(a) * (r - 12), centro[1] + math.sin(a) * (r - 12)),
+                             (centro[0] + math.cos(a) * (r - 4), centro[1] + math.sin(a) * (r - 4)), 2)
+        if k > 0: pygame.draw.arc(capa, (255, 230, 120, 130), pygame.Rect(centro[0] - r + 6, centro[1] - r + 6, 2 * r - 12, 2 * r - 12),
+                                  math.pi / 2 - k * math.tau, math.pi / 2, 6)
+        a = -math.pi / 2 + k * math.tau
+        pygame.draw.line(capa, (255, 240, 170, 255), centro, (centro[0] + math.cos(a) * (r - 14), centro[1] + math.sin(a) * (r - 14)), 4)
+        pygame.draw.circle(capa, (255, 240, 170, 255), centro, 5)
+
+
+    def _dibujar_sub(ventana, e, x, y, cx, cy, ahora, colores, fuente):
+        """Lo de los subjefes que va arriba de los pokemon: balas, ondas, rocas, hilos, esferas, chorro, zarpazos y la pantalla."""
+        S = e.get('sub')
+        if not S: return
+        _dibujar_golpes(ventana, e, cx, cy, ahora, colores, False)
+        capa = pygame.Surface(ventana.get_size(), pygame.SRCALPHA)
+        a = S.get('accion') or {}
+        if a.get('mov') == 'bola_sombra' and 't0' in a:             # cargando la Bola Sombra
+            k = min(1.0, (ahora - a['t0']) / GIRATINA['bola_sombra']['carga'])
+            p = (x, y - e['rect'].height // 2 - 10)
+            pygame.draw.circle(capa, (60, 20, 90, 200), p, round(10 + 30 * k))
+            pygame.draw.circle(capa, (170, 90, 230, 230), p, round(10 + 30 * k), 3)
+        if a.get('mov') == 'garra_dragon' and a.get('etapa') == 'aviso':
+            pygame.draw.line(capa, (120, 90, 240, 200), (x, y), (round(a['destino'][0] - cx), round(a['destino'][1] - cy)), 6)
+        for z in S['zarpazos']:                                     # Garra Dragon: tres rayas como de garra
+            k = (ahora - z['inicio']) / 250
+            p = (z['pos'][0] - cx, z['pos'][1] - cy)
+            ang = math.atan2(z['dir'][1], z['dir'][0])
+            for i in (-1, 0, 1):
+                off = (-math.sin(ang) * i * z['radio'] * 0.35, math.cos(ang) * i * z['radio'] * 0.35)
+                a0 = (p[0] + off[0] - math.cos(ang) * z['radio'] * 0.7, p[1] + off[1] - math.sin(ang) * z['radio'] * 0.7)
+                a1 = (p[0] + off[0] + math.cos(ang) * z['radio'] * 0.7, p[1] + off[1] + math.sin(ang) * z['radio'] * 0.7)
+                pygame.draw.line(capa, (150, 110, 255, round(255 * (1 - k))), a0, a1, 7)
+        for o in S['ondas']:                                        # Cara Susto
+            r = round(o['max'] * max(0.0, (ahora - o['inicio']) / o['dura']))
+            if r > 3:
+                pygame.draw.circle(capa, (120, 40, 140, 150), (round(o['centro'][0] - cx), round(o['centro'][1] - cy)), r, o['grosor'])
+                pygame.draw.circle(capa, (230, 150, 255, 220), (round(o['centro'][0] - cx), round(o['centro'][1] - cy)), r, 3)
+        D = DIALGA['pulso_dragon']
+        for m in S['muros']:                                        # Pulso Dragon: la onda con su hueco
+            c = (m['origen'][0] + m['dir'][0] * m['dist'] - cx, m['origen'][1] + m['dir'][1] * m['dist'] - cy)
+            for t0, t1 in ((-D['largo'] / 2, m['hueco_en'] - D['hueco'] / 2), (m['hueco_en'] + D['hueco'] / 2, D['largo'] / 2)):
+                p0 = (c[0] + m['perp'][0] * t0, c[1] + m['perp'][1] * t0)
+                p1 = (c[0] + m['perp'][0] * t1, c[1] + m['perp'][1] * t1)
+                pygame.draw.line(capa, (110, 80, 240, 200), p0, p1, D['grosor'])
+                pygame.draw.line(capa, (210, 190, 255, 230), p0, p1, 4)
+        for h in S['hilos']:                                        # Joya de Luz
+            pygame.draw.line(capa, (255, 250, 200, 200), (h['a'][0] - cx, h['a'][1] - cy), (h['b'][0] - cx, h['b'][1] - cy), 3)
+        for r in S['rocas']:
+            p = (round(r['pos'][0] - cx), round(r['pos'][1] - cy))
+            rad = DIALGA['joya_luz']['radio']
+            pygame.draw.polygon(capa, (220, 120, 230, 255), [(p[0], p[1] - rad), (p[0] + rad, p[1]), (p[0], p[1] + rad), (p[0] - rad, p[1])])
+            pygame.draw.polygon(capa, (255, 230, 255, 255), [(p[0], p[1] - rad), (p[0] + rad, p[1]), (p[0], p[1] + rad), (p[0] - rad, p[1])], 2)
+        for f in S['explosiones']:                                  # Foco Resplandor estallando
+            k = (ahora - f['inicio']) / 400
+            pygame.draw.circle(capa, (255, 255, 240, round(200 * (1 - k))), (round(f['pos'][0] - cx), round(f['pos'][1] - cy)), round(f['radio'] * (0.6 + 0.4 * k)))
+        for es in S['esferas']:                                     # Esfera Aural
+            p = (round(es['pos'][0] - cx), round(es['pos'][1] - cy))
+            rad = GIRATINA['esfera_aural']['radio']
+            pygame.draw.circle(capa, (255, 150, 40, 120), p, rad + 8 + round(3 * math.sin(ahora / 80)))
+            pygame.draw.circle(capa, (255, 170, 50, 255), p, rad)
+            pygame.draw.circle(capa, (255, 235, 170, 255), p, rad // 2)
+        ch = S.get('chorro')
+        if ch and 'b' in ch:                                        # Hidrobomba
+            bx, by = e['rect'].centerx - cx, e['rect'].centery - cy
+            fin = (ch['b'][0] - cx, ch['b'][1] - cy)
+            if ahora < ch['t0'] + PALKIA['hidrobomba']['aviso']: pygame.draw.line(capa, (120, 190, 255, 160), (bx, by), fin, 3)
+            else:
+                pygame.draw.line(capa, (60, 140, 240, 200), (bx, by), fin, PALKIA['hidrobomba']['ancho'])
+                pygame.draw.line(capa, (210, 240, 255, 230), (bx, by), fin, 12)
+        for p in S['proys']:
+            pos = (round(p['pos'][0] - cx), round(p['pos'][1] - cy))
+            if p['clase'] == 'sombra':
+                pygame.draw.circle(capa, (40, 10, 60, 230), pos, p['radio'])
+                pygame.draw.circle(capa, (160, 80, 220, 255), pos, p['radio'], 4)
+            elif p['clase'] == 'eco':                               # un arco de sonido metalico
+                ang = math.atan2(p['dir'][1], p['dir'][0])
+                caja = pygame.Rect(0, 0, p['radio'] * 2, p['radio'] * 2); caja.center = pos
+                pygame.draw.arc(capa, (200, 210, 230, 255), caja, -ang - 1.0, -ang + 1.0, 6)
+                pygame.draw.arc(capa, (255, 255, 255, 255), caja.inflate(-12, -12), -ang - 0.8, -ang + 0.8, 3)
+            elif p['clase'] == 'rayo':
+                azar = random.Random(id(p) + ahora // 60)
+                cola = (pos[0] - p['dir'][0] * 50, pos[1] - p['dir'][1] * 50)
+                _zigzag(capa, cola, pos, (255, 240, 90, 255), 4, azar, 4, 8)
+            else: pygame.draw.circle(capa, (*colores.get(p['tipo'], (255, 255, 255)), 230), pos, p['radio'])
+        for p in S['pliegues']:
+            k = (ahora - p['inicio']) / 500
+            pygame.draw.circle(capa, (255, 160, 240, round(200 * (1 - k))), (round(p['pos'][0] - cx), round(p['pos'][1] - cy)), round(p['radio'] * k) + 4, 8)
+        for d in S['destellos']:
+            k = (ahora - d['inicio']) / 400
+            pygame.draw.circle(capa, (255, 255, 255, round(220 * (1 - k))), (round(d['pos'][0] - cx), round(d['pos'][1] - cy)), round(10 + 40 * k), 4)
+        ventana.blit(capa, (0, 0))
+        if fuente and S.get('anuncio') and ahora - S['anuncio'][1] < 1200 and not e.get('escondido'):
+            t = fuente.render(S['anuncio'][0], True, (255, 235, 190))
+            ventana.blit(t, t.get_rect(midbottom=(x, e['rect'].top - cy - 26)))
+        if e['estilo'] == 'giratina':                               # el mundo al reves: todo rojo oscuro (y avisa titilando antes)
+            M = S['mec']
+            if ahora < M.get('hasta', 0): alfa = 95
+            elif M.get('prox') and M['prox'] - ahora <= GIRATINA['reves']['aviso']: alfa = 55 if (ahora // 120) % 2 else 0
+            else: alfa = 0
+            if alfa:
+                velo = pygame.Surface(ventana.get_size(), pygame.SRCALPHA); velo.fill((110, 0, 15, alfa))
+                ventana.blit(velo, (0, 0))
+
+
+    def dibujar_pantalla_fx(ventana, j, ahora, fuente=None):
+        """Arriba de todo: la pantalla blanca del Foco Resplandor y los efectos que tenes encima."""
+        if fx(j, 'cegado', ahora):
+            velo = pygame.Surface(ventana.get_size()); velo.fill((255, 255, 250)); ventana.blit(velo, (0, 0))
+        if not fuente: return
+        activos = [NOMBRE_FX[n] for n in NOMBRE_FX if fx(j, n, ahora)]
+        if activos:
+            t = fuente.render('  ·  '.join(activos), True, (255, 220, 160))
+            ventana.blit(t, t.get_rect(midbottom=(ventana.get_width() // 2, ventana.get_height() - 70)))
+
+
     def actualizar_jefe(b, ctx):
         """Te sigue por el mapa de flujo, tira rafagas en abanico apuntadas y si estas cerca pisotea (todo avisado)."""
         if b['estilo'] == 'regigigas': actualizar_regigigas(b, ctx); return
         if b['estilo'] == 'beta': actualizar_beta(b, ctx); return
+        if b['estilo'] in ESTILOS_SUB: actualizar_subjefe(b, ctx); return
         if b['estilo'] == 'arceus': actualizar_arceus(b, ctx); return
         if b['estilo'] == 'regice': actualizar_regice(b, ctx); return
         if b['estilo'] == 'regirock': actualizar_regirock(b, ctx); return
@@ -3776,6 +4944,7 @@ def armar_ia():
                     pygame.draw.line(ventana, (255, 230, 60), (sx - 7, sy), (sx + 7, sy), 3)
                     pygame.draw.line(ventana, (255, 230, 60), (sx, sy - 7), (sx, sy + 7), 3)
             if e.get('estilo') == 'beta': _dibujar_beta(ventana, e, x, y, cx, cy, ahora, colores, fuente)   # golpes, tablas, embestidas...
+            if e.get('estilo') in ESTILOS_SUB: _dibujar_sub(ventana, e, x, y, cx, cy, ahora, colores or {}, fuente)   # Giratina, Dialga, Palkia
             alfa = alfa_fundido(e, ahora) if e.get('fundido') else 0
             if alfa:
                 velo = pygame.Surface(ventana.get_size()); velo.fill((255, 255, 255)); velo.set_alpha(alfa)
