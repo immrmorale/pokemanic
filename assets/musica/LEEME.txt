@@ -1,0 +1,29 @@
+MUSICA DE POKEMANIC
+===================
+
+El juego busca la musica en esta carpeta, por nombre de archivo (.ogg, .mp3, .wav o .flac).
+No hace falta tenerlas todas: si falta una, usa la que le sigue en la lista de "si no esta".
+Sin ningun archivo el juego anda igual, sin musica. El volumen se cambia en Ajustes > Música.
+
+archivo        cuando suena                          si no esta, usa    sugerencia (PMD Explorers of Sky / Blanco y Negro)
+-------        ------------                          ---------------    ---------------------------------------------------
+titulo         pantalla de titulo                    menu               PMD Explorers of Sky - Main Theme
+menu           menu principal, pokedex, ajustes      -                  PMD Explorers of Sky - Treasure Town
+hall           el hall de Celebi                     menu               PMD - Treasure Town / Wigglytuff's Guild
+tienda         la tienda y la sala del tesoro        hall               PMD Explorers of Sky - Spinda's Cafe
+prueba         el modo prueba                        combate            BW - Battle! (Trainer)
+combate        cualquier sala de combate             -                  BW - Battle! (Wild Pokemon)
+era_0          salas de la Era Glacial               combate            PMD Explorers of Sky - Vast Ice Mountain
+era_1          salas de la Edad de Piedra            combate            PMD Explorers of Sky - Treeshroud Forest
+era_2          salas de la Edad de los Metales       combate            PMD Explorers of Sky - Crystal Cave
+era_3          salas de la Edad Media                combate            PMD Explorers of Sky - Temporal Tower
+era_4          salas de la Edad Moderna              combate            PMD Explorers of Sky - Brine Cave
+era_5          salas de El Origen                    combate            PMD Explorers of Sky - Hidden Land
+jefe           los jefes de cada era                 combate            PMD Explorers of Sky - Boss Battle!
+regi           los Regis                             jefe               BW - Battle! (Gym Leader)
+final          Arceus                                regi               PMD Explorers of Sky - Dialga's Fight to the Finish!
+
+Ejemplo: guardas "Vast Ice Mountain" como  assets/musica/era_0.ogg
+
+Los gritos de los pokemon van en assets/sonidos/gritos/ y se bajan solos con:
+    python herramientas.py sonidos

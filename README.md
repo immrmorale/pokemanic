@@ -20,6 +20,7 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 6. [Evoluciones](#evoluciones)
 7. [Amistad: pokemon que se unen](#amistad-pokemon-que-se-unen)
 8. [Hall](#hall)
+8a. [Tutorial, boss rush y otros modos](#tutorial-boss-rush-y-otros-modos)
 8b. [Pokemon nuevos y lo que los hace únicos](#pokemon-nuevos-y-lo-que-los-hace-únicos)
 8c. [Estados y curaciones](#estados-y-curaciones)
 9. [Eras y salas](#eras-y-salas)
@@ -43,6 +44,7 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 | `mundo.py` | generación de salas, entorno (terrenos, objetos, clima) y efectos (partículas) |
 | `combate.py` | progreso (niveles, IV/EV, evoluciones, amistad) e IA de enemigos y jefes |
 | `mecanicas.py` | la mecánica única de cada línea evolutiva nueva (pasivas y especiales) y lo que hacen algunos enemigos |
+| `modos.py` | textos y números del tutorial, el boss rush, los titanes, los minijuegos, las charlas de tus amigos y las misiones |
 | `interfaz.py` | menús: ajustes, controles, glosario, inicial, equipo, ficha, mochila |
 | `herramientas.py` | programas aparte para preparar el juego (ver [Herramientas](#herramientas)) |
 
@@ -97,6 +99,7 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 - **La vida no se recupera sola.** Al limpiar una sala, los que siguen en pie recuperan un **12%**. Si tu pokemon activo cae, entra solo el siguiente que esté vivo.
 - **Energía:** la barra azul debajo de la vida. Correr y esquivar la gastan; se recarga sola y también al pegar, hacer parry o esquivar perfecto. Si se vacía, quedás agotado hasta recuperar un poco. Al empezar a correr arrancás con un pique.
 - **Enemigos:** avisan antes de atacar. Un anillo rojo es un golpe, una línea con mira es un disparo y una línea naranja es una embestida. Como mucho tres te atacan cuerpo a cuerpo al mismo tiempo. Si te escondés en hierba o sombra (si tu tipo puede), casi no te ven.
+- **Maniobras** (desde la segunda era, cada vez más seguido): los pegadores a veces encadenan un **segundo golpe** más rápido y, si les pegás de lejos y te escapás mucho rato, **saltan** hasta donde estás (línea naranja). Los tiradores, si te quedás quieto o te escondés, tiran un **mortero** (un círculo rojo en el piso que se llena) y con poca vida se van atrás de sus compañeros. Los rápidos, si su embestida no te toca, a veces **giran y embisten de nuevo**.
 - **IA de los enemigos:** son rápidos y atacan seguido (más todavía en cada era). Los que pegan de cerca te rodean desde distintos ángulos y se tiran hacia vos al pegar; los tiradores te siguen con la mira, se mueven de costado mientras recargan y en eras avanzadas tiran ráfagas; todos pueden esquivar tus disparos de un salto, y con poca vida se enfurecen (más rápidos y agresivos). Hay 13 enemigos + 3 por era + 1 cada 3 salas, en 2 a 4 oleadas (la primera más grande); la siguiente entra cuando quedan 3, así que no te dejan respirar.
 - **Si quedás trabado** adentro de algo que no podés pisar (se derritió el hielo debajo, cambiaste en el agua a uno que no nada), salís nadando solo hasta lo más cercano. A los enemigos les pasa lo mismo.
 - **Tipos de enemigo según su rol:**
@@ -353,6 +356,42 @@ Es a donde volvés cuando cae todo tu equipo (como la casa de Hades). Una pantal
 
 ---
 
+## Tutorial, boss rush y otros modos
+
+**Tutorial** (menú principal, o al empezar una partida nueva): la **isla de práctica de Celebi**. Te presta a Riolu y vas paso por paso, sin apuro y sin poder perder: moverte, correr, esquivar, el combo, disparar, los especiales, el **parry** (contra un Mankey que pega despacito), los **relevos** (se suma Torchic), las asistencias, **bailar y hacer un amigo** (un Machop cansado), romper cosas, una **sala de verdad en chiquito** (dos enemigos, la nota, la llave y la puerta), **comprar** en la tienda y los lazos de equipo. Abajo a la izquierda Celebi dice qué hay que hacer y cuánto llevás. **F9** saltea un paso. Los textos están en `modos.py` (`TUTORIAL`).
+
+**Boss rush** (menú principal): elegís **3 pokemon cualesquiera** (no los jefes, ni Celebi, ni Missingno) y peleás contra **los 12 jefes seguidos**: el semijefe y el Regi de cada era, Regigigas y Arceus (y lo que venga después). Entre era y era hay una tienda; arrancás con 150 monedas y los jefes dan las suyas.
+- Tu equipo **sube solo** al nivel de cada jefe (1 menos que el semijefe, 3 menos que el Regi) y entre jefe y jefe recupera la **mitad de la vida** (los caídos se levantan).
+- Se puede jugar en **Normal** o en **Fácil**. Al terminar (o al caer) te dice cuántos jefes y en cuánto tiempo.
+
+**Boss rush con tu partida:** en el refugio de Celebi, en la **estatua del salón de los modos**. Van los amigos que tengas en el equipo. No se pierde nada: tu equipo, tus monedas y tu mochila quedan guardados aparte y vuelven al terminar, con un premio para el próximo viaje (40 monedas por jefe y 400 más si lo completás).
+
+**Modo fácil:** se prende y se apaga en la misma estatua (queda guardado en la partida). Recibís 40% menos de daño, las salas curan 25% en vez de 12%, y los enemigos avisan más, atacan menos seguido, de a dos como mucho y sin maniobras. Vale para los viajes y para el boss rush.
+
+**Sala de los titanes** (desde la estatua o la puerta del salón): los jefes que ya derrotaste te esperan cada uno en su pedestal; los que no, son una sombra. Hablales con E: cuentan algo y te ofrecen la **revancha** (una pelea contra ese jefe solo, con tu equipo subido a su nivel).
+
+**Minijuegos** (la cancha del refugio; tu equipo entra prestado, con la vida llena, y dan monedas para el próximo viaje):
+- **Contrarreloj:** 90 segundos; cuenta cuántos derrotás (reaparecen enseguida).
+- **Supervivencia:** sin curas, y cada 20 segundos se suma un enemigo más. Cuenta cuánto aguantás.
+- **Lluvia de monedas:** 45 segundos juntando monedas mientras los tiradores te apuntan.
+
+**Amigos del refugio:** cada uno habla distinto según su especie, su tipo, su naturaleza y cuánto te quiere. Si le preguntás **¿Necesitás algo?** te pide un **favor** para el próximo viaje (uno a la vez); si lo cumplís con él en el equipo, sube su amistad.
+
+**Misiones del tablón:** ahora son 16 (parrys, bailes, amigos nuevos, romper cosas, compras, tesoros, desafíos, arreglar una era, terminar un boss rush, ganar revanchas, jugar minijuegos...). Casi todas se pueden volver a tomar después de cumplirlas.
+
+### Lazos de equipo
+
+Además de la sinergia que da cada uno desde la banca, **el equipo entero** gana algo si sus pokemon se complementan. Cuentan todos los que están en pie (también el que pelea) y se ven en el menú de equipo, arriba a la derecha. La lista completa está en *Glosario > Lazos de equipo*: de cada lazo dice **quiénes** lo forman, **por qué** van juntos y **qué da**. Además, la pestaña *Habilidad* de la ficha de cada pokemon dice qué lazos puede formar y con quién. Los datos están en `mecanicas.py` (`RESONANCIA` y `LAZOS`).
+- **Resonancia de tipo:** dos pokemon que comparten un tipo dan +5% de lo que ese tipo hace mejor (fuego, lucha, dragón y siniestro: daño; agua, tierra, roca y acero: defensa; eléctrico, volador y bicho: velocidad; hielo, veneno, psíquico y fantasma: recargas; planta, hada y normal: energía). Los tres del mismo tipo: +9%.
+- **Lazos por su historia** (unos 25): Compañeros de Hoenn (Mudkip y Torchic), Familia Eevee, Rivales de dojo (Mankey y Machop), Maestro y aprendiz (Lucario con los que pelean con los puños), Fósiles revividos, Cazadora de cuervos (Tinkaton y Corviknight), Tragamisil cargado (Cramorant y Arrokuda), Espada y escudo (Gardevoir y Gallade), Trío elemental (fuego, agua y planta), Paradojas...
+- Lo que suman los lazos a una misma cosa tiene un tope de 18%.
+
+### Más movimiento en pantalla
+
+Contador de **golpes seguidos** debajo del minimapa (se corta si pasás 1,6 s sin pegar o si te pegan), los enemigos que caen dejan su **silueta en blanco** un instante, los que embisten o esquivan dejan **estela**, y con menos del 25% de vida los bordes de la pantalla **laten en rojo**. La llegada de Celebi en la partida nueva también es otra: entra dormido por el túnel en espiral dejando brillitos, y cuando te descubre te da una vuelta alrededor.
+
+---
+
 ## Pokemon nuevos y lo que los hace únicos
 
 Se sumaron **más de 60 líneas evolutivas** (datos de la PokeAPI y sprites de SpriteCollab):
@@ -375,7 +414,7 @@ Se sumaron **más de 60 líneas evolutivas** (datos de la PokeAPI y sprites de S
 | Acero | Mawile, Honedge, Klink, Aron |
 | Hada | Cleffa, Tinkatink, Flabébé |
 
-Amoonguss y Furioseta están cargados con su retrato (se ven en los menús), pero SpriteCollab todavía no tiene sus animaciones: en el juego aparecen solos el día que estén en `assets/sprites/pokemones` (`python herramientas.py descargar`).
+**Los que todavía no tienen sprites propios:** solo **Amoonguss y Furioseta**. SpriteCollab (de donde salen todos los sprites) todavía no tiene sus animaciones, solo el retrato; mientras tanto usan las de Foongus (más grande, y Furioseta oscurecido). El día que aparezcan, `python herramientas.py descargar` las baja y el juego usa las suyas solo. Missingno no está en SpriteCollab. A unos 170 pokemon les falta la animación de desmayarse (*Faint*): SpriteCollab no la tiene y el juego usa la de recibir un golpe.
 
 **Formas origen y Arceus Beta:** también están los sprites de **Dialga, Palkia y Giratina en su forma origen** (`dialga_origen`, `palkia_origen`, `giratina_origen`, cargados como jefes con sus stats de la PokeAPI; son los subjefes de la fase 2 de Arceus Beta, ver más abajo) y los de **Arceus Beta**.
 
@@ -867,6 +906,10 @@ Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGol
 
 - **Logo y títulos:** POKE con la letra de los nombres de mazmorra de Explorers of Sky (amarilla con borde azul) y MANIC con las **letras Unown** de la hoja de HGSS. Los títulos de los menús y los carteles grandes usan esa misma letra del PMD.
 - **Sección Ataques** (menú principal y pausa): todos los ataques del juego por categoría (básicos, especiales, asistencias, MT de combate y MT especiales), con qué hacen en palabras, sus números y quiénes los usan.
+- **Bordes de agua, hielo y pasto alto:** cada parche del PMD trae pegado alrededor el piso de *su* mazmorra, que no es el de la sala (por eso el agua tenía un borde de otro color). Ahora ese piso ajeno se saca (se ve el piso de verdad hasta la orilla) y la orilla del agua se pinta con el tono del piso de la sala, un poco más oscuro. Se hace solo al cargar cada tileset (`mundo.py`: `_calar` y `_con_orilla`), así que vale para todas las eras y para los tiles que agregues.
+- **Cosas con sprites del PMD:** cajas, vasijas (barriles, ánforas, cestos), fardos de heno, troncos y el puesto del mercado salen del mapa *Sky Peak 8th Station* del Explorers of Sky (`python herramientas.py props`). En el mapa las vasijas vienen de a dos, una tapando a la otra: se arma una sola entera con la mitad que se ve bien, espejada.
+- **Fuego en el piso:** ya no es un cuadrado naranja. El piso de la era queda chamuscado (una mancha oscura sin bordes rectos) y arriba arden tres llamas de la fogata de ese mismo mapa (`assets/efectos/llama.png`), cada una a su ritmo, con un resplandor que late.
+- **Casas del refugio:** todavía se dibujan en el código. Las del PMD son las hojas **Huts** del Red Rescue Team (Pikachu Hut, Mudkip Hut, Torchic Hut... están con su link en `assets/hojas/faltan.txt`); Spriters Resource no deja bajarlas automático. Bajalas a `assets/hojas/red_rescue/Huts`, corré `python herramientas.py props` y el barrio las usa solas.
 - **Terrenos con tiles del PMD:** además de piso, paredes y agua, ahora hay tilesets de vacío (el abismo de Chasm Cave), ceniza, roca volcánica, charcos y el techo de la torre de Regidrago; la lava, el aceite, la arena movediza y las corrientes son el agua animada del PMD con otros colores. El fuego y el agua electrificada usan las llamas y chispas del PMD, las cascadas el agua de la era cayendo con la salpicadura del PMD, y la alfombra de la tienda es la del Secret Bazaar.
 - **Efectos:** estelas al esquivar, embestir y arrancar a correr; silueta blanca en el enemigo golpeado; pausa de impacto en remates, parrys y bajas; la cámara acompaña el golpe; nube de humo de Poké Transfer al morir.
 
@@ -885,6 +928,7 @@ Las piezas recortadas están en `assets/interfaz/hud` (las arma `python herramie
 Programas aparte para preparar el juego. No se usan mientras jugás.
 
 ```
+python herramientas.py props               cajas, vasijas, heno y troncos del PMD (mapa Sky Peak 8th Station) y las casas del refugio (hojas Huts del Red Rescue Team, si las bajaste)
 python herramientas.py descargar           baja sprites y retratos del PMD (SpriteCollab) a assets/sprites/pokemones
 python herramientas.py datos               agrega a datos_pokeapi.json los pokemon que faltan (stats, movimientos, evoluciones). Si pokeapi.co no responde
                                            usa el espejo de GitHub (PokeAPI/api-data). Con 'datos todo' los vuelve a pedir todos

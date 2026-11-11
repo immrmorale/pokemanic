@@ -4,11 +4,13 @@ import random
 import math
 import sys
 import time
+import copy
 from types import SimpleNamespace
 import datos
 import mecanicas
+import modos
 from datos import mundos, mts, tienda
-from sistema import controles, pantalla, opciones, partidas, tipografia, animaciones
+from sistema import controles, pantalla, opciones, partidas, tipografia, animaciones, sonido
 from mundo import generacion, entorno, efectos
 from combate import ia, progreso
 from interfaz import menus
@@ -32,6 +34,7 @@ def main():
     W, H = 1000, 600
     config = opciones.cargar()                       # ajustes guardados en config.json
     controles.iniciar(config)
+    sonido.iniciar(config)                           # gritos y musica (si estan los archivos)
     ventana = pantalla.iniciar(W, H, config)        # todo se dibuja en 1000x600 y se escala a la ventana
     pygame.display.set_caption('Pokemanic')
     fuente = tipografia.fuente(24)
@@ -50,8 +53,7 @@ def main():
 
         def aplicar_volumen():
             """Pone el volumen de la musica segun los ajustes."""
-            try: pygame.mixer.music.set_volume(config['volumen'] / 100)
-            except pygame.error: pass
+            sonido.volumen()
 
         def confirmar(mensaje):
             """Caja de 'si / no' sobre la pantalla actual. True si se confirmo (ENTER / Y)."""
@@ -167,13 +169,16 @@ def main():
                 grupos.setdefault(tipo, []).append(((gen, dex, r), miembros))
             return [(t, [n for _, ms in sorted(grupos[t]) for n in ms]) for t in TIPOS_ORDEN + sorted(set(grupos) - set(TIPOS_ORDEN)) if t in grupos]
 
-        def debug_menu(equipo, activo):
+        def debug_menu(equipo, activo, titulo_menu='MENU DEBUG', sin_espacio=False):
             """Menu debug (F1): grilla con todos los pokemon jugables (con el Konami tambien los jefes), ordenados por tipo,
             generacion y linea evolutiva (ver ordenar_debug). Cada tipo arranca en una fila nueva con su titulo.
             Devuelve (resultado, nombre elegido, espacio)."""
             pygame.mouse.set_visible(True)
             lista = list(JUGABLES)                           # con el codigo Konami adentro de este menu se suman los jefes
-            grupos = ordenar_debug(lista)
+            busca = ''                                       # escribiendo se filtra (como en la pokedex)
+            filtrar = lambda: ordenar_debug([n for n in lista if not busca or busca in n.replace('_', ' ')
+                                             or busca in normalizar_tipo((pokemones[n].get('tipo') or ['normal'])[0])]) or []
+            grupos = filtrar()
             scroll = 0
             botones = []
             f_titulo = tipografia.fuente(32)
@@ -187,15 +192,28 @@ def main():
                         return 'salir', None, None
                     if e.type == controles.KONAMI:
                         lista = list(JUGABLES) + [n for n, d in pokemones.items() if d.get('boss') and tiene_sprites(n) and n not in JUGABLES]
-                        grupos = ordenar_debug(lista)
+                        grupos = filtrar()
+                    if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE and busca:   # ESC primero borra la busqueda
+                        busca = ''; grupos = filtrar(); scroll = 0; continue
                     if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_F1):
                         return 'ok', None, None
+                    if e.type == pygame.KEYDOWN and e.key == pygame.K_BACKSPACE: busca = busca[:-1]; grupos = filtrar(); scroll = 0; continue
+                    if e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN:          # Enter: el primero de lo que quedo
+                        primero = next((ns[0] for _, ns in grupos if ns), None)
+                        if primero:
+                            espacio = len(equipo) if sin_espacio else elegir_espacio(primero, equipo, activo)
+                            if espacio == 'salir': return 'salir', None, None
+                            if espacio is not None: return 'ok', primero, espacio
+                        continue
+                    letra = getattr(e, 'unicode', '') if e.type == pygame.KEYDOWN else ''
+                    if letra and (letra.isalnum() or letra == ' ') and len(busca) < 16:
+                        busca += letra.lower(); grupos = filtrar(); scroll = 0
                     if e.type == pygame.MOUSEWHEEL:
                         scroll = max(0, min(scroll - e.y * 60, max_scroll))
                     if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                         for r, nombre in botones:
                             if r.collidepoint(pantalla.a_logico(e.pos)):
-                                espacio = elegir_espacio(nombre, equipo, activo)
+                                espacio = len(equipo) if sin_espacio else elegir_espacio(nombre, equipo, activo)
                                 if espacio == 'salir':
                                     return 'salir', None, None
                                 if espacio is not None:
@@ -230,8 +248,13 @@ def main():
                     ventana.blit(fuente.render(detalle, True, 'white'), (x + 8, y + bh + 5))
                     if r.top >= 64: botones.append((r, nombre))     # las que pasan por debajo del titulo no se pueden tocar
                 pygame.draw.rect(ventana, (20, 20, 20), (0, 0, W, 64))      # el titulo queda fijo arriba: lo que se desplaza pasa por debajo
-                ventana.blit(f_titulo.render('MENU DEBUG', True, 'white'), (25, 15))
-                ventana.blit(fuente.render('F1 o ESC para cerrar - rueda del mouse para desplazarte - clic para elegir espacio', True, (200, 200, 200)), (25, 45))
+                ventana.blit(f_titulo.render(titulo_menu, True, 'white'), (25, 15))
+                ventana.blit(fuente.render('escribí: buscar (nombre o tipo)   Enter: el primero   clic: elegir   rueda: desplazar   F1 / ESC: cerrar', True, (200, 200, 200)), (25, 45))
+                caja_b = pygame.Rect(W - 330, 10, 310, 30)
+                pygame.draw.rect(ventana, (40, 44, 60), caja_b, border_radius=6); pygame.draw.rect(ventana, (90, 200, 255) if busca else (90, 95, 120), caja_b, 2, border_radius=6)
+                texto_b = ('Buscar: ' + busca + ('_' if (pygame.time.get_ticks() // 450) % 2 else '')) if busca else 'Escribí para buscar...'
+                ventana.blit(fuente.render(texto_b, True, 'white' if busca else (150, 155, 170)), (caja_b.x + 10, caja_b.y + 6))
+                if not grupos: ventana.blit(fuente.render('Nada con "' + busca + '"', True, 'white'), (40, 120))
                 pantalla.presentar()
 
         def asignar_equipo(lista, nombre, espacio):
@@ -252,6 +275,7 @@ def main():
         def pantalla_titulo():
             """Pantalla de titulo sobre la isla: cualquier tecla sigue al menu, ESC pregunta si salir."""
             pygame.mouse.set_visible(True)
+            sonido.musica('titulo')
             f_grande, f_med, f_peq = tipografia.fuente(96), tipografia.fuente(30), tipografia.fuente(18)
             reloj_t = pygame.time.Clock()
             inicio_t = pygame.time.get_ticks()
@@ -283,15 +307,16 @@ def main():
         def menu_principal(equipo):
             """Menu principal: jugar, pokedex, ajustes, glosario y salir. Devuelve la opcion elegida."""
             pygame.mouse.set_visible(True)
-            orden = ['jugar', 'pokedex', 'ataques', 'ajustes', 'glosario', 'salir']
-            botones = {o: pygame.Rect(80, 150 + i * 74, 320, 60) for i, o in enumerate(orden[:5])}
+            sonido.musica('menu')
+            orden = ['jugar', 'tutorial', 'rush', 'prueba', 'pokedex', 'ataques', 'ajustes', 'glosario', 'salir']
+            botones = {o: pygame.Rect(80, 112 + i * 57, 320, 50) for i, o in enumerate(orden[:-1])}
             botones['salir'] = pygame.Rect(0, 0, 84, 84)
             botones['salir'].center = (W - 100, H - 80)
             f_titulo, f_boton, f_info = tipografia.fuente(64), tipografia.fuente(44), tipografia.fuente(24)
             seleccion = 0
             reloj_m = pygame.time.Clock()
             abierto = pygame.time.get_ticks()
-            TEXTO_MENU = {'jugar': 'Jugar', 'pokedex': 'Pokédex', 'ataques': 'Ataques', 'ajustes': 'Ajustes', 'glosario': 'Glosario'}
+            TEXTO_MENU = {'jugar': 'Jugar', 'tutorial': 'Tutorial', 'rush': 'Boss rush', 'prueba': 'Modo prueba', 'pokedex': 'Pokédex', 'ataques': 'Ataques', 'ajustes': 'Ajustes', 'glosario': 'Glosario'}
             while True:
                 elegido = None
                 for e in controles.eventos():
@@ -317,26 +342,27 @@ def main():
                 ahora = pygame.time.get_ticks()
                 menus.fondo_menu(ui, ahora)
                 menus.dibujar_logo(ventana, 64, ahora, topright=(W - 40, 40 - round((1 - menus.aparecer(ahora - abierto, 0, 400)) * 160)))
-                for i, o in enumerate(orden[:5]):                     # paneles en flecha de BW que entran escalonados desde la izquierda
-                    menus.boton(ventana, botones[o], TEXTO_MENU[o], seleccion == i, 44, aparicion=menus.aparecer(ahora - abierto, i * 70))
+                for i, o in enumerate(orden[:-1]):                    # paneles en flecha de BW que entran escalonados desde la izquierda
+                    menus.boton(ventana, botones[o], TEXTO_MENU[o], seleccion == i, 38, aparicion=menus.aparecer(ahora - abierto, i * 60))
                 cx, cy = botones['salir'].center
                 pygame.draw.circle(ventana, 'white', (cx, cy), 40, 3)
                 pygame.draw.line(ventana, 'white', (cx + 16, cy), (cx - 12, cy), 4)
                 pygame.draw.line(ventana, 'white', (cx - 12, cy), (cx - 2, cy - 10), 4)
                 pygame.draw.line(ventana, 'white', (cx - 12, cy), (cx - 2, cy + 10), 4)
                 pygame.draw.line(ventana, 'white', (cx - 21, cy - 14), (cx - 21, cy + 14), 4)
-                if seleccion == 5: dibujar_esquinas(ventana, botones['salir'].inflate(6, 6))
+                if seleccion == len(orden) - 1: dibujar_esquinas(ventana, botones['salir'].inflate(6, 6))
                 ventana.blit(tipografia.fuente(24, borde=True).render('Combate: ' + config['modo'] + ('   (control conectado)' if controles.hay_control() else ''), True, 'white'), (20, H - 34))
                 pantalla.presentar(); reloj_m.tick(60)
 
-        def menu_pausa(fondo):
-            """Menu de pausa sobre la partida congelada ('fondo'). Devuelve 'seguir', 'menu' o 'cerrar'."""
+        def menu_pausa(fondo, retirarse=False):
+            """Menu de pausa sobre la partida congelada ('fondo'). Devuelve 'seguir', 'menu', 'refugio' (retirarse del viaje) o 'cerrar'."""
             pygame.mouse.set_visible(True)
             tinte = pygame.Surface((W, H), pygame.SRCALPHA)
             tinte.fill((10, 10, 25, 120))
-            opciones = [('seguir', 'Seguir jugando'), ('ajustes', 'Ajustes'), ('pokedex', 'Pokédex'), ('ataques', 'Ataques'), ('glosario', 'Glosario'),
-                        ('salir', 'Salir al menú')]
-            botones = [pygame.Rect(60, 150 + i * 68, 340, 56) for i in range(len(opciones))]
+            opciones = [('seguir', 'Seguir jugando'), ('ajustes', 'Ajustes'), ('pokedex', 'Pokédex'), ('ataques', 'Ataques'), ('glosario', 'Glosario')]
+            if retirarse: opciones.append(('refugio', 'Volver al refugio'))
+            opciones.append(('salir', 'Salir al menú'))
+            botones = [pygame.Rect(60, 130 + i * 62, 360, 52) for i in range(len(opciones))]
             abierto = pygame.time.get_ticks()
             f_titulo, f_boton = tipografia.fuente(80), tipografia.fuente(38)
             seleccion = 0
@@ -365,6 +391,7 @@ def main():
                 if accion == 'pokedex':
                     if pokedex() == 'salir': return 'cerrar'
                 if accion == 'salir' and confirmar('¿Volver al menú principal?'): return 'menu'
+                if accion == 'refugio' and confirmar('¿Volver al refugio de Celebi? Este viaje se pierde (tus amigos no)'): return 'refugio'
                 ahora = pygame.time.get_ticks(); t = ahora - abierto
                 ventana.blit(fondo, (0, 0))
                 ventana.blit(tinte, (0, 0))
@@ -395,218 +422,434 @@ def main():
             """Texto de lo que hace una asistencia (lo que el pokemon de la banca hace con F / G)."""
             return datos.describir_asistencia(a)
 
-        def construir_ficha(nombre, ancho, fuente_txt):
-            """Filas de la ficha de un pokemon (titulos, parrafos y espacios) ya cortadas al ancho del panel."""
+        TIPOS_DEX = list(_pk.TABLA_TIPOS)                              # el orden de la tabla de tipos (normal, fuego, agua...)
+        ANIMS_FICHA = ('idle', 'walk', 'attack', 'shoot', 'pose', 'hop', 'charge', 'swing', 'rotate', 'sleep')   # las que va mostrando la ficha
+        NOMBRE_ANIM = {'idle': 'Quieto', 'walk': 'Caminando', 'attack': 'Atacando', 'shoot': 'Disparando', 'pose': 'Pose', 'hop': 'Saltito',
+                       'charge': 'Cargando', 'swing': 'Barrido', 'rotate': 'Girando', 'sleep': 'Durmiendo'}
+        PESTAÑAS = ('Info', 'Combate', 'Movimientos')
+        _grises = {}
+
+        def mios():
+            """Pokemon que tenes: los que fueron tus amigos o estuvieron en tu equipo en cualquiera de las partidas guardadas,
+            con la forma base, la evolucion mas alta a la que llegaron y las del medio."""
+            tengo = set()
+            for r in range(1, partidas.RANURAS + 1):
+                d = partidas.cargar(r) or {}
+                jd = d.get('jugador') or {}
+                for m in (jd.get('equipo') or []) + (jd.get('reserva') or []):
+                    if m.get('nombre'): tengo.add(m['nombre'])
+                for a in ((d.get('perfil') or {}).get('amigos') or []):
+                    base, (record, _) = a.get('especie'), a.get('record') or (None, 0)
+                    n, vistos = record, set()
+                    while n and n not in vistos and n in pokemones:                  # de la evolucion mas alta para atras hasta la base
+                        tengo.add(n); vistos.add(n)
+                        if n == base: break
+                        n = evoluciones_de(n)[0]
+                    if base: tengo.add(base)
+            return {n for n in tengo if n in pokemones}
+
+        def gris(nombre, lado):
+            """El retrato en gris (los que todavia no tenes, en la vista 'todos')."""
+            clave = (nombre, lado)
+            if clave not in _grises:
+                img = retrato_menu(nombre, lado)
+                if img:
+                    try: img = pygame.transform.grayscale(img)
+                    except AttributeError: img = img.copy()
+                    img.set_alpha(150)
+                _grises[clave] = img
+            return _grises[clave]
+
+        def construir_pestañas(nombre, ancho, fuente_txt):
+            """Lo que va en cada pestaña de la ficha, ya cortado al ancho: ('t', titulo), ('p', parrafo), ('e', espacio),
+            ('evo', [cadena]) y ('chips', etiqueta, [tipos])."""
             d = pokemones[nombre]
-            filas = []
-            def titulo(t): filas.append(('t', t))
-            def texto(t):
-                """Agrega un parrafo, cortado en lineas que entren en el panel."""
-                for linea in ajustar_texto(t, fuente_txt, ancho): filas.append(('p', linea))
-            def vacio(): filas.append(('e', ''))
-            titulo('Descripción')
-            texto(descripcion_de(nombre) or 'Sin descripción. Ejecutá generar_datos.py para bajar los textos de la pokédex.')
-            vacio()
+            pestañas = {p: [] for p in PESTAÑAS}
+            def titulo(p, t): pestañas[p].append(('t', t))
+            def texto(p, t):
+                for linea in ajustar_texto(t, fuente_txt, ancho): pestañas[p].append(('p', linea))
+            def vacio(p): pestañas[p].append(('e', ''))
+            # ----- info
+            titulo('Info', 'Descripción')
+            texto('Info', descripcion_de(nombre) or 'Sin descripción. Ejecutá "python herramientas.py datos" para bajar los textos de la pokédex.')
+            vacio('Info')
             unico = mecanicas.texto_de(nombre)
-            if unico:
-                titulo('Lo que lo hace único')
-                texto(unico)
-                vacio()
-            if nombre in mecanicas.ENEMIGO:
-                titulo('Como enemigo')
-                texto(mecanicas.ENEMIGO_TXT[mecanicas.ENEMIGO[nombre]])
-                vacio()
-            titulo('Evolución')
-            de, a = evoluciones_de(nombre)
-            texto('Evoluciona de: ' + (de.capitalize() if de else 'nadie'))
-            texto('Evoluciona a: ' + (', '.join(x.capitalize() for x in a) if a else 'no evoluciona'))
-            vacio()
-            titulo('Débil a')
+            if unico: titulo('Info', 'Lo que lo hace único'); texto('Info', unico); vacio('Info')
+            if nombre in mecanicas.ENEMIGO: titulo('Info', 'Como enemigo'); texto('Info', mecanicas.ENEMIGO_TXT[mecanicas.ENEMIGO[nombre]]); vacio('Info')
+            cadena, n, vistos = [], nombre, set()                      # la linea evolutiva entera, de la base a las ultimas
+            while n and n not in vistos: vistos.add(n); cadena.insert(0, n); n = evoluciones_de(n)[0]
+            siguientes = evoluciones_de(nombre)[1]
+            while siguientes:
+                cadena.append([s for s in siguientes if s in pokemones] or siguientes)
+                siguientes = evoluciones_de(siguientes[0])[1] if len(siguientes) == 1 else []
+            cadena = [c_ if isinstance(c_, list) else [c_] for c_ in cadena]
+            titulo('Info', 'Línea evolutiva')
+            if len(cadena) > 1: pestañas['Info'].append(('evo', cadena))
+            else: texto('Info', 'No evoluciona.')
+            # ----- combate
             deb = debilidades_de(nombre)
-            if not d.get('tipo'): texto('Sin tipo')
-            if deb['x4']: texto('Muy débil (x4): ' + ', '.join(deb['x4']))
-            if deb['x2']: texto('Débil (x2): ' + ', '.join(deb['x2']))
-            if deb['x05'] or deb['x025']: texto('Resiste: ' + ', '.join(deb['x05'] + deb['x025']))
-            if deb['x0']: texto('Inmune: ' + ', '.join(deb['x0']))
-            vacio()
+            titulo('Combate', 'Debilidades')
+            if deb['x4']: pestañas['Combate'].append(('chips', 'Muy débil x4', deb['x4']))
+            if deb['x2']: pestañas['Combate'].append(('chips', 'Débil x2', deb['x2']))
+            if deb['x05'] or deb['x025']: pestañas['Combate'].append(('chips', 'Resiste', deb['x05'] + deb['x025']))
+            if deb['x0']: pestañas['Combate'].append(('chips', 'Inmune', deb['x0']))
+            vacio('Combate')
             try: g = datos_juego(nombre)
             except Exception: g = None
             if g:
-                titulo('Ataques básicos')
+                titulo('Combate', 'Ataques básicos')
                 for i, n in enumerate(g['basicos']):
-                    if n: texto(['E / clic izq.: ', 'Q / clic der.: '][i] + n.replace('_', ' ').title() + ' - ' + descripcion_movimiento(buscar_movimiento(n)))
-                vacio()
-                titulo('Habilidades especiales')
-                for i, (n, dat) in enumerate(g['especiales']): texto(['Shift: ', 'R: '][i] + datos.nombre_ataque(n) + ' - ' + descripcion_movimiento(dat))
-                vacio()
-                titulo('Sinergia')
+                    if n: texto('Combate', ['E / clic izq.: ', 'Q / clic der.: '][i] + n.replace('_', ' ').title() + ' - ' + descripcion_movimiento(buscar_movimiento(n)))
+                vacio('Combate')
+                titulo('Combate', 'Especiales')
+                for i, (n, dat) in enumerate(g['especiales']): texto('Combate', ['Shift: ', 'R: '][i] + datos.nombre_ataque(n) + ' - ' + descripcion_movimiento(dat))
+                vacio('Combate')
+                titulo('Combate', 'Desde la banca')
                 etiquetas = {'daño': 'daño', 'defensa': 'menos daño recibido', 'velocidad': 'velocidad', 'enfriamiento': 'menos espera en ataques'}
-                for clave, valor in g['sinergia'].items(): texto('Pasiva en la banca: +' + str(round(valor * 100, 1)) + '% de ' + etiquetas.get(clave, clave) + ' al activo')
+                for clave, valor in g['sinergia'].items(): texto('Combate', 'Sinergia: +' + str(round(valor * 100, 1)) + '% de ' + etiquetas.get(clave, clave) + ' al activo')
                 try:
                     a = asistencia_de(nombre)
-                    texto('Asistencia (F / G desde la banca): ' + a['nombre'].replace('_', ' ').title() + ' - ' + descripcion_asistencia(a) + '. Espera ' + str(a['enfriamiento'] // 1000) + ' s')
+                    texto('Combate', 'Asistencia (F / G): ' + a['nombre'].replace('_', ' ').title() + ' - ' + descripcion_asistencia(a) + '. Espera ' + str(a['enfriamiento'] // 1000) + ' s')
                 except Exception: pass
-                vacio()
-            titulo('Ataques en el juego')
-            for n in d.get('ataques', []): texto(n.replace('_', ' ').title() + ' - ' + descripcion_movimiento(movimientos.get(n)))
-            vacio()
-            titulo('Ataques que aprende (PokéAPI)')
+            # ----- movimientos
+            titulo('Movimientos', 'Ataques en el juego')
+            for n in d.get('ataques', []): texto('Movimientos', n.replace('_', ' ').title() + ' - ' + descripcion_movimiento(movimientos.get(n)))
+            vacio('Movimientos')
+            titulo('Movimientos', 'Ataques que aprende (PokéAPI)')
             aprende = aprende_de(nombre)
-            texto(', '.join(aprende) if aprende else 'Sin datos. Ejecutá generar_datos.py para bajar la lista de movimientos.')
-            return filas
+            texto('Movimientos', ', '.join(aprende) if aprende else 'Sin datos. Ejecutá "python herramientas.py datos" para bajar la lista de movimientos.')
+            return pestañas
 
-        def ver_ficha(entradas, indice):
-            """Ficha de un pokemon con su animacion, tipos y stats. Flechas cambian de pokemon, la rueda desplaza el texto."""
-            f_nombre, f_sec, f_txt = tipografia.fuente(42), tipografia.fuente(28), tipografia.fuente(22)
+        def suave(k):
+            """0 -> 1 que frena al final (para las animaciones de la interfaz)."""
+            k = max(0.0, min(1.0, k)); return 1 - (1 - k) ** 3
+
+        def ver_ficha(entradas, indice, tengo):
+            """Ficha de un pokemon: a la izquierda su sprite animado sobre un pedestal de su tipo y sus stats, a la derecha
+            tres pestañas (Info, Combate, Movimientos). Flechas cambian de pokemon, Q/E o 1-3 de pestaña, espacio otra animacion."""
+            f_nombre, f_sec, f_txt, f_chico = tipografia.fuente(40, borde=True), tipografia.fuente(28), tipografia.fuente(22), tipografia.fuente(18)
             reloj_f = pygame.time.Clock()
-            panel = pygame.Rect(335, 60, 645, 525)
-            ancho_texto = panel.width - 30
-            altos = {'t': 32, 'p': 21, 'e': 10}
-            estado = {'indice': -1}
-            def cargar(i):
-                """Prepara la ficha del pokemon i de la lista (animacion, texto y desplazamiento en cero)."""
+            tarjeta, panel = pygame.Rect(20, 82, 330, 486), pygame.Rect(362, 108, 618, 460)
+            pestaña_r = [pygame.Rect(panel.x + i * 150, 70, 144, 36) for i in range(len(PESTAÑAS))]
+            contenido = panel.inflate(-28, -24)
+            altos = {'t': 32, 'p': 21, 'e': 10, 'evo': 92, 'chips': 30}
+            st = {'indice': -1, 'pestaña': 0, 'dir': 1}
+
+            def cargar(i, direccion=1):
                 nombre = entradas[i]
-                animador = AnimadorPokemon(nombre, pygame.Rect(0, 0, 10, 10), 140)
-                animador.rect.center = (170, 160)
+                animador = AnimadorPokemon(nombre, pygame.Rect(0, 0, 10, 10), 150)
+                anims = [a for a in ANIMS_FICHA if a == 'idle' or animador._buscar_animacion(a) not in (None, 'idle')]
+                st.update({'indice': i, 'nombre': nombre, 'animador': animador, 'pestañas': construir_pestañas(nombre, contenido.width, f_txt),
+                           'scroll': 0, 'cargada': pygame.time.get_ticks(), 'dir': direccion, 'anims': anims, 'anim_i': 0, 'anim_desde': pygame.time.get_ticks(),
+                           'cambio_pestaña': pygame.time.get_ticks(), 'evo_botones': []})
                 animador.cambiar('idle', 0, True)
-                filas = construir_ficha(nombre, ancho_texto, f_txt)
-                total = sum(altos[k] for k, _ in filas)
-                estado.update({'indice': i, 'nombre': nombre, 'animador': animador, 'filas': filas, 'total': total, 'scroll': 0})
+                sonido.grito(nombre, 0.8)
+
+            def otra_animacion():
+                st['anim_i'] = (st['anim_i'] + 1) % len(st['anims']); st['anim_desde'] = pygame.time.get_ticks()
+
+            def ir_pestaña(k):
+                if k != st['pestaña']: st['dir'] = 1 if k > st['pestaña'] else -1; st['pestaña'] = k; st['scroll'] = 0; st['cambio_pestaña'] = pygame.time.get_ticks()
+
             cargar(indice)
             while True:
-                maximo = max(0, estado['total'] - (panel.height - 20))
+                ahora = pygame.time.get_ticks()
+                filas = st['pestañas'][PESTAÑAS[st['pestaña']]]
+                maximo = max(0, sum(altos[f[0]] for f in filas) - contenido.height)
                 for e in controles.eventos():
-                    if e.type == pygame.QUIT:
-                        return 'salir'
+                    if e.type == pygame.QUIT: return 'salir'
                     if e.type == pygame.KEYDOWN:
                         if e.key == pygame.K_ESCAPE: return None
-                        if e.key in (pygame.K_LEFT, pygame.K_a): cargar((estado['indice'] - 1) % len(entradas))
-                        if e.key in (pygame.K_RIGHT, pygame.K_d): cargar((estado['indice'] + 1) % len(entradas))
-                        if e.key in (pygame.K_UP, pygame.K_w): estado['scroll'] = max(0, estado['scroll'] - 40)
-                        if e.key in (pygame.K_DOWN, pygame.K_s): estado['scroll'] = min(maximo, estado['scroll'] + 40)
-                    if e.type == pygame.MOUSEWHEEL:
-                        estado['scroll'] = max(0, min(estado['scroll'] - e.y * 40, maximo))
-                nombre, animador = estado['nombre'], estado['animador']
+                        if e.key in (pygame.K_LEFT, pygame.K_a): cargar((st['indice'] - 1) % len(entradas), -1)
+                        if e.key in (pygame.K_RIGHT, pygame.K_d): cargar((st['indice'] + 1) % len(entradas), 1)
+                        if e.key in (pygame.K_UP, pygame.K_w): st['scroll'] = max(0, st['scroll'] - 40)
+                        if e.key in (pygame.K_DOWN, pygame.K_s): st['scroll'] = min(maximo, st['scroll'] + 40)
+                        if e.key in (pygame.K_q, pygame.K_TAB) and e.key == pygame.K_q: ir_pestaña((st['pestaña'] - 1) % len(PESTAÑAS))
+                        if e.key in (pygame.K_e, pygame.K_TAB): ir_pestaña((st['pestaña'] + 1) % len(PESTAÑAS))
+                        if e.key in (pygame.K_1, pygame.K_2, pygame.K_3): ir_pestaña(e.key - pygame.K_1)
+                        if e.key == pygame.K_SPACE: otra_animacion()
+                    if e.type == pygame.MOUSEWHEEL: st['scroll'] = max(0, min(st['scroll'] - e.y * 40, maximo))
+                    if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                        pos = pantalla.a_logico(e.pos)
+                        for k, r in enumerate(pestaña_r):
+                            if r.collidepoint(pos): ir_pestaña(k)
+                        if pygame.Rect(tarjeta.x, tarjeta.y + 90, tarjeta.width, 200).collidepoint(pos): otra_animacion(); sonido.grito(st['nombre'], 0.8)
+                        for r, destino in st['evo_botones']:                       # clic en un pokemon de la linea evolutiva: su ficha
+                            if r.collidepoint(pos) and destino != st['nombre']:
+                                if destino not in entradas: entradas = entradas + [destino]
+                                cargar(entradas.index(destino)); break
+                nombre, animador = st['nombre'], st['animador']
                 d = pokemones[nombre]
-                ventana.fill((20, 20, 20))
-                ventana.blit(f_sec.render('POKEDEX', True, 'white'), (20, 18))
-                ventana.blit(fuente.render('← → cambiar Pokémon - rueda del mouse: desplazar - ESC: volver a la lista', True, (200, 200, 200)), (160, 24))
-                pygame.draw.rect(ventana, (32, 32, 32), (20, 60, 300, 525))
-                pygame.draw.rect(ventana, (32, 32, 32), panel)
                 tipos = [normalizar_tipo(t) for t in d.get('tipo', [])]
+                color = COLORES_TIPO.get(tipos[0] if tipos else '', (150, 150, 150))
+                k_carga = suave((ahora - st['cargada']) / 280)
+                dx = round((1 - k_carga) * 60 * st['dir'])                     # al cambiar de pokemon entra deslizandose
+                menus.fondo(ventana)
+                # ----- tarjeta de la izquierda
+                t_r = tarjeta.move(dx, 0)
+                menus.caja(ventana, t_r, 'panel', (32, 32, 40))
+                numero = d.get('pokedex')
+                if numero: ventana.blit(f_chico.render('N.º ' + str(numero).zfill(4), True, (200, 210, 230)), (t_r.x + 16, t_r.y + 12))
+                if nombre in tengo:
+                    bola = menus.hud('pokeball')
+                    if bola: ventana.blit(pygame.transform.smoothscale(bola, (26, 26)), (t_r.right - 40, t_r.y + 10))
+                    ventana.blit(f_chico.render('¡Lo tenés!', True, (255, 225, 120)), (t_r.right - 128, t_r.y + 14))
+                nt = f_nombre.render(nombre.replace('_', ' ').title(), True, 'white')
+                ventana.blit(nt, nt.get_rect(midtop=(t_r.centerx, t_r.y + 28)))
+                x_chip = t_r.centerx - sum(f_txt.size(t.upper())[0] + 20 for t in tipos) // 2
+                for t in tipos: x_chip += menus.chip_tipo(ventana, t, x_chip, t_r.y + 68)
+                # pedestal con brillo del tipo y el sprite flotando
+                cx_, cy_ = t_r.centerx, t_r.y + 196
+                brillo = pygame.Surface((240, 240), pygame.SRCALPHA)
+                for r_, a_ in ((110, 30), (80, 45), (52, 60)): pygame.draw.circle(brillo, (*color, a_), (120, 120), r_ + round(4 * math.sin(ahora / 400)))
+                ventana.blit(brillo, (cx_ - 120, cy_ - 130))
+                pygame.draw.ellipse(ventana, tuple(max(0, c - 90) for c in color), (cx_ - 70, cy_ + 42, 140, 30))
+                pygame.draw.ellipse(ventana, tuple(min(255, c + 40) for c in color), (cx_ - 70, cy_ + 38, 140, 30), 3)
+                if ahora - st['anim_desde'] > 2600: otra_animacion()
+                anim = st['anims'][st['anim_i']]
+                direccion = ((ahora - st['anim_desde']) // 330) % 8 if anim == 'walk' else (0 if anim != 'rotate' else ((ahora // 120) % 8))
+                animador.cambiar(anim, direccion, True)
+                animador.rect.center = (cx_, round(cy_ + 4 * math.sin(ahora / 300)) - (6 if anim != 'sleep' else 0))
                 animador.actualizar()
                 if not animador.dibujar(ventana):
-                    pygame.draw.rect(ventana, COLORES_TIPO.get(tipos[0] if tipos else '', (120, 120, 120)), (110, 100, 120, 120))
-                    ini = f_nombre.render(nombre[:2].title(), True, 'black')
-                    ventana.blit(ini, ini.get_rect(center=(170, 160)))
-                n = f_nombre.render(nombre.replace('_', ' ').title(), True, 'white')
-                ventana.blit(n, n.get_rect(center=(170, 245)))
-                x = 40
-                for t in tipos:
-                    chip = f_txt.render(t, True, 'black')
-                    r = pygame.Rect(x, 268, chip.get_width() + 16, 24)
-                    pygame.draw.rect(ventana, COLORES_TIPO.get(t, (150, 150, 150)), r, border_radius=8)
-                    ventana.blit(chip, (x + 8, 272))
-                    x += r.width + 8
-                numero = d.get('pokedex')
+                    img = retrato_menu(nombre, 110)
+                    if img: ventana.blit(img, img.get_rect(center=(cx_, cy_)))
+                et = f_chico.render(NOMBRE_ANIM.get(anim, anim) + '  (clic o espacio: otra)', True, (200, 205, 220))
+                ventana.blit(et, et.get_rect(midtop=(cx_, cy_ + 74)))
+                # stats que se llenan al entrar
                 clase = ROL_POKEMON.get(nombre) or ('jefe' if d.get('boss') else 'especial')
-                ventana.blit(f_txt.render(('#' + str(numero) + ' - ' if numero else '') + 'clase: ' + clase, True, (220, 220, 220)), (40, 300))
-                ventana.blit(f_sec.render('Stats en el juego', True, (240, 200, 80)), (40, 330))
-                try:
-                    g = datos_juego(nombre)
-                    ventana.blit(f_txt.render('Vida ' + str(g['max_vida']) + '   Velocidad ' + str(g['velocidad']), True, 'white'), (40, 355))
-                    ventana.blit(f_txt.render('Daño x' + str(g['mult_daño']) + '   Recarga x' + str(g['mult_enfriamiento']), True, 'white'), (40, 376))
-                except Exception: pass
-                ventana.blit(f_sec.render('Stats oficiales', True, (240, 200, 80)), (40, 402))
+                ventana.blit(f_txt.render('Clase: ' + clase, True, (255, 225, 120)), (t_r.x + 18, t_r.y + 306))
                 oficiales = stats_oficiales(nombre)
                 if oficiales:
                     for i, (etiqueta, valor) in enumerate(oficiales):
-                        y = 428 + i * 24
-                        ventana.blit(f_txt.render(etiqueta, True, 'white'), (40, y))
-                        pygame.draw.rect(ventana, (60, 60, 60), (130, y + 2, 140, 14))
-                        pygame.draw.rect(ventana, (80, 180, 80), (130, y + 2, int(140 * min(valor, 200) / 200), 14))
-                        ventana.blit(f_txt.render(str(valor), True, 'white'), (276, y))
-                else:
-                    ventana.blit(f_txt.render('Sin datos (ejecutá generar_datos.py)', True, (200, 200, 200)), (40, 430))
-                ventana.set_clip(panel.inflate(-10, -10))
-                y = panel.y + 12 - estado['scroll']
-                for tipo_fila, contenido in estado['filas']:
-                    alto = altos[tipo_fila]
-                    if panel.y - 30 < y < panel.bottom:
-                        if tipo_fila == 't': ventana.blit(f_sec.render(contenido, True, (240, 200, 80)), (panel.x + 15, y))
-                        elif tipo_fila == 'p': ventana.blit(f_txt.render(contenido, True, (235, 235, 235)), (panel.x + 15, y))
+                        y = t_r.y + 334 + i * 24
+                        k_bar = suave((ahora - st['cargada'] - i * 60) / 650)
+                        ventana.blit(f_chico.render(etiqueta, True, 'white'), (t_r.x + 18, y))
+                        fondo_b = pygame.Rect(t_r.x + 108, y + 3, 170, 12)
+                        pygame.draw.rect(ventana, (40, 40, 55), fondo_b, border_radius=5)
+                        c_bar = (230, 80, 70) if valor < 50 else (240, 190, 60) if valor < 80 else (110, 210, 90) if valor < 110 else (80, 190, 240)
+                        pygame.draw.rect(ventana, c_bar, (fondo_b.x, fondo_b.y, max(4, round(fondo_b.width * min(valor, 180) / 180 * k_bar)), 12), border_radius=5)
+                        ventana.blit(f_chico.render(str(round(valor * k_bar)), True, 'white'), (fondo_b.right + 8, y))
+                else: ventana.blit(f_txt.render('Sin stats (python herramientas.py datos)', True, (200, 200, 200)), (t_r.x + 18, t_r.y + 350))
+                # ----- pestañas
+                for k, r in enumerate(pestaña_r):
+                    elegida = k == st['pestaña']
+                    menus.caja(ventana, r.move(0, 0 if elegida else 4), 'panel', (60, 70, 110) if elegida else (34, 36, 48))
+                    if elegida: pygame.draw.rect(ventana, color, (r.x + 10, r.bottom - 5, r.width - 20, 4), border_radius=2)
+                    tt = f_txt.render(str(k + 1) + '. ' + PESTAÑAS[k], True, 'white' if elegida else (170, 175, 190))
+                    ventana.blit(tt, tt.get_rect(center=r.move(0, 0 if elegida else 4).center))
+                menus.caja(ventana, panel, 'panel', (30, 32, 44))
+                k_p = suave((ahora - st['cambio_pestaña']) / 220)
+                ox = round((1 - k_p) * 40 * st['dir'])
+                ventana.set_clip(contenido.inflate(4, 4))
+                y = contenido.y - st['scroll']; st['evo_botones'] = []
+                for fila in filas:
+                    alto = altos[fila[0]]
+                    if contenido.y - alto - 10 < y < contenido.bottom:
+                        x0 = contenido.x + ox
+                        if fila[0] == 't':
+                            ventana.blit(f_sec.render(fila[1], True, (255, 210, 90)), (x0, y))
+                            pygame.draw.line(ventana, color, (x0, y + 27), (x0 + 120, y + 27), 2)
+                        elif fila[0] == 'p': ventana.blit(f_txt.render(fila[1], True, (235, 235, 240)), (x0, y + 1))
+                        elif fila[0] == 'chips':
+                            ventana.blit(f_txt.render(fila[1] + ':', True, (210, 215, 230)), (x0, y + 4)); xc = x0 + 130
+                            for t in fila[2]: xc += menus.chip_tipo(ventana, normalizar_tipo(t), xc, y)
+                        elif fila[0] == 'evo':                              # retratos de la linea con flechas (clic: ir a esa ficha)
+                            xc = x0
+                            cantidad = sum(len(et_) for et_ in fila[1])
+                            lado = max(40, min(64, (contenido.width - 18 * (len(fila[1]) - 1)) // max(1, cantidad) - 10))   # Eevee: 8 evoluciones
+                            for j_, etapa in enumerate(fila[1]):
+                                if j_: ventana.blit(f_sec.render('>', True, (220, 220, 230)), (xc - 4, y + 26)); xc += 18
+                                for n_ in etapa:
+                                    r_ = pygame.Rect(xc, y + 4 + (64 - lado) // 2, lado, lado)
+                                    actual = n_ == nombre
+                                    pygame.draw.rect(ventana, (70, 80, 120) if actual else (44, 46, 60), r_, border_radius=8)
+                                    if actual: pygame.draw.rect(ventana, color, r_, 2, border_radius=8)
+                                    img = (retrato_menu if (n_ in tengo or actual) else gris)(n_, lado - 8) if n_ in pokemones else None
+                                    if img: ventana.blit(img, img.get_rect(center=r_.center))
+                                    nm = f_chico.render(n_.replace('_', ' ').title()[:max(5, lado // 6)], True, 'white' if actual else (200, 200, 210))
+                                    ventana.blit(nm, nm.get_rect(midtop=(r_.centerx, r_.bottom + 2)))
+                                    if n_ in pokemones: st['evo_botones'].append((r_, n_))
+                                    xc += lado + 10
                     y += alto
                 ventana.set_clip(None)
+                if maximo:                                                   # barrita de desplazamiento
+                    alto_b = max(30, round(contenido.height * contenido.height / (contenido.height + maximo)))
+                    yb = contenido.y + round((contenido.height - alto_b) * st['scroll'] / maximo)
+                    pygame.draw.rect(ventana, (90, 95, 120), (panel.right - 10, yb, 5, alto_b), border_radius=3)
+                menus.titulo(ventana, 'Pokédex')
+                menus.pie(ventana, '← → cambiar   Q/E o 1-3: pestaña   rueda: desplazar   espacio: animación   ESC: volver')
                 pantalla.presentar(); reloj_f.tick(60)
 
         def pokedex():
-            """Lista de todos los pokemon ordenados por numero de pokedex; clic abre la ficha."""
+            """Lista de la pokedex: buscador (escribis y filtra), filtro por tipos, ver todos (marcando los tuyos) o solo los tuyos.
+            Flechas o mouse para elegir, Enter o clic para abrir la ficha."""
             pygame.mouse.set_visible(True)
-            entradas = sorted(pokemones, key=lambda n: (pokemones[n]['pokedex'] if isinstance(pokemones[n].get('pokedex'), int) else 9999, n))
-            scroll = 0
-            botones = []
+            todos = sorted(pokemones, key=lambda n: (pokemones[n]['pokedex'] if isinstance(pokemones[n].get('pokedex'), int) else 9999, n))
+            tengo = mios()
+            st = {'busca': '', 'tipos': set(), 'ver': config.get('pokedex_ver', 'todos'), 'scroll': 0.0, 'meta': 0.0, 'sel': 0,
+                  'cambio': pygame.time.get_ticks(), 'teclado': False}
             reloj_p = pygame.time.Clock()
-            f_nombre, f_dato = tipografia.fuente(24), tipografia.fuente(22)
-            columnas, bw, bh, sep = 4, 218, 78, 16                          # tarjetas: 4 columnas de 218 px (de margen a margen)
-            arriba = menus.CONTENIDO_Y
+            f_nombre, f_dato, f_chico = tipografia.fuente(24), tipografia.fuente(22), tipografia.fuente(18)
+            columnas, bw, bh, sep = 4, 218, 72, 12
+            caja_busca, caja_ver = pygame.Rect(286, 20, 290, 34), pygame.Rect(586, 20, 270, 34)
+            chips = [(t, pygame.Rect(40 + (i % 9) * 102, 82 + (i // 9) * 30, 98, 26)) for i, t in enumerate(TIPOS_DEX)]
+            arriba = 150
+
+            def entradas():
+                b = st['busca'].strip().lower()
+                salida = []
+                for n in todos:
+                    if st['ver'] == 'mios' and n not in tengo: continue
+                    if b and b not in n.replace('_', ' ') and b not in str(pokemones[n].get('pokedex', '')): continue
+                    if st['tipos'] and not st['tipos'] & {normalizar_tipo(t) for t in pokemones[n].get('tipo', [])}: continue
+                    salida.append(n)
+                return salida
+
+            def filtro_cambiado():
+                st['sel'] = 0; st['meta'] = 0.0; st['cambio'] = pygame.time.get_ticks()
+
+            lista = entradas()
             while True:
-                filas = math.ceil(len(entradas) / columnas)
+                ahora = pygame.time.get_ticks()
+                filas = math.ceil(len(lista) / columnas)
                 max_scroll = max(0, filas * (bh + sep) - (H - arriba - 40))
+                abrir = None
                 for e in controles.eventos():
-                    if e.type == pygame.QUIT:
-                        return 'salir'
+                    if e.type == pygame.QUIT: return 'salir'
                     if e.type == pygame.KEYDOWN:
-                        if e.key == pygame.K_ESCAPE: return None
-                        if e.key in (pygame.K_DOWN, pygame.K_s): scroll = min(max_scroll, scroll + bh + sep)
-                        if e.key in (pygame.K_UP, pygame.K_w): scroll = max(0, scroll - bh - sep)
-                        if e.key == pygame.K_PAGEDOWN: scroll = min(max_scroll, scroll + 3 * (bh + sep))
-                        if e.key == pygame.K_PAGEUP: scroll = max(0, scroll - 3 * (bh + sep))
-                    if e.type == pygame.MOUSEWHEEL:
-                        scroll = max(0, min(scroll - e.y * 60, max_scroll))
+                        if e.key == pygame.K_ESCAPE:
+                            if st['busca'] or st['tipos']: st['busca'] = ''; st['tipos'] = set(); lista = entradas(); filtro_cambiado(); continue
+                            return None
+                        if e.key == pygame.K_TAB:
+                            st['ver'] = 'mios' if st['ver'] == 'todos' else 'todos'; config['pokedex_ver'] = st['ver']; lista = entradas(); filtro_cambiado(); continue
+                        if e.key == pygame.K_BACKSPACE: st['busca'] = st['busca'][:-1]; lista = entradas(); filtro_cambiado(); continue
+                        if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and lista: abrir = st['sel']; continue
+                        mover = {pygame.K_LEFT: -1, pygame.K_RIGHT: 1, pygame.K_UP: -columnas, pygame.K_DOWN: columnas}.get(e.key)
+                        if mover and lista:
+                            st['sel'] = max(0, min(len(lista) - 1, st['sel'] + mover)); st['teclado'] = True
+                            fila_y = (st['sel'] // columnas) * (bh + sep)          # que la elegida quede a la vista
+                            if fila_y < st['meta']: st['meta'] = fila_y
+                            if fila_y + bh > st['meta'] + H - arriba - 40: st['meta'] = fila_y + bh - (H - arriba - 40)
+                            continue
+                        if e.key == pygame.K_PAGEDOWN: st['meta'] = min(max_scroll, st['meta'] + 3 * (bh + sep)); continue
+                        if e.key == pygame.K_PAGEUP: st['meta'] = max(0, st['meta'] - 3 * (bh + sep)); continue
+                        letra = getattr(e, 'unicode', '')
+                        if letra and (letra.isalnum() or letra in ' -') and len(st['busca']) < 16:
+                            st['busca'] += letra.lower(); lista = entradas(); filtro_cambiado()
+                    if e.type == pygame.MOUSEWHEEL: st['meta'] = max(0, min(st['meta'] - e.y * 60, max_scroll))
+                    if e.type == pygame.MOUSEMOTION: st['teclado'] = False
                     if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                        for r, i in botones:
-                            if r.collidepoint(pantalla.a_logico(e.pos)):
-                                if ver_ficha(entradas, i) == 'salir': return 'salir'
-                                break
+                        pos = pantalla.a_logico(e.pos)
+                        if caja_ver.collidepoint(pos):
+                            st['ver'] = 'mios' if st['ver'] == 'todos' else 'todos'; config['pokedex_ver'] = st['ver']; lista = entradas(); filtro_cambiado()
+                        for t, r in chips:
+                            if r.collidepoint(pos): st['tipos'] ^= {t}; lista = entradas(); filtro_cambiado()
+                        if pos[1] >= arriba:
+                            for i, n in enumerate(lista):
+                                r = pygame.Rect(menus.MARGEN_X + i % columnas * (bw + sep), arriba + i // columnas * (bh + sep) - round(st['scroll']), bw, bh)
+                                if r.collidepoint(pos): abrir = i; break
+                if abrir is not None:
+                    if ver_ficha(lista, abrir, tengo) == 'salir': return 'salir'
+                    st['sel'] = abrir
+                st['meta'] = max(0, min(st['meta'], max_scroll))
+                st['scroll'] += (st['meta'] - st['scroll']) * 0.25                 # desplazamiento suave
                 menus.fondo(ventana)
-                botones = []
-                ventana.set_clip(pygame.Rect(0, arriba - 6, W, H - arriba - 30 + 6))   # las tarjetas no se meten debajo del titulo ni del pie
-                for i, nombre in enumerate(entradas):
+                # ----- buscador, vista y tipos
+                menus.caja(ventana, caja_busca, 'panel', (30, 32, 44))
+                texto_b = st['busca'] or 'Escribí para buscar...'
+                ventana.blit(f_dato.render(('Buscar: ' if st['busca'] else '') + texto_b, True, 'white' if st['busca'] else (150, 155, 170)), (caja_busca.x + 12, caja_busca.y + 8))
+                if st['busca'] and (ahora // 450) % 2:
+                    xc = caja_busca.x + 12 + f_dato.size('Buscar: ' + st['busca'])[0] + 2
+                    pygame.draw.line(ventana, 'white', (xc, caja_busca.y + 8), (xc, caja_busca.bottom - 8), 2)
+                raton = pantalla.raton()
+                menus.caja(ventana, caja_ver, 'panel', (60, 70, 110) if caja_ver.collidepoint(raton) else (36, 40, 60))
+                bola = menus.hud('pokeball')
+                if bola: ventana.blit(pygame.transform.smoothscale(bola, (20, 20)), (caja_ver.x + 10, caja_ver.y + 7))
+                ventana.blit(f_dato.render('Ver: ' + ('todos (marca los tuyos)' if st['ver'] == 'todos' else 'solo los tuyos'), True, 'white'), (caja_ver.x + 38, caja_ver.y + 8))
+                cuenta = f_chico.render(str(len(tengo)) + '/' + str(len(todos)), True, (255, 225, 120))
+                ventana.blit(cuenta, cuenta.get_rect(midleft=(caja_ver.right + 10, caja_ver.centery)))
+                for t, r in chips:
+                    activo = t in st['tipos']
+                    c_t = COLORES_TIPO.get(t, (150, 150, 150))
+                    if not st['tipos'] or activo: c_fondo = c_t
+                    else: c_fondo = tuple(c // 3 + 30 for c in c_t)
+                    rr = r.move(0, -2) if activo else r
+                    pygame.draw.rect(ventana, tuple(max(0, c - 70) for c in c_fondo), rr, border_radius=5)
+                    pygame.draw.rect(ventana, c_fondo, rr.inflate(-4, -4), border_radius=4)
+                    if activo: pygame.draw.rect(ventana, 'white', rr, 2, border_radius=5)
+                    tt = f_chico.render(t.upper(), True, 'white' if (not st['tipos'] or activo) else (200, 200, 200))
+                    ventana.blit(tt, tt.get_rect(center=rr.center))
+                # ----- tarjetas
+                ventana.set_clip(pygame.Rect(0, arriba - 6, W, H - arriba - 30 + 6))
+                elegida_r = None
+                for i, nombre in enumerate(lista):
                     x = menus.MARGEN_X + i % columnas * (bw + sep)
-                    y = arriba + i // columnas * (bh + sep) - scroll
+                    y = arriba + i // columnas * (bh + sep) - round(st['scroll'])
                     r = pygame.Rect(x, y, bw, bh)
-                    if r.bottom < arriba or r.top > H:
-                        continue
-                    menus.caja(ventana, r, 'panel', (32, 32, 32))
-                    img = retrato_menu(nombre, bh - 18)
-                    if img: ventana.blit(img, (x + 9, y + 9))
+                    if r.bottom < arriba - 6 or r.top > H: continue
+                    k = suave((ahora - st['cambio'] - min(i, 16) * 25) / 260)   # entran escalonadas al cambiar el filtro
+                    if k <= 0: continue
+                    r = r.move(0, round((1 - k) * 24))
+                    encima = (not st['teclado'] and r.collidepoint(raton) and raton[1] >= arriba) or (st['teclado'] and i == st['sel'])
+                    if encima: r = r.move(0, -3); elegida_r = r
+                    lo_tengo = nombre in tengo
+                    menus.caja(ventana, r, 'panel', (44, 50, 72) if encima else (32, 34, 46))
+                    tipos_n = [normalizar_tipo(t_) for t_ in pokemones[nombre].get('tipo', [])]
+                    pygame.draw.rect(ventana, COLORES_TIPO.get(tipos_n[0] if tipos_n else '', (120, 120, 120)), (r.x + 4, r.y + 8, 4, r.height - 16), border_radius=2)
+                    img = retrato_menu(nombre, bh - 16) if (lo_tengo or st['ver'] == 'mios') else gris(nombre, bh - 16)
+                    if img: ventana.blit(img, (r.x + 12, r.y + 8))
+                    claro = lo_tengo or st['ver'] == 'mios'
+                    t = f_nombre.render(nombre.replace('_', ' ').title(), True, 'white' if claro else (165, 170, 185))
+                    ventana.blit(t, t.get_rect(bottomleft=(r.x + bh + 4, r.centery - 2)))
                     numero = pokemones[nombre].get('pokedex')
-                    t = f_nombre.render(nombre.replace('_', ' ').title(), True, 'white')
-                    ventana.blit(t, t.get_rect(bottomleft=(x + bh + 2, r.centery - 2)))
-                    if numero:                                               # el numero arriba a la derecha, los tipos debajo del nombre
-                        n_t = f_dato.render('#' + str(numero), True, (150, 160, 180))
-                        ventana.blit(n_t, n_t.get_rect(topright=(r.right - 10, r.y + 8)))
-                    tipos_txt = '/'.join(normalizar_tipo(t_) for t_ in pokemones[nombre].get('tipo', []))
-                    d = f_dato.render(tipos_txt, True, (200, 210, 225))
-                    ventana.blit(d, d.get_rect(topleft=(x + bh + 2, r.centery + 4)))
-                    botones.append((r, i))
+                    if numero:
+                        n_t = f_chico.render('#' + str(numero), True, (150, 160, 180))
+                        ventana.blit(n_t, n_t.get_rect(topright=(r.right - 10, r.y + 7)))
+                    xt = r.x + bh + 4
+                    for t_ in tipos_n:                                         # puntitos de color de cada tipo
+                        tt = f_chico.render(t_, True, COLORES_TIPO.get(t_, (200, 200, 200)))
+                        ventana.blit(tt, (xt, r.centery + 4)); xt += tt.get_width() + 8
+                    if lo_tengo and st['ver'] == 'todos' and bola:
+                        ventana.blit(pygame.transform.smoothscale(bola, (18, 18)), (r.right - 26, r.bottom - 24))
+                    if lo_tengo and st['ver'] == 'todos': pygame.draw.rect(ventana, (255, 210, 90), r, 2, border_radius=6)
+                if elegida_r: dibujar_esquinas(ventana, elegida_r, margen=3, largo=10)
+                if not lista:
+                    vacio_t = f_dato.render('No hay pokémon con esos filtros (ESC los limpia)' if (st['busca'] or st['tipos'] or st['ver'] == 'todos')
+                                            else 'Todavía no tenés ninguno: jugá una partida', True, 'white')
+                    ventana.blit(vacio_t, vacio_t.get_rect(center=(W // 2, arriba + 120)))
                 ventana.set_clip(None)
                 menus.titulo(ventana, 'Pokédex')
-                menus.pie(ventana, 'arriba/abajo o rueda: desplazarte   clic: ver la ficha   ESC: volver')
+                menus.pie(ventana, 'escribí: buscar   clic en un tipo: filtrar   Tab: todos / los tuyos   flechas + Enter o clic: ficha   ESC: limpiar / volver')
                 pantalla.presentar(); reloj_p.tick(60)
 
         return pokedex, descripcion_asistencia
 
     pokedex, descripcion_asistencia = armar_pokedex()
 
-    def jugar(nombres, config, ranura=None, cargada=None, perfil=None):
+    def jugar(nombres, config, ranura=None, cargada=None, perfil=None, prueba=False, en_refugio=False, modo=None):
         """Una partida entera: arma el equipo, recorre las salas una por una y devuelve como termino ('menu' o 'salir') junto con el pokemon activo.
         Si cae todo el equipo no termina: Celebi te lleva al hall y desde ahi sale otro viaje (perfil: nombre, genero, amigos, eras derrotadas).
         Adentro se arman por grupos (reglas, equipo, movimiento, ataques, enemigos, salas, hall, dibujo, extras) las funciones que usa el bucle."""
         pausa = {'total': 0}
-        viaje = {'perfil': None, 'en_hall': False}  # el perfil de la partida y si estas en el hall (entre viaje y viaje)
+        viaje = {'perfil': None, 'en_hall': en_refugio, 'zona': 'plaza'}   # el perfil, si estas en el refugio (entre viaje y viaje) y en que parte
+        viaje.update({'rush': None, 'tutorial': None, 'mini': None})      # lo que no es el viaje: boss rush, tutorial de la isla y minijuegos (armar_modos)
+        modo = modo or {}
+        # modo facil (estatua del salon de los modos, o al empezar un boss rush): recibis menos daño, las salas curan mas y los enemigos aflojan (ia.FACIL)
+        FACIL = {'daño': 0.6, 'cura_sala': 0.25}
+        # modo prueba (menu principal): una sala para probar pokemon y mecanicas, sin viaje ni guardado
+        PRUEBA = {'modos': (('muñecos', 'Muñecos quietos'), ('pelea', 'Enemigos que atacan y reaparecen'), ('mixto', 'Muñecos + enemigos'),
+                            ('tiradores', 'Enemigos que disparan'), ('libre', 'Sala vacía')),
+                  'vida_muñeco': 3000, 'regenera': 2500, 'reaparece': 1500, 'ventana_daño': 5000, 'enemigos': 3}
+        PRUEBA['salas'] = (('arena', 'Arena abierta'), ('combate', 'Sala de combate de la era'), ('tienda', 'Tienda'))
+        prueba_estado = {'modo': 0, 'sala': 0, 'activo': prueba}
 
         def tiempo(): return pygame.time.get_ticks() - pausa['total']
+
+        def es_facil():
+            """Si esta puesto el modo facil: el del boss rush que estas jugando o el de tu partida."""
+            if viaje.get('rush'): return bool(viaje['rush'].get('facil'))
+            return bool(viaje.get('perfil') and viaje['perfil'].get('facil')) and not prueba and not viaje.get('tutorial')
 
         def pausado(f, *args):
             """Llama a un menu sin que el tiempo de la partida avance mientras esta abierto (los enfriamientos no corren)."""
@@ -686,6 +929,8 @@ def main():
         DESTELLO = 140                              # ms del flash de pantalla en el parry, el esquive perfecto y el remate
         IMPACTO = {'remate': 70, 'parry': 100, 'baja': 30}   # pausa de impacto (ms): el juego se frena un instante para que el golpe pese
         ESTELA = {'dura': 220, 'cada': 2}           # copias transparentes del sprite al esquivar, embestir o arrancar a correr
+        CADENA = {'corte': 1600, 'desde': 3, 'salto': 140}   # contador de golpes seguidos: ms sin pegar que lo cortan, desde cuantos se muestra y ms del saltito
+        PELIGRO = {'vida': 0.25, 'alfa': 90}        # con poca vida los bordes de la pantalla laten en rojo
         PATADA_CAMARA = {'golpe': 4, 'remate': 9, 'dura': 110}   # la camara se corre un poquito hacia donde pegas
         VEL_ORILLA = 3.5                            # pixeles por frame al nadar hasta la orilla (cambiaste en el agua a uno que no nada)
         trucos = config['trucos']                   # menu secreto (Konami): vida infinita, sin recarga...
@@ -813,6 +1058,14 @@ def main():
                 for i, m in enumerate(j['equipo']):
                     if i == j['activo'] or m['vida'] <= 0: continue
                     for clave, valor in sinergia_de(m['nombre'], m.get('sinergia')).items(): total[clave] = total.get(clave, 0) + valor
+                # lazos de equipo: tipos que resuenan y lineas que van juntas por su historia (mecanicas.LAZOS). Cuentan todos los que estan en pie
+                en_pie = [m['nombre'] for i, m in enumerate(j['equipo']) if m['vida'] > 0 or i == j['activo']]
+                lazos = mecanicas.lazos_de(en_pie, lambda n: [normalizar_tipo(t) for t in pokemones[n].get('tipo', [])])
+                for clave, valor in mecanicas.suma_lazos(lazos).items(): total[clave] = total.get(clave, 0) + valor
+                nuevos = [l for l in lazos if l[0] not in j.get('lazos_vistos', ())]
+                if nuevos and mundo.get('nivel') and j.get('lazos_vistos') is not None:   # se formo un lazo nuevo (alguien se unio o cambiaste el equipo)
+                    cartel(mundo['nivel'], 'Lazo de equipo: ' + nuevos[0][0], 2600, nuevos[0][1] + '  (' + ', '.join('+' + str(round(v * 100)) + '% ' + _pk.SINERGIAS.get(k, k) for k, v in nuevos[0][2].items()) + ')', grande=True)
+                j['lazos'] = lazos; j['lazos_vistos'] = [l[0] for l in lazos]
                 j['sinergia'] = total
 
             def aplicar_pokemon(j, nombre, vida=None, centro=None):
@@ -858,6 +1111,7 @@ def main():
                 mec.al_cambiar(j)
                 j['activo'] = indice; j['ultimo_cambio'] = ahora; j['buffs'] = {}; j['mec'] = {}
                 aplicar_pokemon(j, m['nombre'], m['vida'])
+                sonido.grito(m['nombre'], 0.8)                          # el que entra a pelear grita
                 actualizar_sinergia(j)
                 efectos.cambio(mundo['ef'], *j['rect'].center)
                 if mundo['ent']:                                  # cambiaste en el agua a uno que no nada: va nadando hasta la orilla
@@ -887,6 +1141,7 @@ def main():
                     equipo[espacio] = nuevo
                 if espacio == a:
                     j['buffs'] = {}
+                    mec.al_cambiar(j)                                    # lo de la mecanica del que estaba (caparazon, carga...) no pasa al nuevo
                     aplicar_pokemon(j, nombre, nuevo['vida'])
                 actualizar_sinergia(j)
 
@@ -968,7 +1223,9 @@ def main():
                 ahora = tiempo()
                 palanca = controles.apuntado()                   # con control: apunta la palanca derecha
                 if palanca:
-                    j['uso'] = 'control'; j['aim'] = palanca; j['direccion'] = direccion_de(pygame.Vector2(palanca)); return
+                    j['uso'] = 'control'; j['aim'] = palanca; j['direccion'] = direccion_de(pygame.Vector2(palanca))
+                    j['aim_palanca_hasta'] = ahora + 500; j['inclinacion'] = controles.inclinacion(); return
+                if j['uso'] == 'control' and ahora < j.get('aim_palanca_hasta', 0): return   # recien la soltaste: sigue apuntando ahi medio segundo
                 if j['uso'] == 'control': j['uso'] = 'teclas'     # solto la palanca: apunta para donde camina hasta que muevas el mouse
                 if j['modo'] == 'teclas': j['uso'] = 'teclas'
                 else:
@@ -980,6 +1237,10 @@ def main():
                 if j['uso'] == 'teclas':
                     dx, dy = j['ultimo_dir']; n = math.hypot(dx, dy)
                     j['aim'] = (dx / n, dy / n); j['direccion'] = DIRS[(dx, dy)]
+                    o = asistido(j, j['aim'])                      # sin mouse: si hay alguien cerca y mas o menos adelante, le apunta a el
+                    if o:
+                        vx, vy = o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery; n = math.hypot(vx, vy) or 1
+                        j['aim'] = (vx / n, vy / n)
                     return
                 cx, cy = camara(j)
                 mx, my = pantalla.raton()
@@ -989,12 +1250,32 @@ def main():
                 j['aim'] = (vx / n, vy / n)
                 j['direccion'] = direccion_de(pygame.Vector2(vx, vy))
 
+            def asistido(j, aim, alcance=340, grados=55):
+                """Apuntado asistido (teclas o control sin la palanca derecha): el enemigo mas cercano dentro de un cono adelante, o None."""
+                nivel = mundo.get('nivel')
+                if not nivel or not config.get('apuntado_asistido', True): return None
+                mejor, d_mejor = None, None
+                for o in nivel['enemigos'] + ([nivel['jefe']] if nivel.get('jefe') else []):
+                    if o['vida'] <= 0 or o.get('amigable'): continue
+                    vx, vy = o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery; d = math.hypot(vx, vy)
+                    if not d or d > alcance: continue
+                    if (vx * aim[0] + vy * aim[1]) / d < math.cos(math.radians(grados)): continue
+                    if d_mejor is None or d < d_mejor: mejor, d_mejor = o, d
+                return mejor
+
             def punto_apuntado(j, alcance):
-                """Punto del mapa donde apunta el jugador, como mucho a 'alcance' pixeles (asistencias de area)."""
+                """Punto del mapa donde apunta el jugador, como mucho a 'alcance' pixeles (asistencias de area).
+                Con control, cuanto mas inclinas la palanca derecha mas lejos; con teclas, a 250 o al enemigo al que apunta."""
                 cx, cy = camara(j)
                 mx, my = pantalla.raton()
                 px, py = j['rect'].center
-                if j['uso'] == 'teclas': mx, my = px - cx + j['aim'][0] * 250, py - cy + j['aim'][1] * 250
+                if j['uso'] == 'control':
+                    largo = alcance * max(0.35, j.get('inclinacion', 1.0))
+                    mx, my = px - cx + j['aim'][0] * largo, py - cy + j['aim'][1] * largo
+                elif j['uso'] == 'teclas':
+                    o = asistido(j, j['aim'], alcance + 60)
+                    if o: mx, my = o['rect'].centerx - cx, o['rect'].centery - cy
+                    else: mx, my = px - cx + j['aim'][0] * 250, py - cy + j['aim'][1] * 250
                 vx, vy = mx + cx - px, my + cy - py
                 n = math.hypot(vx, vy)
                 if n > alcance: vx, vy = vx / n * alcance, vy / n * alcance
@@ -1026,7 +1307,7 @@ def main():
 
             def hay_peligro(nivel):
                 """Si quedan enemigos vivos (o por aparecer) en la sala."""
-                if not nivel or nivel.get('completado'): return False
+                if not nivel or (nivel.get('completado') and not nivel.get('prueba')): return False
                 jefe = nivel.get('jefe')
                 return (any(e['vida'] > 0 for e in nivel.get('enemigos', ())) or (jefe is not None and jefe.get('vida', 0) > 0)
                         or bool(nivel.get('oleadas')) or bool(nivel.get('apariciones')))
@@ -1064,6 +1345,7 @@ def main():
                 rapido, lento = ESTILO['ritmo_ms']
                 hueco = None if antes is None else ahora - antes
                 ritmo = 1.0 if hueco is None or hueco <= rapido else max(ESTILO['ritmo_piso'], 1 - (hueco - rapido) / (lento - rapido))
+                e['cadena'] = e.get('cadena', 0) + 1 if hueco is not None and hueco <= CADENA['corte'] else 1   # golpes seguidos (el contador del HUD)
                 e['ultimo_golpe_t'] = ahora
                 variedad = max(ESTILO['piso_repeticion'], 1 - ESTILO['por_repeticion'] * e['repite'])
                 sumar_estilo(j, ESTILO['golpe'] * variedad * ritmo, nivel)
@@ -1160,10 +1442,11 @@ def main():
                 return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento')
                              * mec.mult_recarga(j) * mec.mult_recarga_especial(j, datos))
 
-            def iniciar_ataque(j, forma, enfriamiento):
-                """Pone la animacion de ataque que corresponde a la forma del golpe, mas rapida si el ataque recarga rapido."""
+            def iniciar_ataque(j, forma, enfriamiento, movimiento=None, tipo=None):
+                """Pone la animacion del ataque (por su nombre, tipo y forma: puño -> Punch, electrico -> Shock, proyectil -> Shoot),
+                mas rapida si el ataque recarga rapido. 'python herramientas.py animaciones' muestra cual le toca a cada uno."""
                 a = j['animador']
-                anim = a.buscar_para(forma)
+                anim = a.buscar_movimiento(movimiento, tipo, forma) if movimiento else a.buscar_para(forma)
                 if not anim: return
                 a.ritmo = max(0.8, min(1.6, 450.0 / max(1, enfriamiento)))
                 j['atacando'] = True; j['anim_ataque'] = anim; j['dir_ataque'] = direcciones.index(j['direccion'])
@@ -1307,6 +1590,7 @@ def main():
             def usar_basico(j, indice, nivel, apretado=True):
                 """Ataque basico: 0 = cuerpo a cuerpo (combo de 3 golpes, abre el parry), 1 = a distancia.
                 apretado False: el boton se esta manteniendo (mouse o control), sirve para seguir el combo pero no abre parry."""
+                if mec.antes_de_atacar(j, nivel): return                 # metido en el caparazon / rodando: atacar lo saca
                 nombre = j['juego']['basicos'][indice]
                 base = datos_mov(nombre) if nombre else None
                 if not base or ocupado(j): return
@@ -1326,13 +1610,13 @@ def main():
                     if ahora - j[clave] < enfriamiento: return
                     j[clave] = ahora
                     registrar_accion(j, 'distancia' if indice == 1 else 'golpe_mt')
-                    iniciar_ataque(j, datos.get('forma', 'proyectil'), enfriamiento)
-                    if datos.get('forma') == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
+                    iniciar_ataque(j, datos.get('forma', 'proyectil'), enfriamiento, nombre, datos.get('tipo'))
+                    if datos.get('forma') == 'proyectil' and not mec.disparo_basico(j, datos, nivel, indice): lanzar(j, datos, nivel['proyectiles_pokemon'])   # (Cubone tira su hueso)
                     else: area_efecto(j, datos, objetivos_de(nivel), nivel['efectos'])
                     return
-                golpe_combo(j, datos, nivel)
+                golpe_combo(j, datos, nivel, nombre)
 
-            def golpe_combo(j, datos, nivel):
+            def golpe_combo(j, datos, nivel, movimiento=None):
                 """Un golpe del combo: 1 y 2 rapidos, el 3 es un remate que barre, empuja lejos e interrumpe a los enemigos comunes."""
                 ahora = tiempo()
                 if ahora < j.get('combo_listo', 0): return
@@ -1350,7 +1634,7 @@ def main():
                 solidos_j = entorno.solidos(mundo['ent'], j['tipos'])
                 mover(j['rect'], round(ax * avance), 0, solidos_j); mover(j['rect'], 0, round(ay * avance), solidos_j); j['rect'].clamp_ip(AREA)
                 espera = round(enfriamiento_de(j, {'enfriamiento': COMBO['espera']}) * mec.mult_enfriamiento_combo(j))
-                iniciar_ataque(j, 'cuerpo', espera * 2)
+                iniciar_ataque(j, 'cuerpo', espera * 2, movimiento, datos.get('tipo'))
                 tocados = golpear(j, datos, objetivos, nivel['efectos'], COMBO['arco'][paso], COMBO['alcance'][paso])
                 j['ultimo_golpe'] = ahora
                 if paso == 2:                                           # remate: recuperacion un poco mas larga y vuelve al primer golpe
@@ -1393,6 +1677,7 @@ def main():
                 j['esquive_listo'] = ahora + ESQUIVE['espera']; j['sin_regen_hasta'] = ahora + 450
                 j['inercia'] = [0.0, 0.0]
                 efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
+                mec.al_esquivar(j, nivel, 0 if gratis else costo)               # planeo, estela electrica, sustituto, doble salto...
 
             def actualizar_esquive(j, piedras):
                 """Un paso del esquive: avanza rapido y frena contra las paredes."""
@@ -1414,6 +1699,7 @@ def main():
                 sumar_estilo(j, ESTILO['esquive_perfecto'], mundo.get('nivel'))
                 j['contra_hasta'] = tiempo() + ESQUIVE['contra_dura']
                 efectos.destello(mundo['ef'], *j['rect'].center)
+                if mundo.get('nivel'): mec.al_esquive_perfecto(j, mundo['nivel'])     # Greninja aparece atras del enemigo
                 if mundo.get('nivel'):
                     cartel(mundo['nivel'], 'Esquive perfecto! (tu proximo golpe es un contraataque)', 900)
                     mundo['nivel']['destello'] = (tiempo(), (170, 230, 255))
@@ -1445,6 +1731,7 @@ def main():
                 premiar(j, PARRY['energia'], PARRY['recarga'], PARRY['cura'])
                 sumar_estilo(j, ESTILO['parry'], nivel)
                 if nivel.get('stats'): nivel['stats']['parrys'] += 1
+                mision_evento('parry')
                 efectos.cambio(mundo['ef'], *donde)                              # destello blanco
                 nivel['temblor'] = max(nivel['temblor'], ahora + 120)            # sacudoncito de pantalla
                 cartel(nivel, '¡Parry!', 700)
@@ -1452,6 +1739,7 @@ def main():
 
             def usar_especial(j, indice, nivel):
                 """Especial 1 o 2 (Shift / R): proyectil, golpe, area, embestida, buff o cura, segun el movimiento."""
+                if mec.antes_de_atacar(j, nivel): return                 # (R de nuevo saca a Squirtle del caparazon)
                 nombre, base = j['juego']['especiales'][indice]
                 datos = preparar(j, base)
                 if not descongelar(j, datos.get('tipo')): return
@@ -1462,7 +1750,7 @@ def main():
                 if tiene_estado(j, 'paralisis') and random.random() < ESTADOS_J['paralisis']['falla']:   # paralizado: a veces no le sale
                     cartel(nivel, '¡Está paralizado! No se puede mover', 900); return
                 registrar_accion(j, 'especial' + str(indice))
-                iniciar_ataque(j, forma, enfriamiento)
+                iniciar_ataque(j, forma, enfriamiento, nombre, datos.get('tipo'))
                 entorno.al_usar_movimiento(nivel['ent'], nombre, ahora)     # ej. viento hielo trae granizo
                 objetivos = objetivos_de(nivel)
                 if forma == 'proyectil': lanzar(j, datos, nivel['proyectiles_pokemon'])
@@ -1541,12 +1829,13 @@ def main():
                 if tipo: daño = daño_con_tipo(daño, tipo, j['tipos'])
                 daño *= mult_buff(j, 'defensa') * (1 - j['sinergia'].get('defensa', 0)) * mod(j, 'defensa') * j['mults']['defensa']
                 daño *= ia.mult_daño_fx(j, tiempo())                              # Cola Ferrea y Eco Metalico de Dialga
+                if es_facil(): daño *= FACIL['daño']
                 if trucos.get('vida_infinita'): return 0
                 j['vida'] = max(0, j['vida'] - daño)
                 if daño >= 1 and evitable: j['estados'].pop('sueño', None)        # un golpe te despierta
                 if daño >= 1: j['golpe_en'] = tiempo(); j.setdefault('vida_atras', (j['vida'] + daño) / max(1, j['max_vida']))
-                if daño >= 1 and evitable and mundo.get('nivel'):        # te pegaron: baja el estilo y se corta la racha
-                    golpe_recibido(j, mundo['nivel'])
+                if daño >= 1 and evitable and mundo.get('nivel'):        # te pegaron: baja el estilo y se cortan la racha y la cadena de golpes
+                    golpe_recibido(j, mundo['nivel']); j['estilo']['cadena'] = 0
                 if daño >= 1 and mundo.get('nivel', {}).get('stats'): mundo['nivel']['stats']['daño'] += daño
                 if daño >= 1 and mundo.get('nivel'):                     # lo que te sacaron, en rojo
                     mundo['nivel'].setdefault('numeros', []).append({'x': j['rect'].centerx, 'y': j['rect'].top, 'dx': 0, 'valor': int(round(daño)),
@@ -1719,6 +2008,9 @@ def main():
             def crear_aparicion(nivel, a, j):
                 """La marca de aparicion se cumplio: sale el enemigo (comun, refuerzo de un Regi o Regi chiquito)."""
                 if a.get('mini'): return crear_mini_regi(nivel, a['nombre'], a['pos'], j['rect'].center)
+                if 'estilo' in a:                                        # modo prueba: el que reaparece pelea igual que el que cayo
+                    e = crear_enemigo(nivel, a['pos'], j['rect'].center, None, nivel['nivel_enemigos'], None if a['estilo'] == 'normal' else a['estilo'])
+                    e['estilo_prueba'] = a['estilo']; return e
                 return crear_enemigo(nivel, a['pos'], j['rect'].center, a.get('nombre'), a.get('nv'))
 
             def invocaciones_jefe(nivel, j, jefe):
@@ -1906,61 +2198,134 @@ def main():
 
         def armar_salas():
             """Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame."""
+            _previas = {}
+
+            def previa_sala(era, i, tipo):
+                """Una sala de ejemplo de ese lugar del plan, dibujada entera (mapa y objetos) para el menu F2. Se arma una sola vez."""
+                clave = (era, i)
+                if clave not in _previas:
+                    semilla = (era * 97 + i * 13 + 1) / 1000
+                    try:
+                        if tipo == 'tienda': sala = generacion.generar_tienda(era, ['oeste', 'este'], semilla)
+                        elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, ['norte'], semilla, tipo)
+                        else:
+                            variantes = sorted(mundos.ERAS[era]['variantes'])
+                            sala = generacion.generar_sala(era, variantes[(i * 7) % len(variantes)], 'sur', ['norte'], semilla)
+                        ent = entorno.crear(sala, None, 0)
+                        sup = pygame.Surface(sala['esc'].size); entorno.dibujar(ent, sup, 0, 0, 0)
+                        _previas[clave] = {'img': sup, 'sala': sala, 'chicas': {}}
+                    except Exception: _previas[clave] = None
+                return _previas[clave]
+
+            def miniatura(previa, ancho, alto):
+                """La sala achicada para que entre en (ancho, alto) sin deformarse."""
+                if not previa: return None
+                if (ancho, alto) not in previa['chicas']:
+                    w, h = previa['img'].get_size(); k = min(ancho / w, alto / h)
+                    previa['chicas'][(ancho, alto)] = pygame.transform.smoothscale(previa['img'], (max(1, round(w * k)), max(1, round(h * k))))
+                return previa['chicas'][(ancho, alto)]
+
             def menu_niveles(rec):
-                """F2: elegir era (TAB) y sala para probar. Devuelve (era, sala), None o 'salir'."""
+                """F2: elegir era (pestañas arriba) y sala (con una vista del mapa). La ultima carta salta a la era siguiente.
+                Devuelve (era, sala), None o 'salir'."""
                 pygame.mouse.set_visible(True)
                 era, seleccionado = rec['era'], rec['sala']
-                columnas, bw, bh, bn, sy = 4, 210, 62, 28, 18
-                scroll, botones = 0, []
+                columnas, bw, bh, sep = 3, 168, 112, 10
+                scroll, botones, pestañas = 0, [], []
                 reloj_debug = pygame.time.Clock()
-                f_titulo = tipografia.fuente(32)
+                f_c, f_m = tipografia.fuente(18), tipografia.fuente(22)
+                arriba, n_eras = 120, len(mundos.ERAS)
                 while True:
                     total = mundos.salas_de(rec, era)
-                    filas = math.ceil(total / columnas)
-                    max_scroll = max(0, 80 + filas * (bh + bn + sy) - H)
+                    cartas = total + (1 if era < n_eras - 1 else 0)          # + saltar a la era siguiente
+                    max_scroll = max(0, math.ceil(cartas / columnas) * (bh + sep) - (H - arriba - 40))
                     for e in controles.eventos():
-                        if e.type == pygame.QUIT:
-                            return 'salir'
+                        if e.type == pygame.QUIT: return 'salir'
                         if e.type == pygame.KEYDOWN:
-                            if e.key in (pygame.K_ESCAPE, pygame.K_F2):
-                                return None
-                            if e.key == pygame.K_TAB:
-                                era = (era + (-1 if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1)) % len(rec['plan']); seleccionado = 0; scroll = 0; continue
+                            if e.key in (pygame.K_ESCAPE, pygame.K_F2): return None
+                            if e.key in (pygame.K_TAB, pygame.K_q, pygame.K_e):
+                                atras = e.key == pygame.K_q or (e.key == pygame.K_TAB and pygame.key.get_mods() & pygame.KMOD_SHIFT)
+                                era = (era + (-1 if atras else 1)) % n_eras; seleccionado = 0; scroll = 0; continue
                             if e.key == pygame.K_UP and seleccionado - columnas >= 0: seleccionado -= columnas
-                            if e.key == pygame.K_DOWN and seleccionado + columnas < total: seleccionado += columnas
+                            if e.key == pygame.K_DOWN and seleccionado + columnas < cartas: seleccionado += columnas
                             if e.key == pygame.K_LEFT: seleccionado = max(0, seleccionado - 1)
-                            if e.key == pygame.K_RIGHT: seleccionado = min(total - 1, seleccionado + 1)
-                            if e.key == pygame.K_RETURN:
-                                return era, seleccionado
-                            y_sel = 85 + seleccionado // columnas * (bh + bn + sy)
-                            if y_sel - scroll < 65: scroll = max(0, y_sel - 85)
-                            if y_sel + bh + bn - scroll > H: scroll = min(max_scroll, y_sel + bh + bn - H + 20)
-                        if e.type == pygame.MOUSEWHEEL:
-                            scroll = max(0, min(scroll - e.y * 60, max_scroll))
+                            if e.key == pygame.K_RIGHT: seleccionado = min(cartas - 1, seleccionado + 1)
+                            if e.key == pygame.K_RETURN: return (era + 1, 0) if seleccionado >= total else (era, seleccionado)
+                            y_sel = seleccionado // columnas * (bh + sep)
+                            if y_sel < scroll: scroll = y_sel
+                            if y_sel + bh > scroll + H - arriba - 40: scroll = min(max_scroll, y_sel + bh - (H - arriba - 40))
+                        if e.type == pygame.MOUSEWHEEL: scroll = max(0, min(scroll - e.y * 60, max_scroll))
                         if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                            pos = pantalla.a_logico(e.pos)
+                            for r, k in pestañas:
+                                if r.collidepoint(pos): era = k; seleccionado = 0; scroll = 0
                             for r, i in botones:
-                                if r.collidepoint(pantalla.a_logico(e.pos)):
-                                    return era, i
-                    total = mundos.salas_de(rec, era)                    # la era pudo cambiar con TAB
-                    seleccionado = min(seleccionado, total - 1)
-                    ventana.fill((20, 20, 20))
+                                if r.collidepoint(pos): return (era + 1, 0) if i >= total else (era, i)
+                    total = mundos.salas_de(rec, era); cartas = total + (1 if era < n_eras - 1 else 0)
+                    seleccionado = min(seleccionado, cartas - 1)
+                    menus.fondo(ventana)
+                    menus.titulo(ventana, 'Salas')
+                    # pestañas de las eras
+                    pestañas = []
+                    ancho_p = (W - 290) // n_eras
+                    for k in range(n_eras):
+                        r = pygame.Rect(270 + k * ancho_p, 24, ancho_p - 6, 34)
+                        pestañas.append((r, k))
+                        color_e = mundos.ERAS[k]['suelo']
+                        menus.caja(ventana, r.move(0, 0 if k == era else 4), 'panel', tuple(min(255, c_ + 30) for c_ in color_e) if k == era else (34, 36, 48))
+                        if k == era: pygame.draw.rect(ventana, 'white', r, 2, border_radius=4)
+                        nombre_e = mundos.ERAS[k]['nombre'].replace('Edad de los ', '').replace('Edad de ', '').replace('Edad ', '').replace('Era ', '')
+                        t = f_c.render(nombre_e, True, 'white')
+                        ventana.blit(t, t.get_rect(center=r.move(0, 0 if k == era else 4).center))
+                    ventana.blit(f_c.render(mundos.ERAS[era]['nombre'] + ' - ' + str(total) + ' salas', True, (255, 225, 120)), (40, 92))
+                    # cartas con miniatura (se dibuja como mucho una sala nueva por cuadro)
                     botones = []
-                    ventana.blit(f_titulo.render('MENU DE SALAS - ' + mundos.ERAS[era]['nombre'], True, mundos.ERAS[era]['suelo']), (25, 15))
-                    ventana.blit(fuente.render('TAB / Shift+TAB: cambiar de era - flechas o clic para elegir - ENTER para ir - F2 o ESC para cerrar', True, (200, 200, 200)), (25, 45))
-                    for i in range(total):
-                        x = 30 + i % columnas * 240
-                        y = 85 + i // columnas * (bh + bn + sy) - scroll
+                    hechas = 0
+                    ventana.set_clip(pygame.Rect(0, arriba - 4, 580, H - arriba - 30 + 4))
+                    for i in range(cartas):
+                        x = 30 + i % columnas * (bw + sep)
+                        y = arriba + i // columnas * (bh + sep) - scroll
                         r = pygame.Rect(x, y, bw, bh)
-                        nr = pygame.Rect(x, y + bh, bw, bn)
-                        if r.bottom < 65 or nr.top > H:
-                            continue
-                        tipo = mundos.tipo_sala(rec, era, i)
-                        pygame.draw.rect(ventana, (80, 160, 80) if i == seleccionado else (200, 200, 200), r)
-                        pygame.draw.rect(ventana, (50, 50, 50), nr)
-                        ventana.blit(fuente.render('Sala ' + str(i + 1), True, 'black'), (x + 8, y + 22))
-                        detalle = tipo if tipo in ('combate', 'tienda') else tipo + ': ' + str(mundos.jefe_de(era, tipo))
-                        ventana.blit(fuente.render(detalle, True, 'white'), (x + 8, y + bh + 5))
+                        if r.bottom < arriba or r.top > H: continue
+                        elegida = i == seleccionado
+                        menus.caja(ventana, r, 'panel', (60, 70, 110) if elegida else (32, 34, 46))
+                        if i >= total:                                           # saltar de era sin pasar por el jefe
+                            t1 = f_m.render('Saltar a la era', True, (255, 225, 120)); t2 = f_m.render('siguiente  >>', True, (255, 225, 120))
+                            ventana.blit(t1, t1.get_rect(center=(r.centerx, r.centery - 22)))
+                            ventana.blit(t2, t2.get_rect(center=(r.centerx, r.centery + 2)))
+                            t3 = f_c.render(mundos.ERAS[era + 1]['nombre'], True, 'white'); ventana.blit(t3, t3.get_rect(center=(r.centerx, r.centery + 28)))
+                        else:
+                            tipo = mundos.tipo_sala(rec, era, i)
+                            previa = _previas.get((era, i))
+                            if (era, i) not in _previas and hechas < 1: previa = previa_sala(era, i, tipo); hechas += 1
+                            img = miniatura(previa, bw - 12, bh - 34)
+                            if img: ventana.blit(img, img.get_rect(midtop=(r.centerx, r.y + 6)))
+                            else: pygame.draw.rect(ventana, (20, 22, 30), (r.x + 6, r.y + 6, bw - 12, bh - 34))
+                            detalle = 'Sala ' + str(i + 1) + ('' if tipo == 'combate' else ' - ' + (tipo if tipo == 'tienda' else str(mundos.jefe_de(era, tipo)).replace('_', ' ').title()))
+                            color_t = (230, 230, 240) if tipo == 'combate' else (140, 230, 255) if tipo == 'tienda' else (255, 140, 120)
+                            ventana.blit(f_c.render(detalle, True, color_t), (r.x + 8, r.bottom - 24))
+                        if elegida: dibujar_esquinas(ventana, r, margen=3, largo=10)
                         botones.append((r, i))
+                    ventana.set_clip(None)
+                    # la elegida en grande
+                    panel = pygame.Rect(590, arriba, 380, H - arriba - 40)
+                    menus.caja(ventana, panel, 'panel', (30, 32, 44))
+                    if seleccionado < total:
+                        tipo = mundos.tipo_sala(rec, era, seleccionado)
+                        previa = previa_sala(era, seleccionado, tipo)
+                        img = miniatura(previa, panel.width - 24, 250)
+                        if img: ventana.blit(img, img.get_rect(midtop=(panel.centerx, panel.y + 12)))
+                        y_ = panel.y + 276
+                        renglones = ['Sala ' + str(seleccionado + 1) + ' de ' + str(total), 'Tipo: ' + tipo]
+                        if tipo not in ('combate', 'tienda'): renglones.append('Jefe: ' + str(mundos.jefe_de(era, tipo)).replace('_', ' ').title())
+                        elif previa and previa['sala'].get('variante'): renglones.append('Por ejemplo: ' + str(previa['sala']['variante']))
+                        renglones.append('(la sala de verdad se arma al entrar: cambia un poco)')
+                        for k, t in enumerate(renglones):
+                            ventana.blit((f_m if k < 3 else f_c).render(t, True, 'white' if k < 3 else (170, 175, 190)), (panel.x + 16, y_)); y_ += 28
+                    else:
+                        t = f_m.render('Va a la sala 1 de ' + mundos.ERAS[era + 1]['nombre'], True, 'white')
+                        ventana.blit(t, t.get_rect(center=panel.center))
+                    menus.pie(ventana, 'clic o Q/E: era   flechas o clic: sala   ENTER: ir   F2 / ESC: cerrar')
                     pantalla.presentar(); reloj_debug.tick(60)
 
             def cartel(nivel, texto, duracion=DURACION_CARTEL, subtitulo=None, grande=False):
@@ -1987,7 +2352,7 @@ def main():
                 nuevo = registro is None
                 if nuevo:
                     era, tipo = rec['era'], mundos.tipo_sala(rec)
-                    if destino and destino.get('tipo') == 'tesoro': tipo = 'tesoro'       # elegiste la puerta del tesoro
+                    if destino and destino.get('tipo') == 'tesoro': tipo = 'tesoro'; mision_evento('tesoro')   # elegiste la puerta del tesoro
                     destinos = mundos.destinos_siguientes(rec, random)
                     if tipo in ('tienda', 'tesoro'):
                         destinos = [d for d in destinos if d['tipo'] != 'tesoro'][:2] or destinos[:1]   # del tesoro no se va a otro tesoro
@@ -2022,11 +2387,13 @@ def main():
                 ent = entorno.crear(sala, clima or registro['clima'], tiempo())
                 mundo['ent'] = ent
                 if nuevo: tienda.nueva_sala(j['inventario'], tipo)       # los objetos de "por 3 salas" se gastan solo en salas nuevas
-                esc = mundos.escala(era, registro['sala'])
+                sala_nv = registro['sala']
+                if rec.get('rush') and tipo in ('jefe', 'regi'): sala_nv = (mundos.SALA_JEFE if tipo == 'jefe' else mundos.SALA_REGI) - 1
+                esc = mundos.escala(era, sala_nv)
                 nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': esc, 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [], 'proyectiles_enemigos': [],
                          'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo in ('tienda', 'tesoro') or hecha, 'monedas': [], 'carteles': [],
-                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, registro['sala'], tipo),
-                         'nivel_sala': progreso.nivel_de_sala(era, registro['sala']),   # el de los enemigos comunes (para el ajuste de experiencia)
+                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, sala_nv, tipo),
+                         'nivel_sala': progreso.nivel_de_sala(era, sala_nv),   # el de los enemigos comunes (para el ajuste de experiencia)
                          'amigos': [], 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
                          'registro': registro, 'revisita': hecha, 'inicio': sala['inicio']}
                 if llegada:                                              # volviste para atras: entras por la puerta por la que habias salido
@@ -2070,7 +2437,146 @@ def main():
                 sub = datos_era['nombre'] + '  -  Sala ' + str(registro['sala'] + 1) + '/' + str(mundos.salas_de(rec, era)) + '  -  ' + clima_txt
                 cartel(nivel, titulo, 2800 if not hecha else 1600, sub, grande=True)
                 if tipo == 'regi' and hecha: abrir_portal(nivel, False)   # volviste a la sala del Regi: el portal de Celebi sigue abierto
+                sonido.musica('tienda' if tipo in ('tienda', 'tesoro') else tipo if tipo in ('jefe', 'regi', 'final') and not hecha else 'era_' + str(era))
+                if nivel['jefe']: sonido.grito(nivel['jefe']['nombre'], 1.0)      # el jefe se presenta
                 return nivel
+
+            def crear_prueba(rec, j):
+                """Sala del modo prueba: una arena de la era sin puertas, con muñecos (no atacan, no se mueren y miden tu daño)
+                y/o enemigos que reaparecen al caer, segun el modo elegido con F3."""
+                era = rec['era']
+                modo = PRUEBA['modos'][prueba_estado['modo']][0]
+                tipo_sala = PRUEBA['salas'][prueba_estado['sala']][0]
+                if tipo_sala == 'tienda': sala = generacion.generar_tienda(era, ['oeste', 'este'], random.random()); modo = 'libre'
+                elif tipo_sala == 'combate': sala = generacion.generar_sala(era, random.choice(sorted(mundos.ERAS[era]['variantes'])), 'sur', ['norte'], random.random())
+                else: sala = generacion.generar_arena(era, [], random.random())
+                sala['puertas'] = []
+                ESC.size = sala['esc'].size
+                AREA.update(generacion.crear_area(ESC, sala['tam']))
+                ent = entorno.crear(sala, None, tiempo())
+                mundo['ent'] = ent
+                registro = {'era': era, 'sala': 0, 'tipo': 'prueba', 'semilla': 0, 'variante': None, 'entrada': 'sur', 'lados': [], 'destinos': [],
+                            'clima': None, 'completada': True, 'salida': None, 'vitrinas': None, 'desafio': False}
+                nv = max(1, j['nivel'])
+                nivel = {'sala': sala, 'ent': ent, 'tipo': 'tienda' if tipo_sala == 'tienda' else 'prueba', 'escala': mundos.escala(era, 0), 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [],
+                         'proyectiles_enemigos': [], 'efectos': [], 'verdes': [], 'puertas': [], 'llave': None, 'completado': True, 'monedas': [], 'carteles': [],
+                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': nv, 'nivel_sala': nv, 'amigos': [],
+                         'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
+                         'registro': registro, 'revisita': True, 'inicio': sala['inicio'], 'prueba': {'golpes': [], 'total': 0, 'modo': modo}}
+                mundo['ef']['parts'], mundo['ef']['anims'] = [], []
+                mundo['nivel'] = nivel
+                j['monedas'] = max(j['monedas'], 9999)                  # en la prueba sobra la plata (no se guarda nada)
+                if tipo_sala == 'tienda':                                 # la tienda de la era, con sus vitrinas para probar comprar
+                    necesita = {r.get('objeto') or r.get('mt') for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r or 'mt' in r}
+                    items = tienda.surtido_mostradores(random, sala['vitrinas'], [m['nombre'] for m in j['equipo']], necesita)
+                    nivel['vitrinas'] = [dict(v, item=i_, vendido=False) for v, i_ in zip(sala['vitrinas'], items)]
+                    registro['vitrinas'] = [[i_, False] for i_ in items]   # (comprar lo anota aca, como en una tienda de verdad)
+                ix, iy = nivel['inicio']
+                ocupadas = {c_ for o in ent['objetos'] for c_ in o['celdas']}
+                buenas = [(f, c_) for f, c_ in sala['alcanzables'] if (f, c_) not in ocupadas and not mundos.TERRENOS[ent['m'][f][c_]]['bloquea']
+                          and ent['m'][f][c_] not in generacion.PELIGROSOS]
+                def libre_cerca(x, y):
+                    """La casilla pisable mas cercana a (x, y), para que los muñecos no queden en el agua o en una pared."""
+                    if not buenas: return round(x), round(y)
+                    f, c_ = min(buenas, key=lambda fc: math.hypot((fc[1] + 0.5) * sala['tam'] - x, (fc[0] + 0.5) * sala['tam'] - y))
+                    x_, y_ = int((c_ + 0.5) * sala['tam']), int((f + 0.5) * sala['tam'])
+                    buenas[:] = [fc for fc in buenas if math.hypot((fc[1] + 0.5) * sala['tam'] - x_, (fc[0] + 0.5) * sala['tam'] - y_) > 90]   # que no queden pegados
+                    return int((c_ + 0.5) * sala['tam']), int((f + 0.5) * sala['tam'])
+                usados = set()
+                def muñeco(x, y):
+                    pool = [n for n in enemigos_de_era_lista(era) if n not in usados] or enemigos_de_era_lista(era)
+                    nombre = random.choice(pool); usados.add(nombre)
+                    x, y = libre_cerca(x, y)
+                    e = crear_enemigo(nivel, (x, y), None, nombre, nv)
+                    e.update({'muñeco': True, 'vida': PRUEBA['vida_muñeco'], 'max_vida': PRUEBA['vida_muñeco'], 'vida_ant': PRUEBA['vida_muñeco'],
+                              'vida_prev': PRUEBA['vida_muñeco'], 'origen_muñeco': (x, y), 'golpeado_en': 0})
+                    return e
+                def enemigo(estilo=None):
+                    e = crear_enemigo(nivel, entorno.punto_libre(ent, random, nivel['inicio'], 300), j['rect'].center, None, nv, estilo)
+                    e['estilo_prueba'] = estilo or 'normal'
+                    return e
+                if modo in ('muñecos', 'mixto'):
+                    cantidad = 3 if modo == 'muñecos' else 2
+                    for k in range(cantidad): nivel['enemigos'].append(muñeco(ix + (k - (cantidad - 1) / 2) * 140, iy - 230))   # adelante de donde apareces
+                if modo in ('pelea', 'mixto'):
+                    for _ in range(PRUEBA['enemigos'] - (1 if modo == 'mixto' else 0)): nivel['enemigos'].append(enemigo())
+                if modo == 'tiradores':
+                    for _ in range(PRUEBA['enemigos']): nivel['enemigos'].append(enemigo('tirador'))
+                if not prueba_estado.get('visto'):
+                    prueba_estado['visto'] = True
+                    cartel(nivel, 'Modo prueba', 2200, 'F3: modo, era y sala   F1: pokemon   F2: salas de cualquier era', grande=True)
+                else: cartel(nivel, mundos.ERAS[era]['nombre'] + ' - ' + PRUEBA['salas'][prueba_estado['sala']][1] + ' - ' + PRUEBA['modos'][prueba_estado['modo']][1], 1600)
+                sonido.musica('tienda' if tipo_sala == 'tienda' else 'prueba')
+                return nivel
+
+            def menu_prueba(fondo_juego, rec):
+                """F3 en el modo prueba: elegir modo, era y tipo de sala (con flechas o clic) y aplicar. Devuelve True si cambio algo, o 'salir'."""
+                pygame.mouse.set_visible(True)
+                elegidos = {'modo': prueba_estado['modo'], 'era': rec['era'], 'sala': prueba_estado['sala']}
+                largos = {'modo': len(PRUEBA['modos']), 'era': len(mundos.ERAS), 'sala': len(PRUEBA['salas'])}
+                filas = ['modo', 'era', 'sala', 'aplicar', 'cancelar']
+                etiquetas = {'modo': 'Modo', 'era': 'Era', 'sala': 'Sala', 'aplicar': 'Aplicar', 'cancelar': 'Cancelar'}
+                sel, abierto, reloj_m = 0, pygame.time.get_ticks(), pygame.time.Clock()
+                velo = pygame.Surface((W, H), pygame.SRCALPHA); velo.fill((8, 10, 24, 175))
+                cajas = [pygame.Rect(W // 2 - 300, 150 + k * 62, 600, 50) for k in range(len(filas))]
+                def valor(f):
+                    if f == 'modo': return PRUEBA['modos'][elegidos['modo']][1]
+                    if f == 'era': return mundos.ERAS[elegidos['era']]['nombre']
+                    if f == 'sala': return PRUEBA['salas'][elegidos['sala']][1]
+                def aplicar():
+                    cambio = (elegidos['modo'], elegidos['era'], elegidos['sala']) != (prueba_estado['modo'], rec['era'], prueba_estado['sala'])
+                    prueba_estado['modo'], prueba_estado['sala'] = elegidos['modo'], elegidos['sala']
+                    if elegidos['era'] != rec['era']: mundos.ir_a(rec, elegidos['era'], 0)
+                    return True if cambio else None
+                while True:
+                    for e in controles.eventos():
+                        if e.type == pygame.QUIT: return 'salir'
+                        if e.type == pygame.KEYDOWN:
+                            if e.key in (pygame.K_ESCAPE, pygame.K_F3): return None
+                            if e.key in (pygame.K_UP, pygame.K_w): sel = (sel - 1) % len(filas)
+                            if e.key in (pygame.K_DOWN, pygame.K_s): sel = (sel + 1) % len(filas)
+                            if e.key in (pygame.K_LEFT, pygame.K_a, pygame.K_RIGHT, pygame.K_d) and filas[sel] in largos:
+                                paso = -1 if e.key in (pygame.K_LEFT, pygame.K_a) else 1
+                                elegidos[filas[sel]] = (elegidos[filas[sel]] + paso) % largos[filas[sel]]
+                            if e.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE):
+                                if filas[sel] == 'cancelar': return None
+                                if filas[sel] == 'aplicar' or filas[sel] in largos: return aplicar()
+                        if e.type == pygame.MOUSEMOTION:
+                            for k, r in enumerate(cajas):
+                                if r.collidepoint(pantalla.a_logico(e.pos)): sel = k
+                        if e.type == pygame.MOUSEBUTTONDOWN and e.button in (1, 3):
+                            for k, r in enumerate(cajas):
+                                if not r.collidepoint(pantalla.a_logico(e.pos)): continue
+                                if filas[k] in largos: elegidos[filas[k]] = (elegidos[filas[k]] + (1 if e.button == 1 else -1)) % largos[filas[k]]
+                                elif filas[k] == 'aplicar': return aplicar()
+                                else: return None
+                    ventana.blit(fondo_juego, (0, 0)); ventana.blit(velo, (0, 0))
+                    menus.titulo(ventana, 'Modo prueba')
+                    ahora = pygame.time.get_ticks()
+                    for k, f in enumerate(filas):
+                        menus.boton(ventana, cajas[k], etiquetas[f], sel == k, 28, valor(f) if f in largos else None,
+                                    aparicion=suave_ui((ahora - abierto - k * 50) / 250), variante=(1, 0) if f == 'aplicar' else None)
+                    t = tipografia.fuente(20).render('La tienda trae sus vitrinas para probar comprar (sin enemigos). Los muñecos miden tu daño.', True, (200, 205, 220))
+                    ventana.blit(t, t.get_rect(center=(W // 2, cajas[-1].bottom + 30)))
+                    menus.pie(ventana, 'arriba/abajo: elegir   izq/der o clic: cambiar   ENTER: aplicar   ESC / F3: cerrar')
+                    pantalla.presentar(); reloj_m.tick(60)
+
+            def suave_ui(k):
+                k = max(0.0, min(1.0, k)); return 1 - (1 - k) ** 3
+
+            def enemigos_de_era_lista(era):
+                return [n for n in mundos.ERAS[era]['enemigos'] if n in pokemones and tiene_sprites(n)] or [n for n in JUGABLES if tiene_sprites(n)]
+
+            def actualizar_muñeco(nivel, e, ahora):
+                """Un muñeco: no se mueve ni ataca, vuelve a su lugar, anota el daño que recibe y se cura solo si lo dejas de pegar."""
+                hecho = e['vida_prev'] - e['vida']
+                if hecho > 0:
+                    nivel['prueba']['golpes'].append((ahora, hecho)); nivel['prueba']['total'] += hecho; e['golpeado_en'] = ahora
+                if e['vida'] <= 0 or ahora - e['golpeado_en'] > PRUEBA['regenera']: e['vida'] = e['max_vida']
+                e['vida_prev'] = e['vida']; e['aviso'] = None; e['embestida_ia'] = None; e['estado_ia'] = 'patrulla'
+                ox, oy = e['origen_muñeco']; dx, dy = ox - e['rect'].centerx, oy - e['rect'].centery
+                if abs(dx) + abs(dy) > 2 and ahora - e['golpeado_en'] > 400:          # despues del empujon vuelve despacito a su lugar
+                    d = math.hypot(dx, dy); e['rect'].x += round(dx / d * min(d, 2)); e['rect'].y += round(dy / d * min(d, 2))
 
             def impacto(nivel, x, y, radio, temblor):
                 """Golpe fuerte de un jefe contra el piso: polvo, piedritas y la pantalla tiembla un rato."""
@@ -2284,16 +2790,18 @@ def main():
                 de sumarse igual (x AMISTAD_EXTRA), asi con el baile podes amigar a mas de uno.
                 La chance depende de su especie, del nivel, de su naturaleza, del Lazo Amistad, de cuantas veces le bailaste y de las salas sin amigos."""
                 if e.get('jefe') or e.get('mini'): return
+                forzado = e.get('amigo_seguro')                               # el Machop del tutorial se une si o si
+                if viaje.get('rush') or (nivel.get('prueba') and not forzado): return
                 am = amistad_de_era()
                 bailado = e.get('encariño', 0) > 0
                 ya_hubo = nivel.get('ofertas_sala', 0) > 0                   # ya alguien quiso unirse en esta sala
                 esperando = list(am.get('ultima') or ()) == [rec['era'], rec['sala'] - 1]   # la sala anterior ya te dio un amigo: esta es de espera
-                if (ya_hubo or esperando) and not bailado: return
+                if (ya_hubo or esperando) and not bailado and not forzado: return
                 mult = tienda.mult(j['inventario'], 'amistad') * (1 + BAILE['encariño'] * e.get('encariño', 0))
                 prob = progreso.prob_unirse(e['nombre'], e['nivel'], j['nivel'], mult, e.get('naturaleza')) + progreso.PITY_AMISTAD * am['salas_sin']
                 if ya_hubo or esperando: prob *= AMISTAD_EXTRA
                 seguro = not ya_hubo and not esperando and amigo_garantizado()   # la garantia es solo para el primero de la sala
-                if not seguro and random.random() >= prob: return
+                if not seguro and not forzado and random.random() >= prob: return
                 am['ofertas'] += 1; am['salas_sin'] = 0; nivel['hubo_oferta'] = True
                 if not esperando: am['ultima'] = [rec['era'], rec['sala']]    # la proxima sala es de espera
                 nivel['ofertas_sala'] = nivel.get('ofertas_sala', 0) + 1
@@ -2314,6 +2822,7 @@ def main():
                     nuevo = crear_miembro(e['nombre'], e['nivel'])
                     nuevo['naturaleza'] = e.get('naturaleza') or nuevo['naturaleza']   # conserva la naturaleza con la que lo conociste
                     registrar_amigos(viaje['perfil'], [nuevo])              # queda como amigo para siempre (aunque se pierda este viaje)
+                    mision_evento('amigo')
                     if len(j['equipo']) < 3: j['equipo'].append(nuevo); actualizar_sinergia(j); cartel(nivel, nombre + ' se unió a tu equipo!')
                     elif len(j['reserva']) < RESERVA_MAX:
                         j['reserva'].append(nuevo); cartel(nivel, nombre + ' se fue a la reserva (se cambia en la tienda)', 2200)
@@ -2361,12 +2870,13 @@ def main():
                 partes = []
                 if encariñados: partes.append('se encariño con vos' if encariñados == 1 else str(encariñados) + ' se encariñaron con vos')
                 if confundidos: partes.append('se confundio' if confundidos == 1 else str(confundidos) + ' se confundieron')
+                if encariñados: mision_evento('encariñar', encariñados)
                 if partes: cartel(nivel, ' y '.join(partes).capitalize() + '!', 2000, '(los encariñados quieren unirse mas facil cuando los derrotas)' if encariñados else None)
 
             def premio_jefe(nivel, j, jefe):
                 """Los jefes dejan una MT que tu equipo pueda aprender (y el Regi, ademas, un objeto de evolucion si alguien lo necesita)."""
                 inv = j['inventario']['objetos']
-                if nivel['tipo'] in ('regi', 'final'):                      # derrotaste la era: cuenta para el hall (Ajustes > Hall > Automatico)
+                if nivel['tipo'] in ('regi', 'final') and not viaje.get('rush'):   # derrotaste la era: cuenta para el hall (Ajustes > Hall > Automatico)
                     viaje['perfil']['eras'] = max(viaje['perfil']['eras'], nivel['sala']['era'] + 1)
                 posibles = sorted({k for m in j['equipo'] for k in mts.aprendibles(m['nombre'])}) or list(mts.MTS)
                 mt = random.choice(posibles)
@@ -2489,6 +2999,7 @@ def main():
                 mensaje = tienda.comprar(j, v['item'])
                 if mensaje.startswith('Compraste'):
                     v['vendido'] = True; ganar_xp(nivel, j, precio // 6)   # comprar tambien da experiencia
+                    mision_evento('compra')
                     i_ = nivel['vitrinas'].index(v); nivel['registro']['vitrinas'][i_][1] = True; nivel['guardar'] = True
                 cartel(nivel, mensaje)
                 return True
@@ -2545,6 +3056,7 @@ def main():
                             'impacto': lambda x, y, r, ms: impacto(nivel, x, y, r, ms),
                             'parry': lambda e: intentar_parry(j, e, nivel),           # la IA lo llama antes de pegarte
                             'era': nivel['sala']['era'], 'proyectiles': nivel['proyectiles_pokemon'],
+                            'facil': es_facil(), 'sin_maniobras': bool(nivel.get('tutorial')),
                             'forzar_cambio': lambda: forzar_cambio(j), 'quitar_objeto': lambda: quitar_objeto(j)}   # Llave Giro y Desarme de Arceus Beta
                 entorno.actualizar(ent, dict(contexto, dañar_jugador=lambda d, t, a=None: dañar_jugador(j, d, t, evitable=False)), ahora)   # terreno, maquinas, fuego, clima, explosiones
                 if ahora >= j['congelado_hasta']:                        # el frio de los golpes de hielo se va solo
@@ -2557,6 +3069,7 @@ def main():
                     elif ev[0] == 'roto':
                         efectos.romper(mundo['ef'], ev[1], ev[2], ev[3])
                         if not nivel['revisita']:                       # en salas repetidas no se farmea
+                            mision_evento('romper')
                             ganar_xp(nivel, j, 1 + nivel['nivel_enemigos'] // 6)   # (antes daba el doble)
                             sorteo = random.random() / mec.mult_romper(j)   # explorar rinde: a veces adentro hay algo (Olfato: el doble)
                             mec.objeto_roto(j)
@@ -2577,13 +3090,26 @@ def main():
                         salida_e = entorno.orilla(ent, e['rect'], entorno.tipos_de(e))     # un enemigo trabado tambien sale
                         if salida_e: e['rect'].center = (round(salida_e[0]), round(salida_e[1]))
                     lento = mec.lento() and nivel['frame'] % 3                # camara lenta (Prediccion): un tercio de velocidad
-                    if e['vida'] > 0 and not lento and not mec.enemigo(e, j, nivel): ia.actualizar(e, contexto_ia)
+                    if e.get('muñeco'): actualizar_muñeco(nivel, e, ahora)     # modo prueba: no se mueve, no ataca, no se muere
+                    elif e['vida'] > 0 and not lento and not mec.enemigo(e, j, nivel): ia.actualizar(e, contexto_ia)
                     actualizar_animacion_enemigo(e)
+                    if (e.get('embestida_ia') or e.get('esquiva_ia')) and nivel['frame'] % ESTELA['cada'] == 0:   # embistiendo o esquivando: deja estela
+                        cuadro_e = e['animador'].cuadro()
+                        if cuadro_e: nivel.setdefault('estela', []).append({'img': cuadro_e[0], 'x': cuadro_e[1], 'y': cuadro_e[2], 'inicio': ahora, 'color': e['color']})
                 for e in enemigos:                                      # los que caen: monedas, experiencia y a veces quieren ser tus amigos
-                    if e['vida'] <= 0:
+                    if e['vida'] <= 0 and nivel.get('prueba') and not e.get('unico'):   # modo prueba: sin premios, y al rato sale otro igual
+                        nivel['prueba']['bajas'] = nivel['prueba'].get('bajas', 0) + 1
+                        baja(j, nivel); mec.derrota(j, e, nivel)
+                        efectos.aparecer(mundo['ef'], *e['rect'].center); efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
+                        nivel['apariciones'].append({'pos': entorno.punto_libre(ent, random, j['rect'].center, 300), 'hasta': ahora + PRUEBA['reaparece'],
+                                                     'estilo': e.get('estilo_prueba')})
+                    elif e['vida'] <= 0:
+                        mision_evento('derrota')
                         soltar_monedas(nivel, j, *e['rect'].center, MONEDAS_ENEMIGO + nivel['sala']['era'])
                         baja(j, nivel)
                         efectos.aparecer(mundo['ef'], *e['rect'].center)    # la nube de humo de Poke Transfer
+                        cuadro_e = e['animador'].cuadro()                   # y su silueta en blanco, que se apaga
+                        if cuadro_e: nivel.setdefault('estela', []).append({'img': cuadro_e[0], 'x': cuadro_e[1], 'y': cuadro_e[2], 'inicio': ahora, 'color': (255, 255, 255)})
                         nivel['pausa_hasta'] = max(nivel.get('pausa_hasta', 0), ahora + IMPACTO['baja'])
                         ganar_xp(nivel, j, progreso.xp_por_derrota(e['nombre'], e['nivel'], j['nivel']))
                         efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
@@ -2617,6 +3143,11 @@ def main():
                         if jefe['estilo'] == 'beta': entorno.cerrar_vacios(ent); cartel(nivel, 'El piso vuelve...', 2000)
                         soltar_monedas(nivel, j, *jefe['rect'].center, MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
                         cartel(nivel, jefe['nombre'].title() + ' fue derrotado!', 2000)
+                        mision_evento('jefe')
+                        if nivel['tipo'] == 'regi': mision_evento('regi')
+                        if viaje.get('rush'): viaje['rush']['jefes'] += 1
+                        if viaje.get('perfil') is not None and jefe['nombre'] not in viaje['perfil'].setdefault('jefes', []):
+                            viaje['perfil']['jefes'].append(jefe['nombre'])       # queda esperandote en la sala de los titanes del refugio
                         efectos.explosion(mundo['ef'], *jefe['rect'].center, 160)
                         ganar_xp(nivel, j, progreso.xp_por_derrota(jefe['nombre'], jefe['nivel'], j['nivel'], True))
                         premio_jefe(nivel, j, jefe)
@@ -2636,6 +3167,8 @@ def main():
                 derrotados = not nivel['enemigos'] and nivel['jefe'] is None and not nivel['oleadas'] and not nivel['apariciones'] and not nivel['llegada']
                 if derrotados and not nivel['completado']:
                     nivel['completado'] = True; nivel['registro']['completada'] = True
+                    mision_evento('sala')
+                    if nivel['registro'].get('desafio'): mision_evento('desafio')
                     mec.sala_limpia(j, nivel)                            # Recogida
                     if nivel['tipo'] == 'combate' and not nivel.get('hubo_oferta'): amistad_de_era()['salas_sin'] += 1   # la proxima es un poco mas facil
                     if nivel.get('stats'):                               # la nota de la sala: tiempo, daño recibido, estilo y parrys
@@ -2646,11 +3179,12 @@ def main():
                         if random.random() < chance: soltar_objeto(nivel, *j['rect'].center, random.choice(('baya_oran', 'llave_tesoro', 'caramelo_raro')))
                         if letra in ('S', 'A'): ganar_xp(nivel, j, progreso.xp_por_derrota(j['nombre'], nivel['nivel_enemigos'], j['nivel']) // (1 if letra == 'S' else 2))
                         cartel(nivel, 'Nota ' + letra, 2600, detalle, grande=True)
+                        if letra == 'S': mision_evento('nota_s')
                     else: cartel(nivel, '¡Sala limpia!')
                     if any(p_.get('atras') for p_ in nivel['puertas']): cartel(nivel, 'Podés volver por donde entraste')
                     for i, m in enumerate(j['equipo']):                  # un respiro: los que siguen en pie recuperan un poco de vida
-                        if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * CURA_SALA)
-                    if j['vida'] > 0: j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * CURA_SALA)
+                        if i != j['activo'] and m['vida'] > 0: m['vida'] = min(m['max_vida'], m['vida'] + m['max_vida'] * (FACIL['cura_sala'] if es_facil() else CURA_SALA))
+                    if j['vida'] > 0: j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * (FACIL['cura_sala'] if es_facil() else CURA_SALA))
                     nivel['guardar'] = True
                     soltar_monedas(nivel, j, *ESC.center, MONEDAS_SALA + 3 * nivel['sala']['era'])
                     ganar_xp(nivel, j, progreso.xp_por_derrota(j['nombre'], nivel['nivel_enemigos'], j['nivel']))
@@ -2668,7 +3202,7 @@ def main():
                 if nivel['llave'] and j['rect'].inflate(10, 10).colliderect(nivel['llave']):
                     j['llave'] = True; nivel['llave'] = None
                     cartel(nivel, '¡Conseguiste la llave de la sala! Las puertas se abren')
-                if j['vida'] <= 0:
+                if j['vida'] <= 0 and not mec.al_caer(j, nivel):             # (Annihilape aguanta una vez, Drifloon explota)
                     guardar_activo(j)
                     vivos = [i for i, m in enumerate(j['equipo']) if m['vida'] > 0]
                     if not vivos: return 'muerte'
@@ -2699,11 +3233,11 @@ def main():
                             efectos.transicion(mundo['ef'], 'salir', ahora, (j['rect'].centerx - cx, j['rect'].centery - cy))
                             break
 
-            return (menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque, hablar_portal, bailar,
+            return (crear_prueba, menu_prueba, actualizar_muñeco, menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque, hablar_portal, bailar,
                     soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima, empezar_subjefe)
 
-        (menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel, bloque_cercano, empujar_bloque,
-         hablar_portal, bailar, soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima,
+        (crear_prueba, menu_prueba, actualizar_muñeco, menu_niveles, cartel, crear_nivel, tecla_de, hablar_amigo, vitrina_cercana, comprar_cercano, actualizar_nivel,
+         bloque_cercano, empujar_bloque, hablar_portal, bailar, soltar_monedas, soltar_objeto, hablar_curandera, curandera_cerca, usar_curacion, curarse_rapido, dar_pocion_maxima,
          empezar_subjefe) = armar_salas()
 
         def armar_mecanicas():
@@ -2741,7 +3275,8 @@ def main():
                                 hay_peligro=hay_peligro, cambiar_slot=cambiar_slot, soltar_objeto=soltar_objeto,
                                 temblor=lambda nivel, ms: nivel.__setitem__('temblor', max(nivel['temblor'], tiempo() + ms)),
                                 mover_entidad=mover_entidad, poner_buff=poner_buff, guardar_y_aplicar=guardar_y_aplicar, rehacer_animador=rehacer_animador,
-                                enemigos_de_era=enemigos_de_era, golpe_al_jugador=golpe_al_jugador, ventana=ventana, ENERGIA_MAX=ENERGIA_MAX)
+                                enemigos_de_era=enemigos_de_era, golpe_al_jugador=golpe_al_jugador, ventana=ventana, ENERGIA_MAX=ENERGIA_MAX,
+                                mantiene=controles.mantiene)
             return mecanicas.armar(c)
 
         mec = armar_mecanicas()
@@ -2751,9 +3286,30 @@ def main():
             pasean por el hall, les hablas con E y elegis quienes van al proximo viaje. El portal del norte arranca otro viaje desde la Era Glacial.
             El perfil de la partida guarda tu nombre, tu genero, tus amigos, las eras que derrotaste y cuantos viajes hiciste."""
             DESCANSOS = ('idle', 'idle', 'sit', 'laying', 'lookup', 'sleep')       # lo que hacen tus amigos cuando se quedan quietos en el hall
-            CHARLAS = ('¡{nombre}! ¿Salimos de nuevo?', 'La próxima llegamos más lejos, {nombre}. Te lo prometo.', 'Acá se está bien... pero me pica todo de ganas de pelear.',
-                       'Celebi dice que el tiempo se rompe cada vez más. No entiendo mucho, pero suena feo.', 'Todavía sueño con la Era Glacial. Qué frío, por favor.',
-                       'Si me llevás, esta vez no me desmayo. Bueno... lo intento.')
+            def charla_de(a, perfil):
+                """Lo que dice un amigo del refugio: segun su especie, su tipo, su naturaleza, cuanto te quiere y hasta donde llegaron juntos (modos.py)."""
+                especie = a['especie']
+                frases = list(modos.CHARLAS_ESPECIE.get(especie, ())) * 3          # lo suyo sale mas seguido
+                tipo = normalizar_tipo((pokemones[especie].get('tipo') or ['normal'])[0])
+                frases += list(modos.CHARLAS_TIPO.get(tipo, ())) * 2
+                facilidad = (progreso.NATURALEZAS.get(a.get('naturaleza')) or {}).get('amistad', 1.0)
+                for desde, hasta, de_caracter in modos.CHARLAS_NATURALEZA.values():
+                    if desde <= facilidad <= hasta: frases += list(de_caracter) * 2
+                if a.get('amistad', 0) >= 60: frases += list(modos.CHARLAS_AMISTAD) * 2
+                if a['record'][0] != especie: frases += list(modos.CHARLAS_RECORD)
+                frases += list(modos.CHARLAS_GENERALES)
+                return random.choice(frases).format(nombre=perfil['nombre'], record=a['record'][0].replace('_', ' ').title())
+
+            def pedir_favor(a, perfil, nombre):
+                """Un amigo te pide algo para el proximo viaje (uno a la vez): si lo cumplis con el en el equipo, sube su amistad."""
+                favor = perfil.get('favor')
+                if favor and favor['id'] == a['id']:
+                    return pausado(menus.preguntar, ui, nombre + ': ' + favor['texto'], ['Estoy en eso'], 'vas ' + str(favor['n']) + ' de ' + str(favor['meta']) + '  (tiene que estar en tu equipo)')
+                if favor:
+                    return pausado(menus.preguntar, ui, nombre + ': Nada por ahora. Primero cumplile a ' + favor['especie'].replace('_', ' ').title() + ', que te pidió algo.', ['Ok'])
+                evento, meta, texto = random.choice(modos.FAVORES)
+                perfil['favor'] = {'id': a['id'], 'especie': a['especie'], 'evento': evento, 'meta': meta, 'n': 0, 'texto': texto}
+                return pausado(menus.preguntar, ui, nombre + ': ' + texto, ['¡Dale!'], 'un favor: si lo cumplís con ' + nombre + ' en el equipo, sube su amistad (+' + str(modos.FAVOR_AMISTAD) + ')')
             SALUDOS_CELEBI = ('Otra vez por acá, {nombre}. Tranqui, a mí me costó bastante más aprender.',
                               'Vi caer imperios enteros, {nombre}. Una mala racha no es nada.',
                               '¿Ya de vuelta? Bueno, tiempo sobra. Acá es lo único que sobra.',
@@ -2803,11 +3359,28 @@ def main():
                         if m[f][c] in ('suelo', 'hierba') and (f, c) not in tapadas]
 
             def crear_hall(j, perfil):
-                """Arma el hall como una sala mas (sin enemigos, con la puerta abierta): Celebi al lado del portal y tus amigos paseando."""
+                """Arma la zona del refugio en la que estas (plaza, barrio, minijuegos, dojo o una habitacion): sin enemigos, con las puertas
+                abiertas, Celebi al lado del portal y tus amigos paseando por la plaza y el lounge."""
+                zona = viaje.get('zona') or 'plaza'
+                llegada = viaje.pop('llegada_zona', None)
+                if zona != 'dojo' and not zona.startswith('mini_') and viaje.get('dojo_equipo'):   # saliste del dojo (o de un minijuego): vuelve tu equipo de verdad
+                    j['equipo'], j['activo'] = viaje.pop('dojo_equipo'); j['monedas'] = viaje.pop('dojo_monedas', j['monedas'])   # la plata del dojo era prestada
+                    for m in j['equipo']: m['vida'] = m['max_vida']
+                    aplicar_pokemon(j, j['equipo'][j['activo']]['nombre']); actualizar_sinergia(j)
+                if zona == 'dojo': return crear_dojo(j)
+                if zona.startswith('mini_'): return crear_minijuego(j, zona[5:])
                 estilo = estilo_hall(perfil)
                 era = 1 if estilo == 'celebi' else min(perfil['eras'], len(mundos.ERAS) - 1)   # el atemporal tiene el piso de la ultima era a la que llegaste
-                sala = generacion.generar_hall(era, estilo, random.random())
-                for puerta in sala['puertas']: puerta['destino'] = {'tipo': 'viaje'}
+                if zona == 'plaza': sala = generacion.generar_plaza(era, estilo, random.random())
+                elif zona == 'barrio': sala = generacion.generar_barrio(era, estilo)
+                elif zona == 'minijuegos': sala = generacion.generar_minijuegos(era, estilo)
+                elif zona == 'titanes': sala = generacion.generar_titanes()
+                else: sala = generacion.generar_habitacion(zona, era)
+                for puerta in sala['puertas']:
+                    if zona == 'plaza' and puerta['lado'] == 'norte': puerta['destino'] = {'tipo': 'viaje'}
+                    else: puerta['destino'] = {'tipo': 'zona', 'zona': 'barrio' if zona == 'plaza' else 'plaza'}
+                sala.setdefault('guardian', (-9999, -9999))
+                inicio = sala.get('llegadas', {}).get(llegada) or sala['inicio']
                 ESC.size = sala['esc'].size
                 AREA.update(generacion.crear_area(ESC, sala['tam']))
                 ent = entorno.crear(sala, None, tiempo())
@@ -2816,14 +3389,21 @@ def main():
                          'proyectiles_enemigos': [], 'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': True, 'monedas': [],
                          'carteles': [], 'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': 1, 'amigos': [],
                          'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
-                         'registro': {'completada': True, 'salida': None}, 'revisita': True, 'inicio': sala['inicio'], 'pisables': pisables_hall(sala)}
+                         'registro': {'completada': True, 'salida': None}, 'revisita': True, 'inicio': inicio, 'pisables': pisables_hall(sala),
+                         'puntos': sala.get('puntos', []), 'pasos': [dict(p_) for p_ in sala.get('pasos', [])]}
                 en_equipo = {m.get('id') for m in j['equipo']}
-                libres = random.sample(nivel['pisables'], min(len(nivel['pisables']), len(perfil['amigos'])))
-                nivel['residentes'] = [residente(a, p) for a, p in zip([a for a in perfil['amigos'] if a['id'] not in en_equipo], libres)]
+                amigos_aca = [a for a in perfil['amigos'] if a['id'] not in en_equipo] if zona in ('plaza', 'comedor') else []
+                if zona == 'comedor': amigos_aca = amigos_aca[:4]                 # al lounge vienen algunos
+                libres = random.sample(nivel['pisables'], min(len(nivel['pisables']), len(amigos_aca)))
+                nivel['residentes'] = [residente(a, p) for a, p in zip(amigos_aca, libres)]
+                if zona == 'titanes': nivel['titanes'] = crear_titanes(sala, perfil)
                 mundo['ef']['parts'], mundo['ef']['anims'] = [], []
                 mundo['nivel'] = nivel
-                titulo = 'Claro de Celebi' if estilo == 'celebi' else 'El lugar atemporal'
-                cartel(nivel, titulo, 2800, 'Hall  -  ' + str(len(perfil['amigos'])) + (' amigo' if len(perfil['amigos']) == 1 else ' amigos') + '  -  viaje ' + str(perfil['viajes'] + 1), grande=True)
+                if zona == 'plaza':
+                    titulo = 'El refugio de Celebi' if estilo == 'celebi' else 'El refugio atemporal'
+                    cartel(nivel, titulo, 2800, str(len(perfil['amigos'])) + (' amigo' if len(perfil['amigos']) == 1 else ' amigos') + '  -  viaje ' + str(perfil['viajes'] + 1), grande=True)
+                else: cartel(nivel, sala.get('titulo', ''), 1400)
+                sonido.musica('hall')
                 return nivel
 
             def actualizar_residentes(nivel):
@@ -2863,23 +3443,38 @@ def main():
                 """E en el hall: hablar con Celebi o con un amigo. Devuelve True si habia alguien cerca."""
                 if nivel['tipo'] != 'hall': return False
                 g = perfil['genero']
-                if cerca(j, nivel['sala']['guardian'], DISTANCIA_HABLAR + 20):
-                    if perfil['viajes'] <= 1: texto = 'Te saqué justo, ' + perfil['nombre'] + '. Acá no te alcanza nada, ' + menus.segun_genero(g, 'quedate tranquilo', 'quedate tranquila', 'tranqui') + '.'
+                if cerca(j, nivel['sala'].get('guardian', (-9999, -9999)), DISTANCIA_HABLAR + 20):
+                    if perfil['viajes'] == 0: texto = 'Bienvenid' + menus.segun_genero(g, 'o', 'a', 'e') + ' al refugio, ' + perfil['nombre'] + '. Recorrelo tranqui: el portal del norte te lleva de viaje cuando quieras.'
+                    elif perfil['viajes'] == 1: texto = 'Te saqué justo, ' + perfil['nombre'] + '. Acá no te alcanza nada, ' + menus.segun_genero(g, 'quedate tranquilo', 'quedate tranquila', 'tranqui') + '.'
                     else: texto = random.choice(SALUDOS_CELEBI).format(nombre=perfil['nombre'])
-                    r = pausado(menus.preguntar, ui, texto, ['¿Qué es este lugar?', '¿Cómo venimos?', 'Nada, gracias'])
+                    r = pausado(menus.preguntar, ui, texto, ['¿Qué es este lugar?', '¿Cómo venimos?', '¿Algún consejo?', 'Nada, gracias'])
+                    if r == 2:                                               # un consejo segun como te viene yendo (modos.CONSEJOS_CELEBI)
+                        clave = 'principio' if perfil['eras'] == 0 else 'medio' if perfil['eras'] < 5 else 'final'
+                        pausado(menus.preguntar, ui, random.choice(modos.CONSEJOS_CELEBI[clave] + modos.CONSEJOS_CELEBI['siempre']), ['Gracias'])
                     if r == 0: pausado(menus.preguntar, ui, 'Un rincón fuera del tiempo. Lo encontré hace... uf, ni me acuerdo. Tus amigos esperan acá: hablales y elegí quién viaja con vos.',
                                        ['Dale'], 'el portal del norte te lleva de nuevo a la Era Glacial')
                     if r == 1: pausado(menus.preguntar, ui, str(perfil['viajes']) + ' viajes, ' + str(perfil['eras']) + ' eras derrotadas y ' + str(len(perfil['amigos'])) + ' amigos. Vas mejor de lo que pensás.',
                                        ['Vamos de nuevo'])
                     return True
+                if hablar_titan(nivel, j, perfil): return True
                 r = min(nivel.get('residentes', ()), key=lambda r: math.hypot(r['rect'].centerx - j['rect'].centerx, r['rect'].centery - j['rect'].centery), default=None)
+                p = punto_cercano(nivel, j)
+                if p and (not r or not cerca(j, r['rect'].center) or math.hypot(p['pos'][0] - j['rect'].centerx, p['pos'][1] - j['rect'].centery)
+                          < math.hypot(r['rect'].centerx - j['rect'].centerx, r['rect'].centery - j['rect'].centery)):
+                    accion_punto(nivel, j, perfil, p); return True        # un cartel, un cuadro, la cama, el telescopio...
                 if not r or not cerca(j, r['rect'].center): return False
-                posar(r, 'nod', 900)
+                hablar_con(nivel, j, perfil, r)
+                return True
+
+            def hablar_con(nivel, j, perfil, r):
+                """Charlar con un amigo del refugio (y llevarlo al proximo viaje si queres)."""
+                posar(r, 'nod', 900); sonido.grito(r['nombre'], 0.7)
                 a, nombre = r['a'], r['nombre'].replace('_', ' ').title()
                 record = a['record'][0].replace('_', ' ').title() + ' Nv ' + str(a['record'][1])
-                eleccion = pausado(menus.preguntar, ui, nombre + ': ' + random.choice(CHARLAS).format(nombre=perfil['nombre']),
-                                   ['¡Vení al próximo viaje!', 'Después hablamos'],
+                eleccion = pausado(menus.preguntar, ui, nombre + ': ' + charla_de(a, perfil),
+                                   ['¡Vení al próximo viaje!', '¿Necesitás algo?', 'Después hablamos'],
                                    'mejor viaje: ' + record + '  -  amistad ' + str(a.get('amistad', 0)) + '  -  ' + progreso.texto_naturaleza(a.get('naturaleza')).split(' - ')[0])
+                if eleccion == 1: pedir_favor(a, perfil, nombre); return True
                 if eleccion != 0: return True
                 if len(j['equipo']) < 3: j['equipo'].append(miembro_de(a))
                 else:                                                      # equipo lleno: cambia por uno que no este peleando
@@ -2887,6 +3482,7 @@ def main():
                     k = pausado(menus.preguntar, ui, '¿Por quien lo cambias?', [j['equipo'][i]['nombre'].title() for i in opciones_] + ['Cancelar'])
                     if k is None or k == 'salir' or k >= len(opciones_): return True
                     sale = j['equipo'][opciones_[k]]
+                    if not nivel.get('pisables'): nivel['pisables'] = [j['rect'].center]
                     j['equipo'][opciones_[k]] = miembro_de(a)
                     otro = next((x for x in perfil['amigos'] if x['id'] == sale.get('id')), None)
                     if otro: nivel['residentes'].append(residente(otro, j['rect'].center))
@@ -2895,6 +3491,260 @@ def main():
                 efectos.corazones(mundo['ef'], *r['rect'].center)
                 cartel(nivel, '¡' + nombre + ' viene al próximo viaje!')
                 return True
+
+            # ---------------- el refugio de Celebi: zonas, cosas para tocar y misiones ----------------
+            RAIZ_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+            def _hoja(nombre): return os.path.join(RAIZ_ASSETS, 'DS _ DSi - Pokemon Mystery Dungeon_ Explorers of Sky - Miscellaneous - ' + nombre + '.png')
+            # las hojas del PMD traen varios cuadros (la 'ruta' es (archivo, recorte) con el que queda lindo solo)
+            NOCHE, LUNA = (_hoja('Skies (Night)'), (2, 245, 308, 236)), (_hoja('Moonlight'), (2, 245, 308, 236))
+            ATARDECER, DIA = (_hoja('Skies (Dusk)'), (2, 196, 261, 189)), (_hoja('Skies'), (2, 219, 285, 213))
+            CUADROS = {'Cuadro: el cielo de noche': (LUNA, 'La luna sobre las nubes', 'Así se ve el cielo desde el refugio cuando el tiempo se queda quieto.'),
+                       'Tapiz: el mundo': ((_hoja('World Map'), (2, 2, 500, 330)), 'El mapa del mundo', 'Todos los lugares por los que pasa el tiempo. Celebi dice que algunos ya no existen.'),
+                       'Cuadro: el lago entre la niebla': ((_hoja('Fogbound Lake (Vista)'), (2, 2, 294, 221)), 'El lago entre la niebla', 'Un lago escondido. Dicen que ahí se guarda un engranaje del tiempo.')}
+            CIELOS = [NOCHE, LUNA, ATARDECER, DIA]
+            _imagenes = {}
+            def imagen_refugio(ruta):
+                if ruta not in _imagenes:
+                    archivo, recorte = ruta
+                    try: _imagenes[ruta] = pygame.image.load(archivo).convert().subsurface(recorte).copy()
+                    except (pygame.error, FileNotFoundError, ValueError): _imagenes[ruta] = None
+                return _imagenes[ruta]
+            # misiones secundarias (modos.MISIONES): se activan en el tablon, cuentan solas y dan monedas para el proximo viaje.
+            # Las que dicen 'repite' se pueden volver a tomar; las demas son de una sola vez
+            MISIONES = modos.MISIONES
+            MAX_MISIONES = 3
+
+            def estado_misiones(perfil):
+                est = perfil.setdefault('misiones', {'activas': [], 'progreso': {}, 'hechas': []})
+                est.setdefault('veces', {})                                   # cuantas veces cumpliste cada una de las que se repiten
+                return est
+
+            def mision_evento(evento, cantidad=1):
+                """Algo paso en el viaje (derrota, sala, jefe, nota_s, evolucion): suma a las misiones activas que lo cuentan."""
+                perfil = viaje.get('perfil')
+                if not perfil or prueba or viaje.get('tutorial') or viaje.get('mini'): return
+                if viaje.get('rush') and evento not in ('rush', 'revancha'): return   # en el boss rush solo cuenta terminarlo
+                favor, j_ = perfil.get('favor'), mundo.get('jugador')          # el favor que te pidio un amigo: cuenta si esta en tu equipo
+                if favor and favor['evento'] == evento and j_ and any(m.get('id') == favor['id'] for m in j_['equipo']):
+                    favor['n'] += cantidad
+                    if favor['n'] >= favor['meta']:
+                        perfil['favor'] = None; perfil['favores'] = perfil.get('favores', 0) + 1
+                        for quien in [m for m in j_['equipo'] if m.get('id') == favor['id']] + [a for a in perfil['amigos'] if a['id'] == favor['id']]:
+                            quien['amistad'] = min(255, quien.get('amistad', 0) + modos.FAVOR_AMISTAD)
+                        if mundo.get('nivel'): cartel(mundo['nivel'], '¡Le cumpliste a ' + favor['especie'].replace('_', ' ').title() + '!', 2400, 'su amistad subió +' + str(modos.FAVOR_AMISTAD), grande=True)
+                est = estado_misiones(perfil)
+                for mid in list(est['activas']):
+                    mi = next((x for x in MISIONES if x['id'] == mid), None)
+                    if not mi or mi['evento'] != evento: continue
+                    est['progreso'][mid] = est['progreso'].get(mid, 0) + cantidad
+                    if est['progreso'][mid] >= mi['meta']:
+                        est['activas'].remove(mid)
+                        if mi.get('repite'): est['veces'][mid] = est['veces'].get(mid, 0) + 1; est['progreso'][mid] = 0
+                        else: est['hechas'].append(mid)
+                        perfil['premio_pendiente'] = perfil.get('premio_pendiente', 0) + mi['premio']
+                        if mundo.get('nivel'): cartel(mundo['nivel'], '¡Misión cumplida: ' + mi['nombre'] + '!', 2400, '+' + str(mi['premio']) + ' monedas al empezar el próximo viaje', grande=True)
+
+            def tablon_misiones(perfil):
+                """El tablon: activar o dejar misiones (hasta 3 a la vez)."""
+                est = estado_misiones(perfil)
+                elegido = 0
+                while True:
+                    filas = []
+                    for mi in MISIONES:
+                        n = est['progreso'].get(mi['id'], 0)
+                        if mi['id'] in est['hechas']: estado_t = '  [HECHA]'
+                        elif mi['id'] in est['activas']: estado_t = '  [ACTIVA ' + str(min(n, mi['meta'])) + '/' + str(mi['meta']) + ']'
+                        elif est['veces'].get(mi['id']): estado_t = '  [x' + str(est['veces'][mi['id']]) + ']'
+                        else: estado_t = ''
+                        filas.append((mi['nombre'] + estado_t, mi['desc'] + '  -  premio: ' + str(mi['premio']) + ' monedas para el próximo viaje'))
+                    k = menus.lista_detallada(ui, 'Tablón de misiones', filas, 'ENTER: activar o dejar (hasta ' + str(MAX_MISIONES) + ' a la vez)   ESC: volver', elegido)
+                    if k is None or k == 'salir': return k
+                    elegido = k; mid = MISIONES[k]['id']
+                    if mid in est['hechas']: continue
+                    if mid in est['activas']: est['activas'].remove(mid)
+                    elif len(est['activas']) < MAX_MISIONES: est['activas'].append(mid)
+                    else: menus.preguntar(ui, 'Ya tenés ' + str(MAX_MISIONES) + ' misiones activas. Dejá una para tomar otra.', ['Ok'])
+
+            def ver_imagen(ruta, titulo, texto):
+                """Un cuadro de la galeria (o el cielo) en grande con su marco y una linea que lo cuenta."""
+                img = imagen_refugio(ruta)
+                reloj_v = pygame.time.Clock(); abierto = pygame.time.get_ticks()
+                while True:
+                    for e in controles.eventos():
+                        if e.type == pygame.QUIT: return 'salir'
+                        if (e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_e, pygame.K_RETURN, pygame.K_SPACE)) or e.type == pygame.MOUSEBUTTONDOWN: return None
+                    ventana.fill((14, 12, 20))
+                    if img:
+                        k = min((W - 120) / img.get_width(), (H - 170) / img.get_height())
+                        chica = pygame.transform.smoothscale(img, (round(img.get_width() * k), round(img.get_height() * k)))
+                        r = chica.get_rect(center=(W // 2, H // 2 - 20))
+                        pygame.draw.rect(ventana, (120, 80, 40), r.inflate(28, 28), border_radius=4); pygame.draw.rect(ventana, (220, 180, 90), r.inflate(16, 16), 4)
+                        chica.set_alpha(round(255 * min(1.0, (pygame.time.get_ticks() - abierto) / 300))); ventana.blit(chica, r)
+                    t = tipografia.fuente(34, borde=True).render(titulo, True, (255, 230, 140)); ventana.blit(t, t.get_rect(center=(W // 2, H - 66)))
+                    t = tipografia.fuente(20).render(texto, True, (220, 220, 230)); ventana.blit(t, t.get_rect(center=(W // 2, H - 36)))
+                    pantalla.presentar(); reloj_v.tick(60)
+
+            def observatorio():
+                """El telescopio: el cosmos (los cielos del PMD que se van fundiendo) con estrellas fugaces. Las estrellas guardan los otros modos."""
+                reloj_o = pygame.time.Clock(); inicio_o = pygame.time.get_ticks()
+                estrellas = [(random.randint(0, W), random.randint(0, H), random.randint(1, 2), random.uniform(0, math.tau)) for _ in range(120)]
+                fugaces = []
+                while True:
+                    for e in controles.eventos():
+                        if e.type == pygame.QUIT: return 'salir'
+                        if e.type == pygame.KEYDOWN and e.key in (pygame.K_ESCAPE, pygame.K_e): return None
+                        if (e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN) or (e.type == pygame.MOUSEBUTTONDOWN and e.button == 1):
+                            r = menus.preguntar(ui, random.choice(('Esa estrella que titila es la Era Glacial. Sigue ahí, esperándote.', 'Doce luces en fila: una por cada titán.',
+                                                                   'Las estrellas no dicen nada. Pero se nota que escuchan.', 'Una estrella fugaz. Pedí llegar más lejos.')), ['Seguir mirando'],
+                                                'los otros modos están en la estatua del salón y en la cancha de minijuegos')
+                            if r == 'salir': return 'salir'
+                    t = pygame.time.get_ticks() - inicio_o
+                    i = (t // 7000) % len(CIELOS); k = min(1.0, (t % 7000) / 1500)
+                    for cual, alfa in ((CIELOS[i - 1], 255), (CIELOS[i], round(255 * k))):
+                        img = imagen_refugio(cual)
+                        if img:
+                            img = pygame.transform.smoothscale(img, (W, H)); img.set_alpha(alfa); ventana.blit(img, (0, 0))
+                    for x, y, tam_e, fase in estrellas:
+                        if math.sin(t / 400 + fase) > -0.3: pygame.draw.circle(ventana, (255, 255, 240), (x, y), tam_e)
+                    if random.random() < 0.02: fugaces.append([random.randint(0, W), random.randint(0, H // 2), 0])
+                    for f_ in fugaces[:]:
+                        f_[2] += 1; x, y = f_[0] + f_[2] * 9, f_[1] + f_[2] * 4
+                        pygame.draw.line(ventana, (255, 255, 255), (x, y), (x - 40, y - 18), 2)
+                        if f_[2] > 40: fugaces.remove(f_)
+                    t_ = tipografia.fuente(28, borde=True).render('El cosmos', True, (200, 220, 255)); ventana.blit(t_, (30, 20))
+                    menus.pie(ventana, 'ENTER o clic: preguntarle a las estrellas   ESC: dejar de mirar')
+                    pantalla.presentar(); reloj_o.tick(60)
+
+            def accion_punto(nivel, j, perfil, p):
+                """E al lado de algo del refugio (carteles, cuadros, camas, telescopio...). Devuelve 'salir' si se cerro la ventana."""
+                a = p['accion']
+                if a == 'modos':
+                    facil_txt = 'Modo fácil: ' + ('SÍ' if perfil.get('facil') else 'no')
+                    r = pausado(menus.preguntar, ui, 'La estatua brilla: ¿a qué querés jugar?', ['Boss rush con tu equipo', facil_txt, 'Sala de los titanes', 'Dojo: probar pokémon', 'Nada'],
+                                'boss rush: todos los jefes seguidos; no perdés nada y lo que ganes vuelve con vos')
+                    if r == 0:
+                        mejor = perfil.get('records', {}).get('rush', 0)
+                        if pausado(menus.preguntar, ui, 'Boss rush: los 12 jefes seguidos (y lo que venga después de Arceus). Tu equipo sube solo al nivel de cada uno.',
+                                   ['¡Vamos!', 'Mejor no'], ('tu récord: ' + str(mejor) + ' jefes   ' if mejor else '') + ('modo fácil puesto' if perfil.get('facil') else 'entre jefe y jefe recuperás la mitad de la vida')) == 0:
+                            viaje['iniciar_rush'] = {'facil': perfil.get('facil'), 'solo': None}; viaje['cambiar_zona'] = True
+                        return None
+                    if r == 1:
+                        perfil['facil'] = not perfil.get('facil'); nivel['guardar'] = True
+                        cartel(nivel, 'Modo fácil: ' + ('sí' if perfil['facil'] else 'no'), 2200, 'recibís 40% menos daño, las salas curan más y los enemigos avisan más y atacan de a dos' if perfil['facil'] else 'todo como siempre')
+                        return None
+                    if r == 2: a = 'titanes'
+                    elif r == 3: a = 'dojo'
+                    else: return None
+                if a == 'titanes':
+                    viaje['llegada_zona'] = nivel['sala'].get('zona'); viaje['zona'] = 'titanes'; viaje['cambiar_zona'] = True; return None
+                if a == 'dojo':
+                    viaje['llegada_zona'] = nivel['sala'].get('zona'); viaje['zona'] = 'dojo'; viaje['cambiar_zona'] = True; return None
+                if a == 'misiones': return pausado(tablon_misiones, perfil)
+                if a == 'ajustes': return pausado(menus.ajustes, ui)
+                if a == 'menu_principal':
+                    if pausado(confirmar, '¿Volver al menú principal? (tu partida queda guardada)'): viaje['ir_menu'] = True
+                    return None
+                if a == 'cuadro':
+                    ruta, titulo, texto = CUADROS.get(p['texto'], (CIELOS[0], p['texto'], ''))
+                    return pausado(ver_imagen, ruta, titulo, texto)
+                if a == 'observatorio': return pausado(observatorio)
+                if a == 'trofeos':
+                    mejor = max(perfil['amigos'], key=lambda x: x['record'][1], default=None)
+                    texto = (str(perfil['viajes']) + ' viajes, ' + str(perfil['eras']) + ' eras derrotadas, ' + str(len(perfil['amigos'])) + ' amigos y '
+                             + str(len(estado_misiones(perfil)['hechas']) + sum(estado_misiones(perfil)['veces'].values())) + ' misiones cumplidas, '
+                             + str(perfil.get('favores', 0)) + ' favores y ' + str(len(perfil.get('jefes', ()))) + ' titanes.')
+                    return pausado(menus.preguntar, ui, texto, ['Cerrar'], ('mejor viaje: ' + mejor['record'][0].replace('_', ' ').title() + ' Nv ' + str(mejor['record'][1])) if mejor else None)
+                if a == 'cama':
+                    for m in j['equipo']: m['vida'] = m['max_vida']; curar_estados(m)
+                    j['vida'] = j['max_vida']; efectos.cura(mundo['ef'], *j['rect'].center); nivel['guardar'] = True
+                    cartel(nivel, 'Descansaste un rato. Tu equipo está como nuevo (y la partida, guardada)', 2000); return None
+                if a == 'diario':
+                    est = estado_misiones(perfil)
+                    return pausado(menus.preguntar, ui, 'Diario de ' + perfil['nombre'] + ': ' + str(perfil['viajes']) + ' viajes, ' + str(perfil['eras']) + ' eras, '
+                                   + str(len(perfil['amigos'])) + ' amigos. Misiones activas: ' + (', '.join(next(x['nombre'] for x in MISIONES if x['id'] == i) for i in est['activas']) or 'ninguna') + '.', ['Cerrar'])
+                if a == 'puesto':
+                    if perfil['viajes'] < 3: return pausado(menus.preguntar, ui, 'Los puestos están tapados con una manta.', ['Ok'], 'la tiendita abre después de tu ' + str(3) + 'er viaje (llevás ' + str(perfil['viajes']) + ')')
+                    return pausado(menus.preguntar, ui, '¡Abierto! Por ahora solo se puede mirar.', ['Ok'], 'próximamente: cosas para llevarte al viaje')
+                if a == 'casa_cerrada': return pausado(menus.preguntar, ui, p['texto'] + ': todavía está vacía.', ['Ok'], 'próximamente: tus amigos se van a mudar acá')
+                if a == 'fuente_deseos':
+                    efectos.corazones(mundo['ef'], *p['pos']); cartel(nivel, random.choice(('Pediste un deseo. Ojalá esta vez llegues más lejos.', 'El agua está fresquita.', 'Se ve tu reflejo... con cara de cansancio.')), 1800)
+                    return None
+                if a == 'charla':
+                    if nivel.get('residentes'): return hablar_con(nivel, j, perfil, random.choice(nivel['residentes']))
+                    cartel(nivel, 'La mesa está vacía. Tus amigos andan por la plaza.', 1500); return None
+                if a in modos.MINIJUEGOS:                                    # los carteles de la cancha: contrarreloj, supervivencia y lluvia de monedas
+                    cfg = modos.MINIJUEGOS[a]; mejor = perfil.get('records', {}).get(a, 0)
+                    if pausado(menus.preguntar, ui, cfg['nombre'] + ': ' + cfg['desc'], ['¡Jugar!', 'Ahora no'],
+                               'récord: ' + str(mejor) + ' ' + cfg['unidad'] + '   (da monedas para el próximo viaje)') == 0:
+                        viaje['llegada_zona'] = None; viaje['zona'] = 'mini_' + a; viaje['cambiar_zona'] = True
+                    return None
+                return None
+
+            def dibujar_refugio(nivel, j, cx, cy):
+                """Encima del refugio: carteles de los edificios, las cosas que se pueden tocar (con 'E: ...' si estas cerca), los cuadros de
+                la galeria, las lineas de la cancha y una flecha en las puertas."""
+                ahora = tiempo(); sala = nivel['sala']
+                f_l, f_p = tipografia.fuente(20, borde=True), tipografia.fuente(18, borde=True)
+                if sala.get('cancha'):                                           # la cancha de los minijuegos
+                    tam = sala['tam']; cancha = pygame.Rect(3 * tam - cx, 4 * tam - cy, (sala['columnas'] - 6) * tam, (sala['filas'] - 7) * tam)
+                    pygame.draw.rect(ventana, (240, 250, 240), cancha, 3)
+                    pygame.draw.line(ventana, (240, 250, 240), (cancha.centerx, cancha.y), (cancha.centerx, cancha.bottom), 3)
+                    pygame.draw.circle(ventana, (240, 250, 240), cancha.center, 60, 3)
+                    for lado in (-1, 1):
+                        arco = pygame.Rect(0, 0, 40, 120); arco.center = (cancha.centerx + lado * (cancha.width // 2 - 20), cancha.centery)
+                        pygame.draw.rect(ventana, (240, 250, 240), arco, 3)
+                for x, y, texto, color in sala.get('letreros', ()):
+                    t = f_l.render(texto, True, 'white')
+                    caja_l = t.get_rect(center=(x - cx, y - cy)).inflate(18, 8)
+                    velo = pygame.Surface(caja_l.size, pygame.SRCALPHA); velo.fill((20, 16, 28, 190)); ventana.blit(velo, caja_l)
+                    pygame.draw.rect(ventana, color, caja_l, 2, border_radius=4); ventana.blit(t, t.get_rect(center=caja_l.center))
+                cercano = punto_cercano(nivel, j)
+                for p in nivel.get('puntos', ()):
+                    px, py = p['pos'][0] - cx, p['pos'][1] - cy
+                    if p['accion'] == 'cuadro':                                 # el cuadro colgado arriba del lugar donde se mira
+                        ruta = CUADROS.get(p['texto'], (CIELOS[0],))[0]; img = imagen_refugio(ruta)
+                        if img:
+                            mini = _imagenes.setdefault(('mini', ruta), pygame.transform.smoothscale(img, (64, round(64 * img.get_height() / img.get_width()))))
+                            r = mini.get_rect(midbottom=(px, py - 34))
+                            pygame.draw.rect(ventana, (120, 80, 40), r.inflate(10, 10)); pygame.draw.rect(ventana, (220, 180, 90), r.inflate(6, 6), 2); ventana.blit(mini, r)
+                    if p is cercano:
+                        t = f_p.render(tecla_de('interactuar') + ': ' + p['texto'], True, (255, 240, 150))
+                        caja_p = t.get_rect(midbottom=(px, py - 26 - (70 if p['accion'] == 'cuadro' else 0))).inflate(14, 6)
+                        velo = pygame.Surface(caja_p.size, pygame.SRCALPHA); velo.fill((10, 10, 20, 200)); ventana.blit(velo, caja_p)
+                        pygame.draw.rect(ventana, (255, 220, 120), caja_p, 1, border_radius=4); ventana.blit(t, t.get_rect(center=caja_p.center))
+                    else:                                                         # un brillito que avisa que ahi hay algo
+                        alto_b = 4 * math.sin(ahora / 260 + px * 0.01)
+                        pygame.draw.circle(ventana, (255, 240, 150), (round(px), round(py - 22 + alto_b)), 4)
+                for paso in nivel.get('pasos', ()):
+                    r = paso['rect'].move(-cx, -cy)
+                    if r.colliderect(ventana.get_rect()) and math.hypot(paso['rect'].centerx - j['rect'].centerx, paso['rect'].centery - j['rect'].centery) < 140:
+                        t = f_p.render(paso['texto'], True, (150, 230, 255)); ventana.blit(t, t.get_rect(midbottom=(r.centerx, r.y - 4)))
+
+            def punto_cercano(nivel, j):
+                return min((p for p in nivel.get('puntos', ()) if math.hypot(p['pos'][0] - j['rect'].centerx, p['pos'][1] - j['rect'].centery) <= p['radio']),
+                           key=lambda p: math.hypot(p['pos'][0] - j['rect'].centerx, p['pos'][1] - j['rect'].centery), default=None)
+
+            def revisar_pasos(nivel, j):
+                """Entrar o salir de una habitacion del refugio caminando por su puerta. True si hay que cambiar de zona."""
+                if viaje.pop('cambiar_zona', False): return True
+                if tiempo() < nivel['entrando_hasta']: return False
+                for paso in nivel.get('pasos', ()):
+                    if j['rect'].colliderect(paso['rect']):
+                        if paso.get('armado'):
+                            viaje['llegada_zona'] = nivel['sala'].get('zona') or ('dojo' if nivel.get('prueba') else None); viaje['zona'] = paso['zona']; return True
+                    else: paso['armado'] = True
+                return False
+
+            def crear_dojo(j):
+                """El dojo del salon: la sala de prueba (muñecos y enemigos que reaparecen) para probar pokemon. Lo que cambies con F1 aca
+                adentro es prestado: al salir vuelve tu equipo."""
+                if not viaje.get('dojo_equipo'): viaje['dojo_equipo'] = (list(j['equipo']), j['activo']); viaje['dojo_monedas'] = j['monedas']
+                prueba_estado['modo'] = 2; prueba_estado['sala'] = 0
+                nivel = crear_prueba(rec_dojo, j)
+                x, y = nivel['inicio']
+                nivel['pasos'] = [{'rect': pygame.Rect(x - 60, y + 40, 120, 50), 'zona': 'salon', 'texto': 'Volver al salón'}]
+                cartel(nivel, 'Dojo', 2200, 'F1: probar cualquier pokemon (es prestado)   salí por abajo para volver', grande=True)
+                return nivel
 
             def volver_al_hall(j, perfil):
                 """Cayo todo el equipo: el viaje se pierde. Tus amigos (equipo y reserva) quedan en el perfil y vuelven al hall en su forma base."""
@@ -2940,12 +3790,17 @@ def main():
                 j['activo'] = 0; j['monedas'] = 0; j['inventario'] = tienda.inventario_nuevo(); j['reserva'] = []
                 for m in j['equipo']: curar_estados(m)
                 dar_pocion_maxima(j)                                     # Celebi te despide con una Pocion Maxima
+                premio = viaje['perfil'].pop('premio_pendiente', 0) if viaje.get('perfil') else 0
+                if premio: j['monedas'] += premio                        # lo que ganaste con las misiones
                 aplicar_pokemon(j, j['equipo'][0]['nombre'])
                 actualizar_sinergia(j)
 
-            return perfil_nuevo, registrar_amigos, crear_hall, actualizar_residentes, hablar_hall, volver_al_hall, caida, empezar_viaje
+            return (perfil_nuevo, registrar_amigos, crear_hall, actualizar_residentes, hablar_hall, volver_al_hall, caida, empezar_viaje,
+                    mision_evento, dibujar_refugio, revisar_pasos)
 
-        perfil_nuevo, registrar_amigos, crear_hall, actualizar_residentes, hablar_hall, volver_al_hall, caida, empezar_viaje = armar_hall()
+        (perfil_nuevo, registrar_amigos, crear_hall, actualizar_residentes, hablar_hall, volver_al_hall, caida, empezar_viaje,
+         mision_evento, dibujar_refugio, revisar_pasos) = armar_hall()
+        rec_dojo = {'era': 0}                                            # el dojo siempre en la Era Glacial (la arena mas abierta)
 
         def armar_dibujo():
             """Todo lo que se dibuja jugando: jugador, HUD, indicadores, carteles, tienda y objetos."""
@@ -2992,6 +3847,19 @@ def main():
             f_tipo = tipografia.fuente(18)
             f_cartel, f_cartel_sub = tipografia.fuente_titulo(3), tipografia.fuente(28)   # carteles grandes: la letra de los pisos del PMD
             _textos = {}
+
+            _peligro = []
+
+            def borde_peligro():
+                """Los bordes de la pantalla en rojo (se arma una vez): mas fuerte en las esquinas, nada en el medio."""
+                if not _peligro:
+                    chico = pygame.Surface((50, 30), pygame.SRCALPHA)
+                    for x in range(50):
+                        for y in range(30):
+                            d = max(abs(x - 24.5) / 24.5, abs(y - 14.5) / 14.5) ** 3
+                            chico.set_at((x, y), (230, 30, 30, round(255 * d)))
+                    _peligro.append(pygame.transform.smoothscale(chico, (W, H)))
+                return _peligro[0]
 
             def render(f, texto, color):
                 """Texto ya renderizado: el HUD dibuja los mismos textos cada frame, asi se hace una sola vez."""
@@ -3253,6 +4121,37 @@ def main():
                     variar = render(f_borde, 'variá tus ataques', (255, 160, 140))
                     ventana.blit(variar, variar.get_rect(midtop=(xe, y_est)))
 
+            def dibujar_prueba(nivel, j):
+                """Panel del modo prueba: modo, daño que le hiciste a los muñecos, teclas y lo que hace la mecanica del pokemon."""
+                ahora = tiempo(); p = nivel['prueba']
+                p['golpes'] = [g for g in p['golpes'] if ahora - g[0] <= PRUEBA['ventana_daño']]
+                reciente = sum(g[1] for g in p['golpes'])
+                desde = min((g[0] for g in p['golpes']), default=ahora)
+                por_seg = reciente / max(1.0, (ahora - desde) / 1000) if p['golpes'] else 0
+                f_p, f_c = tipografia.fuente(20, borde=True), tipografia.fuente(16, borde=True)
+                marca = lambda t: 'sí' if trucos.get(t) else 'no'
+                lineas = [(f_p, 'MODO PRUEBA  -  ' + ('Tienda (sin enemigos)' if nivel['tipo'] == 'tienda' else PRUEBA['modos'][prueba_estado['modo']][1]), (120, 220, 255))]
+                if p['modo'] in ('muñecos', 'mixto'):
+                    lineas.append((f_p, 'Daño (5 s): ' + str(round(reciente)) + '   ' + str(round(por_seg)) + ' por seg   total ' + str(round(p['total'])), (255, 230, 120)))
+                lineas.append((f_c, 'F3 modo, era y sala   F4 sin recarga: ' + marca('sin_enfriamiento') + '   F5 vida infinita: ' + marca('vida_infinita'), (225, 225, 225)))
+                lineas.append((f_c, 'F6 reiniciar   F1 cambiar pokemon   F2 cambiar de era   ESC menu (salir)', (225, 225, 225)))
+                texto_mec = mecanicas.texto_de(j['nombre'])
+                if texto_mec:
+                    palabras, renglon, renglones = texto_mec.split(), '', []
+                    for w_ in palabras:
+                        if f_c.size(renglon + ' ' + w_)[0] > 470 and renglon: renglones.append(renglon); renglon = w_
+                        else: renglon = (renglon + ' ' + w_).strip()
+                    renglones.append(renglon)
+                    lineas += [(f_c, r_, (170, 255, 170)) for r_ in renglones[:4]]
+                ancho = max(f.size(t)[0] for f, t, _ in lineas) + 20
+                alto = sum(f.get_height() + 2 for f, _, _ in lineas) + 12
+                caja = pygame.Rect(0, 0, ancho, alto); caja.bottomleft = (8, H - 46)
+                fondo = pygame.Surface(caja.size, pygame.SRCALPHA); fondo.fill((10, 14, 30, 170)); ventana.blit(fondo, caja)
+                pygame.draw.rect(ventana, (70, 200, 255), caja, 2)
+                y_ = caja.y + 6
+                for f, t, color in lineas:
+                    ventana.blit(f.render(t, True, color), (caja.x + 10, y_)); y_ += f.get_height() + 2
+
             def dibujar_hud(j, nivel, rec):
                 """HUD como el combate de BW: arriba a la izquierda tu pokemon (barra de HP con la placa, experiencia y energia), la banca en
                 paneles en flecha, abajo a la derecha los 4 movimientos en botones de la pantalla tactil y arriba a la derecha la barra del jefe."""
@@ -3326,6 +4225,7 @@ def main():
                 dibujar_estilo(j, xe, ye, ahora)
                 # ----- donde estas -----
                 if nivel['tipo'] == 'hall': lugar = render(f_borde, 'Hall  ·  ' + viaje['perfil']['nombre'], 'white')
+                elif nivel.get('tutorial') or nivel.get('mini'): lugar = render(f_borde, 'La isla de Celebi  ·  Tutorial' if nivel.get('tutorial') else 'Minijuegos del refugio', 'white')
                 else: lugar = render(f_borde, mundos.ERAS[rec['era']]['nombre'] + '  ·  Sala ' + str(rec['sala'] + 1) + '/' + str(mundos.salas_de(rec)), 'white')
                 caja_l = lugar.get_rect(midtop=(W // 2, 6)).inflate(18, 8)
                 velo = pygame.Surface(caja_l.size, pygame.SRCALPHA); velo.fill((10, 10, 20, 150)); ventana.blit(velo, caja_l)
@@ -3556,6 +4456,7 @@ def main():
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
                 ia.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # Arceus Beta: el triangulo, charcos, rastros y arena
                 mec.dibujar(nivel, j, cx, cy)                            # nubes, charcos, bombas, raices, jardin... y los avisos de enemigos con mecanica
+                if nivel['tipo'] == 'hall' or nivel.get('pasos'): dibujar_refugio(nivel, j, cx, cy)   # carteles, cuadros y cosas para tocar del refugio
                 for puerta in nivel['puertas'] if not nivel['ent'].get('guardado') else ():   # puertas con el cartel (en la torre de Regidrago no hay)
                     r = puerta['rect'].move(-cx, -cy)
                     abierta = j['llave'] and not puerta.get('bloqueada') and (not puerta.get('atras') or nivel['completado'])
@@ -3684,6 +4585,7 @@ def main():
                     if math.hypot(r['rect'].centerx - j['rect'].centerx, r['rect'].centery - j['rect'].centery) <= DISTANCIA_HABLAR:
                         t = render(f_hud_b, tecla_de('interactuar') + ': hablar', 'white')
                         ventana.blit(t, t.get_rect(midbottom=(r['rect'].centerx - cx, r['rect'].top - cy - 10)))
+                for t_ in nivel.get('titanes', ()): dibujar_titan(t_, j, cx, cy)   # los jefes que ya derrotaste, en su sala del refugio
                 portal = nivel.get('portal')
                 if portal and portal['celebi']:                               # Celebi al lado del portal de fin de era: llega flotando y despues te mira
                     a = portal['celebi']
@@ -3734,9 +4636,23 @@ def main():
                     velo = pygame.Surface((W, H), pygame.SRCALPHA)
                     velo.fill((*nivel['destello'][1], round(110 * (1 - (ahora - nivel['destello'][0]) / DESTELLO))))
                     ventana.blit(velo, (0, 0))
+                if j['vida'] > 0 and j['vida'] <= j['max_vida'] * PELIGRO['vida'] and nivel['tipo'] not in ('hall', 'tienda', 'tesoro'):   # poca vida: los bordes laten
+                    velo_p = borde_peligro(); velo_p.set_alpha(round(PELIGRO['alfa'] * 1.2 * (0.55 + 0.45 * math.sin(ahora / 170)))); ventana.blit(velo_p, (0, 0))
                 dibujar_indicadores(nivel, cx, cy)
+                cadena = j['estilo'].get('cadena', 0)
+                if cadena >= CADENA['desde'] and ahora - (j['estilo'].get('ultimo_golpe_t') or -10 ** 6) <= CADENA['corte']:      # golpes seguidos
+                    reciente = max(0.0, 1 - (ahora - j['estilo']['ultimo_golpe_t']) / CADENA['salto'])   # cada golpe nuevo lo hace saltar
+                    queda = 1 - (ahora - j['estilo']['ultimo_golpe_t']) / CADENA['corte']
+                    color_c = (255, 110, 90) if cadena >= 30 else (255, 220, 80) if cadena >= 12 else (255, 255, 255)
+                    t_c = render(f_hud_b if cadena < 12 else f_cartel_sub, str(cadena) + ' golpes', color_c)
+                    if reciente > 0: t_c = pygame.transform.rotozoom(t_c, 0, 1 + 0.35 * reciente)
+                    caja_c = t_c.get_rect(midright=(W - 14, 152 - round(8 * reciente)))   # debajo del minimapa
+                    ventana.blit(t_c, caja_c)
+                    pygame.draw.rect(ventana, color_c, (caja_c.right - round(90 * queda), caja_c.bottom + 2, round(90 * queda), 3))   # cuanto falta para que se corte
                 mec.dibujar_hud(j, ventana, W, H, cx, cy)
                 dibujar_hud(j, nivel, rec)
+                if nivel.get('prueba') and not nivel.get('tutorial') and not nivel.get('mini'): dibujar_prueba(nivel, j)
+                dibujar_modo(nivel, j, cx, cy)                             # tutorial, minijuego o boss rush: su panel
                 dibujar_aviso_evolucion(nivel, j)
                 efectos.dibujar_transicion(mundo['ef'], ventana, ahora)    # circulo negro al entrar o salir de la sala
                 dibujar_carteles(nivel)
@@ -3782,6 +4698,7 @@ def main():
                     if 'objeto' in req: j['inventario']['objetos'][req['objeto']] = max(0, j['inventario']['objetos'].get(req['objeto'], 0) - 1)
                     proporcion = m['vida'] / max(1, m['max_vida'])
                     antes = m['nombre']
+                    mision_evento('evolucion')
                     progreso.evolucionar(m, req['a'])
                     m['asist'] = asistencia_de(m['nombre']); m['max_vida'] = progreso.vida_max(m); m['vida'] = round(m['max_vida'] * proporcion)
                     if i == j['activo']: aplicar_pokemon(j, m['nombre'], m['vida'])
@@ -3864,7 +4781,12 @@ def main():
                     m = j['reserva'][i[1]] if isinstance(i, tuple) else j['equipo'][i]
                     return usar_curacion(j, m, indice)[1]
 
-                return {'usar': usar,
+                def datos_movs(m):
+                    """Los datos de las 4 casillas (E, Q, Shift, R) con las MT puestas, para la pestaña Ataques de la ficha."""
+                    g = juego_de(m)
+                    return [dict(datos_mov(g['basicos'][0]) or {}), dict(datos_mov(g['basicos'][1]) or {}), dict(g['especiales'][0][1] or {}), dict(g['especiales'][1][1] or {})]
+
+                return {'usar': usar, 'tiempo': tiempo, 'datos_movs': datos_movs,
                         'movs': movs, 'evolucionar': evolucionar, 'enseñar': enseñar, 'activar': lambda i: cambiar_slot(j, i, True),
                         'cambiar_reserva': lambda: mundo.get('nivel', {}).get('tipo') == 'tienda' or any(trucos.values()),   # solo en la tienda
                         'refrescar': refrescar, 'reserva': lambda: j['reserva'], 'traer': traer, 'info_movs': info_movs, 'equipar': equipar,
@@ -3899,8 +4821,9 @@ def main():
                 evo['carga'] = min(EVOLUCION['mantener'], evo['carga'] + 1000 / 60) if mantiene else max(0, evo['carga'] - 1000 / 30)
                 nivel['evo'] = evo
                 if evo['carga'] < EVOLUCION['mantener']: return
-                m = j['equipo'][i]; antes = m['nombre'].replace('_', ' ').title()
+                m = j['equipo'][i]; antes = m['nombre'].replace('_', ' ').title(); antes_clave = m['nombre']
                 acciones_equipo(j)['evolucionar'](i, req)
+                pausado(menus.animacion_evolucion, ui, m['nombre'], antes_clave)   # la animacion de los juegos (no corre el tiempo)
                 centro = j['rect'].center if i == j['activo'] else (j['rect'].centerx, j['rect'].top - 30)
                 efectos.evolucion(mundo['ef'], *centro); efectos.destello(mundo['ef'], *centro)
                 nivel['destello'] = (tiempo(), (255, 255, 255)); nivel['temblor'] = max(nivel['temblor'], tiempo() + 200)
@@ -3911,6 +4834,434 @@ def main():
             return pantalla_final, acciones_equipo, aplicar_trucos, evolucion_pendiente, actualizar_evolucion
 
         pantalla_final, acciones_equipo, aplicar_trucos, evolucion_pendiente, actualizar_evolucion = armar_extras()
+
+        def armar_modos():
+            """Lo que no es el viaje: el tutorial de la isla de Celebi, el boss rush (libre o con tu partida), los titanes del refugio y
+            los minijuegos de la cancha. Los textos y los numeros estan en modos.py; aca esta lo que pasa en cada uno."""
+            PASOS = [p_[0] for p_ in modos.TUTORIAL]
+            TOTAL_RUSH = sum(1 for e in mundos.ERAS for t in (e.get('plan_fijo') or ('jefe', 'regi')) if t != 'tienda')   # 12 jefes
+            letras = {}
+
+            def letra(tam, borde=True):
+                """Las letras de los paneles (se arman una vez)."""
+                if (tam, borde) not in letras: letras[(tam, borde)] = tipografia.fuente(tam, borde=borde)
+                return letras[(tam, borde)]
+
+            def panel(caja, color=(255, 220, 120)):
+                """Fondo oscuro medio transparente con borde, para los carteles de los modos."""
+                velo = pygame.Surface(caja.size, pygame.SRCALPHA); velo.fill((14, 14, 28, 215)); ventana.blit(velo, caja)
+                pygame.draw.rect(ventana, color, caja, 2, border_radius=6)
+
+            def reloj_txt(ms):
+                ms = max(0, int(ms)); return '%d:%02d' % (ms // 60000, ms // 1000 % 60)
+
+            def nivel_suelto(sala, tipo, nv, modo_prueba='libre'):
+                """Una sala fuera del viaje (como la del modo prueba): no hay registro que guardar y si cae el equipo no se pierde nada."""
+                ESC.size = sala['esc'].size
+                AREA.update(generacion.crear_area(ESC, sala['tam']))
+                ent = entorno.crear(sala, None, tiempo())
+                mundo['ent'] = ent
+                registro = {'era': sala['era'], 'sala': 0, 'tipo': 'prueba', 'semilla': 0, 'variante': None, 'entrada': 'sur', 'lados': [], 'destinos': [],
+                            'clima': None, 'completada': True, 'salida': None, 'vitrinas': None, 'desafio': False}
+                nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': mundos.escala(sala['era'], 0), 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [],
+                         'proyectiles_enemigos': [], 'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': True, 'monedas': [], 'carteles': [],
+                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': nv, 'nivel_sala': nv, 'amigos': [],
+                         'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
+                         'registro': registro, 'revisita': True, 'inicio': sala['inicio'], 'stats': stats_nuevas(1),
+                         'prueba': {'golpes': [], 'total': 0, 'modo': modo_prueba, 'bajas': 0}}
+                mundo['ef']['parts'], mundo['ef']['anims'] = [], []
+                mundo['nivel'] = nivel
+                return nivel
+
+            # ---------------- el tutorial: la isla de practica de Celebi ----------------
+            def muñeco_en(nivel, nombre, punto, nv):
+                """Un muñeco de practica: no pega, no se mueve y no se muere."""
+                e = crear_enemigo(nivel, (round(punto[0]), round(punto[1])), None, nombre, nv)
+                e.update({'muñeco': True, 'vida': PRUEBA['vida_muñeco'], 'max_vida': PRUEBA['vida_muñeco'], 'vida_ant': PRUEBA['vida_muñeco'],
+                          'vida_prev': PRUEBA['vida_muñeco'], 'origen_muñeco': e['rect'].center, 'golpeado_en': 0})
+                return e
+
+            def de_practica(nivel, j, nombre, punto, estilo='pegador', vida=1.0, daño=3, **extra):
+                """Un enemigo de verdad pero flojito (para practicar el parry, el baile y las salas). 'unico': si cae no reaparece."""
+                e = crear_enemigo(nivel, (round(punto[0]), round(punto[1])), j['rect'].center, nombre, modos.NIVEL_TUTORIAL, estilo)
+                e['vida'] = e['max_vida'] = e['vida_ant'] = max(1, round(e['vida'] * vida)); e['daño'] = daño
+                e.update(unico=True, **extra)
+                efectos.aparecer(mundo['ef'], *e['rect'].center)
+                return e
+
+            def vasijas(nivel):
+                return sum(1 for o in nivel['ent']['objetos'] if o['nombre'] in ('barril', 'caja') and (o['vida'] or 0) > 0)
+
+            def crear_tutorial(j):
+                """La sala del tutorial en la que estas: la isla (casi todos los pasos) o la tienda de practica (comprar y salir)."""
+                tut = viaje['tutorial']; nv = modos.NIVEL_TUTORIAL
+                if tut['sala'] == 'tienda':
+                    sala = generacion.generar_tienda(1, ['oeste', 'este'], random.random())
+                    for p_ in sala['puertas']: p_['destino'] = {'tipo': 'fin', 'variante': None, 'era': 1}
+                    nivel = nivel_suelto(sala, 'tienda', nv)
+                    items = tienda.surtido_mostradores(random, sala['vitrinas'], [m['nombre'] for m in j['equipo']], set())
+                    nivel['vitrinas'] = [dict(v, item=i_, vendido=False) for v, i_ in zip(sala['vitrinas'], items)]
+                    nivel['registro']['vitrinas'] = [[i_, False] for i_ in items]
+                    j['monedas'] = max(j['monedas'], 600)
+                    tut['paso'] = max(tut['paso'], PASOS.index('comprar'))
+                    sonido.musica('tienda')
+                else:
+                    sala = generacion.generar_isla(7)
+                    for p_ in sala['puertas']: p_['destino'] = {'tipo': 'tienda', 'variante': None, 'era': 1, 'desde': 1}; p_['bloqueada'] = True
+                    nivel = nivel_suelto(sala, 'prueba', nv)
+                    nivel['enemigos'] = [muñeco_en(nivel, n, p_, nv) for n, p_ in zip(('geodude', 'sandshrew', 'cubone'), sala['marcas']['muñecos'])]
+                    tut['paso'] = min(tut['paso'], PASOS.index('sala'))
+                    cartel(nivel, 'La isla de Celebi', 2600, 'Tutorial  -  F9: saltear un paso', grande=True)
+                    sonido.musica('hall')
+                nivel['tutorial'] = tut; tut['empezado'] = None; tut['listo'] = None; tut['datos'] = {}
+                return nivel
+
+            def empezar_paso(nivel, j, clave):
+                """Prepara lo que hace falta para el paso: la marca a la que ir, el rival del parry, Torchic, el Machop cansado, la pelea de la sala..."""
+                tut = nivel['tutorial']; st = nivel['stats']
+                d = tut['datos'] = {'inicio': tiempo(), 'n': 0}
+                m = nivel['sala'].get('marcas', {})
+                muñecos = [e for e in nivel['enemigos'] if e.get('muñeco')]
+                if clave in ('mover', 'correr'): d['meta'] = m['caminar' if clave == 'mover' else 'correr']
+                elif clave == 'esquivar': d['antes'] = False
+                elif clave == 'combo': d['base'] = st['combos']
+                elif clave == 'distancia': d['ultimo'] = j['ultimo_proyectil']
+                elif clave == 'especial': d['usados'] = set()
+                elif clave == 'parry':
+                    d['base'] = st['parrys']
+                    nivel['enemigos'] = muñecos + [de_practica(nivel, j, modos.RIVAL_TUTORIAL, m['rival'], vida=8, daño=2)]
+                elif clave == 'relevo':
+                    nivel['enemigos'] = muñecos; d['base'] = st['relevos']
+                    if len(j['equipo']) < 2:
+                        j['equipo'].append(crear_miembro(modos.EQUIPO_TUTORIAL[1], modos.NIVEL_TUTORIAL)); actualizar_sinergia(j)
+                        efectos.corazones(mundo['ef'], *j['rect'].center); cartel(nivel, '¡Torchic se sumó a tu equipo!', 2000)
+                elif clave == 'asistencia':
+                    d['base'] = st['sinergias']
+                    for mi in j['equipo']: mi['asist_listo'] = 0              # la asistencia, lista para usar
+                elif clave == 'amistad': nivel['enemigos'] = muñecos; poner_amigo(nivel, j)
+                elif clave == 'romper': nivel['enemigos'] = muñecos; d['vasijas'] = vasijas(nivel)
+                elif clave == 'sala':                                        # una sala de verdad en chiquito: dos enemigos, la nota, la llave y la puerta
+                    lejos = sorted(m['muñecos'], key=lambda p_: -math.hypot(p_[0] - j['rect'].centerx, p_[1] - j['rect'].centery))
+                    nivel['enemigos'] = [de_practica(nivel, j, 'sandshrew', lejos[0], 'pegador', 0.7, 4), de_practica(nivel, j, 'natu', lejos[1], 'tirador', 0.6, 4)]
+                    nivel['amigos'] = []
+                    nivel['completado'] = False; j['llave'] = False; nivel['stats'] = stats_nuevas(2)
+                    for p_ in nivel['puertas']: p_['bloqueada'] = False
+
+            def poner_amigo(nivel, j):
+                """El Machop cansado del paso de la amistad (con poca vida: el baile lo encariña)."""
+                e = de_practica(nivel, j, modos.AMIGO_TUTORIAL, nivel['sala']['marcas']['rival'], vida=1.6, daño=2, amigo_seguro=True)
+                e['vida'] = e['vida_ant'] = max(1, round(e['max_vida'] * 0.35))
+                nivel['enemigos'].append(e)
+
+            def paso_cumplido(nivel, j, clave):
+                """Si ya hiciste lo que pide el paso. d['n'] / d['de'] es lo que se muestra como avance (2/3)."""
+                d = nivel['tutorial']['datos']; st = nivel['stats']
+                cerca_de = lambda p_, r=64: math.hypot(p_[0] - j['rect'].centerx, p_[1] - j['rect'].centery) <= r
+                if clave == 'mover': return cerca_de(d['meta'])
+                if clave == 'correr':
+                    if j['corriendo'] and j['moviendose']: d['n'] += 1          # cuadros corriendo
+                    return cerca_de(d['meta'], 72) and d['n'] >= 15
+                if clave == 'esquivar':
+                    ahora_e = bool(j.get('esquive'))
+                    if ahora_e and not d['antes']: d['n'] += 1
+                    d['antes'] = ahora_e; d['de'] = 3
+                elif clave == 'combo': d['n'] = st['combos'] - d['base']; d['de'] = 2
+                elif clave == 'distancia':
+                    if j['ultimo_proyectil'] != d['ultimo']: d['ultimo'] = j['ultimo_proyectil']; d['n'] += 1
+                    d['de'] = 3
+                elif clave == 'especial':
+                    for k in (0, 1):
+                        if j['esp_ultimo'][k] >= d['inicio']: d['usados'].add(k)
+                    d['n'] = len(d['usados']); d['de'] = 2
+                elif clave == 'parry': d['n'] = st['parrys'] - d['base']; d['de'] = 1
+                elif clave == 'relevo': d['n'] = st['relevos'] - d['base']; d['de'] = 1
+                elif clave == 'asistencia': d['n'] = st['sinergias'] - d['base']; d['de'] = 1
+                elif clave == 'amistad':
+                    if len(j['equipo']) >= 3: return True
+                    if not nivel.get('amigos') and not any(e.get('amigo_seguro') for e in nivel['enemigos']): poner_amigo(nivel, j)   # lo dejaste ir: viene otro
+                    return False
+                elif clave == 'romper': return vasijas(nivel) < d['vasijas']
+                elif clave == 'comprar': return any(v['vendido'] for v in nivel['vitrinas'])
+                else: return False                                           # 'sala' y 'fin' se terminan saliendo por la puerta
+                return d['n'] >= d['de']
+
+            def actualizar_tutorial(nivel, j, resultado):
+                """Un cuadro del tutorial: empieza el paso que toca, mira si lo cumpliste y pasa al siguiente. Salir por la puerta de la isla
+                lleva a la tienda de practica, y salir de la tienda lo termina. Devuelve 'rehacer' (otra sala), 'menu' (termino) o None."""
+                tut = nivel['tutorial']
+                saltar = tut.pop('saltar', False)                                # F9: saltear el paso
+                if resultado == 'siguiente' or (saltar and PASOS[tut['paso']] in ('sala', 'fin')):
+                    if tut['sala'] == 'isla': tut['sala'] = 'tienda'; tut['paso'] = PASOS.index('comprar'); return 'rehacer'
+                    for texto in modos.FIN_TUTORIAL:
+                        if pausado(menus.preguntar, ui, 'Celebi: ' + texto, ['Seguir']) == 'salir': return 'salir'
+                    return 'menu'
+                clave = PASOS[tut['paso']]
+                if saltar or (tut['listo'] and tiempo() >= tut['listo']):   # paso cumplido (o salteado): viene el siguiente
+                    tut['listo'] = None; tut['paso'] = min(len(PASOS) - 1, tut['paso'] + 1); clave = PASOS[tut['paso']]
+                if tut['empezado'] != tut['paso']: tut['empezado'] = tut['paso']; empezar_paso(nivel, j, clave)
+                if not tut['listo'] and paso_cumplido(nivel, j, clave):
+                    tut['listo'] = tiempo() + 1100
+                    efectos.destello(mundo['ef'], *j['rect'].center); nivel['destello'] = (tiempo(), (190, 255, 190))
+                return None
+
+            def dibujar_tutorial(nivel, j, cx, cy):
+                """El panel de Celebi arriba (el paso, lo que hay que hacer y cuanto llevas), el consejo y la marca a la que hay que ir."""
+                tut = nivel['tutorial']; clave, titulo, texto = modos.TUTORIAL[tut['paso']]
+                d = tut['datos']; ahora = tiempo()
+                teclas = {a: tecla_de(a) for a, _ in controles.ACCIONES}
+                if 'meta' in d and not tut['listo']:                             # la marca en el piso: un anillo que late y una flecha que salta
+                    x, y = round(d['meta'][0] - cx), round(d['meta'][1] - cy)
+                    late = 6 * math.sin(ahora / 180)
+                    pygame.draw.circle(ventana, (255, 240, 120), (x, y), round(34 + late), 4)
+                    pygame.draw.polygon(ventana, (255, 240, 120), [(x - 14, y - 70 + late), (x + 14, y - 70 + late), (x, y - 48 + late)])
+                    if not ventana.get_rect().collidepoint(x, y):                # si quedo fuera de la pantalla, una flecha en el borde
+                        ang = math.atan2(y - H // 2, x - W // 2)
+                        bx, by = W // 2 + math.cos(ang) * 330, H // 2 + math.sin(ang) * 200
+                        pygame.draw.polygon(ventana, (255, 240, 120), [(bx + math.cos(ang) * 22, by + math.sin(ang) * 22), (bx + math.cos(ang + 2.5) * 16, by + math.sin(ang + 2.5) * 16),
+                                                                       (bx + math.cos(ang - 2.5) * 16, by + math.sin(ang - 2.5) * 16)])
+                caja_t = pygame.Rect(16, H - 120, 640, 104)                     # abajo a la izquierda: ahi no hay nada del HUD
+                hecho = bool(tut['listo'])
+                panel(caja_t, (140, 240, 150) if hecho else (255, 220, 120))
+                cara = retrato_menu('celebi', 64)
+                if cara: ventana.blit(cara, (caja_t.x + 12, caja_t.y + 12)); pygame.draw.rect(ventana, (150, 240, 140), (caja_t.x + 12, caja_t.y + 12, 64, 64), 2)
+                x_t = caja_t.x + 88
+                cabeza = 'Paso ' + str(tut['paso'] + 1) + '/' + str(len(PASOS)) + '  ' + titulo
+                if d.get('de', 0) > 1 or (d.get('de') and not hecho): cabeza += '   ' + str(min(d['n'], d['de'])) + '/' + str(d['de'])
+                ventana.blit(letra(22).render(cabeza + ('   ¡Bien!' if hecho else ''), True, (140, 240, 150) if hecho else (255, 230, 140)), (x_t, caja_t.y + 8))
+                for k, linea in enumerate(ajustar_texto(texto.format(**teclas), letra(18, False), caja_t.right - x_t - 12)[:3]):
+                    ventana.blit(letra(18, False).render(linea, True, 'white'), (x_t, caja_t.y + 36 + k * 21))
+                consejo = modos.CONSEJOS_TUTORIAL.get(clave)
+                if consejo:
+                    for k, linea in enumerate(ajustar_texto(consejo.format(**teclas), letra(16), caja_t.width)[:2][::-1]):
+                        t = letra(16).render(linea, True, (215, 228, 245)); ventana.blit(t, (caja_t.x + 4, caja_t.y - 22 - k * 18))
+
+            # ---------------- boss rush: todos los jefes seguidos ----------------
+            def recorrido_rush(solo=None):
+                """El plan del boss rush: en cada era el semijefe y el Regi (con una tienda antes, menos en la primera) y al final El Origen entero.
+                solo=(era, tipo): la revancha contra un solo titan."""
+                r = mundos.nuevo_recorrido()
+                if solo: r['plan'] = [[solo[1]] for _ in range(solo[0] + 1)]; r['era'] = solo[0]
+                else: r['plan'] = [list(e['plan_fijo']) if 'plan_fijo' in e else (['tienda'] if k else []) + ['jefe', 'regi'] for k, e in enumerate(mundos.ERAS)]
+                r['rush'] = True; r['clima'] = mundos.clima_inicial(r['azar'], r['era'])
+                return r
+
+            def empezar_rush(j, pedido, propio=True):
+                """Arranca el boss rush. Con tu partida (propio): tu equipo de verdad, tus monedas y tu mochila quedan guardados aparte y vuelven al terminar."""
+                viaje['rush'] = {'inicio': tiempo(), 'jefes': 0, 'facil': bool(pedido.get('facil')), 'propio': propio, 'solo': pedido.get('solo'), 'guardado': None}
+                if propio:
+                    guardar_activo(j)
+                    viaje['rush']['guardado'] = (copy.deepcopy(j['equipo']), j['activo'], j['monedas'], copy.deepcopy(j['inventario']), copy.deepcopy(j['reserva']))
+                    viaje['en_hall'] = False
+                for m in j['equipo']: m['vida'] = m['max_vida'] = progreso.vida_max(m); curar_estados(m)
+                j['activo'] = 0; j['monedas'] = modos.RUSH['monedas_inicio']; j['inventario'] = tienda.inventario_nuevo(); j['reserva'] = []
+                dar_pocion_maxima(j); j.pop('pocion_nueva', None)
+                aplicar_pokemon(j, j['equipo'][0]['nombre']); actualizar_sinergia(j)
+                return recorrido_rush(pedido.get('solo'))
+
+            def preparar_rush(nivel, j):
+                """Antes de cada jefe del rush: el equipo sube solo hasta un poco menos que el jefe (como llegarias en un viaje) y, si no es el
+                primero, recupera parte de la vida (los caidos se levantan)."""
+                r = viaje['rush']
+                if nivel['tipo'] not in ('jefe', 'regi', 'final') or nivel['revisita']: return
+                objetivo = nivel['nivel_enemigos'] - modos.RUSH['bajo_jefe' if nivel['tipo'] == 'jefe' else 'bajo_regi']
+                cura = modos.RUSH['cura_facil' if r['facil'] else 'cura']
+                guardar_activo(j)
+                for m in j['equipo']:
+                    if m['nivel'] < objetivo: progreso.dar_xp(m, progreso.xp_para(m['nombre'], objetivo) - m['xp'])
+                    m['max_vida'] = progreso.vida_max(m)
+                    m['vida'] = m['max_vida'] if not r['jefes'] else min(m['max_vida'], max(0, m['vida']) + m['max_vida'] * cura)
+                activo = j['equipo'][j['activo']]
+                j['vida'], j['max_vida'], j['nivel'] = activo['vida'], activo['max_vida'], activo['nivel']
+                actualizar_sinergia(j)
+
+            def pantalla_rush(r, gano, ms, premio):
+                """Como te fue en el boss rush: cuantos jefes, en cuanto tiempo y lo que te llevas."""
+                pygame.mouse.set_visible(True)
+                f_g, f_c, f_p = tipografia.fuente_titulo(3), tipografia.fuente(30), tipografia.fuente(24)
+                total = 1 if r['solo'] else TOTAL_RUSH
+                titulo = ('¡Revancha ganada!' if gano else 'La revancha queda pendiente') if r['solo'] else ('¡Boss rush completo!' if gano else 'Fin del boss rush')
+                lineas = [('Jefes derrotados: ' + str(min(r['jefes'], total)) + ' de ' + str(total), 'white'), ('Tiempo: ' + reloj_txt(ms), 'white')]
+                if r['facil']: lineas.append(('(modo fácil)', (170, 220, 255)))
+                if premio: lineas.append(('+' + str(premio) + ' monedas para tu próximo viaje', (250, 220, 120)))
+                reloj_f = pygame.time.Clock(); abierto = pygame.time.get_ticks()
+                while True:
+                    for e in controles.eventos():
+                        if e.type == pygame.QUIT: return 'salir'
+                        if e.type == pygame.KEYDOWN and e.key in (pygame.K_RETURN, pygame.K_ESCAPE, pygame.K_e) and pygame.time.get_ticks() - abierto > 500: return None
+                    ventana.fill((20, 15, 35))
+                    t = f_g.render(titulo, True, (250, 220, 120) if gano else (220, 220, 235)); ventana.blit(t, t.get_rect(center=(W // 2, 170)))
+                    for k, (texto, color) in enumerate(lineas):
+                        s_ = f_c.render(texto, True, color); ventana.blit(s_, s_.get_rect(center=(W // 2, 270 + k * 44)))
+                    s_ = f_p.render('ENTER para seguir', True, (190, 190, 210)); ventana.blit(s_, s_.get_rect(center=(W // 2, H - 70)))
+                    pantalla.presentar(); reloj_f.tick(60)
+
+            def terminar_rush(j, gano):
+                """Se termino el boss rush (ganaste, cayo el equipo o te retiraste). Si era con tu partida vuelve tu equipo de verdad al
+                refugio, con el premio anotado para el proximo viaje. Devuelve 'menu' (boss rush libre), 'hall' o 'salir'."""
+                r = viaje['rush']; ms = tiempo() - r['inicio']; premio = 0
+                if r['propio']:
+                    perfil = viaje['perfil']
+                    premio = r['jefes'] * modos.RUSH['premio_jefe'] + (modos.RUSH['premio_completo'] if gano and not r['solo'] else 0)
+                    perfil['premio_pendiente'] = perfil.get('premio_pendiente', 0) + premio
+                    if not r['solo']: perfil.setdefault('records', {})['rush'] = max(perfil.setdefault('records', {}).get('rush', 0), r['jefes'])
+                viaje['rush'] = None
+                if gano: mision_evento('revancha' if r['solo'] else 'rush')
+                if pausado(pantalla_rush, r, gano, ms, premio) == 'salir': return 'salir'
+                if not r['propio']: return 'menu'
+                j['equipo'], j['activo'], j['monedas'], j['inventario'], j['reserva'] = r['guardado']
+                for m in j['equipo']: m['vida'] = m['max_vida'] = progreso.vida_max(m)
+                j['buffs'] = {}; j['mec'] = {}
+                aplicar_pokemon(j, j['equipo'][j['activo']]['nombre']); actualizar_sinergia(j)
+                viaje['en_hall'] = True; viaje['zona'] = 'titanes' if r['solo'] else 'salon'; viaje['llegada_zona'] = None
+                return 'hall'
+
+            def dibujar_rush(nivel):
+                """La chapita del boss rush abajo al medio: por que jefe vas y cuanto tiempo llevas."""
+                r = viaje['rush']
+                total = 1 if r['solo'] else TOTAL_RUSH
+                texto = ('REVANCHA' if r['solo'] else 'BOSS RUSH  ' + str(min(total, r['jefes'] + (1 if nivel['jefe'] else 0))) + '/' + str(total)) + '   ' + reloj_txt(tiempo() - r['inicio'])
+                if r['facil']: texto += '   fácil'
+                t = letra(18).render(texto, True, (255, 225, 130))
+                caja_r = t.get_rect(midbottom=(W // 2, H - 6)).inflate(18, 6)
+                panel(caja_r, (220, 110, 90)); ventana.blit(t, t.get_rect(center=caja_r.center))
+
+            # ---------------- los titanes: los jefes que ya derrotaste te esperan en el refugio ----------------
+            def crear_titanes(sala, perfil):
+                """Un titan por pedestal. Los que todavia no derrotaste se ven como una sombra."""
+                vencidos = set(perfil.get('jefes', ()))
+                for k in range(min(perfil.get('eras', 0), 5)): vencidos |= {mundos.ERAS[k]['jefe'], mundos.ERAS[k]['regi']}   # partidas de antes de esta sala
+                if perfil.get('eras', 0) >= 6: vencidos.add('regigigas')
+                lista = []
+                for nombre, era, pos in sala['titanes']:
+                    r = pygame.Rect(0, 0, 80, 80); r.center = (round(pos[0]), round(pos[1]))
+                    tipo = normalizar_tipo((pokemones[nombre].get('tipo') or ['normal'])[0])
+                    lista.append({'nombre': nombre, 'era': era, 'rect': r, 'vencido': nombre in vencidos, 'color': COLORES_TIPO.get(tipo, (200, 200, 200)), 'direccion': 'sur',
+                                  'animador': AnimadorPokemon(nombre, r, 110) if tiene_sprites(nombre) else None})
+                return lista
+
+            def titan_cercano(nivel, j):
+                return min((t for t in nivel.get('titanes', ()) if math.hypot(t['rect'].centerx - j['rect'].centerx, t['rect'].centery - j['rect'].centery) <= 130),
+                           key=lambda t: math.hypot(t['rect'].centerx - j['rect'].centerx, t['rect'].centery - j['rect'].centery), default=None)
+
+            def hablar_titan(nivel, j, perfil):
+                """E al lado de un titan: te cuenta algo y te ofrece la revancha (un boss rush de un solo jefe). Devuelve True si habia uno cerca."""
+                t = titan_cercano(nivel, j)
+                if not t: return False
+                if not t['vencido']: pausado(menus.preguntar, ui, modos.TITAN_AUSENTE, ['Ok']); return True
+                nombre = t['nombre'].replace('_', ' ').title(); tipo, frases = modos.TITANES[t['nombre']]
+                sonido.grito(t['nombre'], 0.8)
+                while True:
+                    r = pausado(menus.preguntar, ui, nombre + ': ' + random.choice(frases), ['Pedirle la revancha', 'Seguir charlando', 'Chau'],
+                                'revancha: tu equipo sube solo a su nivel y no se pierde nada' + ('   (modo fácil)' if perfil.get('facil') else ''))
+                    if r == 1: continue
+                    if r == 0: viaje['iniciar_rush'] = {'facil': perfil.get('facil'), 'solo': (t['era'], tipo)}; viaje['cambiar_zona'] = True
+                    return True
+
+            def dibujar_titan(t, j, cx, cy):
+                """El titan sobre su pedestal (una sombra si todavia no lo derrotaste), con su nombre y el cartelito para hablarle."""
+                r = t['rect']; x, y = r.centerx - cx, r.centery - cy
+                pygame.draw.ellipse(ventana, (40, 34, 70), (x - 62, y + 20, 124, 36)); pygame.draw.ellipse(ventana, t['color'] if t['vencido'] else (90, 90, 110), (x - 62, y + 20, 124, 36), 3)
+                a = t['animador']
+                if a:
+                    centro = r.center
+                    r.center = (x, y - 10)
+                    a.cambiar('idle', 0, True); a.actualizar()
+                    if t['vencido']: a.dibujar(ventana)
+                    else:
+                        cuadro = a.cuadro()
+                        if cuadro: ventana.blit(silueta(cuadro[0], (24, 22, 40), 235), (cuadro[1], cuadro[2]))
+                    r.center = centro
+                nombre = t['nombre'].replace('_', ' ').title() if t['vencido'] else '???'
+                txt = letra(18).render(nombre, True, 'white' if t['vencido'] else (150, 150, 170)); ventana.blit(txt, txt.get_rect(midtop=(x, y + 58)))
+                if titan_cercano(mundo['nivel'], j) is t:
+                    txt = letra(18).render(tecla_de('interactuar') + ': ' + ('hablar' if t['vencido'] else 'mirar'), True, (255, 240, 150)); ventana.blit(txt, txt.get_rect(midbottom=(x, y - 70)))
+
+            # ---------------- minijuegos de la cancha ----------------
+            def crear_minijuego(j, clave):
+                """Arma el minijuego en una arena: tu equipo entra con la vida llena (es prestado, como en el dojo) y los enemigos reaparecen solos."""
+                cfg = modos.MINIJUEGOS[clave]
+                if not viaje.get('dojo_equipo'): viaje['dojo_equipo'] = (list(j['equipo']), j['activo']); viaje['dojo_monedas'] = j['monedas']
+                sala = generacion.generar_arena(1, [], random.random()); sala['puertas'] = []
+                nv = max(1, j['nivel'])
+                nivel = nivel_suelto(sala, 'prueba', nv, 'pelea')
+                for mi in j['equipo']: mi['vida'] = mi['max_vida']; curar_estados(mi)
+                j['vida'] = j['max_vida']; j['monedas'] = 0
+                for _ in range(cfg['enemigos']):
+                    e = crear_enemigo(nivel, entorno.punto_libre(nivel['ent'], random, nivel['inicio'], 320), j['rect'].center, None, nv, cfg.get('estilo'))
+                    e['estilo_prueba'] = cfg.get('estilo') or 'normal'; nivel['enemigos'].append(e)
+                if clave == 'monedas': nivel['completado'] = False                 # (con la sala 'completa' las monedas vienen solas)
+                nivel['mini'] = viaje['mini'] = {'clave': clave, 'inicio': tiempo() + 3000, 'puntos': 0, 'prox': 0, 'nv': nv}
+                cartel(nivel, cfg['nombre'], 2800, cfg['desc'], grande=True)
+                sonido.musica('prueba')
+                return nivel
+
+            def actualizar_minijuego(nivel, j, resultado):
+                """Lleva la cuenta del minijuego y lo termina cuando se acaba el tiempo (o, en supervivencia, cuando cae todo el equipo)."""
+                mini = nivel['mini']; cfg = modos.MINIJUEGOS[mini['clave']]; ahora = tiempo()
+                t = ahora - mini['inicio']
+                if t < 0: return None                                            # la cuenta regresiva
+                if mini['clave'] == 'contrarreloj': mini['puntos'] = nivel['prueba']['bajas']
+                elif mini['clave'] == 'supervivencia':
+                    mini['puntos'] = t // 1000
+                    quiero = min(cfg['max'], cfg['enemigos'] + t // cfg['cada'])  # cada tanto se suma uno mas, y son un poco mas fuertes
+                    if len(nivel['enemigos']) + len(nivel['apariciones']) < quiero:
+                        nivel['apariciones'].append({'pos': entorno.punto_libre(nivel['ent'], random, j['rect'].center, 300), 'hasta': ahora + 900, 'estilo': 'normal'})
+                    nivel['nivel_enemigos'] = mini['nv'] + t // (cfg['cada'] * 2)
+                else:
+                    if ahora >= mini['prox']:
+                        mini['prox'] = ahora + cfg['cada_moneda']
+                        x, y = entorno.punto_libre(nivel['ent'], random, j['rect'].center, 200)
+                        nivel['monedas'].append({'x': x, 'y': y, 'valor': 1}); efectos.destello(mundo['ef'], x, y)
+                    mini['puntos'] = j['monedas']
+                if not ((cfg['ms'] and t >= cfg['ms']) or (resultado == 'muerte' and mini['clave'] == 'supervivencia')): return None
+                puntos = int(mini['puntos']); perfil = viaje['perfil']
+                records = perfil.setdefault('records', {}); mejor = puntos > records.get(mini['clave'], 0)
+                if mejor: records[mini['clave']] = puntos
+                premio = min(cfg['tope'], round(puntos * cfg['premio']))
+                perfil['premio_pendiente'] = perfil.get('premio_pendiente', 0) + premio
+                viaje['mini'] = None; viaje['zona'] = 'minijuegos'; viaje['llegada_zona'] = None
+                mision_evento('minijuego')
+                if pausado(menus.preguntar, ui, cfg['nombre'] + ': ' + str(puntos) + ' ' + cfg['unidad'] + ('.  ¡Récord nuevo!' if mejor else '.'), ['Volver a la cancha'],
+                           'récord: ' + str(records.get(mini['clave'], 0)) + '   premio: +' + str(premio) + ' monedas para el próximo viaje') == 'salir': return 'salir'
+                return 'rehacer'
+
+            def dibujar_minijuego(nivel):
+                """Arriba al medio: el nombre, el tiempo y los puntos. Antes de empezar, la cuenta regresiva en grande."""
+                mini = nivel['mini']; cfg = modos.MINIJUEGOS[mini['clave']]
+                t = tiempo() - mini['inicio']
+                if t < 0:
+                    n = letra(96).render(str(-t // 1000 + 1), True, (255, 240, 150)); ventana.blit(n, n.get_rect(center=(W // 2, H // 2 - 40)))
+                    return
+                reloj_m = reloj_txt(cfg['ms'] - t) if cfg['ms'] else reloj_txt(t)
+                txt = letra(24).render(cfg['nombre'] + '   ' + reloj_m + '   ' + str(int(mini['puntos'])) + ' ' + cfg['unidad'], True, (255, 235, 150))
+                caja_m = txt.get_rect(midtop=(W // 2, 66)).inflate(24, 10)
+                panel(caja_m, (90, 170, 230)); ventana.blit(txt, txt.get_rect(center=caja_m.center))
+                mejor = viaje['perfil'].get('records', {}).get(mini['clave'], 0)
+                if mejor:
+                    txt = letra(16).render('récord: ' + str(mejor), True, (200, 215, 235)); ventana.blit(txt, txt.get_rect(midtop=(W // 2, caja_m.bottom + 4)))
+
+            # ---------------- lo que llama el bucle de la partida ----------------
+            def actualizar_modo(nivel, j, resultado):
+                """Despues de cada cuadro: el tutorial y el minijuego avanzan, y el boss rush termina si cayo el equipo.
+                Devuelve None, 'rehacer' (hay que armar otra sala), 'menu' o 'salir'."""
+                if nivel.get('tutorial'): return actualizar_tutorial(nivel, j, resultado)
+                if nivel.get('mini'): return actualizar_minijuego(nivel, j, resultado)
+                if viaje.get('rush') and resultado == 'muerte':
+                    if caida(nivel, j, rec) == 'salir': return 'salir'
+                    fin = terminar_rush(j, False)
+                    return 'rehacer' if fin == 'hall' else fin
+                return None
+
+            def dibujar_modo(nivel, j, cx, cy):
+                if nivel.get('tutorial'): dibujar_tutorial(nivel, j, cx, cy)
+                elif nivel.get('mini'): dibujar_minijuego(nivel)
+                elif viaje.get('rush') and nivel['tipo'] != 'hall': dibujar_rush(nivel)
+
+            return (crear_tutorial, empezar_rush, preparar_rush, terminar_rush, crear_titanes, hablar_titan, dibujar_titan, crear_minijuego,
+                    actualizar_modo, dibujar_modo)
+
+        (crear_tutorial, empezar_rush, preparar_rush, terminar_rush, crear_titanes, hablar_titan, dibujar_titan, crear_minijuego,
+         actualizar_modo, dibujar_modo) = armar_modos()
 
         def armar_guardado():
             """Pasar la partida a datos guardables (equipo, mochila, recorrido) y armarla de vuelta al cargar."""
@@ -3963,6 +5314,7 @@ def main():
 
             def guardar_partida(j, rec):
                 """Autoguardado en la ranura de esta partida (al entrar a cada sala, al completarla y al comprar)."""
+                if viaje.get('rush') or viaje.get('tutorial') or viaje.get('mini') or viaje.get('dojo_equipo'): return   # lo prestado no se guarda
                 if ranura: partidas.guardar(ranura, serializar(j, rec))
 
             return restaurar, guardar_partida
@@ -3980,15 +5332,27 @@ def main():
             visita = None
         viaje['perfil'] = (cargada or {}).get('perfil') or dict(perfil_nuevo('Viajero', 'otro'), **(perfil or {}))   # las partidas de antes del hall no tienen perfil
         registrar_amigos(viaje['perfil'], j['equipo'] + j['reserva'])   # tu inicial (y los que ya tenias) son tus primeros amigos
+        if modo.get('tipo') == 'tutorial':                          # la isla de Celebi: te presta a Riolu a un nivel comodo
+            viaje['tutorial'] = {'paso': 0, 'sala': 'isla', 'empezado': None, 'listo': None, 'datos': {}}
+            for m in j['equipo']:
+                progreso.dar_xp(m, progreso.xp_para(m['nombre'], modos.NIVEL_TUTORIAL) - m['xp']); m['vida'] = m['max_vida'] = progreso.vida_max(m)
+            aplicar_pokemon(j, j['equipo'][0]['nombre'])
+        if modo.get('tipo') == 'rush': rec = empezar_rush(j, modo, propio=False)   # boss rush libre: con los pokemon que elegiste en el menu
         destino, entrada, llegada = None, 'sur', None
         reloj = pygame.time.Clock()
         while True:
-            if viaje['en_hall']: nivel = crear_hall(j, viaje['perfil'])    # entre viaje y viaje
+            if viaje.get('iniciar_rush'):                             # la estatua del salon (o un titan) te mando al boss rush con tu equipo
+                rec = empezar_rush(j, viaje.pop('iniciar_rush'))
+                destino, entrada, visita, llegada = None, 'sur', None, None
+            if prueba: nivel = crear_prueba(rec, j)                    # modo prueba: siempre la misma sala de entrenamiento
+            elif viaje.get('tutorial'): nivel = crear_tutorial(j)      # la isla de Celebi (o su tienda de practica)
+            elif viaje['en_hall']: nivel = crear_hall(j, viaje['perfil'])    # entre viaje y viaje
             elif visita is not None:                                 # una sala del historial: volviste, seguiste para adelante o cargaste
                 registro = rec['historial'][visita]; rec['pos'] = visita
                 rec['era'], rec['sala'], rec['clima'] = registro['era'], registro['sala'], registro['clima']
                 nivel = crear_nivel(rec, None, registro['entrada'], j, registro, llegada)
             else: nivel = crear_nivel(rec, destino, entrada, j)
+            if viaje.get('rush') and not viaje['en_hall']: preparar_rush(nivel, j)   # el equipo sube al nivel del jefe y recupera un poco
             reiniciar_jugador(j, nivel['inicio'])
             mec.nueva_sala(j, nivel)
             df, dc = generacion.PASO_LADO[nivel.get('llegada_lado') or nivel['sala']['entrada'] or 'sur']   # arranca en la puerta y camina para adentro
@@ -4007,9 +5371,20 @@ def main():
                     if e.type == pygame.QUIT: return 'salir', j['nombre']
                     acciones = controles.acciones(e)
                     if 'pausa' in acciones:
-                        accion_pausa = pausado(menu_pausa, ventana.copy())
+                        accion_pausa = pausado(menu_pausa, ventana.copy(), not viaje['en_hall'] and not prueba and not viaje.get('tutorial')
+                                               and not (viaje.get('rush') and not viaje['rush']['propio']))
                         if accion_pausa == 'cerrar': return 'salir', j['nombre']
                         if accion_pausa == 'menu': return 'menu', j['nombre']
+                        if accion_pausa == 'refugio':                     # te retiras: el viaje se pierde (como al caer) y volves al refugio
+                            if viaje.get('rush'):                         # te retiras del boss rush: vuelve tu equipo de verdad
+                                if terminar_rush(j, False) == 'salir': return 'salir', j['nombre']
+                                rec = mundos.nuevo_recorrido()
+                            else:
+                                j = volver_al_hall(j, viaje['perfil']); rec = mundos.nuevo_recorrido()
+                                viaje['en_hall'] = True; viaje['zona'] = 'plaza'; viaje['llegada_zona'] = None
+                            guardar_partida(j, rec)
+                            destino, entrada, reiniciar_nivel, visita, llegada = None, 'sur', True, None, None
+                            break
                         j['modo'] = config['modo']; aplicar_trucos(nivel, j)
                     if 'equipo' in acciones:
                         guardar_activo(j)
@@ -4030,10 +5405,24 @@ def main():
                     for k, clave in enumerate(('poke1', 'poke2', 'poke3')):
                         if clave in acciones: cambiar_slot(j, k)
                     if e.type == pygame.KEYDOWN:
+                        if e.key == pygame.K_F9 and viaje.get('tutorial'): viaje['tutorial']['saltar'] = True   # tutorial: saltear el paso
                         if e.key == pygame.K_F1:                   # menu debug de pokemon
                             resultado_debug, elegido, espacio = pausado(debug_menu, [mi['nombre'] for mi in j['equipo']], j['activo'])
                             if resultado_debug == 'salir': return 'salir', j['nombre']
                             if elegido: equipar_debug(j, elegido, espacio)
+                        if prueba and e.key in (pygame.K_F3, pygame.K_F6):        # modo prueba: elegir modo, era y sala / la misma sala de nuevo
+                            if e.key == pygame.K_F3:
+                                eleccion_p = pausado(menu_prueba, ventana.copy(), rec)
+                                if eleccion_p == 'salir': return 'salir', j['nombre']
+                                if not eleccion_p: continue
+                            for mi in j['equipo']: mi['vida'] = mi['max_vida']
+                            j['vida'] = j['max_vida']
+                            destino, entrada, reiniciar_nivel, visita, llegada = None, 'sur', True, None, None
+                            break
+                        if prueba and e.key in (pygame.K_F4, pygame.K_F5):        # sin recarga / vida infinita (vuelven como estaban al salir)
+                            truco = 'sin_enfriamiento' if e.key == pygame.K_F4 else 'vida_infinita'
+                            trucos[truco] = not trucos.get(truco)
+                            cartel(nivel, ('Sin recarga' if e.key == pygame.K_F4 else 'Vida infinita') + (': sí' if trucos[truco] else ': no'), 900)
                         if e.key == pygame.K_F2:
                             eleccion = pausado(menu_niveles, rec)
                             if eleccion == 'salir': return 'salir', j['nombre']
@@ -4054,13 +5443,27 @@ def main():
                 resultado = actualizar_nivel(nivel, j) if tiempo() >= nivel.get('pausa_hasta', 0) else None   # pausa de impacto: solo se dibuja
                 if nivel['tipo'] == 'hall': actualizar_residentes(nivel)
                 dibujar_objetos(nivel, j, rec)
+                r_modo = actualizar_modo(nivel, j, resultado)           # el tutorial y el minijuego avanzan; el boss rush termina si cayo el equipo
+                if r_modo in ('menu', 'salir'): return r_modo, j['nombre']
+                if r_modo == 'rehacer':                                 # hay que armar otra sala (la tienda del tutorial, la cancha, el refugio...)
+                    if rec.get('rush') and not viaje.get('rush'): rec = mundos.nuevo_recorrido()   # termino el boss rush: el proximo viaje arranca de cero
+                    destino, entrada, visita, llegada = None, 'sur', None, None
+                    break
                 if resultado is None: actualizar_evolucion(nivel, j, controles.mantiene('evolucionar'))
                 if nivel.pop('guardar', False): guardar_partida(j, rec)
+                if viaje.pop('ir_menu', False): guardar_partida(j, rec); return 'menu', j['nombre']   # desde el salon del refugio
+                if viaje['en_hall'] and resultado is None and revisar_pasos(nivel, j):    # entraste o saliste de una habitacion del refugio
+                    destino, entrada, visita, llegada = None, 'sur', None, None
+                    break
                 if resultado == 'siguiente':
                     puerta = nivel['salida']
                     guardar_activo(j)
+                    if puerta['destino']['tipo'] == 'zona':                # del refugio al barrio (o al reves) por una puerta de la pared
+                        viaje['llegada_zona'] = nivel['sala'].get('zona'); viaje['zona'] = puerta['destino']['zona']
+                        destino, entrada, visita, llegada = None, 'sur', None, None
+                        break
                     if puerta['destino']['tipo'] == 'viaje':                # el portal del hall: otro viaje desde la Era Glacial
-                        viaje['en_hall'] = False
+                        viaje['en_hall'] = False; viaje['zona'] = 'plaza'; viaje['llegada_zona'] = None
                         empezar_viaje(j)
                         destino, entrada, visita, llegada = None, 'sur', None, None
                         break
@@ -4070,6 +5473,12 @@ def main():
                         visita = rec['pos'] + 1; llegada = None; break
                     nivel['registro']['salida'] = puerta['lado']
                     if puerta['destino']['tipo'] == 'fin' or not mundos.avanzar(rec):
+                        if viaje.get('rush'):                             # terminaste el boss rush (o la revancha)
+                            fin_rush = terminar_rush(j, True)
+                            if fin_rush != 'hall': return fin_rush, j['nombre']
+                            rec = mundos.nuevo_recorrido()
+                            destino, entrada, visita, llegada = None, 'sur', None, None
+                            break
                         pausado(pantalla_final); return 'menu', j['nombre']
                     if nivel.get('portal') and rec['era'] != nivel['sala']['era']:     # cruzaste el portal de Celebi: el tunel del tiempo hasta la era nueva
                         if pausado(menus.cruzar_portal, ui, mundos.ERAS[rec['era']]['nombre'], j['nombre']) == 'salir': return 'salir', j['nombre']
@@ -4077,11 +5486,16 @@ def main():
                     destino, entrada = puerta['destino'], generacion.OPUESTO[puerta['lado']]   # salis por el norte: entras por el sur
                     visita, llegada = None, None
                     break
+                if resultado == 'muerte' and (prueba or nivel.get('prueba')):   # en la prueba (y el dojo) no se pierde nada: vuelven todos con la vida llena
+                    for mi in j['equipo']: mi['vida'] = mi['max_vida']
+                    j['vida'] = j['max_vida']
+                    cartel(nivel, 'Cayó el equipo: vuelven todos con la vida llena', 1500)
+                    resultado = None
                 if resultado == 'muerte':                                 # cayo todo el equipo: se desmaya (Faint) y Celebi te lleva al hall
                     if caida(nivel, j, rec) == 'salir': return 'salir', j['nombre']
                     j = volver_al_hall(j, viaje['perfil'])
                     rec = mundos.nuevo_recorrido()                       # el proximo viaje arranca de cero
-                    viaje['en_hall'] = True
+                    viaje['en_hall'] = True; viaje['zona'] = 'plaza'; viaje['llegada_zona'] = None
                     destino, entrada, visita, llegada = None, 'sur', None, None
                     break
                 reloj.tick(60)
@@ -4121,9 +5535,48 @@ def main():
                     inicial = [datos_viaje['inicial']]
                     perfil = {'nombre': datos_viaje['nombre'], 'genero': datos_viaje['genero']}
                     partidas.borrar(ranura)
-                resultado, _ = jugar(inicial, config, ranura, cargada, perfil)   # si cae el equipo no termina: sigue en el hall
+                en_refugio = False
+                if modo != 'continuar':                                 # partida nueva: ¿arrancás en el refugio de Celebi o directo al viaje?
+                    donde = menus.preguntar(ui, '¿Dónde querés empezar?', ['En el refugio de Celebi', 'Directo al viaje', 'Primero el tutorial (la isla de Celebi)'],
+                                            'en el refugio conocés el lugar (y salís de viaje por el portal del norte)')
+                    if donde == 'salir': pygame.quit(); sys.exit()
+                    if donde == 2:                                      # la isla de practica y despues, al refugio
+                        if jugar(['riolu'], config, modo={'tipo': 'tutorial'})[0] == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+                    en_refugio = donde in (0, 2)
+                resultado, _ = jugar(inicial, config, ranura, cargada, perfil, en_refugio=en_refugio)   # si cae el equipo no termina: sigue en el hall
                 pygame.mouse.set_visible(True)
                 if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+        if accion == 'tutorial':                                        # la isla de practica de Celebi: paso por paso, sin guardar nada
+            resultado, _ = jugar([modos.EQUIPO_TUTORIAL[0]], config, modo={'tipo': 'tutorial'})
+            pygame.mouse.set_visible(True)
+            if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+        if accion == 'rush':                                            # boss rush libre: 3 pokemon cualesquiera (sin jefes, Celebi ni Missingno) contra todos los jefes
+            equipo_rush = [n for n in equipo_menu if n in JUGABLES]
+            while len(equipo_rush) < 3:
+                r_d, nombre_p, _ = debug_menu(equipo_rush, 0, 'BOSS RUSH: elegí tu equipo (' + str(len(equipo_rush)) + '/3)   ESC: listo', True)
+                if r_d == 'salir': pygame.quit(); sys.exit()
+                if not nombre_p: break
+                if nombre_p in JUGABLES and nombre_p not in equipo_rush: equipo_rush.append(nombre_p)
+            if not equipo_rush: continue
+            dif = menus.preguntar(ui, 'Boss rush con ' + ', '.join(n.replace('_', ' ').title() for n in equipo_rush) + '. ¿Cómo lo querés?', ['Normal', 'Fácil', 'Cancelar'],
+                                  'los 12 jefes seguidos; tu equipo sube solo al nivel de cada uno')
+            if dif == 'salir': pygame.quit(); sys.exit()
+            if dif in (0, 1):
+                resultado, _ = jugar(equipo_rush, config, modo={'tipo': 'rush', 'facil': dif == 1})
+                pygame.mouse.set_visible(True)
+                if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
+        if accion == 'prueba':                                          # sala de entrenamiento: sin viaje, sin guardar
+            equipo_prueba = [n for n in equipo_menu if n]
+            if not equipo_prueba:                                       # sin equipo armado: se elige el pokemon con el menu de F1
+                resultado_debug, nombre_p, _ = debug_menu([], 0)
+                if resultado_debug == 'salir': pygame.quit(); sys.exit()
+                if not nombre_p: continue
+                equipo_prueba = [nombre_p]
+            trucos_antes = dict(config['trucos'])                       # lo que se prende en la prueba (sin recarga, vida infinita) no queda
+            resultado, _ = jugar(equipo_prueba, config, prueba=True)
+            config['trucos'].clear(); config['trucos'].update(trucos_antes)
+            pygame.mouse.set_visible(True)
+            if resultado == 'salir': opciones.guardar(config); pygame.quit(); sys.exit()
         if accion == 'pokedex':
             if pokedex() == 'salir': pygame.quit(); sys.exit()
         if accion == 'ajustes' and menus.ajustes(ui) == 'salir': pygame.quit(); sys.exit()

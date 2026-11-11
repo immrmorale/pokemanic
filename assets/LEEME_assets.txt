@@ -24,6 +24,8 @@ Comandos para pasar las hojas al juego:
                                     y las paletas del agua (el agua del PMD se anima cambiando colores) + <terreno>_brillo.png (brillos del agua)
                                     el plan de que hoja va en cada era/variante esta en herramientas.py (PLAN)
   python herramientas.py decorados  rocas/hielo/pinos (la pieza de pared aislada de cada tileset) y arbustos/arboles (Poke Transfer de BW) -> mundo/objetos
+  python herramientas.py props      mapa 'Sky Peak 8th Station' (Sky) -> mundo/objetos: caja, barril, anfora, cesto, fardo_de_heno, tronco, mesa_de_mercado
+                                    hojas 'Huts' del Red Rescue Team en hojas/red_rescue/Huts -> mundo/objetos/casa_<pokemon>.png (las casas del barrio del refugio)
   python herramientas.py cielo      hoja 'Skies' del Explorers of Sky -> interfaz/fondos/cielo.png y nube_<n>.png (la intro)
   python herramientas.py efectos    'Attack Effects' del Explorers of Sky (el zip o la carpeta efectos/move_VFX) -> efectos/
                                     (golpe_<tipo>, proyectil_<tipo>, cura, cambio, nivel, explosion...) + aparecer/destello del Poke Transfer

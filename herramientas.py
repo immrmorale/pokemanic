@@ -2,6 +2,8 @@
 herramientas.py - Programas aparte para preparar el juego (no se usan mientras jugas).
 
     python herramientas.py descargar           baja los sprites y retratos del PMD (SpriteCollab)
+    python herramientas.py animaciones [poke]  dice que hace cada animacion de los sprites y cual usa cada ataque (y lo guarda en asignacion_animaciones.json)
+    python herramientas.py sonidos             baja los gritos de todos los pokemon (PokeAPI) a assets/sonidos/gritos
     python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI
     python herramientas.py recortar hoja.png   recorta sprites de una hoja y los deja en assets/mundo
     python herramientas.py hojas               baja todas las hojas (menos pokemon) de BW y los PMD a assets/hojas (via archive.org)
@@ -111,8 +113,152 @@ def herramienta_descargar():
             for nombre, cantidad, faltan in pool.map(lambda x: descargar(*x), pendientes):
                 print(nombre.ljust(18), cantidad, 'animaciones', '| faltan:' if faltan else '', ', '.join(faltan))
         print('listo: ' + DESTINO)
+        print('\nanalizando las animaciones y asignandolas a los ataques...')
+        herramienta_animaciones()
 
     main()
+
+
+# ==================== analizar animaciones ====================
+
+# Que hace cada animacion del PMD (los nombres del AnimData.xml), para leer el reporte sin abrir las hojas.
+QUE_HACE_ANIMACION = {
+    'idle': 'quieto, respirando', 'walk': 'caminar', 'sleep': 'dormido', 'eventsleep': 'dormido (escena)', 'wake': 'despertarse',
+    'hurt': 'recibe un golpe', 'faint': 'se desmaya', 'cringe': 'se encoge del susto', 'attack': 'ataque basico (generico)',
+    'strike': 'golpe hacia adelante', 'quickstrike': 'golpe rapido', 'multistrike': 'varios golpes seguidos', 'multiscratch': 'arañazos',
+    'punch': 'puñetazo', 'jab': 'pinchazo / picotazo', 'chop': 'golpe de canto (karate)', 'kick': 'patada', 'bite': 'mordida',
+    'slam': 'se tira con todo el cuerpo', 'head': 'cabezazo', 'tumble': 'voltereta', 'ricochet': 'rebota y vuelve', 'leapforth': 'salta hacia adelante',
+    'tailwhip': 'coletazo', 'swing': 'barrido en arco', 'double': 'dos golpes', 'rotate': 'gira sobre si mismo', 'twirl': 'pirueta',
+    'shoot': 'dispara algo hacia adelante', 'spattack': 'ataque especial (carga y suelta)', 'emit': 'emite energia', 'charge': 'carga energia',
+    'shock': 'descarga electrica', 'rumble': 'hace temblar el suelo', 'rearup': 'se para en dos patas y embiste', 'sink': 'se hunde en el suelo',
+    'hop': 'saltito', 'hover': 'flota en el aire', 'float': 'flota', 'flaparound': 'aletea', 'dance': 'baile', 'pose': 'pose de victoria',
+    'nod': 'asiente', 'shake': 'se sacude', 'sit': 'sentado', 'laying': 'acostado', 'eat': 'come', 'lookup': 'mira hacia arriba',
+    'hitground': 'golpea el suelo', 'lostbalance': 'pierde el equilibrio', 'pain': 'dolor', 'pull': 'tira de algo', 'trip': 'se tropieza',
+    'tumbleback': 'voltereta hacia atras', 'deepbreath': 'respira hondo', 'withdraw': 'se esconde / se cubre', 'sing': 'canta', 'special0': 'especial del pokemon', 'special1': 'especial del pokemon',
+}
+
+
+def herramienta_animaciones(solo=None):
+    """Lee el AnimData.xml de cada pokemon, dice que hace cada animacion y que animacion le toca a cada uno de sus ataques
+    (la misma eleccion que hace el juego con AnimadorPokemon.buscar_movimiento). Guarda todo en asignacion_animaciones.json.
+
+        solo: nombre de un pokemon para ver solo ese (si no, todos)."""
+    os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')               # no hace falta abrir ventana
+    os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
+    import sistema
+    anim = sistema.animaciones
+    pk = datos.pokemones
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(raiz)                                                   # el juego busca los sprites en assets/... relativo a la carpeta
+    DESTINO = os.path.join(raiz, 'asignacion_animaciones.json')
+    genericas = set(anim.AnimadorPokemon.nombres_ataque) | {n for t in anim.AnimadorPokemon.nombres_forma.values() for n in t}
+
+    def leer_xml(carpeta):
+        """Animaciones del AnimData.xml: nombre -> (cantidad de frames, de quien es copia o None)."""
+        hojas = {}
+        try: raiz_xml = ET.parse(os.path.join(carpeta, 'AnimData.xml')).getroot()
+        except (OSError, ET.ParseError): return None
+        for a in raiz_xml.find('Anims').findall('Anim'):
+            nombre = a.findtext('Name')
+            if not nombre: continue
+            copia = a.findtext('CopyOf')
+            frames = len(a.find('Durations').findall('Duration')) if a.find('Durations') is not None else 0
+            hojas[anim._normalizar_nombre(nombre)] = (frames, anim._normalizar_nombre(copia) if copia else None)
+        return hojas
+
+    def origen(animador, movimiento, tipo, forma, elegida):
+        """Por que se eligio esa animacion: por el nombre del ataque, por su tipo, por su forma o la generica."""
+        nombre = anim._normalizar_nombre(movimiento or '')
+        for clave, anims in anim.ANIM_MOVIMIENTO:
+            if clave in nombre and any(a in animador.sprites for a in anims):
+                return 'nombre (' + clave + ')'
+        if any(a in animador.sprites for a in anim.ANIM_TIPO.get(tipo, {}).get(forma, ())): return 'tipo (' + str(tipo) + ')'
+        if elegida is None: return 'ninguna'
+        if elegida in anim.AnimadorPokemon.nombres_forma.get(forma, ()): return 'forma (' + str(forma) + ')'
+        return 'generica'
+
+    reporte, sin_xml, a_mano, usadas_total = {}, [], [], {}
+    nombres = [solo] if solo else sorted(pk.pokemones)
+    for nombre in nombres:
+        if nombre not in pk.pokemones:
+            print('no existe el pokemon', nombre); return
+        carpeta = anim._buscar_carpeta(anim._base(anim._normalizar_nombre(nombre)))
+        hojas = leer_xml(carpeta) if carpeta else None
+        if not hojas:
+            sin_xml.append(nombre); continue
+        animador = object.__new__(anim.AnimadorPokemon)                # sin cargar las hojas: solo hace falta saber cuales tiene
+        animador.sprites = dict.fromkeys(hojas)
+        juego = pk.datos_juego(nombre)
+        ataques = [(n, pk.buscar_movimiento(n)) for n in juego['basicos'] if n] + list(juego['especiales'])
+        asignadas = {}
+        for mov, d in ataques:
+            d = d or {}
+            tipo, forma = d.get('tipo'), d.get('forma', 'proyectil')
+            elegida = animador.buscar_movimiento(mov, tipo, forma)
+            como = origen(animador, mov, tipo, forma, elegida)
+            asignadas[mov] = {'animacion': elegida, 'por': como, 'tipo': tipo, 'forma': forma,
+                              'que_hace': QUE_HACE_ANIMACION.get(elegida, '?') if elegida else None}
+            usadas_total[elegida] = usadas_total.get(elegida, 0) + 1
+            if como in ('generica', 'ninguna'): a_mano.append((nombre, mov, elegida))
+        especiales = sorted(a for a in hojas if a not in genericas and a not in anim.AnimadorPokemon.RITMO_XML and a not in ('idle', 'walk'))
+        sin_usar = [a for a in especiales if a not in {v['animacion'] for v in asignadas.values()}]
+        reporte[nombre] = {'animaciones': {a: {'frames': f, 'copia_de': c, 'que_hace': QUE_HACE_ANIMACION.get(a, '?')} for a, (f, c) in sorted(hojas.items())},
+                           'ataques': asignadas, 'especiales_sin_usar': sin_usar}
+
+        print('\n' + nombre.upper() + '  (' + str(len(hojas)) + ' animaciones)')
+        for mov, v in asignadas.items():
+            print('   ' + mov.ljust(22) + '-> ' + str(v['animacion']).ljust(13) + ('[' + v['por'] + ']').ljust(24) + (v['que_hace'] or ''))
+        if sin_usar: print('   especiales que no usa ningun ataque:', ', '.join(sin_usar))
+
+    if solo and nombres[0] in sin_xml: print(solo, 'no tiene AnimData.xml (corre: python herramientas.py descargar)'); return
+    print('\n==================== resumen ====================')
+    print('pokemon analizados:', len(reporte), '| sin AnimData.xml:', len(sin_xml), ('(' + ', '.join(sin_xml) + ')') if sin_xml else '')
+    print('animaciones usadas por los ataques:', ', '.join(a + ' x' + str(c) for a, c in sorted(usadas_total.items(), key=lambda x: -x[1]) if a))
+    if a_mano:
+        print('ataques que quedaron con la animacion generica (para sumar a ANIM_MOVIMIENTO o ANIM_TIPO en sistema.py):', len(a_mano))
+        for nombre, mov, elegida in a_mano[:40]: print('   ', nombre.ljust(18), mov.ljust(22), elegida)
+        if len(a_mano) > 40: print('    ... y', len(a_mano) - 40, 'mas (ver el json)')
+    if not solo:
+        with open(DESTINO, 'w', encoding='utf-8') as f:
+            json.dump(reporte, f, ensure_ascii=False, indent=1)
+        print('guardado:', DESTINO)
+
+
+# ==================== sonidos ====================
+
+def herramienta_sonidos():
+    """Baja el grito de cada pokemon (los de PokeAPI: github.com/PokeAPI/cries) a assets/sonidos/gritos/<nombre>.ogg.
+    Usa el grito clasico (el de los juegos de DS) si existe, y si no el actual. Los que ya estan no se vuelven a bajar."""
+    pokemones = datos.pokemones.pokemones
+    BASE = 'https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/'
+    DESTINO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sonidos', 'gritos')
+    os.makedirs(DESTINO, exist_ok=True)
+
+    def bajar(url):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic-sonidos'}), timeout=30) as r: return r.read()
+        except (urllib.error.URLError, OSError): return None
+
+    def uno(nombre):
+        ruta = os.path.join(DESTINO, nombre + '.ogg')
+        if os.path.isfile(ruta): return nombre, 'ya estaba'
+        dex = pokemones[nombre].get('pokedex')
+        if not isinstance(dex, int): return nombre, 'sin numero de pokedex'
+        for version in ('legacy', 'latest'):
+            datos_ = bajar(BASE + version + '/' + str(dex) + '.ogg')
+            if datos_:
+                with open(ruta, 'wb') as f: f.write(datos_)
+                return nombre, version
+        return nombre, 'no esta'
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        resultados = list(pool.map(uno, sorted(pokemones)))
+    cuenta = {}
+    for nombre, como in resultados: cuenta[como] = cuenta.get(como, 0) + 1
+    faltan = [n for n, como in resultados if como in ('no esta', 'sin numero de pokedex')]
+    print('gritos:', ', '.join(k + ' ' + str(v) for k, v in sorted(cuenta.items())))
+    if faltan: print('sin grito:', ', '.join(faltan))
+    print('listo: ' + DESTINO)
 
 
 # ==================== generar datos ====================
@@ -701,7 +847,7 @@ def herramienta_tiles():
              'escarcha': ('7th Station Pass', 'agua'), 'hierba': ('4th Station Pass', 'pared'), 'lodo': ('Deep Dusk Forest 01F - 06F', 'suelo'),
              'toxico': ('Brine Cave', 'agua'), 'sombra': ('Dark Wasteland', 'suelo'), 'agua': ('4th Station Pass', 'agua'),
              'vacio': ('Chasm Cave B01F - B04F', 'pared'), 'ceniza': ('Barren Valley', 'suelo'), 'roca_volcanica': ('Deep Boulder Quarry', 'suelo'),
-             'torre_dragon': ('Temporal Tower', 'suelo'), 'charco': ('4th Station Pass', 'agua'),
+             'torre_dragon': ('Temporal Tower', 'suelo'),          # (el charco no lleva tileset: es agua quieta sobre el piso de la era, ver mundo.py)
              # no hay hojas con lava, aceite ni arena movediza: el agua animada del PMD con otros colores (ver RETOQUES)
              'lava': ('Brine Cave', 'agua', 'lava'), 'aceite': ('Brine Cave', 'agua', 'aceite'), 'arena_movediza': ('Shimmer Desert', 'agua', 'arena'),
              'corriente': ('4th Station Pass', 'agua', 'viento'),
@@ -1012,6 +1158,122 @@ def herramienta_decorados():
         print(len(hechos), 'objetos en assets/mundo/objetos:', ', '.join(hechos))
 
     main()
+
+
+# ==================== props del PMD (cajas, vasijas, heno...) y casas del Red Rescue Team ====================
+
+def herramienta_props():
+    """Sprites de cosas hechas a mano (assets/mundo/objetos/<nombre>.png):
+    - cajas, vasijas, heno, troncos y el puesto de manzanas: recortados del mapa 'Sky Peak 8th Station' del Explorers of Sky. Estan
+      dibujados sobre el pasto: se borra desde el borde de cada recorte todo lo que es verde (pasto y plantitas).
+      Las vasijas del mapa vienen de a dos, una tapando a la otra: se arma UNA entera con la mitad que se ve bien, espejada.
+    - la llama del fuego del piso (assets/efectos/llama.png): los 4 cuadros de la fogata del mismo mapa, sin las piedras.
+    - casas del refugio: las hojas 'Huts' del Red Rescue Team (Pikachu Hut, Mudkip Hut...). Hay que bajarlas a mano de Spriters Resource
+      (estan en assets/hojas/faltan.txt) y dejarlas en assets/hojas/red_rescue/Huts: cada una queda como casa_<pokemon>.png y el
+      barrio del refugio las usa solas (si no hay ninguna, dibuja las casas de siempre)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    # (x, y, ancho, alto) en el mapa de la 8va estacion -> nombres de objeto que usan ese recorte
+    ESTACION = {(246, 124, 27, 27): ('caja',), (98, 223, 26, 28): ('anfora', 'barril', 'cesto'),
+                (238, 228, 44, 34): ('fardo_de_heno',), (258, 270, 34, 30): ('tronco',), (116, 255, 48, 42): ('mesa_de_mercado',)}
+
+    def es_pasto(c):
+        """Pasto (verde) o piedra del borde del mapa (gris): lo que rodea a las cosas."""
+        return (c.g > c.r and c.g > c.b * 1.25 and c.g > 90) or (abs(c.r - c.g) < 14 and abs(c.g - c.b) < 18)
+
+    def sin_pasto(recorte):
+        """Borra el pasto desde los bordes del recorte (lo que queda encerrado por el contorno oscuro del objeto no se toca)."""
+        img = recorte.copy().convert_alpha()
+        w, h = img.get_size()
+        pendientes = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for x in (0, w - 1) for y in range(h)]
+        while pendientes:
+            x, y = pendientes.pop()
+            if not (0 <= x < w and 0 <= y < h): continue
+            c = img.get_at((x, y))
+            if c.a == 0 or not es_pasto(c): continue
+            img.set_at((x, y), (0, 0, 0, 0))
+            pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        partes = pygame.mask.from_surface(img).connected_components(12)       # se queda con el pedazo mas grande (sin piedritas sueltas)
+        if not partes: return None
+        mayor = max(partes, key=lambda m_: m_.count())
+        limpio = pygame.Surface((w, h), pygame.SRCALPHA)
+        mayor.to_surface(limpio, setsurface=img, unsetcolor=None)
+        return limpio.subsurface(limpio.get_bounding_rect()).copy()
+
+    def vasija(par):
+        """Una vasija sola y entera a partir del par del mapa: la de adelante tiene la mitad izquierda sin tapar, y es simetrica."""
+        w, h = par.get_size()
+        opaco = lambda x, y: par.get_at((x, y)).a > 0
+        abajo = [x for y in range(h - 6, h) for x in range(w) if opaco(x, y)]       # las filas de abajo son solo de la de adelante
+        izq, der = min(abajo), max(abajo)
+        medio = (izq + der) // 2
+        arriba = min(y for x in range(izq, medio + 1) for y in range(h) if opaco(x, y))
+        ancho = der - izq + 1
+        sola = pygame.Surface((ancho, h - arriba), pygame.SRCALPHA)
+        for x in range(izq, medio + 1):
+            for y in range(arriba, h):
+                if not opaco(x, y): continue
+                c = par.get_at((x, y))
+                sola.set_at((x - izq, y - arriba), c); sola.set_at((ancho - 1 - (x - izq), y - arriba), c)
+        return sola.subsurface(sola.get_bounding_rect()).copy()
+
+    def llamas(mapa):
+        """Los 4 cuadros de la fogata sin las piedras ni el pasto: queda solo el fuego (rojo, naranja y amarillo bien vivos)."""
+        cuadros = []
+        for x0 in (2, 37, 72, 107):
+            c = mapa.subsurface((x0, 436, 32, 35)).copy().convert_alpha()
+            for x in range(c.get_width()):
+                for y in range(c.get_height()):
+                    px = c.get_at((x, y))
+                    vivo = px.r >= 250 and ((px.b < 90 and (px.r - px.g > 60 or px.g > 170)) or px.g > 225)   # rojo, naranja y amarillo vivos, o el blanco del medio
+                    if not vivo or y > 26: c.set_at((x, y), (0, 0, 0, 0))      # (abajo de todo son los reflejos en las piedras)
+            partes = pygame.mask.from_surface(c).connected_components()
+            fuego = max(partes, key=lambda m_: m_.count())
+            for parte in partes:                                                  # los pedacitos sueltos de abajo son brillos de las piedras: afuera
+                if parte is fuego or parte.centroid()[1] < 12: continue          # (las chispas de arriba se quedan)
+                for x, y in ((x, y) for x in range(c.get_width()) for y in range(c.get_height()) if parte.get_at((x, y))): c.set_at((x, y), (0, 0, 0, 0))
+            cuadros.append(c)
+        caja_f = cuadros[0].get_bounding_rect().unionall([c.get_bounding_rect() for c in cuadros[1:]])
+        lado = max(caja_f.size)
+        tira = pygame.Surface((lado * len(cuadros), lado), pygame.SRCALPHA)
+        for k, c in enumerate(cuadros):                                           # cada cuadro centrado y apoyado abajo
+            tira.blit(c.subsurface(caja_f), (k * lado + (lado - caja_f.width) // 2, lado - caja_f.height))
+        return tira
+
+    def casa(hoja):
+        """La casa de una hoja 'Hut': sin el color de fondo y sin los carteles de texto (el pedazo mas grande)."""
+        img = hoja.convert_alpha()
+        pa = pygame.PixelArray(img); pa.replace(img.get_at((0, 0)), (0, 0, 0, 0)); pa.close()
+        partes = pygame.mask.from_surface(img).connected_components(400)
+        if not partes: return None
+        mayor = max(partes, key=lambda m_: m_.count())
+        limpio = pygame.Surface(img.get_size(), pygame.SRCALPHA)
+        mayor.to_surface(limpio, setsurface=img, unsetcolor=None)
+        return limpio.subsurface(limpio.get_bounding_rect()).copy()
+
+    pygame.init(); pygame.display.set_mode((1, 1))
+    carpeta = os.path.join(assets, 'mundo', 'objetos')
+    os.makedirs(carpeta, exist_ok=True)
+    hechos = []
+    ruta = next((os.path.join(c, a) for c, _, archivos in os.walk(assets) for a in archivos if a.endswith('Sky Peak 8th Station.png')), None)
+    if ruta:
+        mapa = pygame.image.load(ruta).convert()
+        for caja_r, nombres in ESTACION.items():
+            img = sin_pasto(mapa.subsurface(caja_r))
+            if not img: continue
+            if 'anfora' in nombres: img = vasija(img)
+            for n in nombres: pygame.image.save(img, os.path.join(carpeta, n + '.png')); hechos.append(n)
+        os.makedirs(os.path.join(assets, 'efectos'), exist_ok=True)
+        pygame.image.save(llamas(mapa), os.path.join(assets, 'efectos', 'llama.png')); hechos.append('efectos/llama')
+    else: print('falta el mapa "Maps - Sky Peak 8th Station" del Explorers of Sky')
+    chozas = os.path.join(assets, 'hojas', 'red_rescue', 'Huts')
+    for archivo in sorted(os.listdir(chozas)) if os.path.isdir(chozas) else ():
+        if not archivo.lower().endswith('.png') or 'construction' in archivo.lower(): continue
+        img = casa(pygame.image.load(os.path.join(chozas, archivo)))
+        nombre = 'casa_' + archivo[:-4].lower().replace(' hut', '').replace(' ', '_')
+        if img: pygame.image.save(img, os.path.join(carpeta, nombre + '.png')); hechos.append(nombre)
+    if not os.path.isdir(chozas): print('casas: baja las hojas "Huts" del Red Rescue Team (assets/hojas/faltan.txt) a assets/hojas/red_rescue/Huts y corre esto de nuevo')
+    print(len(hechos), 'objetos en assets/mundo/objetos:', ', '.join(hechos))
 
 
 # ==================== cielo de la intro ====================
@@ -1385,11 +1647,14 @@ def ver_plan():
 if __name__ == '__main__':
     orden = sys.argv[1] if len(sys.argv) > 1 else ''
     if orden == 'descargar': herramienta_descargar()
+    elif orden == 'animaciones': herramienta_animaciones(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif orden == 'sonidos': herramienta_sonidos()
     elif orden == 'datos': herramienta_datos()
     elif orden == 'recortar' and len(sys.argv) > 2: herramienta_recortar(sys.argv[2])
     elif orden == 'hojas': herramienta_hojas()
     elif orden == 'tiles': herramienta_tiles()
     elif orden == 'decorados': herramienta_decorados()
+    elif orden == 'props': herramienta_props()
     elif orden == 'cielo': herramienta_cielo()
     elif orden == 'minimapa': herramienta_minimapa()
     elif orden == 'viaje': herramienta_viaje()

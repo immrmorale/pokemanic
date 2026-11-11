@@ -30,9 +30,9 @@ def armar_opciones():
     """
     RUTA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
     RESOLUCIONES = ['1000x600', '1250x750', '1500x900', '1920x1152']
-    ESTILOS_EQUIPO = ['clasico', 'escenario']        # menu TAB: lista como en los juegos o tus pokemon parados en un escenario
+    ESTILOS_EQUIPO = ['vitrina', 'clasico', 'escenario']   # menu TAB: cartas + vitrina animada, lista como en los juegos o un escenario
     HALLS = ['auto', 'atemporal', 'celebi']          # a donde volves al perder: auto = donde aparece Celebi hasta que derrotes una era, despues el atemporal
-    DEFECTO = {'volumen': 50, 'modo': 'mouse', 'resolucion': '1000x600', 'pantalla_completa': False, 'estilo_equipo': 'clasico',
+    DEFECTO = {'volumen': 50, 'volumen_efectos': 70, 'apuntado_asistido': True, 'modo': 'mouse', 'resolucion': '1000x600', 'pantalla_completa': False, 'estilo_equipo': 'vitrina',
                'hall': 'auto', 'controles': None}    # controles: los arma controles.py la primera vez
 
 
@@ -44,6 +44,8 @@ def armar_opciones():
                 with open(RUTA, encoding='utf-8') as f: config.update(json.load(f))
             except (OSError, ValueError): pass
         config['trucos'] = {}                        # los trucos del menu secreto no se guardan
+        if not config.get('vio_vitrina'):            # el menu de equipo nuevo se muestra una vez aunque tuvieras guardado el clasico
+            config['vio_vitrina'] = True; config['estilo_equipo'] = 'vitrina'
         return config
 
 
@@ -368,6 +370,7 @@ def armar_pantalla():
     def iniciar(W, H, config):
         """Crea la superficie de 1000x600 donde se dibuja todo y abre la ventana."""
         estado['logica'] = pygame.Surface((W, H))
+        estado['config'] = config
         aplicar(config)
         return estado['logica']
 
@@ -411,11 +414,34 @@ def armar_pantalla():
 
 
     def presentar():
-        """Pasa lo dibujado a la ventana: si hay que agrandarlo se escala directo sobre la ventana (sin crear una imagen nueva por frame)."""
+        """Pasa lo dibujado a la ventana: si hay que agrandarlo se escala directo sobre la ventana (sin crear una imagen nueva por frame).
+        En los menus dibuja el cursor propio del juego encima (el del sistema se esconde: a veces no se veia)."""
         real, logica, destino = estado['real'], estado['logica'], estado['destino']
         if estado.get('marco') is None: real.blit(logica, destino)
         else: pygame.transform.scale(logica, destino.size, estado['marco'])
+        if controles.contexto() == 'menu' and pygame.mouse.get_focused() and (estado.get('config') or {}).get('cursor_propio', True):
+            pygame.mouse.set_visible(False)
+            cursor(pygame.display.get_surface(), pygame.mouse.get_pos(), max(1.0, destino.width / logica.get_width()))
         pygame.display.flip()
+
+
+    _cursores = {}
+
+
+    def cursor(superficie, pos, escala):
+        """La flechita del juego: blanca con borde azul oscuro y un brillo celeste, como los menus de BW. La punta esta en pos."""
+        k = max(1, round(escala * 1.4))
+        if k not in _cursores:
+            puntos = [(0, 0), (0, 15), (4, 11), (7, 17), (10, 16), (7, 10), (12, 10)]
+            img = pygame.Surface((16 * k, 20 * k), pygame.SRCALPHA)
+            sombra = [(x * k + k, y * k + k) for x, y in puntos]
+            pygame.draw.polygon(img, (0, 0, 0, 90), sombra)
+            forma = [(x * k, y * k) for x, y in puntos]
+            pygame.draw.polygon(img, (250, 252, 255), forma)
+            pygame.draw.polygon(img, (110, 210, 255), [(k, 2 * k), (k, 9 * k), (4 * k, 6 * k)])
+            pygame.draw.polygon(img, (20, 30, 70), forma, max(1, k))
+            _cursores[k] = img
+        superficie.blit(_cursores[k], pos)
 
 
     def a_logico(pos):
@@ -663,6 +689,11 @@ def armar_controles():
         return (x / n, y / n) if n else None
 
 
+    def inclinacion():
+        """Cuanto esta inclinada la palanca derecha (0 a 1): para elegir a que distancia cae lo que se tira en un punto."""
+        return min(1.0, math.hypot(*_palanca(1)))
+
+
     def esperar_entrada(dispositivo, presentar, dibujar):
         """Para reasignar: espera una tecla (o un boton del control). ESC cancela. Devuelve el nombre o None."""
         reloj = pygame.time.Clock()
@@ -728,11 +759,20 @@ def armar_animaciones():
     _CACHE_ESCALADO = {}
     # pokemon con otros colores: nombre -> (pokemon de los sprites, tono nuevo en grados para lo que es verde)
     TINTES = {'chikorita_rosa': ('chikorita', 330)}
+    # SpriteCollab todavia no tiene las animaciones de estos: usan las de otro de su linea (mas grandes por su altura, y Brute Bonnet
+    # oscurecido) con su propio retrato. Cuando aparezcan sus hojas ('python herramientas.py descargar') se usan las suyas solas.
+    PRESTADOS = {'amoonguss': ('foongus', None), 'brute_bonnet': ('foongus', (150, 125, 175))}
+
+
+    def _propias(nombre):
+        carpeta = _buscar_carpeta(nombre)
+        return bool(carpeta) and os.path.isfile(os.path.join(carpeta, 'AnimData.xml'))
 
 
     def _base(nombre):
-        """El pokemon del que salen los sprites (chikorita_rosa usa los de chikorita)."""
+        """El pokemon del que salen los sprites (chikorita_rosa usa los de chikorita; Amoonguss, los de Foongus mientras no tenga los suyos)."""
         nombre = _normalizar_nombre(nombre)
+        if nombre in PRESTADOS and not _propias(nombre): return PRESTADOS[nombre][0]
         return TINTES[nombre][0] if nombre in TINTES else nombre
 
 
@@ -796,6 +836,13 @@ def armar_animaciones():
         ('paz_mental', ('deepbreath', 'nod', 'charge')), ('defensa_ferrea', ('withdraw', 'pose')), ('pulimento', ('rotate', 'shake')),
         ('descanso', ('laying', 'sleep')), ('respiro', ('deepbreath', 'pose')), ('recuperacion', ('deepbreath', 'pose')), ('sintesis', ('lookup', 'pose')),
         ('proteccion', ('withdraw', 'pose')), ('deteccion', ('lookup', 'pose')), ('ataque_arena', ('swing', 'rumble')),
+        ('pistola_agua', ('shoot', 'spattack', 'emit')), ('ascuas', ('shoot', 'spattack', 'emit')), ('tijera', ('multiscratch', 'chop', 'strike')),
+        ('carantoña', ('multistrike', 'tumble', 'strike')), ('beso', ('attack', 'hop')), ('sentencia', ('spattack', 'emit', 'charge')),
+        ('doble_patada', ('kick', 'double', 'strike')), ('martillazo', ('slam', 'chop', 'strike')), ('hacha', ('chop', 'swing', 'strike')),
+        ('cuchilla', ('chop', 'swing', 'strike')), ('lariat', ('rotate', 'twirl', 'swing')), ('rodada', ('tumble', 'ricochet', 'rotate')),
+        ('bajo_tierra', ('sink', 'rumble')), ('helice', ('rotate', 'twirl')), ('vozarron', ('rearup', 'emit', 'shoot')),
+        ('supersonico', ('emit', 'shoot')), ('mordida', ('bite', 'attack')), ('dracoflechas', ('shoot', 'spattack')),
+        ('metronomo', ('dance', 'twirl', 'charge')), ('raices', ('sink', 'deepbreath')), ('tormenta_hojas', ('spattack', 'rotate', 'swing')),
     )
     # Si el nombre no dice nada: por tipo y forma del movimiento.
     ANIM_TIPO = {
@@ -810,8 +857,22 @@ def armar_animaciones():
         'hielo': {'proyectil': ('spattack', 'shoot'), 'area': ('twirl', 'rotate')},
         'acero': {'cuerpo': ('slam', 'strike'), 'proyectil': ('spattack', 'shoot')},
         'siniestro': {'cuerpo': ('bite', 'multiscratch', 'strike'), 'proyectil': ('multiscratch', 'shoot')},
-        'agua': {'area': ('ricochet', 'rumble', 'swing')},
+        'agua': {'area': ('ricochet', 'rumble', 'swing'), 'cuerpo': ('quickstrike', 'strike'), 'mecanica': ('spattack', 'shoot')},
+        'fuego': {'cuerpo': ('strike', 'quickstrike'), 'proyectil': ('spattack', 'shoot'), 'mecanica': ('spattack', 'emit', 'shoot')},
+        'planta': {'cuerpo': ('swing', 'strike'), 'proyectil': ('shoot', 'spattack'), 'mecanica': ('spattack', 'charge', 'swing')},
+        'bicho': {'cuerpo': ('multiscratch', 'multistrike', 'strike'), 'proyectil': ('shoot', 'spattack')},
+        'hada': {'cuerpo': ('multistrike', 'strike'), 'proyectil': ('twirl', 'spattack', 'shoot'), 'mecanica': ('twirl', 'dance', 'spattack')},
+        'veneno': {'cuerpo': ('jab', 'bite', 'strike'), 'proyectil': ('spattack', 'shoot'), 'mecanica': ('emit', 'spattack', 'shoot')},
+        'normal': {'cuerpo': ('strike', 'slam'), 'mecanica': ('rearup', 'spattack', 'emit')},
     }
+    # Los movimientos con mecanica propia (forma 'mecanica') que no esten arriba usan la de su tipo o, si no, una de estas.
+    for _tipo, _anims in {'psiquico': ('emit', 'spattack', 'charge'), 'volador': ('hover', 'flaparound', 'spattack'), 'tierra': ('rumble', 'sink', 'slam'),
+                          'siniestro': ('multiscratch', 'twirl', 'spattack'), 'roca': ('rearup', 'slam', 'spattack'), 'acero': ('slam', 'spattack', 'strike'),
+                          'dragon': ('spattack', 'rearup', 'shoot'), 'fantasma': ('twirl', 'spattack', 'emit'), 'electrico': ('shock', 'emit', 'spattack'),
+                          'hielo': ('spattack', 'twirl'), 'lucha': ('punch', 'kick', 'strike')}.items():
+        ANIM_TIPO.setdefault(_tipo, {}).setdefault('mecanica', _anims)
+    for _tipo in ('acero', 'hielo', 'tierra', 'dragon'):
+        ANIM_TIPO[_tipo].setdefault('cuerpo', ('strike', 'slam', 'quickstrike'))
 
 
     class _HojasPerezosas(dict):
@@ -875,6 +936,7 @@ def armar_animaciones():
             self.tamaño = max(1, int(tamaño or 40))
             self.carpeta = _buscar_carpeta(_base(self.pokemon))
             self.tono = TINTES[self.pokemon][1] if self.pokemon in TINTES else None
+            self.color_prestado = PRESTADOS[self.pokemon][1] if self.pokemon in PRESTADOS and not _propias(self.pokemon) else None
             self.animaciones = {}
             self.sprites = {}
             self.offsets = {}
@@ -1014,6 +1076,7 @@ def armar_animaciones():
             except Exception:
                 return []
             if self.tono is not None: hoja = teñir(hoja, self.tono)        # chikorita_rosa y otros con otros colores
+            if self.color_prestado: hoja.fill(self.color_prestado, special_flags=pygame.BLEND_RGB_MULT)   # Brute Bonnet: la hoja de Foongus, oscura
             columnas = max(1, hoja.get_width() // anim.ancho)
             filas = max(1, hoja.get_height() // anim.alto)
             frames = []
@@ -1264,10 +1327,10 @@ def armar_animaciones():
 
     def cargar_retrato(nombre):
         """Retrato del pokemon (portrait/Normal.png del PMD), teñido si es una variante de color. None si no tiene."""
-        carpeta = _buscar_carpeta(_base(nombre))
-        if not carpeta:
+        carpetas = [c_ for c_ in dict.fromkeys((_buscar_carpeta(_normalizar_nombre(nombre)), _buscar_carpeta(_base(nombre)))) if c_]   # su retrato, si tiene
+        if not carpetas:
             return None
-        lugares = [carpeta] + [os.path.join(carpeta, sub) for sub in ('portrait', 'portraits', 'retrato', 'retratos')]
+        lugares = [os.path.join(c_, sub) for c_ in carpetas for sub in ('', 'portrait', 'portraits', 'retrato', 'retratos')]
         for lugar in lugares:
             if not os.path.isdir(lugar):
                 continue
@@ -1286,3 +1349,76 @@ def armar_animaciones():
 
 
 animaciones = armar_animaciones()
+
+
+# ==================== sonido ====================
+
+def armar_sonido():
+    """Gritos de los pokemon (assets/sonidos/gritos/<nombre>.ogg, los baja 'python herramientas.py sonidos') y musica
+    (assets/musica/<pista>.ogg / .mp3 / .wav, ver assets/musica/LEEME.txt). Todo es opcional: si falta un archivo o la
+    computadora no tiene audio no suena nada, y el juego sigue igual."""
+    RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+    GRITOS, MUSICA = os.path.join(RAIZ, 'sonidos', 'gritos'), os.path.join(RAIZ, 'musica')
+    EXTENSIONES = ('.ogg', '.mp3', '.wav', '.flac')
+    # si no esta la pista, se prueba con la siguiente (asi con pocas canciones ya suena todo el juego)
+    RESPALDO = {'titulo': 'menu', 'prueba': 'combate', 'tienda': 'hall', 'hall': 'menu', 'final': 'regi', 'regi': 'jefe', 'jefe': 'combate',
+                'era_0': 'combate', 'era_1': 'combate', 'era_2': 'combate', 'era_3': 'combate', 'era_4': 'combate', 'era_5': 'combate'}
+    estado = {'listo': None, 'config': {}, 'pista': None, 'archivo': None, 'gritos': {}}
+
+    def listo():
+        """Arranca el mezclador la primera vez (False si no hay audio)."""
+        if estado['listo'] is None:
+            try:
+                if not pygame.mixer.get_init(): pygame.mixer.init()
+                pygame.mixer.set_num_channels(16)
+                estado['listo'] = True
+            except pygame.error: estado['listo'] = False
+        return estado['listo']
+
+    def iniciar(config):
+        estado['config'] = config
+        volumen()
+
+    def volumen():
+        """Aplica el volumen de la musica de los ajustes."""
+        if not listo(): return
+        try: pygame.mixer.music.set_volume(estado['config'].get('volumen', 50) / 100 * 0.7)
+        except pygame.error: pass
+
+    def grito(nombre, fuerza=1.0):
+        """El grito de un pokemon (las variantes de color usan el de su especie)."""
+        if not listo() or not nombre: return
+        nombre = animaciones.TINTES.get(nombre, (nombre,))[0]
+        if nombre not in estado['gritos']:
+            ruta = os.path.join(GRITOS, nombre + '.ogg')
+            try: estado['gritos'][nombre] = pygame.mixer.Sound(ruta) if os.path.isfile(ruta) else None
+            except pygame.error: estado['gritos'][nombre] = None
+        s = estado['gritos'][nombre]
+        if s:
+            s.set_volume(max(0.0, min(1.0, estado['config'].get('volumen_efectos', 70) / 100 * fuerza)))
+            s.play()
+
+    def _archivo(pista):
+        while pista:
+            for ext in EXTENSIONES:
+                ruta = os.path.join(MUSICA, pista + ext)
+                if os.path.isfile(ruta): return ruta
+            pista = RESPALDO.get(pista)
+        return None
+
+    def musica(pista):
+        """Cambia la musica (con un fundido). Si ya suena el mismo archivo, sigue sin cortarse."""
+        if not listo() or pista == estado['pista']: return
+        estado['pista'] = pista
+        ruta = _archivo(pista)
+        if ruta == estado['archivo']: return
+        estado['archivo'] = ruta
+        try:
+            if ruta: pygame.mixer.music.load(ruta); pygame.mixer.music.play(-1, fade_ms=900); volumen()
+            else: pygame.mixer.music.stop()
+        except pygame.error: estado['archivo'] = None
+
+    return SimpleNamespace(iniciar=iniciar, volumen=volumen, grito=grito, musica=musica, listo=listo, GRITOS=GRITOS, MUSICA=MUSICA)
+
+
+sonido = armar_sonido()

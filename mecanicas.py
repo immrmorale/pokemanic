@@ -1,6 +1,7 @@
 """
-mecanicas.py - Lo que hace unico a cada linea evolutiva de la expansion (y a Chikorita): una pasiva o un especial propio,
-inspirado en lo que dice su Pokedex.
+mecanicas.py - Lo que hace unico a cada linea evolutiva: una pasiva o un especial propio, inspirado en lo que dice su Pokedex.
+Las del juego original (Pikachu, Squirtle, Machop...) cambian la forma de moverse y de pelear: rodar, saltar, cargar golpes,
+teletransportarse, agarrar y revolear, esquives que cortan o dejan cosas, disparos que vuelven...
 
     LINEAS[especie] = (clave, etapa)        etapa 1, 2 o 3: las evoluciones lo hacen mas fuerte
     MECANICAS[clave] = {'nombre', 'desc', 'clase': 'pasiva' | 'especial', ...}
@@ -81,9 +82,43 @@ for _clave, _especies in (
         ('come_hierro', ('aron', 'lairon', 'aggron')),
         ('metronomo', ('cleffa', 'clefairy', 'clefable')),
         ('martillo', ('tinkatink', 'tinkatuff', 'tinkaton')),
-        ('jardin', ('flabebe', 'floette', 'florges'))):
+        ('jardin', ('flabebe', 'floette', 'florges')),
+        # ---------- las lineas del juego original
+        ('ola', ('lapras',)),
+        ('paso_helado', ('sneasel', 'weavile')),
+        ('escarcha', ('snorunt',)), ('bloque_hielo', ('glalie',)), ('velo_fantasma', ('froslass',)),
+        ('bola_nieve', ('spheal', 'sealeo', 'walrein')),
+        ('manto_nieve', ('vanillite', 'vanillish', 'vanilluxe')),
+        ('picado', ('rookidee', 'corvisquire', 'corviknight')),
+        ('plancha_voladora', ('hawlucha',)),
+        ('teletransporte', ('natu', 'xatu')),
+        ('globo', ('drifloon', 'drifblim')),
+        ('iman', ('magnemite', 'magneton', 'magnezone')),
+        ('estatica_veloz', ('pichu', 'pikachu', 'raichu')),
+        ('lana_electrica', ('mareep', 'flaaffy', 'ampharos')),
+        ('cadena', ('shinx', 'luxio', 'luxray')),
+        ('carrera_electrica', ('electrike', 'manectric')),
+        ('bola_pinchos', ('sandshrew', 'sandslash')),
+        ('rodar_explosivo', ('geodude', 'graveler', 'golem')),
+        ('bumeran', ('cubone', 'marowak')),
+        ('pantano', ('wooper', 'quagsire')),
+        ('salto_tiburon', ('gible', 'gabite', 'garchomp')),
+        ('puño_propulsado', ('golett', 'golurk')),
+        ('furia', ('mankey', 'primeape', 'annihilape')),
+        ('llave', ('machop', 'machoke', 'machamp')),
+        ('patada_salto', ('torchic', 'combusken', 'blaziken')),
+        ('aura', ('riolu', 'lucario')),
+        ('viga', ('timburr', 'gurdurr', 'conkeldurr')),
+        ('barro', ('mudkip', 'marshtomp', 'swampert')),
+        ('caparazon', ('squirtle', 'wartortle', 'blastoise')),
+        ('sustituto', ('froakie', 'frogadier', 'greninja')),
+        ('baluarte', ('mareanie', 'toxapex')),
+        ('corte_al_paso', ('oshawott', 'dewott', 'samurott')),
+        ('alas_vendaval', ('fletchling', 'fletchinder', 'talonflame'))):
     LINEAS.update(_linea(_clave, *_especies))
 LINEAS['great_tusk'] = ('rodada', 3); LINEAS['roaring_moon'] = ('vuelo', 3); LINEAS['brute_bonnet'] = ('humo_toxico', 3)
+LINEAS['glalie'] = ('bloque_hielo', 2); LINEAS['froslass'] = ('velo_fantasma', 2)      # Snorunt se divide: cada rama con lo suyo
+LINEAS['clodsire'] = ('pantano', 2); LINEAS['samurott_hisui'] = ('corte_al_paso', 3)
 
 
 def _p(nombre, desc, **extra): return dict({'nombre': nombre, 'desc': desc, 'clase': 'pasiva'}, **extra)
@@ -177,8 +212,43 @@ MECANICAS = {
     'come_hierro': _p('Come hierro', 'recibe 10% menos y al romper cosas se cura 4% (Aggron además tiene una embestida blindada)'),
     # ---------- hada
     'metronomo': _e('Metrónomo', 'mueve el dedo y sale un movimiento al azar de cualquier pokemon. Clefable no sufre daño del terreno ni del veneno', 6000, 'hada'),
-    'martillo': _p('Martillo de chatarra', 'sus golpes cuerpo a cuerpo hacen el doble a los voladores y 30% más a los de acero (Tinkaton: un especial de martillazo gigante)'),
+    'martillo': _e('Martillo propulsor', 'golpea el piso con el martillo y sale disparada hacia adelante. Sus golpes cuerpo a cuerpo hacen el doble a los voladores '
+                   'y 30% más a los de acero. Tinkaton: su ESQUIVE es el martillo propulsor (sale disparada lejos y cae golpeando), y su martillazo gigante (R) la deja aturdida un momento', 6000, 'hada'),
     'jardin': _e('Jardín floral', 'planta un círculo de flores por 6 s: adentro se cura 2% por segundo y recibe 20% menos', 18000, 'hada'),
+    # ---------- las lineas del juego original: formas distintas de moverse y de pelear
+    'ola': _e('Surf', 'se sube a una ola y avanza en línea arrastrando a todos los que toca hasta el final', 9000, 'agua'),
+    'paso_helado': _p('Paso helado', 'el esquive atraviesa a los enemigos y les hace un tajo helado que los frena. Weavile: si el esquive corta a alguien, se recarga al instante'),
+    'escarcha': _p('Cuerpo de escarcha', 'sus golpes cuerpo a cuerpo a veces (25%) congelan un poco: el enemigo queda frenado. Evoluciona en Glalie o en Froslass'),
+    'bloque_hielo': _e('Bloque de hielo', 'se encierra en un bloque de hielo 1,5 s (no recibe nada, no se mueve) y revienta congelando a los de alrededor', 9000, 'hielo'),
+    'velo_fantasma': _e('Velo fantasma', 'se vuelve un espíritu de nieve 2,5 s: atraviesa paredes y enemigos, corre más, los enemigos la pierden de vista y los que atraviesa quedan congelados', 10000, 'hielo'),
+    'bola_nieve': _e('Bola de nieve', 'se hace bola y rueda: corre mucho más y atropella a lo que toca. Cuanto más rueda más grande y más fuerte pega. Atacar (o R de nuevo) lo para', 1500, 'hielo'),
+    'manto_nieve': _p('Manto de nieve', 'deja un rastro de nieve donde camina: los enemigos que lo pisan quedan frenados (dura más al evolucionar)'),
+    'picado': _e('Picado', 'levanta vuelo y cae en picada hacia donde apuntás: en el aire no lo tocan y le pega a todo lo que cruza. Corviknight aterriza blindado 1 s', 6000, 'volador'),
+    'plancha_voladora': _e('Plancha voladora', 'salta hacia donde apuntás (en el aire no lo tocan) y cae aplastando y aturdiendo; si cae justo encima de alguien le hace el doble', 7000, 'lucha'),
+    'teletransporte': _e('Teletransporte', 'aparece donde apuntás, atravesando lo que haya en el medio. Xatu deja una premonición donde estaba: explota al segundo', 4500, 'psiquico'),
+    'globo': _p('Globo', 'flota: el esquive es un planeo casi el doble de largo. Cuando lo debilitan, explota (Detonación) y lastima a todos alrededor'),
+    'iman': _p('Imán', 'sus disparos se curvan solos hacia el enemigo más cercano (más fuerte al evolucionar)'),
+    'estatica_veloz': _p('Estática veloz', 'el esquive deja una estela eléctrica que paraliza a los que la cruzan. Raichu esquiva más lejos; Pichu a veces se electrocuta a sí mismo'),
+    'lana_electrica': _p('Lana eléctrica', 'caminando junta electricidad en la lana (corriendo, más rápido). Con la lana llena, el próximo golpe suelta una descarga alrededor que paraliza'),
+    'cadena': _p('Chispa en cadena', 'el remate del combo salta en cadena a 2, 3 o 4 enemigos cercanos (según la evolución)'),
+    'carrera_electrica': _p('Carrera eléctrica', 'corriendo junta carga: el primer golpe después de correr pega más (hasta +50%, Manectric +80%) y paraliza'),
+    'bola_pinchos': _p('Bola de pinchos', 'esquiva hecho una bola: el esquive es más largo y lastima a lo que toca. Sandslash además deja pinchos en el camino'),
+    'rodar_explosivo': _e('Rodar explosivo', 'se tira rodando y al terminar explota alrededor (más grande al evolucionar). Golem pierde 15% de su vida al explotar', 8000, 'roca'),
+    'bumeran': _p('Hueso bumerán', 'su ataque a distancia es su hueso: va, vuelve y pega a la ida y a la vuelta. Hasta que no vuelve no puede tirarlo de nuevo'),
+    'pantano': _e('Pantano', 'escupe barro donde apunta: un charco que frena mucho a los enemigos y en el que él se desliza rápido (Clodsire: barro venenoso)', 8000, 'tierra'),
+    'salto_tiburon': _e('Salto tiburón', 'salta sobre el enemigo más cercano y lo muerde. Garchomp rebota y muerde a un segundo enemigo', 6000, 'dragon'),
+    'puño_propulsado': _e('Puño propulsado', 'MANTENÉ R para cargar el puño (camina lento) y soltalo: sale propulsado hacia adelante. Más carga, más lejos y más daño (Golurk carga más rápido)', 7000, 'tierra'),
+    'furia': _p('Furia', 'cada golpe que recibe lo enoja: +5% de daño y velocidad por golpe (hasta 4, 6 u 8); se le pasa si deja de pelear. Annihilape: la primera vez por sala que lo debilitan queda con 1 de vida'),
+    'llave': _e('Llave', 'agarra al enemigo de adelante y lo revolea hacia donde apuntás: al que choca le pega, y al caer queda aturdido. A los jefes solo les pega', 7000, 'lucha'),
+    'patada_salto': _p('Patada en salto', 'el esquive termina en una patada de fuego alrededor. Blaziken puede esquivar dos veces seguidas'),
+    'aura': _p('Aura', 'lee las intenciones: la ventana de parry dura más (Riolu +20%, Lucario +40%). El parry de Lucario dispara una Esfera Aural que persigue'),
+    'viga': _e('Golpe de viga', 'golpea el piso con su viga: una onda de choque avanza en línea pegándole a todo (Conkeldurr: dos ondas en abanico)', 7000, 'lucha'),
+    'barro': _p('Barro', 'el remate del combo deja un charco de barro que frena a los enemigos; en el barro, el agua y los charcos se mueve mucho más rápido'),
+    'caparazon': _e('Caparazón', 'se mete en el caparazón: recibe 80% menos, se desliza más rápido y empuja a los que toca. Blastoise dispara agua girando. Atacar (o R de nuevo) lo saca', 1500, 'agua'),
+    'sustituto': _p('Sustituto', 'el esquive deja un sustituto de agua: los enemigos cerca lo pierden de vista y al rato revienta. Greninja: con un esquive perfecto aparece detrás del enemigo'),
+    'baluarte': _e('Baluarte', 'se encierra en su cúpula de púas (2 s, Toxapex 3 s y se cura): casi no recibe daño, y el que le pega se envenena y se lastima', 10000, 'veneno'),
+    'corte_al_paso': _e('Corte al paso', 'sale disparado con su vieira y un instante después todos los que cruzó reciben el tajo. Samurott corta dos veces; el de Hisui deja envenenado', 6000, 'agua'),
+    'alas_vendaval': _p('Alas vendaval', 'con más de 75% de vida, esquivar no gasta energía. Fletchinder y Talonflame dejan fuego al esquivar'),
 }
 
 # especiales extra de una especie en particular (ademas de su pasiva de linea)
@@ -188,7 +258,7 @@ ESPECIE_ESPECIAL = {
     'haxorus': _e('Guillotina', 'un tajo que remata a los enemigos con menos de 30% de vida (a los jefes les pega fuerte)', 12000, 'dragon', clave='guillotina_especial'),
     'grimmsnarl': _e('Pelo trenzado', 'un golpe gigante con el pelo hecho músculo: mucho daño y empuja', 9000, 'hada', clave='pelo_trenzado'),
     'aggron': _e('Embestida blindada', 'una embestida que no se frena y no deja que le peguen mientras dura', 9000, 'acero', clave='blindada'),
-    'tinkaton': _e('Martillazo gigante', 'un martillazo lento y enorme adelante', 10000, 'hada', clave='martillazo'),
+    'tinkaton': _e('Martillazo gigante', 'un martillazo enorme adelante que aturde... pero el peso la deja aturdida 1,2 s', 10000, 'hada', clave='martillazo'),
     'tyrantrum': _e('Mordida colosal', 'muerde al de adelante, lo sacude y lo deja aturdido', 9000, 'roca', clave='mordida_colosal'),
     'galvantula': _e('Telaraña eléctrica', 'tira una red que frena y paraliza a los que quedan adentro', 9000, 'electrico', clave='telarana'),
     'leavanny': _e('Tormenta de hojas', 'hojas filosas giran alrededor 3 s', 10000, 'planta', clave='tormenta_hojas'),
@@ -237,6 +307,119 @@ ENEMIGO_TXT = {
     'mente': 'Elgyem y Beheeyem: te controlan la mente (anillo violeta) y caminás al revés un rato',
     'huye': 'Joltik y Galvantula: con poca vida se asustan y escapan',
 }
+
+
+# ---------------------------------------------------------------- lazos de equipo
+# Ademas de la pasiva que cada uno da desde la banca, el EQUIPO ENTERO gana algo si sus pokemon se complementan:
+#   - resonancia: dos (o tres) que comparten un tipo potencian lo que ese tipo hace mejor
+#   - lazos: lineas que segun su historia (la Pokedex, las regiones, lo que comen o con quien pelean) van juntas
+# Cuentan los que estan en pie (tambien el que pelea). Lo que dan se suma a la sinergia (daño, defensa, velocidad, recargas, energia).
+RESONANCIA = {'normal': 'energia', 'fuego': 'daño', 'agua': 'defensa', 'electrico': 'velocidad', 'planta': 'energia', 'hielo': 'enfriamiento',
+              'lucha': 'daño', 'veneno': 'enfriamiento', 'tierra': 'defensa', 'volador': 'velocidad', 'psiquico': 'enfriamiento', 'bicho': 'velocidad',
+              'roca': 'defensa', 'fantasma': 'enfriamiento', 'dragon': 'daño', 'siniestro': 'daño', 'acero': 'defensa', 'hada': 'energia'}
+FUERZA_RESONANCIA = {2: 0.05, 3: 0.09}                  # dos del mismo tipo, o los tres (la de energia vale el triple)
+TOPE_LAZOS = 0.18                                       # lo mas que pueden sumar los lazos a una misma cosa
+_EEVEES = ('adaptable', 'absorbe_agua', 'agujas', 'absorbe_fuego', 'premonicion', 'sudor_venenoso', 'fotosintesis', 'cuerpo_helado', 'cintas')
+# (nombre, por que van juntos, claves de linea, cuantas distintas hacen falta, lo que da)
+LAZOS = (
+    ('Trío elemental', 'fuego, agua y planta: el triángulo de siempre', None, 3, {'daño': 0.05, 'defensa': 0.05}),
+    ('Compañeros de Hoenn', 'Mudkip y Torchic salieron juntos del mismo laboratorio', ('barro', 'patada_salto'), 2, {'daño': 0.06}),
+    ('Familia Eevee', 'las evoluciones de Eevee se reconocen entre sí', _EEVEES, 2, {'enfriamiento': 0.06, 'energia': 0.12}),
+    ('Rivales de dojo', 'Mankey y Machop entrenan pegándose', ('furia', 'llave'), 2, {'daño': 0.07}),
+    ('Maestro y aprendiz', 'Lucario le enseña a leer el aura a los que pelean con los puños', ('aura', 'llave', 'viga', 'punos_toxicos'), 2, {'enfriamiento': 0.05, 'energia': 0.12}),
+    ('Fósiles revividos', 'Anorith y Tyrunt vienen de la misma era', ('armadura_fosil', 'mandibula'), 2, {'defensa': 0.08}),
+    ('Constructores', 'Timburr pone las vigas y Tinkatink los clavos', ('viga', 'martillo'), 2, {'defensa': 0.05, 'daño': 0.04}),
+    ('Cazadora de cuervos', 'Tinkaton les tira piedras a los Corviknight; juntos aprendieron a respetarse', ('martillo', 'picado'), 2, {'daño': 0.08}),
+    ('Filos', 'espadas, cuchillas y vieiras: se afilan entre ellos', ('cuerpo_cuchillas', 'tajo_teledirigido', 'corte_al_paso', 'tajo_psiquico', 'filo_amargo', 'tecnico', 'tecnico_veloz', 'hacha_piedra'), 2, {'daño': 0.06}),
+    ('Tragamisil cargado', 'Cramorant siempre lleva un Arrokuda en el pico', ('tragamisil', 'helice'), 2, {'daño': 0.08, 'velocidad': 0.04}),
+    ('Cortejo de sombras', 'velas, tocones y perros que acompañan a los que se fueron', ('absorbe_almas', 'raices', 'ultimos_respetos', 'rencor', 'globo', 'velo_fantasma'), 2, {'enfriamiento': 0.07}),
+    ('Espada y escudo', 'Gardevoir protege y Gallade corta: salieron del mismo Kirlia', ('agujero_negro', 'tajo_psiquico', 'sincronia'), 2, {'daño': 0.04, 'defensa': 0.05}),
+    ('Excavadores', 'Diglett y Sandshrew comparten túneles', ('bajo_tierra', 'bola_pinchos', 'salto_tiburon'), 2, {'velocidad': 0.07}),
+    ('Máquinas', 'imanes y engranajes: una sola máquina', ('iman', 'engranajes', 'puño_propulsado'), 2, {'enfriamiento': 0.08}),
+    ('Mares helados', 'Lapras lleva a los Spheal sobre el lomo', ('ola', 'bola_nieve'), 2, {'defensa': 0.08}),
+    ('Perro y gato', 'Growlithe y Litten se pelean... y se cuidan', ('guardian', 'intimidacion', 'olfato', 'cadena'), 2, {'energia': 0.15, 'daño': 0.03}),
+    ('Tramposos', 'ilusiones y bromas: nadie sabe por dónde vienen', ('ilusion', 'bromista', 'sustituto', 'paso_helado'), 2, {'velocidad': 0.07}),
+    ('Sanadores', 'pasto, flores y un cuerno que cura', ('rastro_pasto', 'jardin', 'cuerno_sanador', 'abrigo_hojas', 'metronomo'), 2, {'defensa': 0.05, 'energia': 0.15}),
+    ('Ninja y samurái', 'Greninja y Samurott: dos escuelas, un mismo río', ('sustituto', 'corte_al_paso'), 2, {'daño': 0.05, 'velocidad': 0.04}),
+    ('Amigos del barro', 'Wooper y Mudkip comparten el charco', ('pantano', 'barro'), 2, {'velocidad': 0.07}),
+    ('Montañas vivas', 'Tyranitar y Aggron mueven montañas (y se las comen)', ('chorro_arena', 'come_hierro', 'rodar_explosivo'), 2, {'defensa': 0.08}),
+    ('Videntes', 'Xatu mira el futuro y Elgyem las mentes', ('teletransporte', 'control_mental', 'premonicion', 'oleada_psiquica'), 2, {'enfriamiento': 0.07}),
+    ('Manada eléctrica', 'cuando corren juntos se cargan unos a otros', ('carrera_electrica', 'cadena', 'estatica_veloz', 'lana_electrica', 'agujas'), 2, {'velocidad': 0.04, 'energia': 0.12}),
+    ('Dragones', 'los dragones solo respetan a otros dragones', ('salto_tiburon', 'guillotina', 'vuelo', 'dracoflechas', 'piel_tosca', 'mandibula'), 2, {'daño': 0.06}),
+    ('Esporas y veneno', 'hongos, lodo y tinta: todo lo que tocan queda enfermo', ('espora', 'humo_toxico', 'glotoneria', 'tinta_toxica', 'baluarte', 'supersonico'), 2, {'enfriamiento': 0.06}),
+    ('Paradojas', 'los que el tiempo trajo de donde no debía', None, 2, {'daño': 0.06, 'velocidad': 0.04}),
+)
+PARADOJAS = ('great_tusk', 'roaring_moon', 'iron_thorns', 'brute_bonnet')
+
+
+def lazos_de(especies, tipos_de):
+    """Los lazos que tiene este equipo: [(nombre, por que, {clave: valor})]. especies: los que estan en pie; tipos_de(especie) -> sus tipos."""
+    especies = list(dict.fromkeys(especies))
+    if len(especies) < 2: return []
+    claves = {LINEAS.get(e, (None,))[0] for e in especies}
+    tipos = [set(tipos_de(e)) for e in especies]
+    salida = []
+    for tipo, clave in RESONANCIA.items():                        # resonancia de tipo
+        cuantos = sum(1 for t in tipos if tipo in t)
+        if cuantos >= 2:
+            fuerza = FUERZA_RESONANCIA[min(3, cuantos)] * (3 if clave == 'energia' else 1)
+            salida.append(('Resonancia ' + tipo, str(cuantos) + ' pokemon de tipo ' + tipo, {clave: round(fuerza, 3)}))
+    for nombre, motivo, lineas, hacen_falta, da in LAZOS:
+        if nombre == 'Trío elemental': tiene = all(any(t in ts for ts in tipos) for t in ('fuego', 'agua', 'planta')) and len(especies) >= 3
+        elif nombre == 'Paradojas': tiene = sum(1 for e in especies if e in PARADOJAS) >= hacen_falta
+        else: tiene = len(claves & set(lineas)) >= hacen_falta
+        if tiene: salida.append((nombre, motivo, dict(da)))
+    return salida
+
+
+NOMBRE_BONO = {'daño': 'daño', 'defensa': 'menos daño recibido', 'velocidad': 'velocidad', 'enfriamiento': 'recargas más rápidas', 'energia': 'energía'}
+
+
+def _titulo(especie): return especie.replace('_', ' ').title()
+
+
+def texto_bono(da):
+    """'+6% daño, +4% velocidad' a partir de lo que da un lazo."""
+    return ', '.join('+' + str(round(v * 100)) + '% ' + NOMBRE_BONO.get(c, c) for c, v in da.items())
+
+
+def primera_de(clave):
+    """El primer pokemon de la linea que tiene esa mecanica (Mudkip para 'barro'): con ese nombre se la reconoce."""
+    return min((e for e, (c, _) in LINEAS.items() if c == clave), key=lambda e: (LINEAS[e][1], e), default=clave)
+
+
+def miembros_lazo(nombre):
+    """Quienes forman un lazo, en palabras: las lineas que cuentan (por su primer pokemon) y cuantas hacen falta."""
+    lazo = next(l for l in LAZOS if l[0] == nombre)
+    if nombre == 'Trío elemental': return 'uno de fuego, uno de agua y uno de planta (los tres en el equipo)'
+    if nombre == 'Paradojas': return 'dos de: ' + ', '.join(_titulo(e) for e in PARADOJAS)
+    lineas = [_titulo(primera_de(c)) for c in lazo[2]]
+    if len(lineas) == lazo[3]: return ' y '.join(lineas) + ' (o sus evoluciones)'
+    return str(lazo[3]) + ' de estas líneas: ' + ', '.join(lineas)
+
+
+def lazos_posibles(especie, tipos):
+    """Los lazos que este pokemon puede formar: [(nombre, con quien, lo que da)] (para su ficha y la pokedex)."""
+    clave = LINEAS.get(especie, (None,))[0]
+    salida = []
+    for nombre, _, lineas, hacen_falta, da in LAZOS:
+        if nombre == 'Trío elemental':
+            if any(t in tipos for t in ('fuego', 'agua', 'planta')): salida.append((nombre, 'con los otros dos tipos del trío (fuego, agua, planta)', da))
+        elif nombre == 'Paradojas':
+            if especie in PARADOJAS: salida.append((nombre, 'con otra forma paradoja', da))
+        elif clave in lineas:
+            salida.append((nombre, 'con ' + ', '.join(_titulo(primera_de(c)) for c in lineas if c != clave), da))
+    for t in tipos:
+        if t in RESONANCIA: salida.append(('Resonancia ' + t, 'con otro de tipo ' + t, {RESONANCIA[t]: FUERZA_RESONANCIA[2] * (3 if RESONANCIA[t] == 'energia' else 1)}))
+    return salida
+
+
+def suma_lazos(lazos):
+    """Todo lo que dan los lazos juntos, con el tope por cosa (la energia vale el triple, como en las sinergias)."""
+    total = {}
+    for _, _, da in lazos:
+        for clave, valor in da.items(): total[clave] = total.get(clave, 0) + valor
+    return {clave: round(min(valor, TOPE_LAZOS * (3 if clave == 'energia' else 1)), 3) for clave, valor in total.items()}
 
 
 # ---------------------------------------------------------------- logica
@@ -320,7 +503,10 @@ def armar(c):
     def al_cambiar(j):
         """Cambiaste de pokemon: lo que era del que salio se va (ilusion, bajo tierra, vuelo, prediccion...)."""
         e = estado(j)
-        for k in ('ilusion_hasta', 'bajo_hasta', 'vuelo_hasta', 'prediccion_hasta', 'rodada_hasta', 'teledirigido', 'espada_hasta', 'escudo_hasta', 'marchas', 'calor'):
+        if e.get('bloque_hasta') or e.get('baluarte_hasta'): j['atrapado_hasta'] = 0
+        for k in ('ilusion_hasta', 'bajo_hasta', 'vuelo_hasta', 'prediccion_hasta', 'rodada_hasta', 'teledirigido', 'espada_hasta', 'escudo_hasta', 'marchas', 'calor',
+                  'caparazon', 'bola', 'bloque_hasta', 'velo_hasta', 'velo_tocados', 'salto', 'carga_desde', 'baluarte_hasta', 'furia', 'lana', 'corrido',
+                  'carrera', 'corte', 'explota', 'ola', 'blindado_hasta', 'doble', 'esquivando', 'martillo_salto'):
             e.pop(k, None)
         j.pop('ilusion_hasta', None)
         if j.get('disfraz'): j.pop('disfraz'); c.rehacer_animador(j)
@@ -350,6 +536,8 @@ def armar(c):
         if e.get('espada_hasta', 0) > T(): m *= 1.3                    # Aegislash en modo espada
         if j.get('ilusion_hasta', 0) > T() and not o.get('objeto'): m *= 2.0     # el golpe desde la ilusion
         if e.get('fuego_hasta', 0) > T(): m *= 1.3                     # Flareon potenciado por fuego
+        if clave == 'furia': m *= 1 + 0.05 * e.get('furia', 0)
+        if clave == 'carrera_electrica' and e.get('carrera') and e.get('carrera_hasta', 0) > T(): m *= 1 + e['carrera']
         return m
 
     def tras_golpe(j, o, datos, hecho):
@@ -369,6 +557,12 @@ def armar(c):
             dx, dy = j['rect'].centerx - o['rect'].centerx, j['rect'].centery - o['rect'].centery
             d = math.hypot(dx, dy) or 1
             c.mover_entidad(o, round(dx / d * min(40, d - 30)), round(dy / d * min(40, d - 30)))
+        if clave == 'escarcha' and contacto and random.random() < 0.25: poner_a(o, 'ralentizar', 2000)
+        if clave == 'carrera_electrica' and e.get('carrera') and hecho: e.pop('carrera'); poner_a(o, 'paralizar', 800)
+        if clave == 'lana_electrica' and e.get('lana', 0) >= 1 and hecho and c.mundo.get('nivel'):     # descarga la lana (se vacia antes: el area no la vuelve a disparar)
+            e['lana'] = 0
+            area(j, c.mundo['nivel'], o['rect'].center, 100 + 15 * etapa(j), 18 + 8 * etapa(j), 'electrico', 30, {'tipo': 'paralizar', 'duracion': 1200, 'probabilidad': 100})
+            efecto_onda(c.mundo['nivel'], *o['rect'].center, 100 + 15 * etapa(j), 'electrico', 350)
         if j.get('ilusion_hasta', 0) > T(): termina_ilusion(j)
 
     def remate(j, nivel, tocados):
@@ -377,6 +571,18 @@ def armar(c):
         if clave == 'agujas':                                          # Jolteon: agujas en abanico
             c.lanzar(j, {'tipo': 'electrico', 'daño': daño(j, 10, 'electrico'), 'distancia': 300, 'area': 7, 'velocidad': 13, 'cantidad': 5,
                          'abanico': 50, 'retroceso': 4, 'efecto': {'tipo': 'paralizar', 'duracion': 800, 'probabilidad': 15}, 'jugador': True}, nivel['proyectiles_pokemon'])
+        ahora = T(); et = etapa(j); px, py = j['rect'].center; ax, ay = j['aim']
+        if clave == 'cadena' and tocados:                              # Shinx: el remate salta de enemigo en enemigo
+            sin = list(tocados); x0, y0 = tocados[0]['rect'].center
+            for _ in range(1 + et):
+                cand = [o for o in enemigos_vivos(nivel) if o not in sin and math.hypot(o['rect'].centerx - x0, o['rect'].centery - y0) < 230]
+                if not cand: break
+                o = min(cand, key=lambda o: math.hypot(o['rect'].centerx - x0, o['rect'].centery - y0)); sin.append(o)
+                golpear_a(j, o, 10 + 6 * et, 'electrico', 10, {'tipo': 'paralizar', 'duracion': 700, 'probabilidad': 40})
+                nivel['efectos'].append({'x': x0, 'y': y0, 'linea': o['rect'].center, 'radio': 4, 'tipo': 'electrico', 'inicio': ahora, 'hasta': ahora + 220})
+                x0, y0 = o['rect'].center
+        if clave == 'barro':
+            cosa(nivel, clase='barro', x=px + ax * 50, y=py + ay * 50, radio=55 + 15 * et, hasta=ahora + 4000, tick=0, veneno=False, daño=0)
         if clave == 'engranajes' and tocados:
             e['marchas'] = min(3, e.get('marchas', 0) + 1)
             c.poner_buff(j, 'velocidad', 1 + 0.08 * e['marchas'], 600000); c.poner_buff(j, 'enfriamiento', 1 - 0.08 * e['marchas'], 600000)
@@ -385,6 +591,7 @@ def armar(c):
         return 0.75 if es(j, 'tecnico_veloz') else 1.0
 
     def mult_parry(j):
+        if es(j, 'aura'): return 1.2 if etapa(j) == 1 else 1.4
         return 1.4 if mec(j)[0] in ('armadura_fosil', 'tajo_psiquico') else 1.0
 
     def al_parry(j, nivel, atacante=None):
@@ -392,6 +599,10 @@ def armar(c):
         clave = mec(j)[0]; e = estado(j)
         if clave == 'punos_toxicos' and atacante: poner_a(atacante, 'veneno', 5000)
         if j['nombre'] == 'aegislash': e['escudo_hasta'] = T() + 5000; e.pop('espada_hasta', None); c.cartel(nivel, 'Modo escudo', 700)
+        if j['nombre'] == 'lucario' and atacante:                      # Esfera Aural que persigue
+            dx, dy = atacante['rect'].centerx - j['rect'].centerx, atacante['rect'].centery - j['rect'].centery; d = math.hypot(dx, dy) or 1
+            cosa(nivel, clase='flecha', x=float(j['rect'].centerx), y=float(j['rect'].centery), vx=dx / d * 6, vy=dy / d * 6, hasta=T() + 2500,
+                 daño=daño(j, 36, 'lucha'), golpeados=[], tipo='lucha')
 
     # ---------- golpes que recibis
     def recibido(j, cuanto, tipo, atacante=None, evitable=True):
@@ -400,6 +611,9 @@ def armar(c):
         t = c.normalizar_tipo(tipo) if tipo else None
         nivel = c.mundo.get('nivel')
         if e.get('bajo_hasta', 0) > ahora or e.get('vuelo_hasta', 0) > ahora: return 0      # bajo tierra / volando: no lo tocan
+        if e.get('salto') or e.get('bloque_hasta', 0) > ahora: return 0                    # en el aire (picado, plancha) o adentro del hielo
+        if e.get('baluarte_hasta', 0) > ahora and atacante and evitable and cuanto > 0:      # la cupula de puas castiga al que pega
+            poner_a(atacante, 'veneno', 5000); atacante['vida'] = max(0, atacante['vida'] - atacante['max_vida'] * 0.06); atacante['golpe_flash'] = T()
         if evitable and e.get('prediccion_hasta', 0) > ahora and cuanto > 0:               # Prediccion: lo esquiva solo
             c.esquive_perfecto(j); return 0
         if clave == 'superguarda' and evitable and c.multiplicador_tipos(t or 'normal', j['tipos']) < 2:
@@ -427,6 +641,12 @@ def armar(c):
         if e.get('espada_hasta', 0) > ahora: m *= 1.15
         if e.get('guardia_baja_hasta', 0) > ahora: m *= 1.3
         if nivel and dentro_jardin(nivel, j): m *= 0.8
+        if e.get('caparazon'): m *= 0.15 if j['nombre'] == 'blastoise' else 0.2
+        if e.get('baluarte_hasta', 0) > ahora: m *= 0.15
+        if e.get('blindado_hasta', 0) > ahora: m *= 0.3
+        if e.get('velo_hasta', 0) > ahora: m *= 0.5
+        if clave == 'furia' and cuanto * m >= 1 and evitable:
+            e['furia'] = min(2 + 2 * etapa(j), e.get('furia', 0) + 1); e['furia_hasta'] = ahora + 6000
         if clave == 'calor' and cuanto * m >= 1: e['calor'] = 0.0                       # se enfria
         if clave == 'engranajes' and cuanto * m >= 1 and e.get('marchas'):
             e['marchas'] -= 1
@@ -499,6 +719,14 @@ def armar(c):
         if e.get('vuelo_hasta', 0) > T(): m *= 1.4
         if e.get('bajo_hasta', 0) > T(): m *= 1.3
         if j['nombre'] == 'shelgon': m *= 0.85
+        ahora = T(); nivel = c.mundo.get('nivel')
+        if e.get('bola'): m *= 1.45 + 0.15 * etapa(j)
+        if e.get('caparazon'): m *= 1.2
+        if e.get('velo_hasta', 0) > ahora: m *= 1.35
+        if e.get('carga_desde'): m *= 0.45
+        if es(j, 'furia'): m *= 1 + 0.03 * e.get('furia', 0)
+        if es(j, 'barro') and c.terreno_bajo(j) in ('agua', 'charco'): m *= 1.3
+        if mec(j)[0] in ('barro', 'pantano') and nivel and en_cosa(nivel, j, 'barro'): m *= 1.4
         return m
 
     def mult_recarga(j):
@@ -513,7 +741,7 @@ def armar(c):
 
     def ignora_solidos(j):
         e = estado(j); ahora = T()
-        return e.get('bajo_hasta', 0) > ahora or e.get('vuelo_hasta', 0) > ahora
+        return e.get('bajo_hasta', 0) > ahora or e.get('vuelo_hasta', 0) > ahora or e.get('velo_hasta', 0) > ahora or bool(e.get('salto'))
 
     def invisible(j):
         """No se dibuja el sprite (bajo tierra)."""
@@ -521,6 +749,9 @@ def armar(c):
 
     def altura_vuelo(j):
         e = estado(j); ahora = T()
+        if e.get('salto'):                                             # picado, plancha, salto tiburon: una parabola
+            s = e['salto']; k = min(1.0, (ahora - s['inicio']) / s['dura'])
+            return round({'picado': 22, 'plancha': 46, 'tiburon': 28}.get(s['clase'], 24) * math.sin(math.pi * k))
         if e.get('vuelo_hasta', 0) <= ahora: return 0
         falta = e['vuelo_hasta'] - ahora; total = 3000
         return round(28 * math.sin(math.pi * min(1.0, (total - falta) / total)) + 6)
@@ -588,6 +819,7 @@ def armar(c):
                 j['embestida']['vx'], j['embestida']['vy'] = dx / d, dy / d
                 j['aim'] = (dx / d, dy / d)
         elif e.get('teledirigido') and not j['embestida']: e.pop('teledirigido')
+        cuadro_nuevo(j, nivel, ahora, clave, et, e)
         if j.get('ilusion_hasta') and ahora >= j['ilusion_hasta']: termina_ilusion(j)
         if e.get('lento_hasta') and ahora >= e['lento_hasta']: e.pop('lento_hasta')
         if e.get('prediccion_hasta', 0) > ahora and not e.get('lento_hasta'):     # algo muy rapido viene: camara lenta
@@ -623,6 +855,7 @@ def armar(c):
     # ---------- especiales
     def usar(j, datos, nivel):
         """Usa el especial de mecanica (casilla R)."""
+        if usar_nuevo(j, datos, nivel): return                         # las del juego original (caparazon, picado, llave...)
         clave = datos['mecanica']; et = datos.get('etapa', 1); ahora = T(); e = estado(j)
         px, py = j['rect'].center; ax, ay = j['aim']
         if clave == 'vozarron':
@@ -760,6 +993,7 @@ def armar(c):
             for o in cono(j, nivel, 140, 55):
                 golpear_a(j, o, 70 * (2 if 'volador' in c.tipos_de(o) else 1), 'hada', 90, {'tipo': 'paralizar', 'duracion': 800, 'probabilidad': 100})
             c.efectos.explosion(c.mundo['ef'], px + ax * 80, py + ay * 80, 90); c.temblor(nivel, 260)
+            c.poner_estado(j, 'aturdido', 1200)                        # el martillo pesa: queda aturdida un momento
         elif clave == 'mordida_colosal':
             o = objetivo_cercano(j, nivel, 130)
             if o: golpear_a(j, o, 70, 'roca', 10, {'tipo': 'paralizar', 'duracion': 1500, 'probabilidad': 100}); c.temblor(nivel, 200)
@@ -795,6 +1029,9 @@ def armar(c):
         if not cosas: return
         for x in cosas[:]:
             cl = x['clase']
+            if cl in ('hueso', 'onda', 'chispa', 'llamas', 'nieve', 'barro', 'pinchos', 'premonicion', 'sustituto'):
+                if cosa_nueva(j, nivel, x, ahora): cosas.remove(x)
+                continue
             if cl == 'bomba' and ahora >= x['hasta']:
                 area(x['j'], nivel, (x['x'], x['y']), x['radio'], 0, 'planta', 40)   # el daño ya viene escalado
                 for o in c.objetivos_de(nivel, True):
@@ -814,7 +1051,7 @@ def armar(c):
                     if cl == 'raices' and o not in x['atrapados']: poner_a(o, 'paralizar', max(300, x['hasta'] - ahora)); x['atrapados'].append(o)
                     efecto = {'tipo': 'veneno', 'duracion': 3000, 'probabilidad': 100} if cl in ('nube', 'charco') else None
                     if cl == 'nube': poner_a(o, 'ralentizar', 1200)
-                    c.recibir_ataque(o, {'tipo': {'nube': 'veneno', 'charco': 'veneno', 'piedras': 'roca', 'agujero': 'psiquico', 'raices': 'planta', 'hojas': 'planta'}[cl],
+                    c.recibir_ataque(o, {'tipo': x.get('tipo') or {'nube': 'veneno', 'charco': 'veneno', 'piedras': 'roca', 'agujero': 'psiquico', 'raices': 'planta', 'hojas': 'planta'}[cl],
                                          'daño': x['daño'], 'retroceso': 0, 'efecto': efecto, 'jugador': True}, None)
                     if cl == 'piedras': x['hasta'] = min(x['hasta'], ahora + 2500)
             if cl == 'jardin' and math.hypot(x['x'] - j['rect'].centerx, x['y'] - j['rect'].centery) < x['radio'] and nivel['frame'] % 30 == 0:
@@ -826,8 +1063,9 @@ def armar(c):
                     dx, dy = o['rect'].centerx - x['x'], o['rect'].centery - x['y']; d = math.hypot(dx, dy) or 1
                     x['vx'] = x['vx'] * 0.85 + dx / d * 1.6; x['vy'] = x['vy'] * 0.85 + dy / d * 1.6
                     if d < 20 + max(o['rect'].size) / 2:
-                        c.recibir_ataque(o, {'tipo': 'dragon', 'daño': x['daño'], 'retroceso': 25, 'jugador': True}, None)
-                        x['golpeados'].append(o); c.efectos.golpe(c.mundo['ef'], x['x'], x['y'], (111, 53, 252), 'dragon'); x['hasta'] = ahora
+                        tipo_f = x.get('tipo', 'dragon')
+                        c.recibir_ataque(o, {'tipo': tipo_f, 'daño': x['daño'], 'retroceso': 25, 'jugador': True}, None)
+                        x['golpeados'].append(o); c.efectos.golpe(c.mundo['ef'], x['x'], x['y'], (111, 53, 252) if tipo_f == 'dragon' else (90, 150, 255), tipo_f); x['hasta'] = ahora
                 x['x'] += x['vx']; x['y'] += x['vy']
 
     # ---------- enemigos con mecanica
@@ -922,6 +1160,7 @@ def armar(c):
             if x['hasta'] <= ahora and x['clase'] != 'bomba': continue
             sx, sy = x['x'] - cx, x['y'] - cy
             cl = x['clase']
+            if dibujar_cosa_nueva(ventana, x, sx, sy, ahora): continue
             if cl == 'bomba':
                 k = max(0.0, min(1.0, (x['hasta'] - ahora) / 900))
                 circulo(ventana, sx, sy, x['radio'], (255, 120, 160), 40)
@@ -962,7 +1201,7 @@ def armar(c):
                     ang = ahora / 200 + k * 0.785
                     pygame.draw.circle(ventana, (110, 200, 80), (round(sx + math.cos(ang) * x['radio']), round(sy + math.sin(ang) * x['radio'])), 7)
             elif cl == 'flecha':
-                pygame.draw.circle(ventana, (140, 90, 250), (round(sx), round(sy)), 9)
+                pygame.draw.circle(ventana, (140, 90, 250) if x.get('tipo', 'dragon') == 'dragon' else (70, 140, 255), (round(sx), round(sy)), 9)
                 pygame.draw.circle(ventana, (230, 220, 255), (round(sx), round(sy)), 4)
         # el rastro de pasto de Chikorita: un brillo verde mientras dura
         for (f, k), (_, hasta) in nivel.get('rastro_pasto', {}).items():
@@ -989,6 +1228,7 @@ def armar(c):
         """Flechas en el borde hacia los enemigos de afuera (Noibat), la camara lenta y lo que guarda Shuppet."""
         ahora = T(); e = estado(j); nivel = c.mundo.get('nivel')
         if not nivel: return
+        dibujar_jugador_nuevo(j, ventana, cx, cy)
         if es(j, 'prediccion'):
             for o in enemigos_vivos(nivel):
                 sx, sy = o['rect'].centerx - cx, o['rect'].centery - cy
@@ -1012,6 +1252,412 @@ def armar(c):
         if e.get('marchas'):
             for k in range(e['marchas']): pygame.draw.circle(ventana, (200, 200, 220), (j['rect'].centerx - cx - 12 + k * 12, j['rect'].bottom - cy + 10), 4, 2)
 
+    # ================= mecanicas de las lineas del juego original =================
+    # Cambian como se mueve o pelea cada uno: modos (caparazon, bola), saltos, cargas, agarres, esquives especiales...
+
+    def antes_de_atacar(j, nivel):
+        """Metido en el caparazon o rodando como bola: atacar lo saca (y ese ataque no sale). Cargando el puño tampoco ataca. True: no atacar."""
+        e = estado(j)
+        if e.get('caparazon'): e.pop('caparazon'); c.cartel(nivel, 'Sale del caparazón', 500); return True
+        if e.get('bola'): e.pop('bola'); c.cartel(nivel, 'Deja de rodar', 500); return True
+        return bool(e.get('carga_desde'))
+
+    def al_esquivar(j, nivel, costo):
+        """Recien empezo un esquive (j['esquive'] ya esta armado): planeo, estela, sustituto, doble salto, esquive gratis..."""
+        clave, et = mec(j); e = estado(j); esq = j.get('esquive'); ahora = T()
+        if not esq: return
+        if clave == 'globo': esq['restante'] *= 1.8; esq['hasta'] += 160
+        if j['nombre'] == 'tinkaton':                                   # martillazo al piso: sale disparada y cae golpeando
+            esq['restante'] *= 2.3; esq['hasta'] += 140; e['martillo_salto'] = True
+            c.efectos.explosion(c.mundo['ef'], j['rect'].centerx - esq['vx'] * 26, j['rect'].centery - esq['vy'] * 26, 45); c.temblor(nivel, 90)
+        if clave == 'bola_pinchos': esq['restante'] *= 1.25
+        if clave == 'estatica_veloz':
+            if j['nombre'] == 'raichu': esq['restante'] *= 1.4; esq['hasta'] += 60
+            if j['nombre'] == 'pichu' and random.random() < 0.15:
+                j['vida'] = max(1, j['vida'] - j['max_vida'] * 0.04); c.cartel(nivel, '¡Pichu se electrocutó solo!', 800)
+        if clave == 'alas_vendaval' and j['vida'] >= j['max_vida'] * 0.75 and costo: j['energia'] = min(c.ENERGIA_MAX, j['energia'] + costo)
+        if clave == 'patada_salto' and j['nombre'] == 'blaziken':
+            if not e.get('doble'): j['esquive_listo'] = ahora + 90; e['doble'] = True        # el segundo sale enseguida
+            else: e['doble'] = False
+        if clave == 'sustituto':
+            cosa(nivel, clase='sustituto', x=j['rect'].centerx, y=j['rect'].centery, radio=85, hasta=ahora + 1200, daño=daño(j, 16 + 8 * et, 'agua'))
+            for o in enemigos_vivos(nivel):
+                if math.hypot(o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery) < 300:
+                    o['estado_ia'] = 'patrulla'; o['aviso'] = None; o['embestida_ia'] = None
+
+    def al_esquive_perfecto(j, nivel):
+        """Greninja: con un esquive perfecto aparece detras del enemigo mas cercano."""
+        if j['nombre'] != 'greninja': return
+        o = objetivo_cercano(j, nivel, 320)
+        if not o: return
+        dx, dy = o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery; d = math.hypot(dx, dy) or 1
+        c.efectos.aparecer(c.mundo['ef'], *j['rect'].center)
+        j['rect'].center = (round(o['rect'].centerx + dx / d * 50), round(o['rect'].centery + dy / d * 50)); c.mover_entidad(j, 0, 0, True)
+        libre = c.entorno.orilla(c.mundo['ent'], j['rect'], j['tipos'])
+        if libre: j['rect'].center = (round(libre[0]), round(libre[1]))
+        j['aim'] = (-dx / d, -dy / d)
+        c.cartel(nivel, '¡Greninja aparece por detrás!', 800)
+
+    def disparo_basico(j, datos, nivel, indice):
+        """Cubone y Marowak tiran su hueso (va y vuelve) en lugar del disparo comun. True si ya lo manejo."""
+        if indice != 1 or not es(j, 'bumeran'): return False
+        if any(x['clase'] == 'hueso' for x in nivel.get('mec_cosas', ())): return True     # el hueso todavia no volvio
+        et = etapa(j); ax, ay = j['aim']
+        cosa(nivel, clase='hueso', x=float(j['rect'].centerx), y=float(j['rect'].centery), vx=ax, vy=ay, vel=8 + 2 * et, ida=280 + 50 * et,
+             recorrido=0.0, fase='ida', golpeados=[], hasta=T() + 6000, daño=round(datos.get('daño', 10) * 1.15), radio=16 + 4 * et, j=j)
+        return True
+
+    def al_caer(j, nivel):
+        """El que pelea se quedo sin vida: Annihilape aguanta una vez por sala, Drifloon explota. True si sigue en pie."""
+        clave = mec(j)[0]; e = estado(j)
+        if j['nombre'] == 'annihilape' and not e.get('aguanto'):
+            e['aguanto'] = True; j['vida'] = 1; j['inv_hasta'] = T() + 1000
+            c.cartel(nivel, '¡Annihilape se niega a caer!', 1300); c.efectos.destello(c.mundo['ef'], *j['rect'].center)
+            return True
+        if clave == 'globo':
+            area(j, nivel, j['rect'].center, 150, 40 + 12 * etapa(j), 'fantasma', 70)
+            c.efectos.explosion(c.mundo['ef'], *j['rect'].center, 130); c.temblor(nivel, 250); c.cartel(nivel, '¡Detonación!', 900)
+        return False
+
+    def saltar(j, destino, ms, clase, **extra):
+        """Salto o picada de un punto a otro (lo mueve cuadro), en el aire no lo tocan."""
+        estado(j)['salto'] = dict({'desde': j['rect'].center, 'hasta': (round(destino[0]), round(destino[1])), 'inicio': T(), 'dura': ms,
+                                   'clase': clase, 'golpeados': []}, **extra)
+        j['embestida'] = None
+
+    def actualizar_salto(j, nivel, e, ahora, et):
+        s = e['salto']; k = min(1.0, (ahora - s['inicio']) / s['dura'])
+        x = s['desde'][0] + (s['hasta'][0] - s['desde'][0]) * k; y = s['desde'][1] + (s['hasta'][1] - s['desde'][1]) * k
+        j['rect'].center = (round(x), round(y)); c.mover_entidad(j, 0, 0, True)
+        if s['clase'] == 'picado':                                       # pega a todo lo que cruza
+            for o in c.objetivos_de(nivel, True):
+                if o['vida'] > 0 and o not in s['golpeados'] and math.hypot(o['rect'].centerx - x, o['rect'].centery - y) < 40 + max(o['rect'].size) / 2:
+                    s['golpeados'].append(o); golpear_a(j, o, 22 + 8 * et, 'volador', 35)
+        if k < 1: return
+        e.pop('salto'); px, py = j['rect'].center
+        if s['clase'] == 'picado':
+            c.efectos.polvo(c.mundo['ef'], px, py)
+            if j['nombre'] == 'corviknight': e['blindado_hasta'] = ahora + 1000
+        elif s['clase'] == 'plancha':
+            encima = [o for o in enemigos_vivos(nivel) if math.hypot(o['rect'].centerx - px, o['rect'].centery - py) < 40]
+            area(j, nivel, (px, py), 90, 34, 'lucha', 60, {'tipo': 'paralizar', 'duracion': 900, 'probabilidad': 100})
+            for o in encima: golpear_a(j, o, 34, 'lucha', 0)
+            c.efectos.explosion(c.mundo['ef'], px, py, 80); c.temblor(nivel, 180)
+            if encima: c.cartel(nivel, '¡Plancha!', 600)
+        elif s['clase'] == 'tiburon':
+            o = s.get('objetivo')
+            if o and o['vida'] > 0 and math.hypot(o['rect'].centerx - px, o['rect'].centery - py) < 80 + max(o['rect'].size) / 2:
+                golpear_a(j, o, 30 + 10 * et, 'dragon', 40); c.efectos.golpe(c.mundo['ef'], *o['rect'].center, (111, 53, 252), 'dragon')
+            else: area(j, nivel, (px, py), 60, 16 + 6 * et, 'dragon', 30)
+            if s.get('rebotes', 0) > 0:
+                nuevo = objetivo_cercano(j, nivel, 380, (o,) if o else ())
+                if nuevo: saltar(j, nuevo['rect'].center, 300, 'tiburon', objetivo=nuevo, rebotes=s['rebotes'] - 1)
+
+    def soltar_puño(j, nivel, e, ahora, et):
+        """Golett/Golurk solto R: sale propulsado con la fuerza que junto."""
+        k = min(1.0, (ahora - e.pop('carga_desde')) / (1400 if et == 1 else 900))
+        c.iniciar_embestida(j, {'tipo': 'tierra', 'daño': daño(j, 18 + 50 * k + 8 * et, 'tierra', 'embestida'), 'distancia': 100 + 320 * k,
+                                'velocidad': 10 + 12 * k, 'area': 26 + 10 * k, 'retroceso': 30 + 70 * k, 'forma': 'embestida', 'jugador': True})
+        if k > 0.8: c.temblor(nivel, 160); c.cartel(nivel, '¡Puño a toda potencia!', 600)
+
+    def actualizar_revoleado(nivel, o):
+        """Un enemigo que revoleo Machop: vuela en linea, le pega a los que choca y al caer queda aturdido."""
+        r = o['revoleado']; paso = min(16, r['restante']); antes = o['rect'].center
+        c.mover_entidad(o, round(r['vx'] * paso), round(r['vy'] * paso))
+        r['restante'] -= paso
+        for otro in c.objetivos_de(nivel, True):
+            if otro['vida'] > 0 and otro not in r['golpeados'] and otro['rect'].colliderect(o['rect'].inflate(16, 16)):
+                r['golpeados'].append(otro); c.recibir_ataque(otro, {'tipo': 'lucha', 'daño': r['daño'], 'retroceso': 40, 'jugador': True}, None)
+        if r['restante'] <= 0 or o['rect'].center == antes:
+            o.pop('revoleado')
+            c.recibir_ataque(o, {'tipo': 'lucha', 'daño': r['daño'], 'retroceso': 0, 'efecto': {'tipo': 'paralizar', 'duracion': 900, 'probabilidad': 100}, 'jugador': True}, None)
+            c.efectos.explosion(c.mundo['ef'], *o['rect'].center, 50); c.temblor(nivel, 120)
+
+    def tocando(j, nivel, margen=14):
+        """Enemigos (y jefe) que estan tocando al jugador."""
+        zona = j['rect'].inflate(margen, margen)
+        return [o for o in c.objetivos_de(nivel, False) if o['vida'] > 0 and zona.colliderect(o['rect'])]
+
+    def en_cosa(nivel, j, clase):
+        ahora = T()
+        return any(x['clase'] == clase and x['hasta'] > ahora and math.hypot(x['x'] - j['rect'].centerx, x['y'] - j['rect'].centery) < x['radio']
+                   for x in nivel.get('mec_cosas', ()))
+
+    def cuadro_nuevo(j, nivel, ahora, clave, et, e):
+        """Lo que hacen solas cada cuadro las mecanicas de las lineas del juego original."""
+        px, py = j['rect'].center
+        if e.get('salto'): actualizar_salto(j, nivel, e, ahora, et)
+        # ----- modos -----
+        if e.get('caparazon'):
+            for o in tocando(j, nivel, 20):
+                if ahora >= o.get('mec_toque', 0): o['mec_toque'] = ahora + 500; golpear_a(j, o, 8 + 4 * et, 'agua', 50)
+            if j['nombre'] == 'blastoise' and ahora >= e.get('prox_chorro', 0):          # gira tirando agua por los cañones
+                e['prox_chorro'] = ahora + 350; guardado = j['aim']; ang = ahora / 300
+                for k in range(2):
+                    j['aim'] = (math.cos(ang + k * math.pi), math.sin(ang + k * math.pi))
+                    c.lanzar(j, {'tipo': 'agua', 'daño': daño(j, 10, 'agua'), 'distancia': 260, 'area': 8, 'velocidad': 10, 'retroceso': 15, 'jugador': True},
+                             nivel['proyectiles_pokemon'])
+                j['aim'] = guardado
+        if e.get('bola'):
+            seg = min(4.0, (ahora - e['bola']) / 1000)
+            for o in tocando(j, nivel, 10 + round(6 * seg)):
+                if ahora >= o.get('mec_toque', 0): o['mec_toque'] = ahora + 600; golpear_a(j, o, 10 + 8 * seg + 4 * et, 'hielo', 40 + 10 * seg)
+        if e.get('bloque_hasta') and ahora >= e['bloque_hasta']:
+            e.pop('bloque_hasta')
+            area(j, nivel, (px, py), 130, 34, 'hielo', 50, {'tipo': 'ralentizar', 'duracion': 2500, 'probabilidad': 100})
+            c.efectos.explosion(c.mundo['ef'], px, py, 110); c.temblor(nivel, 150)
+        if e.get('velo_hasta'):
+            if ahora >= e['velo_hasta']: e.pop('velo_hasta'); e.pop('velo_tocados', None)
+            else:
+                j['oculto'] = True
+                for o in tocando(j, nivel, 6):
+                    if o not in e.setdefault('velo_tocados', []): e['velo_tocados'].append(o); poner_a(o, 'ralentizar', 2500); golpear_a(j, o, 14, 'hielo', 0)
+        if e.get('baluarte_hasta'):
+            if ahora >= e['baluarte_hasta']: e.pop('baluarte_hasta')
+            elif j['nombre'] == 'toxapex' and nivel['frame'] % 30 == 0: j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * 0.01)
+        # ----- esquives que hacen algo -----
+        if j.get('esquive'):
+            esq = j['esquive']; e['esquivando'] = True
+            if clave in ('paso_helado', 'bola_pinchos'):
+                for o in tocando(j, nivel, 16):
+                    if o in esq.setdefault('cortados', []): continue
+                    esq['cortados'].append(o)
+                    if clave == 'paso_helado':
+                        golpear_a(j, o, 14 + 8 * et, 'hielo', 10, {'tipo': 'ralentizar', 'duracion': 1800, 'probabilidad': 100})
+                        if j['nombre'] == 'weavile' and not esq.get('recargado'): j['esquive_listo'] = ahora; esq['recargado'] = True
+                    else: golpear_a(j, o, 12 + 8 * et, 'tierra', 30)
+            if clave == 'bola_pinchos' and j['nombre'] == 'sandslash' and nivel['frame'] % 5 == 0:
+                cosa(nivel, clase='pinchos', x=px, y=py, radio=26, hasta=ahora + 4000, tick=0, daño=daño(j, 8, 'tierra'))
+            if clave == 'estatica_veloz' and nivel['frame'] % 2 == 0:
+                cosa(nivel, clase='chispa', x=px, y=py, radio=20, hasta=ahora + 1200 + 300 * et, tick=0, daño=daño(j, 4 + 2 * et, 'electrico'))
+            if clave == 'alas_vendaval' and et >= 2 and nivel['frame'] % 3 == 0:
+                cosa(nivel, clase='llamas', x=px, y=py, radio=22, hasta=ahora + 1500, tick=0, daño=daño(j, 5 + 2 * et, 'fuego'))
+        elif e.pop('esquivando', False):                                 # termino el esquive
+            if e.pop('martillo_salto', False):
+                area(j, nivel, (px, py), 80, 22, 'hada', 60, {'tipo': 'paralizar', 'duracion': 600, 'probabilidad': 100})
+                c.efectos.explosion(c.mundo['ef'], px, py, 70); c.temblor(nivel, 140)
+            if clave == 'patada_salto':
+                area(j, nivel, (px, py), 70 + 10 * et, 12 + 6 * et, 'fuego', 40, {'tipo': 'quemar', 'duracion': 2000, 'probabilidad': 30})
+                efecto_onda(nivel, px, py, 70 + 10 * et, 'fuego', 300)
+        # ----- pasivas que juntan algo -----
+        if clave == 'lana_electrica' and j['moviendose'] and e.get('lana', 0) < 1:
+            e['lana'] = min(1.0, e.get('lana', 0) + (0.003 + 0.0015 * et) * (1.8 if j['corriendo'] else 1))
+            if e['lana'] >= 1: c.cartel(nivel, 'Lana cargada: el próximo golpe descarga', 700)
+        if clave == 'carrera_electrica':
+            if j['corriendo']: e['corrido'] = e.get('corrido', 0) + 1000 / 60
+            elif e.get('corrido'):
+                e['carrera'] = min(0.5 if et == 1 else 0.8, e['corrido'] / 1000 * 0.3); e['corrido'] = 0; e['carrera_hasta'] = ahora + 1500
+        if clave == 'manto_nieve' and j['moviendose'] and ahora >= e.get('prox_nieve', 0):
+            e['prox_nieve'] = ahora + 220
+            if sum(1 for x in nivel['mec_cosas'] if x['clase'] == 'nieve') < 30:
+                cosa(nivel, clase='nieve', x=px, y=py + 8, radio=24 + 4 * et, hasta=ahora + 2500 + 1000 * et, tick=0)
+        if clave == 'iman':                                              # los disparos se curvan hacia el enemigo mas cercano
+            fuerza = 0.05 + 0.035 * et
+            for p in nivel['proyectiles_pokemon']:
+                o = min((o for o in enemigos_vivos(nivel) + ([nivel['jefe']] if nivel.get('jefe') and nivel['jefe']['vida'] > 0 else [])
+                         if o not in p['golpeados'] and math.hypot(o['rect'].centerx - p['x'], o['rect'].centery - p['y']) < 360),
+                        key=lambda o: math.hypot(o['rect'].centerx - p['x'], o['rect'].centery - p['y']), default=None)
+                if not o: continue
+                dx, dy = o['rect'].centerx - p['x'], o['rect'].centery - p['y']; d = math.hypot(dx, dy) or 1
+                vx, vy = p['vx'] + dx / d * fuerza, p['vy'] + dy / d * fuerza; n = math.hypot(vx, vy) or 1
+                p['vx'], p['vy'] = vx / n, vy / n
+        if clave == 'furia' and e.get('furia') and ahora >= e.get('furia_hasta', 0): e['furia'] = 0
+        # ----- especiales que siguen despues de usarlos -----
+        if e.get('carga_desde') and (not c.mantiene('especial2') or ahora - e['carga_desde'] >= 2500): soltar_puño(j, nivel, e, ahora, et)
+        if e.get('corte') and ahora >= e['corte']['hasta']:              # el tajo llega despues de pasar
+            corte = e['corte']; hisui = j['nombre'] == 'samurott_hisui'
+            for o in corte['golpeados']:
+                if o['vida'] <= 0: continue
+                golpear_a(j, o, 30 + 12 * et, 'siniestro' if hisui else 'agua', 20, {'tipo': 'veneno', 'duracion': 4000, 'probabilidad': 100} if hisui else None)
+                nivel['efectos'].append({'x': o['rect'].left, 'y': o['rect'].top, 'linea': o['rect'].bottomright, 'radio': 5, 'tipo': 'agua', 'inicio': ahora, 'hasta': ahora + 200})
+            if corte['veces'] > 1: corte['veces'] -= 1; corte['hasta'] = ahora + 180
+            else: e.pop('corte')
+        if e.get('explota') and not j['embestida']:
+            e.pop('explota')
+            area(j, nivel, (px, py), 80 + 25 * et, 26 + 14 * et, 'roca', 60)
+            c.efectos.explosion(c.mundo['ef'], px, py, 70 + 25 * et); c.temblor(nivel, 150 + 50 * et)
+            if j['nombre'] == 'golem': j['vida'] = max(1, j['vida'] - j['max_vida'] * 0.15)
+        if e.get('ola'):
+            if j['embestida']:                                            # arrastra a los que toca
+                emb = j['embestida']
+                for o in tocando(j, nivel, 50):
+                    if not o.get('jefe'): c.mover_entidad(o, round(emb['vx'] * emb['velocidad']), round(emb['vy'] * emb['velocidad']))
+            else: e.pop('ola'); area(j, nivel, (px, py), 90, 16, 'agua', 50)
+        for o in nivel['enemigos']:
+            if o.get('revoleado'): actualizar_revoleado(nivel, o)
+
+    def usar_nuevo(j, datos, nivel):
+        """Especiales de las lineas del juego original. True si era uno de estos."""
+        clave = datos['mecanica']; et = datos.get('etapa', 1); ahora = T(); e = estado(j)
+        px, py = j['rect'].center; ax, ay = j['aim']
+        if clave == 'ola':
+            c.iniciar_embestida(j, {'tipo': 'agua', 'daño': daño(j, 22 + 6 * et, 'agua', 'embestida'), 'distancia': 380, 'velocidad': 12, 'area': 40,
+                                    'retroceso': 30, 'forma': 'embestida', 'jugador': True})
+            e['ola'] = True
+        elif clave == 'bloque_hielo':
+            e['bloque_hasta'] = ahora + 1500; j['atrapado_hasta'] = ahora + 1500
+        elif clave == 'velo_fantasma': e['velo_hasta'] = ahora + 2500; e['velo_tocados'] = []
+        elif clave == 'bola_nieve': e['bola'] = ahora; c.cartel(nivel, 'Rueda (atacá o apretá R para parar)', 900)
+        elif clave == 'picado': saltar(j, c.punto_apuntado(j, 260 + 60 * et), 420, 'picado')
+        elif clave == 'plancha_voladora': saltar(j, c.punto_apuntado(j, 260), 600, 'plancha')
+        elif clave == 'teletransporte':
+            antes = (px, py); dest = c.punto_apuntado(j, 200 + 70 * et)
+            j['rect'].center = (round(dest[0]), round(dest[1])); c.mover_entidad(j, 0, 0, True)
+            libre = c.entorno.orilla(c.mundo['ent'], j['rect'], j['tipos'])
+            if libre: j['rect'].center = (round(libre[0]), round(libre[1]))
+            c.efectos.aparecer(c.mundo['ef'], *antes); c.efectos.aparecer(c.mundo['ef'], *j['rect'].center)
+            if j['nombre'] == 'xatu': cosa(nivel, clase='premonicion', x=antes[0], y=antes[1], radio=110, hasta=ahora + 1000, daño=daño(j, 40, 'psiquico'))
+        elif clave == 'rodar_explosivo':
+            c.iniciar_embestida(j, {'tipo': 'roca', 'daño': daño(j, 14 + 6 * et, 'roca', 'embestida'), 'distancia': 280, 'velocidad': 13, 'area': 24,
+                                    'retroceso': 30, 'forma': 'embestida', 'jugador': True})
+            e['explota'] = True
+        elif clave == 'pantano':
+            dest = c.punto_apuntado(j, 300); veneno = j['nombre'] == 'clodsire'
+            cosa(nivel, clase='barro', x=dest[0], y=dest[1], radio=90 + 15 * et, hasta=ahora + 6000, tick=0, veneno=veneno, daño=daño(j, 5, 'veneno') if veneno else 0)
+        elif clave == 'salto_tiburon':
+            o = objetivo_cercano(j, nivel, 420)
+            if o: saltar(j, o['rect'].center, 350, 'tiburon', objetivo=o, rebotes=1 if j['nombre'] == 'garchomp' else 0)
+            else: saltar(j, c.punto_apuntado(j, 220), 350, 'tiburon')
+        elif clave == 'puño_propulsado': e['carga_desde'] = ahora
+        elif clave == 'llave':
+            cerca = sorted(cono(j, nivel, 110, 70), key=lambda o: math.hypot(o['rect'].centerx - px, o['rect'].centery - py))
+            if not cerca: c.cartel(nivel, 'No hay nadie adelante para agarrar', 700); return True
+            o = cerca[0]
+            if o.get('jefe'): golpear_a(j, o, 40, 'lucha', 40); return True
+            o['revoleado'] = {'vx': ax, 'vy': ay, 'restante': 220 + 70 * et, 'golpeados': [o], 'daño': daño(j, 20 + 8 * et, 'lucha', 'cuerpo')}
+            poner_a(o, 'paralizar', 1500)
+        elif clave == 'viga':
+            for grados in ((0,) if et < 3 else (-12, 12)):
+                r = math.radians(grados); vx, vy = ax * math.cos(r) - ay * math.sin(r), ax * math.sin(r) + ay * math.cos(r)
+                cosa(nivel, clase='onda', x=px + vx * 40, y=py + vy * 40, vx=vx, vy=vy, restante=300 + 60 * et, hasta=ahora + 3000, prox=ahora,
+                     daño=daño(j, (24 + 8 * et) * (0.7 if et >= 3 else 1), 'lucha'), golpeados=[], radio=46)   # las dos ondas de Conkeldurr pegan 70% cada una
+            c.temblor(nivel, 120)
+        elif clave == 'caparazon': e['caparazon'] = ahora; c.cartel(nivel, 'Adentro del caparazón (atacá o apretá R para salir)', 900)
+        elif clave == 'baluarte':
+            dura = 2000 if et == 1 else 3000
+            e['baluarte_hasta'] = ahora + dura; j['atrapado_hasta'] = ahora + dura
+        elif clave == 'corte_al_paso':
+            vel, largo = 22, 240 + 40 * et
+            c.iniciar_embestida(j, {'tipo': 'agua', 'daño': 1, 'distancia': largo, 'velocidad': vel, 'area': 26, 'retroceso': 0, 'forma': 'embestida', 'jugador': True})
+            e['corte'] = {'hasta': ahora + largo / vel * 16.7 + 220, 'golpeados': j['embestida']['golpeados'], 'veces': 2 if et >= 3 else 1}
+            j['inv_hasta'] = max(j.get('inv_hasta', 0), ahora + 250)
+        elif clave == 'martillo':
+            c.efectos.explosion(c.mundo['ef'], px - ax * 30, py - ay * 30, 50)
+            c.iniciar_embestida(j, {'tipo': 'hada', 'daño': daño(j, 20 + 8 * et, 'hada', 'embestida'), 'distancia': 230 + 40 * et, 'velocidad': 20, 'area': 26,
+                                    'retroceso': 50, 'forma': 'embestida', 'jugador': True})
+        else: return False
+        return True
+
+    def cosa_nueva(j, nivel, x, ahora):
+        """Lo que dejaron las mecanicas nuevas en la sala. True si la cosa ya se termino (hay que sacarla)."""
+        cl = x['clase']
+        if cl in ('premonicion', 'sustituto'):
+            if ahora < x['hasta']: return False
+            for o in c.objetivos_de(nivel, True):
+                if o['vida'] > 0 and math.hypot(o['rect'].centerx - x['x'], o['rect'].centery - x['y']) < x['radio'] + max(o['rect'].size) / 2:
+                    c.recibir_ataque(o, {'tipo': 'psiquico' if cl == 'premonicion' else 'agua', 'daño': x['daño'], 'retroceso': 30, 'jugador': True}, None)
+            c.efectos.explosion(c.mundo['ef'], x['x'], x['y'], x['radio']); return True
+        if ahora >= x['hasta']: return True
+        if cl == 'hueso':
+            if x['fase'] == 'ida':
+                x['x'] += x['vx'] * x['vel']; x['y'] += x['vy'] * x['vel']; x['recorrido'] += x['vel']
+                if x['recorrido'] >= x['ida']: x['fase'] = 'vuelta'; x['golpeados'] = []
+            else:                                                       # vuelve a la mano
+                dx, dy = j['rect'].centerx - x['x'], j['rect'].centery - x['y']; d = math.hypot(dx, dy) or 1
+                if d < 26: return True
+                x['x'] += dx / d * (x['vel'] + 2); x['y'] += dy / d * (x['vel'] + 2)
+            for o in c.objetivos_de(nivel, True):
+                if o['vida'] > 0 and o not in x['golpeados'] and math.hypot(o['rect'].centerx - x['x'], o['rect'].centery - x['y']) < x['radio'] + max(o['rect'].size) / 2:
+                    x['golpeados'].append(o); c.recibir_ataque(o, {'tipo': 'tierra', 'daño': x['daño'], 'retroceso': 15, 'jugador': True}, None)
+            return False
+        if cl == 'onda':
+            if ahora < x['prox']: return False
+            x['prox'] = ahora + 60; x['x'] += x['vx'] * 38; x['y'] += x['vy'] * 38; x['restante'] -= 38
+            c.efectos.polvo(c.mundo['ef'], x['x'], x['y'])
+            for o in c.objetivos_de(nivel, True):
+                if o['vida'] > 0 and o not in x['golpeados'] and math.hypot(o['rect'].centerx - x['x'], o['rect'].centery - x['y']) < x['radio'] + max(o['rect'].size) / 2:
+                    x['golpeados'].append(o); c.recibir_ataque(o, {'tipo': 'lucha', 'daño': x['daño'], 'retroceso': 45, 'jugador': True}, None)
+            return x['restante'] <= 0
+        if cl in ('chispa', 'llamas', 'nieve', 'barro', 'pinchos') and ahora >= x.get('tick', 0):
+            x['tick'] = ahora + 150
+            for o in enemigos_vivos(nivel) + ([nivel['jefe']] if nivel.get('jefe') and nivel['jefe']['vida'] > 0 else []):
+                if math.hypot(o['rect'].centerx - x['x'], o['rect'].centery - x['y']) > x['radio'] + max(o['rect'].size) / 2: continue
+                marca = 'mec_rastro_' + cl                              # varios rastros encimados no suman: uno por clase cada medio segundo
+                if ahora < o.get(marca, 0): continue
+                o[marca] = ahora + 500
+                if cl == 'nieve': poner_a(o, 'ralentizar', 1200); continue
+                if cl == 'barro':
+                    poner_a(o, 'ralentizar', 1500)
+                    if not x.get('veneno'): continue
+                tipo, efecto = {'pinchos': ('tierra', None), 'chispa': ('electrico', {'tipo': 'paralizar', 'duracion': 900, 'probabilidad': 100}),
+                                'llamas': ('fuego', {'tipo': 'quemar', 'duracion': 2500, 'probabilidad': 40}),
+                                'barro': ('veneno', {'tipo': 'veneno', 'duracion': 3000, 'probabilidad': 100})}[cl]
+                c.recibir_ataque(o, {'tipo': tipo, 'daño': x['daño'], 'retroceso': 0, 'efecto': efecto, 'jugador': True}, None)
+        return False
+
+    def dibujar_cosa_nueva(ventana, x, sx, sy, ahora):
+        cl = x['clase']
+        if cl == 'nieve': circulo(ventana, sx, sy, x['radio'], (240, 248, 255), 70)
+        elif cl == 'barro': circulo(ventana, sx, sy, x['radio'], (130, 70, 140) if x.get('veneno') else (120, 85, 50), 120)
+        elif cl == 'chispa':
+            circulo(ventana, sx, sy, x['radio'], (255, 230, 80), 60)
+            if (ahora // 80) % 2: pygame.draw.circle(ventana, (255, 250, 200), (round(sx), round(sy)), 4)
+        elif cl == 'llamas':
+            circulo(ventana, sx, sy, x['radio'], (255, 120, 40), 90)
+            pygame.draw.circle(ventana, (255, 220, 90), (round(sx), round(sy - 3 * math.sin(ahora / 90))), 6)
+        elif cl == 'premonicion':
+            k = max(0.0, (x['hasta'] - ahora) / 1000)
+            circulo(ventana, sx, sy, x['radio'], (200, 120, 255), 40)
+            pygame.draw.circle(ventana, (220, 150, 255), (round(sx), round(sy)), max(4, round(x['radio'] * k)), 3)
+        elif cl == 'sustituto':
+            circulo(ventana, sx, sy, 20, (120, 180, 255), 120)
+            pygame.draw.circle(ventana, (200, 230, 255), (round(sx), round(sy)), 20, 2)
+        elif cl == 'hueso':
+            ang = ahora / 60; dx, dy = math.cos(ang) * 14, math.sin(ang) * 14
+            pygame.draw.line(ventana, (240, 235, 215), (round(sx - dx), round(sy - dy)), (round(sx + dx), round(sy + dy)), 6)
+            for s_ in (-1, 1): pygame.draw.circle(ventana, (250, 248, 235), (round(sx + dx * s_), round(sy + dy * s_)), 5)
+        elif cl == 'pinchos':
+            for k in range(3): pygame.draw.polygon(ventana, (190, 160, 110), [(sx - 12 + k * 10, sy + 8), (sx - 7 + k * 10, sy - 10), (sx - 2 + k * 10, sy + 8)])
+        elif cl == 'onda':
+            circulo(ventana, sx, sy, 30, (170, 130, 90), 120)
+            for k in range(3): pygame.draw.polygon(ventana, (150, 140, 120), [(sx - 14 + k * 12, sy + 10), (sx - 8 + k * 12, sy - 16), (sx - 2 + k * 12, sy + 10)])
+        else: return False
+        return True
+
+    def dibujar_jugador_nuevo(j, ventana, cx, cy):
+        """Encima del jugador: caparazon, bola de nieve, bloque de hielo, cupula de puas, velo, carga del puño, lana y furia."""
+        e = estado(j); ahora = T(); x, y = j['rect'].centerx - cx, j['rect'].centery - cy
+        if e.get('caparazon'):
+            circulo(ventana, x, y, 22, (150, 110, 60), 220)
+            for k in range(3):
+                a = ahora / 70 + k * 2.09
+                pygame.draw.line(ventana, (90, 170, 230), (x, y), (round(x + math.cos(a) * 20), round(y + math.sin(a) * 20)), 3)
+            pygame.draw.circle(ventana, (60, 40, 20), (x, y), 22, 2)
+        if e.get('bola'):
+            r = 18 + round(min(4.0, (ahora - e['bola']) / 1000) * 6)
+            circulo(ventana, x, y, r, (245, 250, 255), 220)
+            a = ahora / 60
+            pygame.draw.circle(ventana, (200, 220, 240), (round(x + math.cos(a) * r * 0.5), round(y + math.sin(a) * r * 0.5)), 4)
+        if e.get('bloque_hasta', 0) > ahora:
+            caja = pygame.Surface((56, 56), pygame.SRCALPHA); caja.fill((170, 225, 255, 140)); ventana.blit(caja, (x - 28, y - 32))
+            pygame.draw.rect(ventana, (230, 250, 255), (x - 28, y - 32, 56, 56), 2)
+        if e.get('baluarte_hasta', 0) > ahora:
+            circulo(ventana, x, y, 30, (170, 90, 200), 80)
+            for k in range(10):
+                a = k * 0.628
+                pygame.draw.line(ventana, (230, 120, 220), (round(x + math.cos(a) * 26), round(y + math.sin(a) * 26)), (round(x + math.cos(a) * 36), round(y + math.sin(a) * 36)), 3)
+        if e.get('velo_hasta', 0) > ahora: circulo(ventana, x, y, 26, (200, 220, 255), 70)
+        if e.get('carga_desde'):
+            k = min(1.0, (ahora - e['carga_desde']) / (1400 if etapa(j) == 1 else 900))
+            pygame.draw.rect(ventana, (30, 30, 40), (x - 22, j['rect'].top - cy - 16, 44, 7))
+            pygame.draw.rect(ventana, (255, 200, 60) if k < 1 else (255, 90, 60), (x - 22, j['rect'].top - cy - 16, round(44 * k), 7))
+        if es(j, 'lana_electrica'):
+            k = e.get('lana', 0)
+            pygame.draw.rect(ventana, (40, 40, 30), (x - 20, j['rect'].bottom - cy + 6, 40, 4))
+            pygame.draw.rect(ventana, (255, 230, 80) if k >= 1 and (ahora // 150) % 2 else (230, 200, 90), (x - 20, j['rect'].bottom - cy + 6, round(40 * k), 4))
+        if e.get('furia'):
+            for k in range(e['furia']): pygame.draw.circle(ventana, (255, 70, 50), (x - 21 + k * 6, j['rect'].top - cy - 8), 2)
+
     return SimpleNamespace(mec=mec, es=es, nueva_sala=nueva_sala, al_cambiar=al_cambiar, mult_golpe=mult_golpe, tras_golpe=tras_golpe, remate=remate,
                            mult_enfriamiento_combo=mult_enfriamiento_combo, mult_parry=mult_parry, al_parry=al_parry, recibido=recibido,
                            estado_puesto=estado_puesto, derrota=derrota, sala_limpia=sala_limpia, mult_romper=mult_romper, mult_iman=mult_iman,
@@ -1019,4 +1665,5 @@ def armar(c):
                            mult_velocidad=mult_velocidad, mult_recarga=mult_recarga, mult_recarga_especial=mult_recarga_especial,
                            ignora_solidos=ignora_solidos, invisible=invisible, altura_vuelo=altura_vuelo, cuadro=cuadro, lento=lento, usar=usar,
                            enemigo=enemigo, golpe_enemigo=golpe_enemigo, nubes_enemigas=nubes_enemigas, dibujar=dibujar, dibujar_hud=dibujar_hud,
-                           termina_ilusion=termina_ilusion)
+                           termina_ilusion=termina_ilusion, antes_de_atacar=antes_de_atacar, al_esquivar=al_esquivar,
+                           al_esquive_perfecto=al_esquive_perfecto, disparo_basico=disparo_basico, al_caer=al_caer)

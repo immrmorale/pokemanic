@@ -51,7 +51,8 @@ def armar_generacion():
     TAM_CASILLA = 80
     COLUMNAS, FILAS = 21, 15                    # 1680 x 1200 pixeles
     TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS = 40, 25, 15   # 1000 x 600: entra justo en la pantalla (hall y tesoro)
-    TIENDA_GRANDE_COLUMNAS, TIENDA_GRANDE_FILAS = 37, 19          # la tienda: 1480 x 760, mas grande que la pantalla (la camara la recorre)
+    TIENDA_GRANDE_COLUMNAS, TIENDA_GRANDE_FILAS = 37, 19          # (la tienda de antes: 1480 x 760)
+    TIENDA_HABITACION = 25                                        # la tienda: 3 habitaciones de 25 casillas (3000 x 760), la camara la recorre
     TIENDA_DIVISION, TIENDA_ALTO_DIVISION = 13, 7                 # columna de las paredes que separan los 3 mostradores y hasta que fila bajan (la del mostrador)
     TIENDA_Y_MOSTRADOR = 300                                      # altura de los mostradores (los tenderos van atras, los objetos arriba)
     PROFUNDIDAD_PUERTA = 2                      # casillas libres en frente de cada puerta
@@ -671,51 +672,50 @@ def armar_generacion():
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
-        """Salon de la tienda: mas grande que la pantalla (la camara lo recorre) y partido en 3 por dos paredes.
-        De izquierda a derecha, tres mostradores del color del pokemon que los atiende, con 5 objetos cada uno:
-            Chikorita rosa  curaciones (y en la punta de su mostrador cura al equipo por monedas)
-            Riolu           3 objetos que potencian (los X o los de tipo) y 2 objetos de evolucion
-            Kecleon         5 MT
-        Los mostradores van de pared a pared (atras queda el lugar de los tenderos) y estan lejos del borde de arriba, asi con la
-        camara sobre el mostrador el HUD no tapa ni a los tenderos ni a los objetos. Chikorita y Kecleon atienden en la punta que da
-        al medio por lo mismo. Las puertas quedan en el medio de cada lado y la entrada abajo, con la alfombra hasta Riolu."""
-        tam, columnas, filas = TIENDA_CASILLA, TIENDA_GRANDE_COLUMNAS, TIENDA_GRANDE_FILAS
+        """La tienda: un salon grande (como 3 salas de ancho) partido en 3 habitaciones por paredes con un paso en el medio.
+        Cada habitacion es de un tendero, como la tienda de antes: el tendero atras con su mostrador chico, un estante con 3 cosas
+        y una mesa con 2 destacadas. Todos en la misma sala: vas pasando de una habitacion a la otra.
+            izquierda   Chikorita rosa  curaciones (y en su mostrador cura al equipo por monedas)
+            medio       Riolu           3 objetos que potencian (los X o los de tipo) y 2 objetos de evolucion
+            derecha     Kecleon         5 MT
+        La entrada es abajo en el medio (con la alfombra que sube hasta Riolu y cruza las tres habitaciones);
+        las salidas, a los costados (oeste en la de Chikorita, este en la de Kecleon)."""
+        azar = random.Random(semilla)
+        tam, ancho_hab, filas = TIENDA_CASILLA, TIENDA_HABITACION, 15     # 15 filas: entra justo de alto, la camara solo va de costado
+        columnas = ancho_hab * 3
         m = _matriz_base(columnas, filas, 'sur', salidas)
         ancho, alto = columnas * tam, filas * tam
+        f_paso = range(filas // 2 - 2, filas // 2 + 2)                  # el paso entre habitaciones (4 casillas en el medio)
+        for c in (ancho_hab, ancho_hab * 2):                             # las dos paredes que dividen las habitaciones
+            for f in range(1, filas - 1):
+                if f not in f_paso: m[f][c] = 'pared'
         cc = columnas // 2
-        divisiones = (TIENDA_DIVISION, columnas - 1 - TIENDA_DIVISION)
-        for c in divisiones:                                          # las dos paredes que separan los mostradores
-            for f in range(1, TIENDA_ALTO_DIVISION + 1): m[f][c] = 'pared'
-        for f in range(TIENDA_ALTO_DIVISION + 1, filas - 1):          # alfombra desde la entrada hasta el mostrador del medio
+        for f in range(6, filas - 1):                                    # alfombra: de la entrada hasta el mostrador de Riolu
             for c in range(cc - 1, cc + 2): m[f][c] = 'alfombra'
-        y_mostrador, y_tendero = TIENDA_Y_MOSTRADOR, TIENDA_Y_MOSTRADOR - 58
-        tramos = {'chikorita': (tam, divisiones[0] * tam), 'riolu': ((divisiones[0] + 1) * tam, divisiones[1] * tam),
-                  'kecleon': ((divisiones[1] + 1) * tam, ancho - tam)}   # de pared a pared
         objetos, vitrinas, secciones = [], [], []
-        for clave, tendero in (('chikorita', 'chikorita_rosa'), ('riolu', 'riolu'), ('kecleon', 'kecleon')):
-            x0, x1 = tramos[clave]
-            mostrador = crear_objeto('mostrador_' + clave, ((x0 + x1) // 2, y_mostrador))
-            mostrador['rect'].width = x1 - x0; mostrador['rect'].x = x0          # cada tramo tiene su largo
-            objetos.append(mostrador)
-            if clave == 'chikorita':                                  # atiende en la punta de la derecha (ahi cura); sus 5 curaciones a la izquierda
-                x_tendero = x1 - 50
-                xs = [x_tendero - 110 - i * 60 for i in range(5)][::-1]
-            elif clave == 'kecleon':                                  # atiende en la punta de la izquierda; sus 5 MT a la derecha
-                x_tendero = x0 + 50
-                xs = [x_tendero + 90 + i * 60 for i in range(5)]
-            else:
-                x_tendero = (x0 + x1) // 2
-                xs = [x_tendero + d for d in (-136, -68, 0, 68, 136)]
-            objetos.append(crear_objeto(tendero, (x_tendero, y_tendero)))
-            vitrinas += [{'pos': (vx, y_mostrador - 4), 'mostrador': clave, 'destacado': False} for vx in xs]
-            secciones.append({'clave': clave, 'tendero': (x_tendero, y_tendero), 'centro': x_tendero, 'color': mundos.OBJETOS['mostrador_' + clave]['color']})
-        objetos += [crear_objeto('maceta', (70, alto - 70)), crear_objeto('maceta', (ancho - 70, alto - 70))]
+        y_tendero, y_mostrador, y_muebles = int(4.0 * tam), int(5.1 * tam), int(9.0 * tam)   # mas abajo que el HUD de arriba
+        for k, (clave, tendero) in enumerate((('chikorita', 'chikorita_rosa'), ('riolu', 'riolu'), ('kecleon', 'kecleon'))):
+            x0 = k * ancho_hab * tam
+            centro = x0 + ancho_hab * tam // 2
+            mostrador = crear_objeto('mostrador_' + clave, (centro, y_mostrador))
+            mostrador['rect'].width = 180; mostrador['rect'].centerx = centro    # mostrador chico, como el de antes
+            objetos += [crear_objeto(tendero, (centro, y_tendero)), mostrador]
+            x_estante, x_mesa = x0 + 7 * tam, x0 + (ancho_hab - 6) * tam     # el estante a un lado y la mesa al otro
+            if k == 2: x_estante, x_mesa = x_mesa, x_estante                # (en la de Kecleon al reves, para que no sean todas iguales)
+            objetos.append(crear_objeto('estante', (x_estante, y_muebles)))
+            mesa = crear_objeto('mesa', (x_mesa, y_muebles + 10)); mesa['color'] = mundos.OBJETOS['mostrador_' + clave]['color']   # mantel del color del tendero
+            objetos.append(mesa)
+            vitrinas += [{'pos': (x_estante + d, y_muebles - 4), 'mostrador': clave, 'destacado': False} for d in (-120, 0, 120)]
+            vitrinas += [{'pos': (x_mesa + d, y_muebles + 6), 'mostrador': clave, 'destacado': True} for d in (-28, 28)]
+            for px in (x0 + 2 * tam, x0 + (ancho_hab - 2) * tam):               # macetas en las esquinas de abajo
+                objetos.append(crear_objeto('maceta', (px, alto - 2 * tam)))
+            secciones.append({'clave': clave, 'tendero': (centro, y_tendero), 'centro': centro, 'color': mundos.OBJETOS['mostrador_' + clave]['color']})
         for o in objetos:
             if o['nombre'].startswith('mostrador_'):
                 r = o['rect']
                 o['celdas'] = {(f, c) for f in range(r.top // tam, (r.bottom - 1) // tam + 1) for c in range(r.left // tam, (r.right - 1) // tam + 1)}
             else: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
-        curandera = (secciones[0]['tendero'][0], y_mostrador)
+        curandera = (secciones[0]['centro'], y_mostrador)
         return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tienda', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas, 'secciones': secciones,
                                                         'tendero': secciones[1]['tendero'], 'curandera': curandera, 'interior': True})
 
@@ -760,6 +760,295 @@ def armar_generacion():
             o['vida'] = o['max_vida'] = None                              # en el hall no se rompe nada
         return _armar(m, objetos, tam, None, ['norte'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'guardian': guardian,
                                                          'interior': False, 'inicio': (ancho // 2, alto // 2 + 2 * tam)})
+
+
+    # ================= el refugio de Celebi (el hall): plaza, barrio y habitaciones =================
+    # Las habitaciones usan los fondos ya dibujados del PMD (el Gremio de Wigglytuff y el Secret Bazaar): el piso caminable sale
+    # de un poligono medido sobre la imagen (en pixeles del recorte, antes de agrandarla x2) y lo demas queda como pared invisible.
+    _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+    _GREMIO = os.path.join(_ASSETS, 'hojas', 'time_darkness', 'Backgrounds', '3rd Floor of Guild.png')
+    _BAZAR = os.path.join(_ASSETS, 'DS _ DSi - Pokemon Mystery Dungeon_ Explorers of Sky - Maps - Secret Bazaar.png')
+    HABITACIONES = {
+        'salon': {'nombre': 'Salón de los modos', 'hoja': _GREMIO, 'recorte': (10, 5, 660, 365),
+                  'piso': [(55, 245), (95, 180), (150, 165), (300, 150), (405, 150), (405, 128), (445, 128), (445, 150), (500, 165), (565, 180),
+                           (610, 240), (600, 272), (520, 290), (440, 302), (330, 306), (200, 302), (110, 288), (60, 272)],
+                  'tapado': [(195, 135, 80, 82)], 'salida': (405, 128, 40, 22), 'volver': 'plaza', 'inicio': (425, 170),
+                  'puntos': [((232, 230), 'modos', 'Estatua: modos de juego'), ((140, 200), 'dojo', 'Dojo: probar pokémon'),
+                             ((330, 172), 'misiones', 'Tablón de misiones'), ((540, 205), 'ajustes', 'Ajustes'), ((440, 255), 'titanes', 'Sala de los titanes'),
+                             ((90, 250), 'menu_principal', 'Volver al menú principal')]},
+        'galeria': {'nombre': 'Galería', 'hoja': _GREMIO, 'recorte': (705, 20, 345, 325),
+                    'piso': [(60, 150), (100, 108), (240, 108), (285, 150), (270, 200), (245, 240), (235, 320), (105, 320), (95, 240), (70, 200)],
+                    'tapado': [(55, 118, 36, 48), (250, 118, 36, 48), (100, 115, 25, 30), (222, 115, 25, 30)],
+                    'salida': (110, 300, 120, 22), 'volver': 'plaza', 'inicio': (170, 282),
+                    'puntos': [((112, 128), 'cuadro', 'Cuadro: el cielo de noche'), ((170, 122), 'cuadro', 'Tapiz: el mundo'), ((228, 128), 'cuadro', 'Cuadro: el lago entre la niebla'),
+                               ((72, 178), 'trofeos', 'Cofre de recuerdos'), ((268, 178), 'trofeos', 'Cofre de recuerdos')]},
+        'comedor': {'nombre': 'El lounge', 'hoja': _GREMIO, 'recorte': (30, 390, 440, 255),
+                    'piso': [(20, 145), (45, 100), (265, 100), (290, 122), (330, 150), (430, 150), (432, 205), (330, 206), (300, 212), (45, 215), (20, 190)],
+                    'tapado': [(100, 128, 165, 45), (288, 85, 44, 42), (22, 88, 62, 72)],
+                    'salida': (415, 150, 25, 55), 'volver': 'plaza', 'inicio': (392, 180),
+                    'puntos': [((182, 190), 'charla', 'La mesa larga: charlar'), ((300, 140), 'fuente_deseos', 'Fuentecita')]},
+        'casa': {'nombre': 'Tu casa', 'hoja': _GREMIO, 'recorte': (820, 370, 225, 240),
+                 'piso': [(40, 112), (60, 86), (150, 80), (192, 100), (190, 130), (160, 150), (140, 200), (132, 238), (90, 238), (84, 200), (60, 150), (40, 132)],
+                 'tapado': [], 'salida': (88, 222, 44, 18), 'volver': 'barrio', 'inicio': (110, 205),
+                 'puntos': [((105, 112), 'cama', 'Tu cama'), ((60, 128), 'cama', 'La cama de las visitas'), ((157, 96), 'diario', 'Tu diario')]},
+        'tienda_celebi': {'nombre': 'La tiendita de Celebi', 'hoja': _BAZAR, 'recorte': (0, 0, 465, 370),
+                          'piso': [(60, 150), (90, 82), (160, 58), (300, 58), (380, 86), (410, 150), (400, 250), (350, 318), (240, 345), (130, 320), (70, 260)],
+                          'tapado': [(292, 66, 52, 44)], 'salida': (262, 262, 34, 26), 'volver': 'barrio', 'inicio': (250, 250),
+                          'puntos': [((157, 125), 'puesto', 'Puesto de bayas'), ((300, 140), 'fuente_deseos', 'Fuente'), ((130, 215), 'puesto', 'Puesto de semillas'),
+                                     ((322, 205), 'puesto', 'Puesto de lazos')]},
+    }
+    _hojas_refugio = {}
+    try: CASAS_PMD = sorted(a[:-4] for a in os.listdir(os.path.join(_ASSETS, 'mundo', 'objetos')) if a.startswith('casa_') and a.endswith('.png'))
+    except OSError: CASAS_PMD = []
+
+
+    def _adentro_poligono(x, y, puntos):
+        dentro, j = False, len(puntos) - 1
+        for i in range(len(puntos)):
+            xi, yi = puntos[i]; xj, yj = puntos[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / ((yj - yi) or 1e-9) + xi: dentro = not dentro
+            j = i
+        return dentro
+
+
+    def generar_habitacion(nombre, era=0):
+        """Una habitacion del refugio con su fondo del PMD agrandado x2. El piso es el poligono medido; lo demas, pared invisible."""
+        d = HABITACIONES[nombre]
+        k, tam = 2, TIENDA_CASILLA
+        if d['hoja'] not in _hojas_refugio:
+            try: _hojas_refugio[d['hoja']] = pygame.image.load(d['hoja'])
+            except (pygame.error, FileNotFoundError): _hojas_refugio[d['hoja']] = None
+        hoja = _hojas_refugio[d['hoja']]
+        x0, y0, w, h = d['recorte']
+        columnas, filas = math.ceil(w * k / tam) + 2, math.ceil(h * k / tam) + 2      # una casilla de borde alrededor
+        fondo = pygame.Surface((columnas * tam, filas * tam)); fondo.fill((16, 18, 40))
+        if hoja: fondo.blit(pygame.transform.scale(hoja.subsurface(d['recorte']), (w * k, h * k)), (tam, tam))
+        def a_mundo(x, y): return x * k + tam, y * k + tam
+        piso = [a_mundo(x, y) for x, y in d['piso']]
+        tapados = [pygame.Rect(*a_mundo(x, y), ww * k, hh * k) for x, y, ww, hh in d['tapado']]
+        m = []
+        for f in range(filas):
+            fila = []
+            for c in range(columnas):
+                cx, cy = (c + 0.5) * tam, (f + 0.5) * tam
+                libre = 0 < f < filas - 1 and 0 < c < columnas - 1 and _adentro_poligono(cx, cy, piso) and not any(t.collidepoint(cx, cy) for t in tapados)
+                fila.append('suelo' if libre else 'pared')
+            m.append(fila)
+        sx, sy, sw, sh = d['salida']
+        salida = pygame.Rect(*a_mundo(sx, sy), sw * k, sh * k)
+        for f in range(filas):                                            # la salida siempre se puede pisar
+            for c in range(columnas):
+                if salida.collidepoint((c + 0.5) * tam, (f + 0.5) * tam) and 0 < f < filas - 1 and 0 < c < columnas - 1: m[f][c] = 'suelo'
+        inicio = a_mundo(*d['inicio'])
+        casilla_inicio = (int(inicio[1] // tam), int(inicio[0] // tam))
+        puntos = [{'pos': a_mundo(*p), 'accion': accion, 'texto': texto, 'radio': 70} for p, accion, texto in d['puntos']]
+        return {'matriz': m, 'objetos': [], 'tam': tam, 'columnas': columnas, 'filas': filas, 'esc': pygame.Rect(0, 0, columnas * tam, filas * tam),
+                'entrada': None, 'puertas': [], 'inicio': inicio, 'alcanzables': _alcanzables(m, [], casilla_inicio), 'vitrinas': [], 'piezas': [],
+                'interior': True, 'tipo': 'hall', 'era': era, 'variante': 'hall', 'fondo_img': fondo, 'zona': nombre, 'titulo': d['nombre'],
+                'puntos': puntos, 'pasos': [{'rect': salida.inflate(16, 16), 'zona': d['volver'], 'texto': 'Salir'}], 'llegadas': {}, 'letreros': []}
+
+
+    def generar_plaza(era, estilo='celebi', semilla=None):
+        """La plaza del refugio (el plano): el portal arriba al medio con decoracion de la era a los costados, un patiecito arriba a
+        la izquierda (con la puerta del lounge), el tablon de misiones en la pared izquierda, la fuente en el medio (segun la era),
+        tres edificios a la derecha (minijuegos, salon de los modos y galeria), el patio grande abajo para descansar, el observatorio
+        afuera abajo a la izquierda (sobre el vacio) y la salida al barrio por el oeste."""
+        azar = random.Random(semilla)
+        tam, columnas, filas = TIENDA_CASILLA, 72, 44
+        ancho, alto = columnas * tam, filas * tam
+        cc, fc = columnas // 2, filas // 2
+        atemporal = estilo == 'atemporal'
+        base = 'suelo' if atemporal else 'hierba'
+        m = _matriz_base(columnas, filas, None, ['norte', 'oeste'])
+        for f in range(1, filas - 1):
+            for c in range(1, columnas - 1): m[f][c] = base
+        def camino(f0, c0, f1, c1, ancho_c=1):
+            for f in range(min(f0, f1), max(f0, f1) + 1):
+                for c in range(min(c0, c1), max(c0, c1) + 1):
+                    for d_ in range(-ancho_c, ancho_c + 1):
+                        if f0 == f1 and 0 < f + d_ < filas - 1: m[f + d_][c] = 'suelo'
+                        elif 0 < c + d_ < columnas - 1: m[f][c + d_] = 'suelo'
+        camino(1, cc, fc, cc)                                             # del portal a la fuente
+        camino(fc, 3, fc, columnas - 12)                                  # de oeste a este pasando por la fuente
+        camino(fc, cc, filas - 8, cc)                                     # de la fuente al patio
+        camino(8, columnas - 12, filas - 10, columnas - 12)               # la calle de los edificios
+        # la fuente del medio: agua en circulo con un borde de piedra (en el atemporal, el vacio con un cristal)
+        for f in range(fc - 6, fc + 7):
+            for c in range(cc - 6, cc + 7):
+                d = math.hypot(f - fc, c - cc)
+                if d <= 3.3: m[f][c] = 'vacio' if atemporal else 'agua'
+                elif d <= 5.2: m[f][c] = 'suelo'
+        # el observatorio: una isla sobre el vacio abajo a la izquierda
+        for f in range(filas - 13, filas - 1):
+            for c in range(1, 14):
+                d = math.hypot(f - (filas - 7), c - 7)
+                m[f][c] = 'suelo' if d <= 3.6 else 'vacio'
+        for c in range(7, 16): m[filas - 13][c] = 'suelo'                 # el puentecito hasta la isla
+        for f in range(filas - 13, filas - 9): m[f][7] = 'suelo'
+        # el patio grande de abajo: un estanque y canteros
+        for f in range(filas - 6, filas - 3):
+            for c in range(cc + 8, cc + 15):
+                if azar.random() < 0.9: m[f][c] = 'agua'
+        objetos, puntos, pasos, letreros = [], [], [], []
+        def obj(nombre, x, y, color=None):
+            o = crear_objeto(nombre, (round(x), round(y)))
+            if color: o['color'] = color
+            objetos.append(o); return o
+        # la decoracion de los costados del portal (cambia con la era)
+        for k in range(4):
+            for lado in (-1, 1):
+                x, y = (cc + lado * 4) * tam, (3 + k * 2) * tam
+                obj('pilar_de_cristal' if atemporal else 'maceta', x, y)
+        guardian = ((cc + 2) * tam, 3 * tam)
+        obj('celebi', *guardian)
+        if atemporal: obj('pilar_de_cristal', cc * tam + tam // 2, fc * tam + tam // 2)
+        # patiecito de arriba a la izquierda (cerco de arbustos) con la puerta del lounge
+        for c in range(3, 22, 2):
+            if c not in (11, 13): obj('arbusto', c * tam, 15 * tam)
+        for f in range(4, 15, 2): obj('arbusto', 22 * tam, f * tam)
+        lounge = obj('edificio', 12 * tam, 4 * tam, (210, 150, 90))
+        pasos.append({'rect': pygame.Rect(lounge['rect'].centerx - 30, lounge['rect'].bottom - 10, 60, 30), 'zona': 'comedor', 'texto': 'Entrar al lounge'})
+        letreros.append((lounge['rect'].centerx, lounge['rect'].top - 52, 'Lounge', (210, 150, 90)))
+        for x in (6, 17): obj('banco', x * tam, 10 * tam)
+        obj('mesa', 12 * tam, 10 * tam, (230, 200, 120))
+        # el tablon de misiones en la pared de la izquierda
+        tablon = obj('tablon', 2 * tam + 10, (fc - 6) * tam)
+        puntos.append({'pos': (tablon['rect'].centerx + 50, tablon['rect'].centery), 'accion': 'misiones', 'texto': 'Tablón de misiones', 'radio': 90})
+        # los tres edificios de la derecha
+        for k, (zona, titulo, color) in enumerate((('minijuegos', 'Minijuegos', (90, 170, 230)), ('salon', 'Salón de los modos', (220, 110, 90)),
+                                                   ('galeria', 'Galería', (170, 120, 210)))):
+            e = obj('edificio', (columnas - 6) * tam, (7 + k * 11) * tam, color)
+            puerta = pygame.Rect(e['rect'].x - 26, e['rect'].centery - 28, 30, 56)       # la puerta mira a la calle (al oeste)
+            pasos.append({'rect': puerta, 'zona': zona, 'texto': 'Entrar: ' + titulo})
+            letreros.append((e['rect'].centerx, e['rect'].top - 52, titulo, color))
+        # el patio grande: arboles y bancos
+        for x, y in ((5, filas - 4), (24, filas - 3), (32, filas - 5), (48, filas - 3), (58, filas - 5), (66, filas - 3), (40, filas - 4)):
+            obj('arbol', x * tam, y * tam)
+        for x in (28, 44, 54): obj('banco', x * tam, (filas - 8) * tam)
+        letreros.append((cc * tam, (filas - 9) * tam, 'Patio', (120, 200, 110)))
+        # el observatorio
+        tele = obj('telescopio', 7 * tam, (filas - 7) * tam)
+        puntos.append({'pos': (tele['rect'].centerx, tele['rect'].bottom + 30), 'accion': 'observatorio', 'texto': 'Mirar el cosmos', 'radio': 80})
+        letreros.append((7 * tam, (filas - 12) * tam, 'Observatorio', (150, 170, 255)))
+        letreros.append((3 * tam, fc * tam - 70, 'Al barrio', (230, 210, 150)))
+        for o in objetos:
+            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+            o['vida'] = o['max_vida'] = None
+        llegadas = {'comedor': (12 * tam, 6 * tam + 40), 'minijuegos': ((columnas - 10) * tam, 7 * tam), 'salon': ((columnas - 10) * tam, 18 * tam),
+                    'galeria': ((columnas - 10) * tam, 29 * tam), 'barrio': (3 * tam, fc * tam), 'dojo': ((columnas - 10) * tam, 18 * tam)}
+        return _armar(m, objetos, tam, None, ['norte', 'oeste'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'guardian': guardian,
+                      'interior': False, 'inicio': (cc * tam, (fc + 7) * tam), 'zona': 'plaza', 'titulo': 'El refugio de Celebi',
+                      'puntos': puntos, 'pasos': pasos, 'llegadas': llegadas, 'letreros': letreros})
+
+
+    def generar_barrio(era, estilo='celebi', semilla=None):
+        """El barrio: una calle con casas. La tuya, la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas).
+        Vuelve a la plaza por el este."""
+        tam, columnas, filas = TIENDA_CASILLA, 44, 18
+        m = _matriz_base(columnas, filas, None, ['este'])
+        base = 'suelo' if estilo == 'atemporal' else 'hierba'
+        for f in range(1, filas - 1):
+            for c in range(1, columnas - 1): m[f][c] = 'suelo' if 7 <= f <= 10 else base
+        objetos, pasos, letreros, puntos = [], [], [], []
+        casas = (('casa', 'Tu casa', (220, 120, 90)), ('tienda_celebi', 'Tiendita de Celebi', (120, 200, 120)), (None, 'Casa de un amigo', (130, 160, 220)),
+                 (None, 'Casa de un amigo', (210, 170, 110)), (None, 'Casa de un amigo', (190, 130, 200)))
+        for k, (zona, titulo, color) in enumerate(casas):
+            x = (5 + k * 8) * tam
+            o = crear_objeto('casa_refugio', (x, 4 * tam)); o['color'] = color; objetos.append(o)
+            if CASAS_PMD: o['sprite'] = CASAS_PMD[k % len(CASAS_PMD)]       # las chozas del Red Rescue Team, si estan (python herramientas.py props)
+            letreros.append((x, o['rect'].top - 44, titulo, color))
+            puerta = pygame.Rect(x - 24, o['rect'].bottom - 6, 48, 30)
+            if zona: pasos.append({'rect': puerta, 'zona': zona, 'texto': 'Entrar: ' + titulo})
+            else: puntos.append({'pos': puerta.center, 'accion': 'casa_cerrada', 'texto': titulo, 'radio': 60})
+        for x in range(3, columnas - 2, 6): objetos.append(crear_objeto('arbusto' if x % 12 else 'arbol', (x * tam, 14 * tam)))
+        for o in objetos:
+            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+            o['vida'] = o['max_vida'] = None
+        llegadas = {'casa': (5 * tam, 7 * tam + 20), 'tienda_celebi': (13 * tam, 7 * tam + 20), 'plaza': ((columnas - 3) * tam, 9 * tam)}
+        return _armar(m, objetos, tam, None, ['este'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'interior': False,
+                      'inicio': ((columnas - 3) * tam, 9 * tam), 'zona': 'barrio', 'titulo': 'El barrio', 'puntos': puntos, 'pasos': pasos,
+                      'llegadas': llegadas, 'letreros': letreros, 'guardian': (-999, -999)})
+
+
+    def generar_minijuegos(era, estilo='celebi', semilla=None):
+        """La sala de los minijuegos: una cancha de pasto con tres carteles (contrarreloj, supervivencia y lluvia de monedas)."""
+        tam, columnas, filas = TIENDA_CASILLA, 30, 17
+        m = _matriz_base(columnas, filas, None, [])
+        for f in range(1, filas - 1):
+            for c in range(1, columnas - 1): m[f][c] = 'hierba'
+        objetos = [crear_objeto('cartel', ((6 + k * 9) * tam, 2 * tam)) for k in range(3)]
+        for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam); o['vida'] = o['max_vida'] = None
+        puntos = [{'pos': (o['rect'].centerx, o['rect'].bottom + 40), 'accion': accion, 'texto': texto, 'radio': 70}
+                  for o, (accion, texto) in zip(objetos, (('contrarreloj', 'Contrarreloj'), ('supervivencia', 'Supervivencia'), ('monedas', 'Lluvia de monedas')))]
+        salida = pygame.Rect((columnas // 2 - 1) * tam, (filas - 2) * tam, 2 * tam, tam)
+        for c in (columnas // 2 - 1, columnas // 2): m[filas - 1][c] = 'suelo'
+        return _armar(m, objetos, tam, None, [], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'interior': False,
+                      'inicio': ((columnas // 2) * tam, (filas - 3) * tam), 'zona': 'minijuegos', 'titulo': 'Minijuegos', 'puntos': puntos,
+                      'pasos': [{'rect': salida, 'zona': 'plaza', 'texto': 'Salir'}], 'llegadas': {}, 'letreros': [], 'cancha': True, 'guardian': (-999, -999)})
+
+
+    # los titanes del refugio: (jefe, era de su piso, columna, fila) en la sala de los titanes (dos filas mirando al pasillo del medio)
+    TITANES = (('walrein', 0, 5, 5), ('regice', 0, 10, 5), ('golem', 1, 15, 5), ('regirock', 1, 20, 5), ('corviknight', 2, 25, 5), ('registeel', 2, 30, 5),
+               ('garchomp', 3, 5, 13), ('regidrago', 3, 10, 13), ('magnezone', 4, 15, 13), ('regieleki', 4, 20, 13), ('regigigas', 5, 25, 13), ('arceus', 5, 30, 13))
+
+
+    def generar_titanes(era=5):
+        """La sala de los titanes: un salon largo del Origen con un pedestal para cada jefe (los que ya derrotaste estan ahi parados).
+        'titanes' dice donde va cada uno; se sale por abajo, de vuelta al salon de los modos."""
+        tam, columnas, filas = TIENDA_CASILLA, 36, 19
+        m = _matriz_base(columnas, filas, None, [])
+        for c in range(2, columnas - 2): m[9][c] = 'alfombra'              # el pasillo del medio
+        objetos = []
+        for _, _, c, f in TITANES:                                           # un pilar de cristal a cada lado de cada pedestal
+            for lado in (-2, 2): objetos.append(crear_objeto('pilar_de_cristal', ((c + lado + 0.5) * tam, (f - 1.5 if f < 9 else f + 1.5) * tam)))
+        for o in objetos: o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam); o['vida'] = o['max_vida'] = None
+        salida = pygame.Rect((columnas // 2 - 1) * tam, (filas - 2) * tam, 2 * tam, tam)
+        for c in (columnas // 2 - 1, columnas // 2): m[filas - 1][c] = 'suelo'
+        return _armar(m, objetos, tam, None, [], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': 'atemporal', 'interior': True,
+                      'inicio': ((columnas // 2) * tam, (filas - 3) * tam), 'zona': 'titanes', 'titulo': 'Sala de los titanes', 'puntos': [],
+                      'titanes': [(n, e, ((c + 0.5) * tam, (f + 0.5) * tam)) for n, e, c, f in TITANES],
+                      'pasos': [{'rect': salida, 'zona': 'salon', 'texto': 'Volver al salón'}], 'llegadas': {}, 'letreros': [], 'guardian': (-999, -999)})
+
+
+    def generar_isla(semilla=None):
+        """La isla de practica de Celebi (el tutorial): pasto en el medio, una vuelta de arena y el mar alrededor. Al oeste el claro
+        de los muñecos, en el medio el cerco de practica, al este las cosas para romper y al norte un muelle hasta la puerta.
+        'marcas' son los lugares que usa el tutorial (a donde caminar, donde van los muñecos, donde espera Celebi)."""
+        azar = random.Random(semilla)
+        tam, columnas, filas = TAM_CASILLA, 30, 20
+        cc, fc = columnas // 2, filas // 2 + 1
+        m = [['agua'] * columnas for _ in range(filas)]
+        for f in range(filas):
+            for c in range(columnas):
+                d = ((c - cc + 0.5) / (cc - 2.6)) ** 2 + ((f - fc + 0.5) / (fc - 3.2)) ** 2
+                d += 0.05 * math.sin(c * 1.3) * math.cos(f * 1.7)             # la costa no es una elipse perfecta
+                if d <= 0.78: m[f][c] = 'suelo'
+                elif d <= 1.0: m[f][c] = 'arena'
+        for f in range(1, fc - 4): m[f][cc] = 'puente'; m[f][cc - 1] = 'puente'      # el muelle del norte
+        for f in range(fc - 5, fc - 2):
+            for c in (cc - 1, cc): m[f][c] = 'suelo'
+        for c in (cc - 1, cc): m[0][c] = 'puerta'
+        for f, c in ((fc + 3, 5), (fc + 3, 6), (fc + 4, 6), (fc - 3, columnas - 7), (fc - 2, columnas - 7), (fc - 2, columnas - 8)):   # pasto alto para esconderse
+            if m[f][c] == 'suelo': m[f][c] = 'hierba'
+        objetos = []
+        def obj(nombre, c, f): objetos.append(crear_objeto(nombre, ((c + 0.5) * tam, (f + 0.5) * tam)))
+        for c, f in ((4, fc - 3), (columnas - 5, fc + 3), (8, fc + 5), (columnas - 9, fc - 5), (6, fc - 5)): obj('arbol', c, f)
+        for c, f in ((cc + 6, fc + 2), (cc + 7, fc + 2), (cc + 6, fc + 3)): obj('barril', c, f)      # para romper
+        obj('caja', cc + 8, fc + 3)
+        for c, f in ((cc - 3, fc - 5), (cc + 2, fc - 5)): obj('arbusto', c, f)
+        objetos = [o for o in objetos if m[int(o['rect'].centery // tam)][int(o['rect'].centerx // tam)] in ('suelo', 'hierba', 'arena')]
+        objetos.append(crear_objeto('celebi', ((cc + 1.5) * tam, (fc - 0.5) * tam)))                  # Celebi mira desde el medio de la isla
+        for o in objetos:
+            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+            if o['nombre'] in ('arbol', 'arbusto'): o['vida'] = o['max_vida'] = None
+        centro = lambda c, f: ((c + 0.5) * tam, (f + 0.5) * tam)
+        marcas = {'inicio': centro(cc, fc + 3), 'celebi': centro(cc + 1, fc - 1), 'caminar': centro(cc - 6, fc), 'correr': centro(cc + 5, fc - 2),
+                  'muñecos': [centro(cc - 8, fc - 1), centro(cc - 6, fc - 3), centro(cc - 9, fc + 2)], 'rival': centro(cc - 3, fc + 1),
+                  'romper': centro(cc + 6, fc + 3), 'muelle': centro(cc, fc - 4), 'centro': centro(cc, fc)}
+        sala = _armar(m, objetos, tam, None, ['norte'], {'tipo': 'tutorial', 'era': 1, 'variante': 'rio', 'interior': False, 'inicio': marcas['inicio'],
+                                                        'marcas': marcas, 'guardian': marcas['celebi']})
+        sala['alcanzables'] = _alcanzables(m, objetos, (fc + 3, cc))
+        return sala
 
 
     def generar_tesoro(era, salidas=('oeste', 'este'), semilla=None):
@@ -971,13 +1260,82 @@ def armar_entorno():
             for carpeta in carpetas:
                 ruta = os.path.join(CARPETA_ASSETS, carpeta, 'terrenos', terreno)
                 if os.path.isfile(ruta + '.json') and os.path.isfile(ruta + '.png'):
-                    if ruta not in _por_ruta: _por_ruta[ruta] = _cargar_capa(ruta)
+                    if ruta not in _por_ruta: _por_ruta[ruta] = _cargar_capa(ruta, terreno)
                     _capas[clave] = _por_ruta[ruta]
                     break
+            cp = _capas[clave]
+            if cp and cp.get('orilla') and terreno in ORILLA_DEL_PISO:    # la orilla del agua toma el tono del piso de esta sala
+                piso = capa('suelo', era, variante)
+                if piso:
+                    if (cp['ruta'], piso['ruta']) not in _por_ruta: _por_ruta[(cp['ruta'], piso['ruta'])] = _con_orilla(cp, piso)
+                    _capas[clave] = _por_ruta[(cp['ruta'], piso['ruta'])]
         return _capas[clave]
 
 
-    def _cargar_capa(ruta):
+    CALADO = (1, 254, 3)                                         # color que queda transparente en los parches calados
+    ORILLA_DEL_PISO = ('agua', 'corriente')                      # a estos la orilla se les pinta con el tono del piso de la sala
+
+
+    def _calar(img, brillo, d):
+        """Los parches del PMD (agua, hielo, hierba alta...) traen pegado alrededor el piso de SU mazmorra, que no es el de la sala:
+        se lo saca (queda transparente y se ve el piso de verdad). Mira los colores del borde de cada pieza del lado donde no sigue
+        el terreno y borra desde ahi todo lo que tenga esos colores. Devuelve los pixeles de la orilla (lo que no es ni piso ni agua)."""
+        llenas = [i for i, m in enumerate(d['mascaras']) if m >= 0 and d['hay'][i] == '1' and _normalizar(m) == 255]
+        partes = [(i, _normalizar(m)) for i, m in enumerate(d['mascaras']) if m >= 0 and d['hay'][i] == '1' and _normalizar(m) != 255]
+        if not llenas or not partes: return None
+        px = lambda i, x, y, v=0: tuple(img.get_at((v * 72 + i % 3 * 24 + x, i // 3 * 24 + y)))[:3]
+        adentro = {px(i, x, y) for i in llenas for x in range(24) for y in range(24)}
+        for fila in zip(*(d.get('paleta') or [])):                   # los colores que se animan tambien son agua
+            if len({tuple(c) for c in fila}) > 1: adentro |= {tuple(c) for c in fila}
+        def borde_abierto(m):
+            """Pixeles del borde de la pieza por donde ya no sigue el terreno (lados y esquinas)."""
+            puntos = []
+            for bit, lado in ((1, [(x, 0) for x in range(24)]), (4, [(23, y) for y in range(24)]), (16, [(x, 23) for x in range(24)]), (64, [(0, y) for y in range(24)])):
+                if not m & bit: puntos += lado
+            for bit, punto in ((2, (23, 0)), (8, (23, 23)), (32, (0, 23)), (128, (0, 0))):
+                if not m & bit: puntos.append(punto)
+            return puntos
+        afuera = {px(i, x, y) for i, m in partes for x, y in borde_abierto(m)} - adentro
+        if not afuera: return None
+        orilla = []
+        for v in range(img.get_width() // 72):
+            for i, m in partes:
+                ox, oy = v * 72 + i % 3 * 24, i // 3 * 24
+                vistos, pendientes = set(), [p_ for p_ in borde_abierto(m) if px(i, *p_, v) in afuera]
+                while pendientes:
+                    x, y = pendientes.pop()
+                    if (x, y) in vistos: continue
+                    vistos.add((x, y))
+                    for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                        if 0 <= nx < 24 and 0 <= ny < 24 and (nx, ny) not in vistos and px(i, nx, ny, v) in afuera: pendientes.append((nx, ny))
+                for x in range(24):
+                    for y in range(24):
+                        if (x, y) in vistos:
+                            img.set_at((ox + x, oy + y), CALADO)
+                            if brillo and v == 0: brillo.set_at((ox + x, oy + y), MAGENTA)
+                        elif px(i, x, y, v) not in adentro and px(i, x, y, v) != MAGENTA: orilla.append((ox + x, oy + y))
+        return orilla
+
+
+    def _con_orilla(cp, piso):
+        """El mismo tileset de agua con la orilla pintada en el tono del piso de la sala (un poco mas oscuro, como tierra mojada),
+        asi el borde del agua nunca queda de otro color que el terreno."""
+        llena = (piso['piezas'].get(255) or [next(iter(piso['piezas'].values()))[0]])[0]
+        base = pygame.transform.average_color(piso['img'].subsurface((llena % 3 * 24, llena // 3 * 24, 24, 24)))[:3]
+        img = cp['img'].copy()
+        claros = [sum(img.get_at(p_)[:3]) for p_ in cp['orilla']]
+        medio = max(1, sum(claros) / max(1, len(claros)))
+        for p_, claro in zip(cp['orilla'], claros):
+            k = max(0.45, min(0.95, 0.68 * claro / medio))
+            img.set_at(p_, tuple(round(v * k) for v in base))
+        brillo = cp['brillo'].copy() if cp['brillo'] else None
+        if brillo:                                                   # la capa de brillos trae la orilla repetida: se la saca
+            for p_ in cp['orilla']:
+                if p_[0] < brillo.get_width(): brillo.set_at(p_, MAGENTA)
+        return dict(cp, img=img, brillo=brillo, cache={}, elegidas={})
+
+
+    def _cargar_capa(ruta, terreno=None):
         """Lee un tileset (.png + .json) y arma el indice mascara -> piezas. None si esta roto o vacio."""
         try:
             with open(ruta + '.json', encoding='utf-8') as f: d = json.load(f)
@@ -989,7 +1347,19 @@ def armar_entorno():
             if m >= 0 and d['hay'][i] == '1': piezas.setdefault(_normalizar(m), []).append(i)
         if not piezas: return None
         paleta = lambda filas: [[tuple(c) for c in fila] for fila in filas] if filas else None
-        return {'img': img, 'grupo': d.get('grupo'), 'mascaras': d['mascaras'], 'piezas': piezas, 'elegidas': {}, 'variantes': [set(i for i, h in enumerate(v) if h == '1') for v in d['variantes']],
+        fijas = d.get('paleta') or []
+        if brillo and not any(tuple(c) == MAGENTA and len({tuple(f_[i]) for f_ in fijas}) > 1 for i, c in enumerate(fijas[0] if fijas else ())):
+            llena = (piezas.get(255) or [0])[0]                        # los huecos de los brillos (magenta) se tapan con el color del agua:
+            zona = img.subsurface((llena % 3 * 24, llena // 3 * 24, 24, 24))   # debajo de un puente o con el brillo apagado se veian rosas
+            colores = [tuple(zona.get_at((x, y)))[:3] for x in range(24) for y in range(24)]
+            comunes = [c for c in colores if c != MAGENTA]
+            if comunes:
+                pa = pygame.PixelArray(img); pa.replace(MAGENTA, max(set(comunes), key=comunes.count)); pa.close()
+        orilla = None                                                # los parches que van sobre el piso de otra hoja se calan
+        if terreno not in ('suelo', 'pared', None) and d.get('grupo') in ('agua', 'pared') and not d.get('transparente'):
+            orilla = _calar(img, brillo, d)
+            if orilla is not None: img.set_colorkey(CALADO)
+        return {'ruta': ruta, 'calado': orilla is not None, 'orilla': orilla, 'img': img, 'grupo': d.get('grupo'), 'mascaras': d['mascaras'], 'piezas': piezas, 'elegidas': {}, 'variantes': [set(i for i, h in enumerate(v) if h == '1') for v in d['variantes']],
                 'paleta': paleta(d.get('paleta')), 'cada': d.get('cada', 12), 'brillo': brillo, 'hay_brillo': d.get('brillo', ''),
                 'paleta_brillo': paleta(d.get('paleta_brillo')), 'cada_brillo': d.get('cada_brillo', 8), 'cache': {}}
 
@@ -1031,6 +1401,7 @@ def armar_entorno():
             if frame and paleta: _pintar(t, paleta[0], paleta[frame])
             t = pygame.transform.scale(t, (tam, tam))
             if brillo: t.set_colorkey(MAGENTA)
+            elif cp.get('calado'): t.set_colorkey(CALADO)
             cp['cache'][clave] = t
         return cp['cache'][clave]
 
@@ -1922,7 +2293,7 @@ def armar_entorno():
         iguales = (lambda t: t not in MUROS) if terreno == 'suelo' else (lambda t: t in grupo)   # el agua y lo demas cuentan como piso
         mascara = _mascara(ent['m'], f, c, iguales)
         i, variante = _pieza(cp, mascara, f, c)
-        mancha = mascara if terreno not in ('suelo', 'agua') and cp['grupo'] in ('suelo', 'agua') else None   # parche de otra hoja (nieve, hielo, lodo)
+        mancha = mascara if terreno not in ('suelo', 'agua') and cp['grupo'] in ('suelo', 'agua') and not cp.get('calado') else None   # parche de otra hoja (nieve, hielo, lodo)
         fondo.blit(_mancha(cp, i, variante, r.width, mancha) if mancha is not None else _tile(cp, i, variante, r.width), r)
         brillo = cp['brillo'] is not None and cp['hay_brillo'][i] == '1'
         if brillo and not cp['paleta_brillo']: fondo.blit(_tile(cp, i, 0, r.width, brillo=True), r)
@@ -1957,21 +2328,53 @@ def armar_entorno():
         return _alfombras[clave]
 
 
+    def _dibujar_charcos(fondo, celdas, tam):
+        """Charcos: agua quieta y semitransparente sobre el piso de la era (se ve el piso a traves), con los bordes redondeados,
+        los charcos vecinos unidos, una orilla un poco mas clara y un par de brillos. Antes usaban el agua del lago de un bosque."""
+        agua = pygame.Surface(fondo.get_size(), pygame.SRCALPHA)
+        mojado = pygame.Surface(fondo.get_size()); mojado.fill((255, 255, 255))   # el piso mojado se oscurece (sin cambiarle el color)
+        borde = max(3, tam // 7); radio = tam // 3
+        for f, c in celdas:
+            cuerpo = pygame.Rect(c * tam + borde, f * tam + borde, tam - 2 * borde, tam - 2 * borde)
+            if (f, c + 1) in celdas: cuerpo.width += borde * 2
+            if (f + 1, c) in celdas: cuerpo.height += borde * 2
+            if (f, c - 1) in celdas: cuerpo.x -= borde * 2; cuerpo.width += borde * 2
+            if (f - 1, c) in celdas: cuerpo.y -= borde * 2; cuerpo.height += borde * 2
+            pygame.draw.rect(mojado, (175, 182, 195), cuerpo, border_radius=radio)
+            pygame.draw.rect(agua, (120, 175, 225, 70), cuerpo, border_radius=radio)
+        for parte in pygame.mask.from_surface(agua, 1).connected_components():   # la orilla: una linea clara alrededor de cada charco
+            puntos = parte.outline()
+            if len(puntos) > 2: pygame.draw.lines(agua, (170, 210, 245, 170), True, puntos, 2)
+        for f, c in celdas:                                             # brillos (siempre en el mismo lugar de cada casilla)
+            if (f * 31 + c * 17) % 3: continue
+            x, y = c * tam + tam * (0.25 + (f % 2) * 0.2), f * tam + tam * 0.35
+            pygame.draw.ellipse(agua, (235, 245, 255, 150), (x, y, tam * 0.28, tam * 0.08))
+            pygame.draw.ellipse(agua, (235, 245, 255, 110), (x + tam * 0.1, y + tam * 0.16, tam * 0.14, tam * 0.06))
+        fondo.blit(mojado, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        fondo.blit(agua, (0, 0))
+
+
     def _armar_fondo(ent):
         """Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno).
         Con tilesets del PMD cada casilla elige su pieza segun los vecinos (bordes, esquinas, orillas); si no, el dibujo provisorio."""
         m, tam, era = ent['m'], ent['tam'], ent['era']
         variante = ent['sala'].get('variante')
-        fondo = pygame.Surface((len(m[0]) * tam, len(m) * tam))
         ent['animadas'], ent['lava'] = [], []
-        con_sprite, entrada = set(), None
+        if ent['sala'].get('fondo_img') is not None:                   # habitacion del refugio: el fondo ya dibujado del PMD
+            ent['fondo'] = ent['sala']['fondo_img']; return
+        fondo = pygame.Surface((len(m[0]) * tam, len(m) * tam))
+        con_sprite, entrada, charcos = set(), None, set()
         piso = capa('suelo', era['clave'], variante)
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
                 r = pygame.Rect(c * tam, f * tam, tam, tam)
+                if t == 'charco':                                        # charco: el piso de la era y despues una mancha de agua encima
+                    if piso: _poner_tile(ent, fondo, piso, 'suelo', f, c, r)
+                    else: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)
+                    charcos.add((f, c)); con_sprite.add(t); continue
                 cp = capa(t, era['clave'], variante)
                 if cp:
-                    if piso and t not in ('suelo', 'agua') and cp['grupo'] in ('suelo', 'agua'): _poner_tile(ent, fondo, piso, 'suelo', f, c, r)   # debajo de la mancha
+                    if piso and t not in ('suelo', 'pared') and (cp.get('calado') or (t != 'agua' and cp['grupo'] in ('suelo', 'agua'))): _poner_tile(ent, fondo, piso, 'suelo', f, c, r)   # debajo de la mancha
                     _poner_tile(ent, fondo, cp, t, f, c, r); con_sprite.add(t); continue
                 img = imagen('terrenos', t, era['clave'])               # una casilla suelta (formato viejo)
                 if img and img.get_height() <= 72:
@@ -1984,6 +2387,10 @@ def armar_entorno():
                 if t == 'suelo':
                     if not debajo: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)   # piso del color de la era
                     continue
+                if t == 'fuego':                                         # fuego: el piso de la era chamuscado (las llamas se dibujan cada frame)
+                    if not debajo: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)
+                    fondo.blit(_chamuscado(tam, f * 31 + c * 17), r, special_flags=pygame.BLEND_RGB_MULT)
+                    continue
                 if t == 'pared': color = era['pared']
                 else: color = mundos.TERRENOS[t]['color']
                 if t == 'lava': ent['lava'].append(r)
@@ -1991,12 +2398,6 @@ def armar_entorno():
                     for k in range(4): pygame.draw.rect(fondo, _aclarar(color, 12 if k % 2 else -8), (r.x + 4, r.y + 2 + k * tam // 4, tam - 8, tam // 4 - 3), border_radius=3)
                     pygame.draw.line(fondo, (70, 45, 25), (r.x + 4, r.y), (r.x + 4, r.bottom), 3)
                     pygame.draw.line(fondo, (70, 45, 25), (r.right - 5, r.y), (r.right - 5, r.bottom), 3)
-                    continue
-                if t == 'charco' and debajo:                             # charco: mancha de agua sobre el piso
-                    charco = pygame.Surface((tam, tam), pygame.SRCALPHA)
-                    pygame.draw.ellipse(charco, (*color, 170), charco.get_rect().inflate(-8, -tam // 3))
-                    pygame.draw.ellipse(charco, (220, 240, 255, 150), (tam * 0.3, tam * 0.38, tam * 0.25, tam * 0.08))
-                    fondo.blit(charco, r)
                     continue
                 if t == 'alfombra':                                      # la alfombra entera se pone despues (ver abajo)
                     if not _alfombra(tam, tam):
@@ -2012,6 +2413,7 @@ def armar_entorno():
                     pygame.draw.circle(fondo, (200, 200, 60), (cx + dx * tam // 4, cy + dy * tam // 4), 5)
                 if t == 'cable': pygame.draw.line(fondo, (40, 40, 40), r.topleft, r.bottomright, 4)
                 _dibujar_textura(fondo, t, r, f, c)
+        if charcos: _dibujar_charcos(fondo, charcos, tam)
         vistos_a = set()                                                # cada zona de alfombra: una alfombra del Secret Bazaar encima
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
@@ -2043,6 +2445,39 @@ def armar_entorno():
         ent['fondo'] = fondo
 
 
+    _quemados = {}
+    # donde va cada llama adentro de una casilla que arde: (x, y, tamaño) en partes de la casilla. Hay varias formas para que no se repita
+    LLAMAS = (((-0.24, 0.12, 0.5), (0.2, -0.14, 0.58), (0.06, 0.24, 0.44)), ((0.22, 0.14, 0.5), (-0.2, -0.12, 0.56), (-0.02, 0.26, 0.42)),
+              ((-0.26, -0.1, 0.5), (0.24, 0.02, 0.54), (-0.04, 0.24, 0.46)), ((0.0, -0.16, 0.6), (-0.26, 0.2, 0.44), (0.26, 0.2, 0.44)))
+
+
+    def _chamuscado(tam, semilla):
+        """Mancha de piso quemado para multiplicar sobre el piso: oscura en el medio y sin bordes rectos (una de 4 formas)."""
+        clave = (tam, semilla % 4)
+        if clave not in _quemados:
+            azar = random.Random(clave[1] * 97 + 5)
+            sup = pygame.Surface((tam, tam)); sup.fill((255, 255, 255))
+            for radio_k, gris in ((0.46, 215), (0.36, 170), (0.25, 125)):       # tres capas de manchas, cada vez mas oscuras y mas adentro
+                for _ in range(5):
+                    ang, d = azar.uniform(0, math.tau), azar.uniform(0, tam * 0.14)
+                    ancho, alto = tam * radio_k * azar.uniform(0.75, 1.1) * 2, tam * radio_k * azar.uniform(0.6, 0.95) * 2
+                    caja_q = pygame.Rect(0, 0, round(ancho), round(alto)); caja_q.center = (round(tam / 2 + math.cos(ang) * d), round(tam / 2 + math.sin(ang) * d))
+                    pygame.draw.ellipse(sup, (gris, round(gris * 0.93), round(gris * 0.86)), caja_q.clip(sup.get_rect()))
+            _quemados[clave] = sup
+        return _quemados[clave]
+
+
+    def _resplandor(lado):
+        """Circulo naranja que se apaga hacia afuera, para sumarlo sobre lo que arde (se arma una vez por tamaño)."""
+        clave = ('resplandor', lado)
+        if clave not in _quemados:
+            sup = pygame.Surface((lado, lado))
+            for k in range(8, 0, -1):
+                pygame.draw.circle(sup, (round(70 * (9 - k) / 8), round(34 * (9 - k) / 8), 0), (lado // 2, lado // 2), round(lado / 2 * k / 8))
+            _quemados[clave] = sup
+        return _quemados[clave]
+
+
     def _tono(color, k):
         """El color aclarado (k > 1) u oscurecido (k < 1)."""
         return tuple(max(0, min(255, round(v * k if k < 1 else v + (255 - v) * (k - 1)))) for v in color)
@@ -2065,6 +2500,89 @@ def armar_entorno():
         pygame.draw.rect(ventana, _tono(color, 1.45), tapa, border_radius=3)
         pygame.draw.rect(ventana, borde, tapa, 2, border_radius=3)
         pygame.draw.rect(ventana, borde, frente, 2, border_radius=4)
+
+
+    def _dibujar_edificio(ventana, r, color, casa=False):
+        """Edificio o casa del refugio: paredes claras con vigas, techo del color del lugar, ventanas y la puerta."""
+        borde = (45, 28, 18)
+        pared = (236, 220, 186) if not casa else (230, 205, 165)
+        techo_alto = 56 if not casa else 46
+        sombra = pygame.Surface((r.width + 20, 16), pygame.SRCALPHA); pygame.draw.ellipse(sombra, (0, 0, 0, 70), sombra.get_rect()); ventana.blit(sombra, (r.x - 10, r.bottom - 8))
+        pygame.draw.rect(ventana, pared, r)
+        for x in (r.x + 8, r.right - 14): pygame.draw.rect(ventana, (150, 100, 60), (x, r.y, 6, r.height))
+        pygame.draw.rect(ventana, (150, 100, 60), (r.x, r.y + r.height // 2 - 3, r.width, 6))
+        techo = [(r.x - 16, r.y + 6), (r.centerx, r.y - techo_alto), (r.right + 16, r.y + 6)]
+        pygame.draw.polygon(ventana, color, techo); pygame.draw.polygon(ventana, _tono(color, 0.6), techo, 3)
+        for k in range(1, 4):                                                   # tejas
+            y = r.y + 6 - k * techo_alto // 4
+            ancho_t = (r.width + 32) * (4 - k) // 4
+            pygame.draw.line(ventana, _tono(color, 0.75), (r.centerx - ancho_t // 2, y), (r.centerx + ancho_t // 2, y), 2)
+        for x in (r.x + 22, r.right - 50):                                      # ventanas
+            v = pygame.Rect(x, r.y + 16, 28, 24)
+            pygame.draw.rect(ventana, (140, 200, 240), v); pygame.draw.rect(ventana, borde, v, 2)
+            pygame.draw.line(ventana, borde, (v.centerx, v.y), (v.centerx, v.bottom), 2)
+        puerta = pygame.Rect(r.centerx - 16, r.bottom - 44, 32, 44)
+        pygame.draw.rect(ventana, (110, 66, 36), puerta, border_top_left_radius=12, border_top_right_radius=12)
+        pygame.draw.rect(ventana, borde, puerta, 2, border_top_left_radius=12, border_top_right_radius=12)
+        pygame.draw.circle(ventana, (240, 210, 90), (puerta.right - 8, puerta.centery + 4), 3)
+        pygame.draw.rect(ventana, borde, r, 2)
+
+
+    def _dibujar_tablon(ventana, r, color):
+        madera, borde = (150, 100, 55), (45, 28, 18)
+        for x in (r.x + 6, r.right - 12): pygame.draw.rect(ventana, (110, 72, 40), (x, r.y + 10, 6, r.height))
+        tabla = pygame.Rect(r.x, r.y, r.width, r.height - 12)
+        pygame.draw.rect(ventana, madera, tabla, border_radius=3); pygame.draw.rect(ventana, borde, tabla, 2, border_radius=3)
+        for k, (dx, dy) in enumerate(((8, 6), (30, 10), (16, 22), (40, 24))):      # papelitos clavados
+            p = pygame.Rect(r.x + dx, r.y + dy, 16, 14)
+            pygame.draw.rect(ventana, (245, 240, 220) if k % 2 else (250, 230, 170), p); pygame.draw.circle(ventana, (200, 60, 60), (p.centerx, p.y + 2), 2)
+
+
+    def _dibujar_telescopio(ventana, r, color):
+        borde = (30, 30, 50)
+        for dx in (-12, 0, 12): pygame.draw.line(ventana, (90, 70, 50), (r.centerx, r.centery), (r.centerx + dx, r.bottom), 3)
+        tubo = [(r.centerx - 6, r.centery + 2), (r.right + 2, r.y - 6), (r.right + 8, r.y + 2), (r.centerx + 2, r.centery + 8)]
+        pygame.draw.polygon(ventana, (120, 140, 210), tubo); pygame.draw.polygon(ventana, borde, tubo, 2)
+        pygame.draw.circle(ventana, (220, 230, 255), (r.right + 5, r.y - 2), 4)
+
+
+    def _dibujar_banco(ventana, r, color):
+        borde = (45, 28, 18)
+        for x in (r.x + 6, r.right - 12): pygame.draw.rect(ventana, (100, 66, 38), (x, r.y + 10, 6, r.height - 10))
+        asiento = pygame.Rect(r.x, r.y + 4, r.width, 12)
+        pygame.draw.rect(ventana, (170, 115, 65), asiento, border_radius=3); pygame.draw.rect(ventana, borde, asiento, 2, border_radius=3)
+
+
+    def _dibujar_cartel(ventana, r, color):
+        borde = (45, 28, 18)
+        pygame.draw.rect(ventana, (110, 72, 40), (r.centerx - 3, r.y + 20, 6, r.height - 20))
+        tabla = pygame.Rect(r.x, r.y, r.width, 30)
+        pygame.draw.rect(ventana, (200, 160, 100), tabla, border_radius=4); pygame.draw.rect(ventana, borde, tabla, 2, border_radius=4)
+
+
+    def _dibujar_estante(ventana, r, color):
+        """Estante de la tienda: madera con dos tablas, sombra abajo y patitas (las cosas van arriba, ver dibujar_tienda)."""
+        madera, borde = (130, 86, 50), (45, 28, 18)
+        sombra = pygame.Surface((r.width + 10, 12), pygame.SRCALPHA); pygame.draw.ellipse(sombra, (0, 0, 0, 70), sombra.get_rect())
+        ventana.blit(sombra, (r.x - 5, r.bottom - 6))
+        cuerpo = pygame.Rect(r.x, r.y + 6, r.width, r.height - 6)
+        pygame.draw.rect(ventana, madera, cuerpo, border_radius=3)
+        pygame.draw.rect(ventana, _tono(madera, 0.7), (cuerpo.x + 4, cuerpo.centery, cuerpo.width - 8, 4))     # la tabla del medio
+        for x in range(cuerpo.x + 40, cuerpo.right - 20, 60): pygame.draw.line(ventana, _tono(madera, 0.8), (x, cuerpo.y + 3), (x, cuerpo.bottom - 3), 2)
+        tapa = pygame.Rect(r.x - 4, r.y, r.width + 8, 10)
+        pygame.draw.rect(ventana, _tono(madera, 1.35), tapa, border_radius=3); pygame.draw.rect(ventana, borde, tapa, 2, border_radius=3)
+        pygame.draw.rect(ventana, borde, cuerpo, 2, border_radius=3)
+
+
+    def _dibujar_mesa(ventana, r, color):
+        """Mesa de los destacados: patas de madera y un mantel del color del tendero con borde claro."""
+        borde = (45, 28, 18)
+        for x in (r.x + 8, r.right - 14): pygame.draw.rect(ventana, (110, 72, 42), (x, r.y + 14, 6, r.height - 12))
+        mantel = pygame.Rect(r.x, r.y, r.width, r.height - 16)
+        pygame.draw.rect(ventana, color, mantel, border_radius=6)
+        pygame.draw.rect(ventana, _tono(color, 1.4), (mantel.x + 4, mantel.y + 3, mantel.width - 8, 4), border_radius=2)
+        pygame.draw.rect(ventana, _tono(color, 0.65), mantel, 2, border_radius=6)
+        pygame.draw.rect(ventana, borde, (r.x, mantel.bottom - 2, r.width, 3))
 
 
     def dibujar(ent, ventana, cx, cy, ahora, tipos_jugador=()):
@@ -2097,8 +2615,15 @@ def armar_entorno():
         for (f, c) in ent['fuego']:                                    # fuego sobre el piso: la llama del PMD en loop (cada casilla desfasada)
             r = rect_casilla(ent, f, c).move(-cx, -cy)
             if not vista.move(-cx, -cy).colliderect(r): continue
-            if not _loop(ventana, 'golpe_fuego', r.center, round(tam * 1.1), ahora + (f * 7 + c * 13) * 37, 55):
-                pygame.draw.rect(ventana, (255, 200, 40) if (ahora // 120 + f + c) % 2 else (240, 90, 20), r.inflate(-10, -10))
+            semilla = f * 7 + c * 13
+            late = 0.82 + 0.18 * math.sin(ahora / 130 + semilla)          # el resplandor late (cada casilla a su ritmo)
+            luz = _resplandor(round(tam * 1.5 * late) // 2 * 2)
+            ventana.blit(luz, luz.get_rect(center=r.center), special_flags=pygame.BLEND_RGB_ADD)
+            for n, (ox, oy, esc) in enumerate(LLAMAS[semilla % len(LLAMAS)]):   # tres llamas de la fogata del PMD, cada una en su cuadro
+                centro_l = (r.centerx + round(ox * tam), r.centery + round((oy - esc * 0.28) * tam))
+                if not _loop(ventana, 'llama', centro_l, round(tam * esc), ahora + (semilla + n * 5) * 53, 110):
+                    if not _loop(ventana, 'golpe_fuego', centro_l, round(tam * esc), ahora + (semilla + n * 5) * 37, 55):   # sin la llama: la columna de fuego
+                        pygame.draw.circle(ventana, (255, 200, 40) if (ahora // 120 + f + c + n) % 2 else (240, 90, 20), centro_l, round(tam * esc * 0.25))
         for (f, c) in ent['electrico']:                                # agua electrificada: las chispas del PMD (o rayitas si faltan)
             r = rect_casilla(ent, f, c).move(-cx, -cy)
             if _loop(ventana, 'golpe_electrico', r.center, tam, ahora + (f * 5 + c * 11) * 41, 50): continue
@@ -2113,7 +2638,7 @@ def armar_entorno():
             d = mundos.OBJETOS[o['nombre']]
             r = o['rect'].move(-cx, -cy)
             if not r.colliderect(ventana.get_rect()): continue
-            img = imagen('objetos', o['nombre'], ent['era']['clave'])
+            img = imagen('objetos', o.get('sprite') or o['nombre'], ent['era']['clave'])   # 'sprite': otro dibujo para el mismo objeto (las casas del barrio)
             if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Kecleon en la tienda): animado
                 if 'animador' not in o:
                     o['animador'] = AnimadorPokemon(o['nombre'], pygame.Rect(0, 0, 10, 10), max(o['rect'].size) + 30); o['animador'].cambiar('idle', 0, True)
@@ -2122,6 +2647,12 @@ def armar_entorno():
                 if o['animador'].dibujar(ventana): continue
             if d.get('mostrador') and not img:                         # mostrador de la tienda: madera con la tela del color de su tendero
                 _dibujar_mostrador(ventana, r, d['color'], d.get('franja'))
+                continue
+            if d.get('mueble') and not img:                            # estante y mesa de la tienda, y las cosas del refugio
+                dibujo = {'estante': _dibujar_estante, 'mesa': _dibujar_mesa, 'tablon': _dibujar_tablon, 'telescopio': _dibujar_telescopio,
+                          'banco': _dibujar_banco, 'cartel': _dibujar_cartel}.get(d['mueble'])
+                if d['mueble'] in ('edificio', 'casa'): _dibujar_edificio(ventana, r, o.get('color', d['color']), d['mueble'] == 'casa')
+                elif dibujo: dibujo(ventana, r, o.get('color', d['color']))
                 continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
                 sprite = _escalada(img, r.width)

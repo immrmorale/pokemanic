@@ -1529,7 +1529,7 @@ def armar_mundos():
         'roca_avalancha': {'tam': (64, 60), 'material': 'piedra', 'vida': 80, 'forma': 'circulo', 'color': (130, 112, 92)},
         'jaula_voltio': {'tam': (16, 16), 'material': 'jaula', 'vida': 100000, 'color': (255, 240, 80)},
         # tienda (no se rompen)
-        'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40)},
+        'estante': {'tam': (360, 50), 'material': 'madera', 'vida': None, 'color': (110, 70, 40), 'mueble': 'estante'},
         'mostrador': {'tam': (130, 34), 'material': 'madera', 'vida': None, 'color': (140, 95, 55)},
         'kecleon': {'tam': (46, 46), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (120, 200, 90)},
         'chikorita_rosa': {'tam': (36, 36), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (240, 150, 200)},   # cura al equipo en la tienda
@@ -1538,7 +1538,14 @@ def armar_mundos():
         'mostrador_chikorita': {'tam': (400, 36), 'material': 'madera', 'vida': None, 'color': (240, 150, 200), 'mostrador': True},
         'mostrador_riolu': {'tam': (360, 36), 'material': 'madera', 'vida': None, 'color': (90, 140, 220), 'mostrador': True},
         'mostrador_kecleon': {'tam': (360, 36), 'material': 'madera', 'vida': None, 'color': (120, 200, 90), 'mostrador': True, 'franja': (220, 60, 70)},
-        'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50)},
+        'mesa': {'tam': (110, 50), 'material': 'madera', 'vida': None, 'color': (125, 85, 50), 'mueble': 'mesa'},
+        # el refugio de Celebi (dibujados en mundo.py)
+        'edificio': {'tam': (220, 150), 'material': 'piedra', 'vida': None, 'color': (200, 120, 90), 'mueble': 'edificio'},
+        'casa_refugio': {'tam': (170, 120), 'material': 'madera', 'vida': None, 'color': (200, 120, 90), 'mueble': 'casa'},
+        'tablon': {'tam': (64, 56), 'material': 'madera', 'vida': None, 'color': (150, 100, 55), 'mueble': 'tablon'},
+        'telescopio': {'tam': (36, 40), 'material': 'piedra', 'vida': None, 'color': (120, 140, 210), 'mueble': 'telescopio'},
+        'banco': {'tam': (84, 30), 'material': 'madera', 'vida': None, 'color': (170, 115, 65), 'mueble': 'banco'},
+        'cartel': {'tam': (70, 60), 'material': 'madera', 'vida': None, 'color': (200, 160, 100), 'mueble': 'cartel'},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
         # hall (a donde volves al perder; no se rompe nada)
         'celebi': {'tam': (40, 40), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 230, 120)},   # cuida el hall y te manda de viaje
@@ -1831,6 +1838,7 @@ def armar_mundos():
         """Texto del cartel arriba de una puerta."""
         if destino['tipo'] == 'volver': return 'VOLVER'
         if destino['tipo'] == 'viaje': return 'VIAJE TEMPORAL'                # el portal del hall: empieza otro viaje desde la Era Glacial
+        if destino['tipo'] == 'zona': return {'barrio': 'AL BARRIO', 'plaza': 'A LA PLAZA'}.get(destino.get('zona'), str(destino.get('zona', '')).upper())
         if destino['tipo'] == 'tesoro': return 'TESORO (llave)' if destino.get('candado') else 'TESORO'
         if destino.get('cerrado'): return 'camino no tomado'
         era = ERAS[destino['era']]

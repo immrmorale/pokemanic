@@ -2,3 +2,4 @@ config.json
 venv/
 __pycache__/
 partidas/
+asignacion_animaciones.json

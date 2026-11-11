@@ -347,14 +347,14 @@ def armar_ia():
     DETECCION = 460            # distancia a la que te ven (si no hay nada en el medio)
     OIDO = 160                 # tan cerca te sienten aunque no te vean
     GRITO = 420                # al verte avisan a los compañeros que esten a esta distancia
-    PENSAR = 120               # ms entre decisiones (el movimiento es cada frame)
+    PENSAR = 100               # ms entre decisiones (el movimiento es cada frame)
     # confundido por el baile: rumbo nuevo cada 'cambio' ms, a veces se tropieza, camina mas lento y le pega a los compañeros que choca
     CONFUSION = {'cambio': (400, 900), 'tropiezo': 0.35, 'vel': 0.7, 'daño': 0.8, 'entre_golpes': 900}
 
     # 'acometida': al soltar el golpe el pegador se tira unos pixeles hacia vos (no alcanza con dar un pasito para atras)
     # 'rafaga': balas por disparo del tirador (suma una cada 2 eras), 'esquiva': chance de esquivar tus proyectiles
     ESTILOS = {
-        'pegador': {'vel': 2.7, 'alcance': 64, 'aviso': 330, 'cd': 820, 'acometida': 34, 'esquiva': 0.2, 'flanqueo': 210},
+        'pegador': {'vel': 2.7, 'alcance': 64, 'aviso': 330, 'cd': 820, 'acometida': 34, 'esquiva': 0.2, 'flanqueo': 210, 'vel_embestida': 10.0},
         'tirador': {'vel': 2.3, 'rango': (220, 380), 'aviso': 330, 'cd': 1250, 'vel_bala': 8.0, 'dist_bala': 600, 'rafaga': 1, 'esquiva': 0.45},
         'rapido': {'vel': 3.3, 'orbita': 160, 'aviso': 400, 'cd': 1600, 'vel_embestida': 12.0, 'dist_embestida': 320, 'esquiva': 0.6},
     }
@@ -362,6 +362,17 @@ def armar_ia():
     FURIA = {'vida': 0.35, 'vel': 1.25, 'cd': 0.75}   # con poca vida se enfurecen: mas rapidos y atacan mas seguido
     ESQUIVE = {'vel': 6.0, 'dura': 220, 'espera': 900, 'mira': 170}   # esquivar tus proyectiles: un salto de costado
     ESTILO_ROL = {'tanque': 'pegador', 'atacante': 'pegador', 'estratega': 'tirador', 'velocista': 'rapido'}
+    # maniobras: lo que hacen ademas de su ataque de siempre, para que no alcance con una sola forma de pelearles
+    #   pegador: si te le escapas mucho rato (kiting) pega un salto hasta vos; a veces encadena un segundo golpe rapido
+    #   tirador: si te quedas quieto o te escondes, tira un mortero (un circulo en el piso donde estas)
+    #   rapido:  si su embestida no te toco, a veces gira y embiste de nuevo
+    # Todo se avisa igual que el resto. En la primera era casi no las usan; despues, cada vez mas.
+    MANIOBRAS = {'salto_lejos_ms': 2600, 'salto_dist': (130, 330), 'salto_aviso': 1.25,
+                 'doble': (0.12, 0.08, 0.5), 'doble_ms': 260,                    # (chance base, por era, maximo) y cada cuanto sale el segundo
+                 'mortero': (0.25, 0.07, 0.6), 'mortero_quieto_ms': 1100, 'mortero_radio': 74, 'mortero_aviso': 2.3, 'mortero_daño': 1.15, 'mortero_dist': 520,
+                 'reembestida': (0.15, 0.1, 0.6), 'reembestida_aviso': 0.6,
+                 'apoyo_vida': 0.3, 'apoyo_dist': 330}                           # tirador con poca vida: se va para atras de sus compañeros
+    FACIL = {'aviso': 1.3, 'cd': 1.35, 'vel': 0.9, 'atacantes': 2}              # modo facil: avisan mas, atacan menos seguido y de a dos
     VECINOS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
 
 
@@ -371,7 +382,8 @@ def armar_ia():
         e.update({'estilo': estilo, 'estado_ia': 'patrulla', 'ultima_vista': None, 'cd_ataque': 0, 'aviso': None, 'embestida_ia': None,
                   'meta': None, 'cubrirse_hasta': 0, 'pensar': 0, 'resto_ia': [0.0, 0.0], 'vida_ant': e['vida'], 'grito': 0,
                   'paseo': 0, 'giro': random.choice((-1, 1)), 'origen': e['rect'].center,
-                  'flanco': random.uniform(0, math.tau), 'esquiva_ia': None, 'proximo_esquive': 0})
+                  'flanco': random.uniform(0, math.tau), 'esquiva_ia': None, 'proximo_esquive': 0,
+                  'cerca_en': 0, 'quieto_desde': None, 'encadeno': False})
 
 
     # ---------- mapa del lugar ----------
@@ -486,12 +498,22 @@ def armar_ia():
         era = ctx.get('era', 0)
         apuro = max(0.55, 1 - POR_ERA * era)
         furioso = e['vida'] <= e['max_vida'] * FURIA['vida']
-        p['aviso'] = round(p['aviso'] * apuro * ctx.get('aviso_mult', 1.0))   # Premonicion (Espeon): los avisos duran mas
-        p['cd'] = round(p['cd'] * apuro * (FURIA['cd'] if furioso else 1))
-        p['vel'] = p['vel'] * (FURIA['vel'] if furioso else 1)
+        facil = ctx.get('facil')
+        p['aviso'] = round(p['aviso'] * apuro * ctx.get('aviso_mult', 1.0) * (FACIL['aviso'] if facil else 1))   # Premonicion (Espeon): los avisos duran mas
+        p['cd'] = round(p['cd'] * apuro * (FURIA['cd'] if furioso else 1) * (FACIL['cd'] if facil else 1))
+        p['vel'] = p['vel'] * (FURIA['vel'] if furioso else 1) * (FACIL['vel'] if facil else 1)
+        p['atacantes'] = FACIL['atacantes'] if facil else MAX_ATACANTES
+        p['era'] = era
         if 'rafaga' in p: p['rafaga'] += era // 2
         e['furioso'] = furioso
         return p
+
+
+    def _chance(p, clave, ctx):
+        """Chance de una maniobra segun la era (en el modo facil y en el tutorial no hay)."""
+        if ctx.get('facil') or ctx.get('sin_maniobras'): return 0.0
+        base, por_era, maximo = MANIOBRAS[clave]
+        return min(maximo, base + por_era * p['era'])
 
 
     def _esquivar_balas(e, ctx, p, ahora):
@@ -581,7 +603,13 @@ def armar_ia():
                 em['pego'] = True
                 if ctx.get('parry', lambda e: False)(e): return              # te choco justo cuando golpeabas: parry
                 ctx['dañar_jugador'](e['daño'] * 1.3, e['tipo'], e)
-            if em['restante'] <= 0 or e['rect'].center == antes: e['embestida_ia'] = None; e['cd_ataque'] = ahora + p['cd']
+            if em['restante'] <= 0 or e['rect'].center == antes:
+                e['embestida_ia'] = None; e['cd_ataque'] = ahora + p['cd']
+                if e['estilo'] == 'rapido' and not em['pego'] and not e.get('encadeno') and dist < 380 and random.random() < _chance(p, 'reembestida', ctx):
+                    n = dist or 1                                    # no te toco: gira y embiste otra vez (una sola, y avisa mas corto)
+                    e['encadeno'] = True; e['cd_ataque'] = 0
+                    e['aviso'] = {'hasta': ahora + round(p['aviso'] * MANIOBRAS['reembestida_aviso']), 'clase': 'embestida', 'inicio': ahora, 'dir': ((jx - ex) / n, (jy - ey) / n)}
+                else: e['encadeno'] = False
             return
 
         if e['aviso']:                                              # avisando un ataque: se queda quieto y despues golpea
@@ -607,11 +635,20 @@ def armar_ia():
             return
 
         libre = ahora >= e['cd_ataque']
+        if dist < 120 or not e.get('cerca_en'): e['cerca_en'] = ahora  # cuanto hace que no te tiene cerca (si te escapas mucho, salta)
+        quieto = math.hypot(*j.get('inercia', (0, 0))) < 0.6 and not j.get('moviendose')
+        e['quieto_desde'] = (e.get('quieto_desde') or ahora) if quieto else None
         if e['estilo'] == 'pegador':
             alcance = p['alcance'] + max(j['rect'].size) / 2
-            if dist <= alcance + p['acometida'] * 0.6 and libre and _atacando(enemigos) < MAX_ATACANTES:
-                e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'golpe', 'inicio': ahora}
-            elif _atacando(enemigos) >= MAX_ATACANTES and dist < 160:   # ya hay varios pegando: da vueltas cerca esperando su turno
+            if dist <= alcance + p['acometida'] * 0.6 and libre and _atacando(enemigos) < p['atacantes']:
+                segundo = e.pop('doble', False)                       # el segundo golpe de un doble avisa un poco menos
+                e['aviso'] = {'hasta': ahora + round(p['aviso'] * (0.75 if segundo else 1)), 'clase': 'golpe', 'inicio': ahora, 'segundo': segundo}
+            elif (libre and MANIOBRAS['salto_dist'][0] < dist < MANIOBRAS['salto_dist'][1] and ahora - e['cerca_en'] > MANIOBRAS['salto_lejos_ms']
+                  and _atacando(enemigos) < p['atacantes'] and p['era'] >= 1 and not ctx.get('facil') and not ctx.get('sin_maniobras') and ve(ent, (ex, ey), (jx, jy))):
+                e['cerca_en'] = ahora                                 # te le escapas hace rato: un salto hasta donde estas (se avisa como una embestida)
+                e['aviso'] = {'hasta': ahora + round(p['aviso'] * MANIOBRAS['salto_aviso']), 'clase': 'embestida', 'inicio': ahora,
+                              'dir': ((jx - ex) / dist, (jy - ey) / dist), 'largo': dist + 30}
+            elif _atacando(enemigos) >= p['atacantes'] and dist < 160:   # ya hay varios pegando: da vueltas cerca esperando su turno
                 _orbitar(ent, e, j, 140, vel * 0.8, enemigos)
             elif dist < p['flanqueo']:                              # cerca: busca su lado para rodearte (cada uno tiene su angulo)
                 actual = math.atan2(ey - jy, ex - jx)
@@ -623,13 +660,22 @@ def armar_ia():
             if ahora < e['cubrirse_hasta'] and e['meta']:           # recargando escondido
                 _ir_a(ent, e, e['meta'], vel * 1.2, enemigos); return
             cerca, lejos = p['rango']
-            if dist < cerca: _ir_a(ent, e, (jx, jy), vel, enemigos, alejarse=True)       # te alejas: se va para atras
+            a_la_vista = ve(ent, (ex, ey), (jx, jy))
+            quieto_ms = ahora - e['quieto_desde'] if e.get('quieto_desde') else 0
+            if (libre and dist < MANIOBRAS['mortero_dist'] and (quieto_ms > MANIOBRAS['mortero_quieto_ms'] or not a_la_vista)
+                    and random.random() < _chance(p, 'mortero', ctx)):   # quieto o escondido: un mortero donde estas (cae aunque haya algo en el medio)
+                e['quieto_desde'] = None
+                e['aviso'] = {'hasta': ahora + round(p['aviso'] * MANIOBRAS['mortero_aviso']), 'clase': 'zona', 'inicio': ahora, 'pos': (jx, jy), 'radio': MANIOBRAS['mortero_radio']}
+            elif e['vida'] <= e['max_vida'] * MANIOBRAS['apoyo_vida'] and dist < MANIOBRAS['apoyo_dist'] and not ctx.get('facil') and any(
+                    o is not e and o['vida'] > 0 and o.get('estilo') in ('pegador', 'rapido') for o in enemigos):
+                _ir_a(ent, e, (jx, jy), vel * 1.15, enemigos, alejarse=True)             # con poca vida se va atras de los que pegan
+            elif dist < cerca: _ir_a(ent, e, (jx, jy), vel, enemigos, alejarse=True)       # te alejas: se va para atras
             elif dist > lejos: _ir_a(ent, e, (jx, jy), vel, enemigos)
-            elif libre and ve(ent, (ex, ey), (jx, jy)):
+            elif libre and a_la_vista:
                 e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'disparo', 'inicio': ahora, 'mira': (jx, jy)}
             else: _orbitar(ent, e, j, dist, vel * 0.9, enemigos)    # recargando: se mueve de costado (cuesta mas apuntarle)
         else:
-            if libre and dist < 340 and _atacando(enemigos) < MAX_ATACANTES:
+            if libre and dist < 340 and _atacando(enemigos) < p['atacantes']:
                 n = dist or 1
                 e['aviso'] = {'hasta': ahora + p['aviso'], 'clase': 'embestida', 'inicio': ahora, 'dir': ((jx - ex) / n, (jy - ey) / n)}
             else: _orbitar(ent, e, j, p['orbita'], vel, enemigos)
@@ -654,6 +700,7 @@ def armar_ia():
         a = e['aviso']
         if a['clase'] == 'golpe':
             e['cd_ataque'] = ahora + p['cd']
+            if not a.get('segundo') and random.random() < _chance(p, 'doble', ctx): e['cd_ataque'] = ahora + MANIOBRAS['doble_ms']; e['doble'] = True
             d = math.hypot(jx - ex, jy - ey) or 1
             paso = min(p['acometida'], max(0, d - p['alcance'] * 0.6))    # se tira hacia vos antes de pegar
             entorno.mover(ctx['ent'], e['rect'], round((jx - ex) / d * paso), round((jy - ey) / d * paso), [e['tipo']])
@@ -673,8 +720,13 @@ def armar_ia():
             if random.random() < 0.35:                              # a veces se esconde a recargar
                 e['meta'] = _cobertura(ctx['ent'], e, j)
                 if e['meta']: e['cubrirse_hasta'] = ahora + 1100
+        elif a['clase'] == 'zona':                                      # el mortero cae donde estabas cuando lo tiro
+            x, y = a['pos']
+            e['cd_ataque'] = ahora + round(p['cd'] * 1.2)
+            if 'impacto' in ctx: ctx['impacto'](x, y, a['radio'], 160)
+            if math.hypot(jx - x, jy - y) <= a['radio'] + max(j['rect'].size) / 3: ctx['dañar_jugador'](e['daño'] * MANIOBRAS['mortero_daño'], e['tipo'], None)
         else:
-            e['embestida_ia'] = {'dx': a['dir'][0], 'dy': a['dir'][1], 'restante': p['dist_embestida'], 'pego': False}
+            e['embestida_ia'] = {'dx': a['dir'][0], 'dy': a['dir'][1], 'restante': a.get('largo', p.get('dist_embestida', 200)), 'pego': False}
 
 
     # ---------- jefes ----------
@@ -4691,8 +4743,16 @@ def armar_ia():
                     pygame.draw.line(ventana, (255, 70, 50), (x, y), (mx, my), 1 + round(2 * k))
                     pygame.draw.circle(ventana, (255, 70, 50), (round(mx), round(my)), 14, 2)
                 elif a['clase'] == 'embestida':
-                    d = ESTILOS['rapido']['dist_embestida']
+                    d = a.get('largo', ESTILOS['rapido']['dist_embestida'])
                     pygame.draw.line(ventana, (255, 160, 40), (x, y), (x + a['dir'][0] * d, y + a['dir'][1] * d), 2 + round(4 * k))
+                elif a['clase'] == 'zona':                          # mortero: el circulo donde va a caer se va llenando, y la bola que sube y cae
+                    zx, zy, radio = round(a['pos'][0] - cx), round(a['pos'][1] - cy), a['radio']
+                    velo = pygame.Surface((radio * 2 + 4, radio * 2 + 4), pygame.SRCALPHA)
+                    pygame.draw.circle(velo, (255, 70, 40, 50 + round(70 * k)), (radio + 2, radio + 2), max(2, round(radio * k)))
+                    pygame.draw.circle(velo, (255, 90, 50, 230), (radio + 2, radio + 2), radio, 3)
+                    ventana.blit(velo, (zx - radio - 2, zy - radio - 2))
+                    alto = round(120 * math.sin(math.pi * k))
+                    pygame.draw.circle(ventana, (colores or {}).get(e.get('tipo'), (255, 200, 90)), (round(x + (zx - x) * k), round(y + (zy - y) * k) - alto), 7)
                 elif a['clase'] == 'pisoton':
                     pygame.draw.circle(ventana, (255, 60, 40), (x, y), JEFE['radio_pisoton'], 2)
                     pygame.draw.circle(ventana, (255, 60, 40), (x, y), round(JEFE['radio_pisoton'] * k), 0 if k > 0.95 else 2)
