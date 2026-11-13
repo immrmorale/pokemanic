@@ -6,7 +6,7 @@ Juego de acción en Python con Pygame. Recorrés la historia de la humanidad sal
 python main.py
 ```
 
-Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la misma carpeta tienen que estar los 8 `.py`, `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
+Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la misma carpeta tienen que estar todos los `.py` (también `subjefes.py`), `config.json`, `datos_pokeapi.json`, `cache_pokeapi.json` y la carpeta `assets` (sprites del PMD).
 
 ---
 
@@ -46,6 +46,7 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 | `mecanicas.py` | la mecánica única de cada línea evolutiva nueva (pasivas y especiales) y lo que hacen algunos enemigos |
 | `modos.py` | textos y números del tutorial, el boss rush, los titanes, los minijuegos, las charlas de tus amigos y las misiones |
 | `interfaz.py` | menús: ajustes, controles, glosario, inicial, equipo, ficha, mochila |
+| `subjefes.py` | los subjefes de las salas 10 y 20 de cada era: sus números, mecánicas, movimientos y cómo se dibujan (ver [Subjefes](#subjefes-salas-10-y-20)) |
 | `herramientas.py` | programas aparte para preparar el juego (ver [Herramientas](#herramientas)) |
 
 ---
@@ -204,7 +205,7 @@ Algunos pokemon tienen una asistencia propia:
 
 ### Nivel de los enemigos
 
-Va de 4 a 15 en la primera era y sube 11 niveles por era. El semijefe tiene +3 y el Regi +5.
+Va de 4 a 15 en la primera era y sube 11 niveles por era. Los subjefes y el semijefe tienen +3 y el Regi +5.
 
 | Era | Sala 1 | Sala 30 | Semijefe (sala 15) | Regi (sala 30) |
 |---|---|---|---|---|
@@ -308,7 +309,7 @@ En este juego **los pokemon no se capturan**. Cuando derrotás a uno, a veces se
 - Si le **bailaste** cuando tenía poca vida.
 - Con el **Lazo Amistad** de la tienda, que duplica la chance.
 
-Los jefes nunca se unen.
+Los jefes nunca se unen. En las salas de los **subjefes** nadie se une: ni el subjefe ni los pokemon que salen en su pelea (Arrokuda, Pikachu, Magnemite, Grimer), que además no dan monedas ni experiencia.
 
 **Uno por sala y una de espera:** cuando alguien quiere unirse, en el resto de esa sala ya no se ofrece nadie más, y la **sala siguiente es de espera** (nadie se ofrece). **Excepción:** a los que les bailaste les queda una chance (la mitad de lo normal) de querer unirse igual, así que bailando podés amigar a más de uno.
 
@@ -479,6 +480,7 @@ La partida sigue la historia de la humanidad:
 - Al final, **El Origen**, con 3 salas fijas: tienda, Regigigas y Arceus.
 - En cada era, el **semijefe** está en la sala 15 y el **Regi** en la sala 30.
 - **Portal de Celebi:** cuando cae el Regi, Celebi aparece al lado de la puerta y la vuelve un portal del tiempo (no hace falta la llave). Hablale con E para cruzar ya, o juntá las monedas y cruzá cuando quieras: el túnel del tiempo te lleva a la era siguiente.
+- En cada era hay dos **subjefes**: uno en la sala 10 y otro en la 20 (ver [Subjefes](#subjefes-salas-10-y-20)).
 - La **tienda** aparece cada 5 a 10 salas.
 
 | Era | Regi (sala 30) | Semijefe (sala 15) | Climas comunes | Variantes de sala | Enemigos |
@@ -513,6 +515,7 @@ Siempre queda un camino ancho entre las puertas y el centro, sin peligros en el 
 
 | Jefe | Dónde | Vida base | Clima que trae |
 |---|---|---|---|
+| Subjefes (Cramorant, Mamoswine, Tyrantrum, Armaldo, Scizor, Tinkaton, Chandelure, Samurott de Hisui, Magnezone, Muk de Alola) | salas 10 y 20 de cada era | 480 | Mamoswine: nevadas |
 | Walrein, Golem, Corviknight, Garchomp, Magnezone | sala 15 de cada era | 600 | — |
 | Regice | Era Glacial, sala 30 | 1000 | granizo |
 | Regirock | Edad de Piedra, sala 30 | 1000 | tormenta de arena |
@@ -634,8 +637,96 @@ Al vencer a Arceus Beta el piso y las paredes vuelven y se puede salir. Los spri
 
 **Arena de El Origen:** la sala de Regigigas y la de Arceus es **redonda y más grande** (23 × 23 casillas en vez de 21 × 15).
 
+### Subjefes (salas 10 y 20)
+
+Cada era tiene dos subjefes, uno en la **sala 10** y otro en la **sala 20**, con su propia sala (más grande, más oscura o con cosas que solo hay ahí), una mecánica y 4 movimientos que eligen de a uno. Todo se avisa antes. Tienen el 80% de la vida de un semijefe y el nivel del semijefe. Los pokemon que salen en sus peleas no dan monedas ni experiencia y **nunca quieren unirse** (en esas salas nadie se ofrece como amigo). Los números están en `SUBJEFES` en `subjefes.py`.
+
+| Era | Sala 10 | Sala 20 |
+|---|---|---|
+| Era Glacial | Cramorant | Mamoswine |
+| Edad de Piedra | Tyrantrum | Armaldo |
+| Edad de los Metales | Scizor | Tinkaton |
+| Edad Media | Chandelure | Samurott de Hisui |
+| Edad Moderna | Magnezone | Muk de Alola |
+
+**Cramorant** (sala medio vacía, de hielo):
+- **Agujeros en el hielo:** 9 agujeros en los bordes. Cada 3 s salen 3 **Arrokuda** (de a 3, nunca más) que van solo hacia Cramorant; a veces sale un **Pikachu** (uno solo, y el siguiente tarda 5 s). Se les puede pegar.
+- **Tragar:** si Cramorant toca uno se lo traga (un anillo amarillo marca 1,5 s). Si no le pegás en ese tiempo, el Arrokuda queda guardado abajo de su barra de vida (hasta 3).
+- **Buceo:** se mete bajo el hielo 4 s persiguiendo tu última posición y sale de golpe. Mientras bucea no come y los Arrokuda se juntan donde está.
+- **Picotaladro:** embestida con el pico amarillo. Si te pega y tenés una **baya** en el lugar 1 del cinturón, te la roba y se cura según lo que cura la baya.
+- **Reserva** (le pegás mientras traga): sin Arrokuda guardados sube la defensa y grita (te frena); con 1 sube ataque y velocidad; con 2 los escupe para arriba y caen en lugares al azar.
+- **Tragamisil:** si junta 3 sin que le pegues, los tira en triángulo hacia vos (pega más que la Reserva). Si se tragó un Pikachu, hace una onda eléctrica que te paraliza 2 s.
+
+**Mamoswine** (sala más grande):
+- **Hielo que se agrieta:** cada Terratemblor rompe el borde del hielo y la sala se achica (hasta un mínimo). Al ganarle el hielo vuelve.
+- **Manto Níveo:** cada tanto nieva; durante la nevada se vuelve semitransparente.
+- **Fuerza Equina:** 3 estampidas en línea recta hacia donde estabas, con 1,5 s entre una y otra (en el medio a veces tira rocas).
+- **Terratemblor:** terremoto en toda la sala; pega más cuanto más cerca estés.
+- **Alud:** la sala se pone roja con una flecha 1 s (Mamoswine quieto) y después sopla la ventisca. Te salvás si hay algo (una roca, un bloque, un pino) entre vos y de donde viene el viento.
+- **Poder Pasado:** 5 rocas a su alrededor que tira de a una hacia vos cada 0,3 s.
+
+**Tyrantrum** (sala oscura y con más paredes):
+- **Visión de T-Rex:** solo se ve el cuarto de círculo que mira Tyrantrum, y las paredes lo cortan. Si te quedás quieto adentro, por 1 s no sabe dónde estás (un relojito arriba tuyo). Si no te ve, camina para cualquier lado.
+- **Mandíbula Fuerte:** las mordidas pegan muchísimo; antes de morder la boca brilla del color del colmillo.
+- **Triple Colmillo** (cuando entrás en su vista): embestida y mordida. Ígneo: quemadura 2 s (pegás menos). Hielo: congelado 1 s. Rayo: paralizado (más lento).
+- **Danza Dragón:** sube velocidad y ataque; se junta hasta 3 veces hasta que ataca. Cada 5 s.
+- **Testarazo:** carga de cabeza de tipo roca que también lo lastima a él (si choca la pared, queda aturdido).
+- **Cola Dragón:** barrido de 180° para atrás: castiga quedarse a su espalda.
+
+**Armaldo:**
+- **Nado Rápido:** Giro Rápido deja **agua prehistórica** (se puede pisar): a vos te frena un 10% y a él lo acelera un 25%.
+- **Armadura de Fósil:** cada Trampa Rocas lo cubre 3 s (círculo marrón claro) y recibe la mitad del daño.
+- **Pin Misil:** 20 pinchos chicos y rápidos que rebotan en las paredes (poco daño cada uno).
+- **Cortefuria:** un corte en arco, otro más grande y uno en X que pega más.
+- **Trampa Rocas:** quieto 0,5 s, tira piedras chicas por toda la sala que se quedan; si pisás una te lastima y se rompe.
+- **Giro Rápido:** rueda como un trompo rebotando en las paredes; si te pega se frena. Rompe las piedras por donde pasa.
+
+**Scizor:**
+- **Sobrecalentamiento:** después de Puño Bala o Ida y Vuelta queda 2 s quieto aleteando (sus esperas no avanzan) y el viento te empuja para atrás. Mientras esos dos recargan se aleja y usa Agilidad o Danza Espada.
+- **Pinzas con ojos falsos:** con Agilidad o Danza Espada choca las pinzas: 2 ondas que te confunden 2 s.
+- **Puño Bala:** aparece al lado tuyo y pega 3 golpes rápidos de acero (5 s de espera).
+- **Ida y Vuelta:** embestida hacia vos; si no te pega, un golpe rápido de bicho; después vuelve a donde estaba. Con Agilidad es más rápida (5 s).
+- **Danza Espada** (ataque) y **Agilidad** (velocidad): 3 s cada una (3 s de espera).
+
+**Tinkaton:**
+- **Martillo Clavado:** si Martillo Colosal no te pega, queda 3 s trabada sacando el martillo. Con el martillo encima anda lenta.
+- **Forja:** hay 5 metales de Corviknight en los bordes. Cada vez que se traba se le acercan; si uno la toca mientras está trabada lo suma al martillo (de a uno): el Martillo Colosal crece y pega más, pero ella y el martillo van más lentos.
+- **Martillo Colosal:** salta y su sombra sigue tu última posición 4 s; después cae. Entre uno y otro usa al menos 2 movimientos.
+- **Giro Vil:** golpe de 360° con el martillo (más grande con cada metal).
+- **Ojitos Tiernos:** te baja el ataque.
+- **Carantoña:** suelta el martillo y se tira hacia vos; si te agarra no te podés mover y te lastima de a poco 2 s. Después vuelve al martillo.
+
+**Chandelure** (sala oscura y sin paredes):
+- **Candelabros falsos:** 9 candelabros parecidos a él. Sofoco los prende. Solo se ve cerca de Chandelure, de los candelabros prendidos y de las llamas.
+- **Poltergeist:** si la luz de Chandelure toca la de un candelabro prendido, te lo tira hasta que choca contra la pared; ahí se queda y se apaga.
+- **Robo de almas:** cada 5 s tus ataques tardan un poco más en recargar (se ve abajo de tu barra de vida) y él se cura un poco.
+- **Fuego Fatuo:** 5 llamitas que iluminan cerca; si entrás en su luz te persiguen y te queman 3 s. Duran 5 s.
+- **Infortunio:** 3 franjas violetas largas por 2 s: te lastiman si las pisás, el doble si estás quemado.
+- **Sofoco:** 2 círculos de llamas que giran y avanzan 2 s; prenden los candelabros que tocan.
+
+**Samurott de Hisui:**
+- **Piso con púas:** Corte Metralla deja púas que lastiman al pisarlas (se van a los 5 s o cuando te pegan).
+- **Postura de contraataque:** si le pegás de cerca mientras ataca, hace una embestida corta hacia vos y un corte.
+- **Corte Metralla** (cortes rápidos y después las púas), **Aqua Jet** (embestida rápida de agua), **Concha Filo** (carga 0,5 s y un corte de agua grande) y **Megacuerno** (embestida lenta pero grande hacia donde estabas).
+
+**Magnezone:**
+- **Campo eléctrico:** cada 6 s un campo de 4 s a su alrededor. Si estás adentro te paraliza, te frena un 10% y te da una **polaridad** por 10 s: un **−** azul o un **+** rojo abajo de tu barra de vida.
+- **Magnemites:** cuando se apaga el campo salen 2 (uno + y uno −) hacia lugares al azar; al llegar te atraen o te empujan 3 s según tu polaridad (iguales se repelen, distintas se atraen). No lastiman y no se les puede pegar.
+- **Fijar Blanco:** un cuadrado rojo en vos por 4 s que cambia los otros ataques, y enseguida usa uno (después, 6 s de espera).
+- **Electrocañón:** 2 rayos que giran a su alrededor 3 s. Fijado: un rayo grande que sigue por donde estabas.
+- **Triataque:** caen del cielo ataques de fuego, hielo y eléctrico 3 s (queman, congelan o paralizan 1 s). Fijado: 3 tandas (una por segundo) de 3 bolas lentas que te siguen.
+- **Chispazo:** una onda eléctrica a su alrededor.
+
+**Muk de Alola:**
+- **Alcantarillas:** no camina. Hay 3 alcantarillas (una por pared, menos la de la entrada): está 4 s en una, gira 0,5 s sin atacar y se pasa a otra.
+- **Grimer:** mientras está en una, de las otras dos sale un Grimer de Alola cada 2 s. Si no lo derrotás en 2 s deja una **baya** o **basura** (no se agarran). Cuando Muk llega a una alcantarilla con basura usa **Lanzamugre**; con una baya, **Eructo**.
+- **Bomba Lodo:** 5 bombas que explotan a los 0,5 s y dejan charcos que lastiman cada 0,25 s (2 s de espera).
+- **Lanzamugre:** basura enorme con 2 s de aviso: pega mucho y envenena 2 s.
+- **Eructo:** 3 ondas cortadas que te empujan y te envenenan 1 s.
+- **Armadura Ácida:** se vuelve un charco de veneno 2 s: no recibe daño pero sigue atacando.
+
 **Premios:**
-- **Monedas:** 120 el semijefe, 250 el Regi.
+- **Monedas:** 80 cada subjefe, 120 el semijefe, 250 el Regi.
 - **Una MT** que alguien de tu equipo pueda aprender.
 - **El Regi**, además, suelta el objeto de evolución que necesite alguien de tu equipo.
 

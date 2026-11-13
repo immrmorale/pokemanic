@@ -1273,7 +1273,7 @@ def armar_tienda():
 
     def nueva_sala(inv, tipo):
         """Al entrar a una sala con enemigos se gasta una sala de cada objeto temporal."""
-        if tipo not in ('combate', 'jefe', 'regi'): return
+        if tipo not in ('combate', 'subjefe', 'jefe', 'regi'): return
         inv['repelente'] = max(0, inv['repelente'] - 1)
         inv['temporal'] = [[c, v, s - 1] for c, v, s in inv['temporal'] if s - 1 > 0]
         inv['critico'][1] = max(0, inv['critico'][1] - 1)
@@ -1391,7 +1391,7 @@ def armar_mundos():
 
         from datos import mundos
         rec = mundos.nuevo_recorrido()          # plan entero de la partida
-        mundos.tipo_sala(rec)                   # 'combate', 'tienda', 'jefe', 'regi' o 'final'
+        mundos.tipo_sala(rec)                   # 'combate', 'tienda', 'subjefe', 'jefe', 'regi' o 'final'
         mundos.destinos_siguientes(rec, azar)   # lo que muestran las puertas de la sala actual
         mundos.avanzar(rec)                     # pasa a la sala siguiente (False si se termino el juego)
 
@@ -1400,6 +1400,7 @@ def armar_mundos():
     """
     SALAS_POR_ERA = 30
     SALA_JEFE, SALA_REGI = 15, 30          # numero de sala (desde 1) del semijefe y del Regi
+    SALAS_SUBJEFE = (10, 20)               # salas de los dos subjefes de cada era (ver 'subjefes' en ERAS y subjefes.py)
     TIENDA_HUECO = (5, 10)                 # la tienda sale cada 5 a 10 salas
     TIENDA_COMPENSA = 15                   # si sale pronto, la siguiente tarda mas: hueco_siguiente >= 15 - hueco_anterior
     PUERTAS_POR_SALA = ((1, 20), (2, 50), (3, 30))   # (cantidad de salidas, peso) en las salas de combate
@@ -1597,14 +1598,15 @@ def armar_mundos():
         'nieve': ('nublado', 'granizo'), 'granizo': ('nieve',), 'tormenta_arena': ('despejado', 'sol'),
     }
 
-    # cada era: su Regi, el semijefe de la sala 15, colores, enemigos, que tan seguido sale cada clima y las variantes de sala
+    # cada era: su Regi, el semijefe de la sala 15, los subjefes de las salas 10 y 20, colores, enemigos, que tan seguido sale cada clima
+    # y las variantes de sala
     # formato de una variante:
     #   'forma': {silueta: peso}  ('rect', 'esquinas', 'cruz', 'columnas', 'cueva')     'simetria': {modo: peso}  ('no', 'h', 'v', 'hv')
     #   'piezas': {pieza: peso}  'num_piezas': (min, max)                            'interior': True si no le llega el clima
     #   'terrenos': [(terreno, (min, max) manchas, (min, max) casillas)]             'maquinas': [(maquina, (min, max))]
     #   'especiales': ['rio', 'foso', 'costa', 'cintas', 'cables']                  'objetos': {objeto: peso} sueltos, 'cantidad': (min, max)
     ERAS = [
-        {'clave': 'glaciacion', 'nombre': 'Era Glacial', 'tienda': 'Puesto de trueque', 'regi': 'regice', 'jefe': 'walrein',
+        {'clave': 'glaciacion', 'nombre': 'Era Glacial', 'tienda': 'Puesto de trueque', 'regi': 'regice', 'jefe': 'walrein', 'subjefes': ('cramorant', 'mamoswine'),
          'suelo': (196, 222, 236), 'pared': (85, 115, 140), 'clima_regi': 'granizo',
          'clima': {'nieve': 4, 'granizo': 2, 'nublado': 2, 'despejado': 1, 'niebla': 1},
          'enemigos': ['snorunt', 'glalie', 'froslass', 'spheal', 'sealeo', 'walrein', 'vanillite', 'vanillish', 'vanilluxe', 'sneasel',
@@ -1625,7 +1627,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('hielo', (3, 4), (8, 12)), ('nieve', (1, 2), (5, 8))], 'maquinas': [('cascada', (2, 2))],
                    'piezas': {'estalagmitas': 1}, 'num_piezas': (1, 1), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'piedra', 'nombre': 'Edad de Piedra', 'tienda': 'Mercado de trueque', 'regi': 'regirock', 'jefe': 'golem',
+        {'clave': 'piedra', 'nombre': 'Edad de Piedra', 'tienda': 'Mercado de trueque', 'regi': 'regirock', 'jefe': 'golem', 'subjefes': ('tyrantrum', 'armaldo'),
          'suelo': (150, 130, 95), 'pared': (70, 55, 40), 'clima_regi': 'tormenta_arena',
          'clima': {'despejado': 3, 'sol': 2, 'nublado': 2, 'lluvia': 2, 'tormenta_electrica': 0.5, 'niebla': 1, 'tormenta_arena': 1},
          'enemigos': ['geodude', 'graveler', 'golem', 'sandshrew', 'sandslash', 'cubone', 'marowak', 'mankey', 'primeape', 'timburr',
@@ -1648,7 +1650,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('arena', (3, 4), (6, 10))], 'maquinas': [('monolito', (2, 2))],
                    'piezas': {'rocas': 1}, 'num_piezas': (2, 2), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'metales', 'nombre': 'Edad de los Metales', 'tienda': 'Bazar', 'regi': 'registeel', 'jefe': 'corviknight',
+        {'clave': 'metales', 'nombre': 'Edad de los Metales', 'tienda': 'Bazar', 'regi': 'registeel', 'jefe': 'corviknight', 'subjefes': ('scizor', 'tinkaton'),
          'suelo': (176, 132, 82), 'pared': (70, 45, 25), 'clima_regi': 'sol',
          'clima': {'despejado': 3, 'sol': 3, 'nublado': 2, 'tormenta_arena': 2, 'lluvia': 1},
          'enemigos': ['magnemite', 'magneton', 'machop', 'machoke', 'machamp', 'gurdurr', 'conkeldurr', 'combusken', 'blaziken', 'fletchling',
@@ -1668,7 +1670,7 @@ def armar_mundos():
          },
          'arena': {'forma': {'columnas': 1}, 'simetria': {'hv': 1}, 'maquinas': [('iman', (2, 2)), ('forja', (1, 1))], 'piezas': {'estatua': 1}, 'num_piezas': (1, 1), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'medieval', 'nombre': 'Edad Media', 'tienda': 'Mercado', 'regi': 'regidrago', 'jefe': 'garchomp',
+        {'clave': 'medieval', 'nombre': 'Edad Media', 'tienda': 'Mercado', 'regi': 'regidrago', 'jefe': 'garchomp', 'subjefes': ('chandelure', 'samurott_hisui'),
          'suelo': (128, 112, 88), 'pared': (52, 42, 32), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 3, 'niebla': 2, 'despejado': 2, 'tormenta_electrica': 1, 'sol': 1},
          'enemigos': ['gible', 'gabite', 'golett', 'golurk', 'samurott_hisui', 'oshawott', 'dewott', 'samurott', 'rookidee', 'drifloon',
@@ -1691,7 +1693,7 @@ def armar_mundos():
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('roca_volcanica', (2, 3), (4, 8))], 'maquinas': [('cristal_dragonico', (2, 2)), ('brasero', (2, 2))],
                    'piezas': {}, 'num_piezas': (0, 0), 'objetos': {}, 'cantidad': (0, 0)}},
 
-        {'clave': 'moderna', 'nombre': 'Edad Moderna', 'tienda': 'Almacén', 'regi': 'regieleki', 'jefe': 'magnezone',
+        {'clave': 'moderna', 'nombre': 'Edad Moderna', 'tienda': 'Almacén', 'regi': 'regieleki', 'jefe': 'magnezone', 'subjefes': ('magnezone', 'muk_alola'),
          'suelo': (70, 78, 122), 'pared': (24, 24, 44), 'clima_regi': 'tormenta_electrica',
          'clima': {'nublado': 3, 'lluvia': 2, 'niebla': 2, 'tormenta_electrica': 2, 'despejado': 2, 'sol': 1},
          'enemigos': ['pichu', 'pikachu', 'raichu', 'mareep', 'flaaffy', 'ampharos', 'shinx', 'luxio', 'luxray', 'electrike',
@@ -1739,6 +1741,8 @@ def armar_mundos():
         total = len(normales) * SALAS_POR_ERA
         plano = ['combate'] * total
         for e in range(len(normales)):                              # los jefes fijos de cada era
+            for s in SALAS_SUBJEFE:
+                if normales[e].get('subjefes'): plano[e * SALAS_POR_ERA + s - 1] = 'subjefe'
             plano[e * SALAS_POR_ERA + SALA_JEFE - 1] = 'jefe'
             plano[e * SALAS_POR_ERA + SALA_REGI - 1] = 'regi'
         ultima, hueco_ant = -1, None                                # indice de la ultima tienda y cuanto tardo
@@ -1779,7 +1783,7 @@ def armar_mundos():
 
 
     def tipo_sala(rec, era=None, sala=None):
-        """Que hay en una sala del plan: 'combate', 'tienda', 'jefe', 'regi' o 'final'."""
+        """Que hay en una sala del plan: 'combate', 'tienda', 'subjefe', 'jefe', 'regi' o 'final'."""
         return rec['plan'][rec['era'] if era is None else era][rec['sala'] if sala is None else sala]
 
 
@@ -1819,7 +1823,7 @@ def armar_mundos():
         tipo = tipo_sala(rec, era, sala)
         if tipo != 'combate' or era != rec['era']:                  # tienda, jefe, regi o cambio de era: una sola puerta
             variante = azar.choice(list(ERAS[era]['variantes'])) if tipo == 'combate' else None
-            return [{'tipo': tipo, 'variante': variante, 'era': era, 'desde': rec['era']}]
+            return [{'tipo': tipo, 'variante': variante, 'era': era, 'desde': rec['era'], 'sala': sala}]
         cantidad = azar.choices([c for c, _ in PUERTAS_POR_SALA], [p for _, p in PUERTAS_POR_SALA])[0]
         variantes = azar.sample(list(ERAS[era]['variantes']), min(cantidad, len(ERAS[era]['variantes'])))
         destinos = [{'tipo': 'combate', 'variante': v, 'era': era, 'desde': rec['era'], 'desafio': azar.random() < PROB_DESAFIO} for v in variantes]
@@ -1828,9 +1832,17 @@ def armar_mundos():
         return destinos
 
 
-    def jefe_de(era, tipo):
-        """Pokemon que pelea en una sala de jefe, de Regi o la final."""
+    def subjefe_de(era, sala=None):
+        """El subjefe de esa sala de la era (sala desde 0): el primero en la sala 10 y el segundo en la 20."""
+        lista = ERAS[era].get('subjefes') or ()
+        if not lista: return None
+        return lista[1 if sala is not None and sala + 1 >= SALAS_SUBJEFE[-1] and len(lista) > 1 else 0]
+
+
+    def jefe_de(era, tipo, sala=None):
+        """Pokemon que pelea en una sala de subjefe (segun la sala), de jefe, de Regi o la final."""
         datos = ERAS[era]
+        if tipo == 'subjefe': return subjefe_de(era, sala)
         return datos.get('final') if tipo == 'final' else datos['regi'] if tipo == 'regi' else datos['jefe']
 
 
@@ -1843,7 +1855,8 @@ def armar_mundos():
         if destino.get('cerrado'): return 'camino no tomado'
         era = ERAS[destino['era']]
         if destino['tipo'] == 'tienda': return era['tienda'].upper()         # el nombre cambia con la era (siempre la atiende Chikorita)
-        if destino['tipo'] in ('jefe', 'regi', 'final'): return destino['tipo'].upper() + ': ' + str(jefe_de(destino['era'], destino['tipo'])).title()
+        if destino['tipo'] in ('subjefe', 'jefe', 'regi', 'final'):
+            return destino['tipo'].upper() + ': ' + str(jefe_de(destino['era'], destino['tipo'], destino.get('sala'))).replace('_', ' ').title()
         if destino['tipo'] == 'fin': return 'FINAL'
         if destino['era'] != destino.get('desde', destino['era']): return era['nombre']
         return destino['variante'].capitalize() + (' ★ desafío' if destino.get('desafio') else '')

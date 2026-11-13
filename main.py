@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import datos
 import mecanicas
 import modos
+import subjefes
 from datos import mundos, mts, tienda
 from sistema import controles, pantalla, opciones, partidas, tipografia, animaciones, sonido
 from mundo import generacion, entorno, efectos
@@ -1008,7 +1009,7 @@ def main():
             def objetivos_de(nivel, con_objetos=True):
                 """A quien le pueden pegar los ataques: enemigos, jefe y objetos rompibles."""
                 jefe = nivel['jefe']
-                lista = nivel['enemigos'][:] + ([jefe] if jefe else [])
+                lista = [e for e in nivel['enemigos'] if not e.get('intocable')] + ([jefe] if jefe else [])   # (los Magnemite de Magnezone no)
                 if jefe:                                                # rocas rodantes de Regirock y bocas de Regidrago
                     lista += [x for x in jefe.get('rodantes', []) + jefe.get('bocas', []) if x.get('atacable') and x['vida'] > 0]
                 return lista + (entorno.destructibles(nivel['ent']) if con_objetos else [])
@@ -1168,7 +1169,8 @@ def main():
                 sprint = (ARRANQUE['mult'] if tiempo() < j.get('pique_hasta', 0) else MULT_SPRINT) if j['corriendo'] else 1.0
                 paralisis = ESTADOS_J['paralisis']['vel'] if tiene_estado(j, 'paralisis') else 1.0
                 return (j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * sprint * mod(j, 'velocidad') * j['mults']['velocidad'] * paralisis
-                        * mec.mult_velocidad(j) * ia.mult_vel_fx(j, tiempo()))       # Cara Susto (Giratina) y Gravedad (Palkia)
+                        * mec.mult_velocidad(j) * ia.mult_vel_fx(j, tiempo())        # Cara Susto (Giratina) y Gravedad (Palkia)
+                        * subjefes.mult_vel(j, tiempo()))                            # grito de Cramorant, campo de Magnezone, agua de Armaldo
 
             return (crear_miembro, juego_de, nombre_mov, datos_mov, actualizar_sinergia, aplicar_pokemon, crear_jugador, guardar_activo,
                     cambiar_slot, equipar_debug, reiniciar_jugador, mult_buff, velocidad_actual)
@@ -1430,7 +1432,7 @@ def main():
                 relevo = RELEVO['daño'] if tiempo() < j.get('relevo_hasta', 0) else 1.0      # recien entrado: el primer golpe pega mas
                 quemado = ESTADOS_J['quemadura']['daño'] if tiene_estado(j, 'quemadura') else 1.0
                 datos['daño'] = round(base * j['juego']['mult_daño'] * mult_buff(j, 'daño') * (1 + j['sinergia'].get('daño', 0)) * extra * stat * quemado
-                                      * mult_estilo(j) * relevo * (100 if trucos.get('golpe_letal') else 1))
+                                      * mult_estilo(j) * relevo * subjefes.mult_ataque(j, tiempo()) * (100 if trucos.get('golpe_letal') else 1))   # Ojitos Tiernos
                 datos['jugador'] = True; datos['relevo'] = relevo > 1
                 return datos
 
@@ -1440,7 +1442,7 @@ def main():
                 except (TypeError, ValueError): base = 300
                 if trucos.get('sin_enfriamiento'): return 0
                 return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento')
-                             * mec.mult_recarga(j) * mec.mult_recarga_especial(j, datos))
+                             * mec.mult_recarga(j) * mec.mult_recarga_especial(j, datos) * subjefes.mult_recarga(j, tiempo()))   # Robo de almas (Chandelure)
 
             def iniciar_ataque(j, forma, enfriamiento, movimiento=None, tipo=None):
                 """Pone la animacion del ataque (por su nombre, tipo y forma: puño -> Punch, electrico -> Shock, proyectil -> Shoot),
@@ -2091,6 +2093,14 @@ def main():
                 pygame.draw.ellipse(ventana, e['color'], (r.x - cx, r.bottom - cy - 12, r.width, 14), 3)
                 centro = r.center
                 r.center = (centro[0] - cx, centro[1] - cy - e.get('altura', 0))   # Registeel saltando (Cuerpo Pesado)
+                alfa_e = subjefes.alfa(e) if e.get('jefe') else None              # Manto Niveo de Mamoswine, Armadura Acida de Muk
+                if alfa_e is not None:
+                    cuadro = e['animador'].cuadro()
+                    ok = bool(cuadro)
+                    if ok:
+                        img = cuadro[0].copy(); img.set_alpha(alfa_e); ventana.blit(img, (cuadro[1], cuadro[2]))
+                    r.center = centro
+                    return ok
                 ok = e['animador'].dibujar(ventana)
                 if ok and tiempo() - e.get('golpe_flash', -10000) < 90:    # recien golpeado: la silueta en blanco
                     cuadro = e['animador'].cuadro()
@@ -2177,7 +2187,9 @@ def main():
             def actualizar_jefe(jefe, j, proyectiles, verdes, contexto):
                 """Movimiento y ataques avisados en ia.py; aca el anillo de balas, las piedras verdes y el choque."""
                 ahora = tiempo()
-                if not (jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora) or jefe['estilo'] == 'regieleki' or jefe.get('sin_estados'): ia.actualizar_jefe(jefe, contexto)
+                quieto = jefe['estado'] in ('paralizar', 'dormir') and jefe['estado_hasta'] > ahora and not jefe.get('sin_estados')
+                if jefe['estilo'] in subjefes.ESTILOS: subjefes.actualizar(jefe, dict(contexto, jefe_quieto=quieto))   # los subjefes de las salas 10 y 20
+                elif not quieto or jefe['estilo'] == 'regieleki': ia.actualizar_jefe(jefe, contexto)
                 jefe['rect'].clamp_ip(AREA)
                 if ahora - jefe['ultimo_disparo'] >= CD_JEFE and jefe['estilo'] == 'jefe':   # Regigigas, Arceus, Beta y los Regis tienen sus propios ataques
                     for i in range(BALAS_JEFE):
@@ -2207,6 +2219,7 @@ def main():
                     semilla = (era * 97 + i * 13 + 1) / 1000
                     try:
                         if tipo == 'tienda': sala = generacion.generar_tienda(era, ['oeste', 'este'], semilla)
+                        elif tipo == 'subjefe': sala = generacion.generar_arena(era, ['norte'], semilla, tipo, subjefes.arena(mundos.subjefe_de(era, i)))
                         elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, ['norte'], semilla, tipo)
                         else:
                             variantes = sorted(mundos.ERAS[era]['variantes'])
@@ -2301,7 +2314,7 @@ def main():
                             img = miniatura(previa, bw - 12, bh - 34)
                             if img: ventana.blit(img, img.get_rect(midtop=(r.centerx, r.y + 6)))
                             else: pygame.draw.rect(ventana, (20, 22, 30), (r.x + 6, r.y + 6, bw - 12, bh - 34))
-                            detalle = 'Sala ' + str(i + 1) + ('' if tipo == 'combate' else ' - ' + (tipo if tipo == 'tienda' else str(mundos.jefe_de(era, tipo)).replace('_', ' ').title()))
+                            detalle = 'Sala ' + str(i + 1) + ('' if tipo == 'combate' else ' - ' + (tipo if tipo == 'tienda' else str(mundos.jefe_de(era, tipo, i)).replace('_', ' ').title()))
                             color_t = (230, 230, 240) if tipo == 'combate' else (140, 230, 255) if tipo == 'tienda' else (255, 140, 120)
                             ventana.blit(f_c.render(detalle, True, color_t), (r.x + 8, r.bottom - 24))
                         if elegida: dibujar_esquinas(ventana, r, margen=3, largo=10)
@@ -2317,7 +2330,7 @@ def main():
                         if img: ventana.blit(img, img.get_rect(midtop=(panel.centerx, panel.y + 12)))
                         y_ = panel.y + 276
                         renglones = ['Sala ' + str(seleccionado + 1) + ' de ' + str(total), 'Tipo: ' + tipo]
-                        if tipo not in ('combate', 'tienda'): renglones.append('Jefe: ' + str(mundos.jefe_de(era, tipo)).replace('_', ' ').title())
+                        if tipo not in ('combate', 'tienda'): renglones.append(('Subjefe: ' if tipo == 'subjefe' else 'Jefe: ') + str(mundos.jefe_de(era, tipo, seleccionado)).replace('_', ' ').title())
                         elif previa and previa['sala'].get('variante'): renglones.append('Por ejemplo: ' + str(previa['sala']['variante']))
                         renglones.append('(la sala de verdad se arma al entrar: cambia un poco)')
                         for k, t in enumerate(renglones):
@@ -2357,7 +2370,7 @@ def main():
                     if tipo in ('tienda', 'tesoro'):
                         destinos = [d for d in destinos if d['tipo'] != 'tesoro'][:2] or destinos[:1]   # del tesoro no se va a otro tesoro
                         lados = ['oeste', 'este'][:len(destinos)]; variante = None
-                    elif tipo in ('jefe', 'regi', 'final'): destinos = destinos[:1]; lados = ['norte']; variante = None
+                    elif tipo in ('subjefe', 'jefe', 'regi', 'final'): destinos = destinos[:1]; lados = ['norte']; variante = None
                     else:
                         variantes = mundos.ERAS[era]['variantes']
                         variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(list(variantes))
@@ -2367,8 +2380,10 @@ def main():
                                 'desafio': bool(destino and destino.get('desafio'))}
                     rec['historial'].append(registro); rec['pos'] = len(rec['historial']) - 1
                 era, tipo, semilla = registro['era'], registro['tipo'], registro['semilla']
+                nombre_sj = mundos.subjefe_de(era, registro['sala']) if tipo == 'subjefe' else None   # Cramorant, Mamoswine... (salas 10 y 20)
                 if tipo == 'tienda': sala = generacion.generar_tienda(era, registro['lados'], semilla)
                 elif tipo == 'tesoro': sala = generacion.generar_tesoro(era, registro['lados'], semilla)
+                elif tipo == 'subjefe': sala = generacion.generar_arena(era, registro['lados'], semilla, tipo, subjefes.arena(nombre_sj))
                 elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, registro['lados'], semilla, tipo)
                 else: sala = generacion.generar_sala(era, registro['variante'], registro['entrada'], registro['lados'], semilla)
                 hecha = registro['completada']
@@ -2384,7 +2399,9 @@ def main():
                 AREA.update(generacion.crear_area(ESC, sala['tam']))
                 datos_era = mundos.ERAS[era]
                 clima = datos_era.get('clima_regi') if tipo == 'regi' else datos_era.get('clima_final') if tipo == 'final' else None
+                if nombre_sj: clima = subjefes.clima(nombre_sj)
                 ent = entorno.crear(sala, clima or registro['clima'], tiempo())
+                subjefes.limpiar_jugador(j)                              # lo que te dejo un subjefe no pasa a la sala siguiente
                 mundo['ent'] = ent
                 if nuevo: tienda.nueva_sala(j['inventario'], tipo)       # los objetos de "por 3 salas" se gastan solo en salas nuevas
                 sala_nv = registro['sala']
@@ -2392,7 +2409,7 @@ def main():
                 esc = mundos.escala(era, sala_nv)
                 nivel = {'sala': sala, 'ent': ent, 'tipo': tipo, 'escala': esc, 'enemigos': [], 'jefe': None, 'proyectiles_pokemon': [], 'proyectiles_enemigos': [],
                          'efectos': [], 'verdes': [], 'puertas': sala['puertas'], 'llave': None, 'completado': tipo in ('tienda', 'tesoro') or hecha, 'monedas': [], 'carteles': [],
-                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, sala_nv, tipo),
+                         'oleadas': [], 'apariciones': [], 'vitrinas': [], 'salida': None, 'nivel_enemigos': progreso.nivel_de_sala(era, sala_nv, 'jefe' if tipo == 'subjefe' else tipo),
                          'nivel_sala': progreso.nivel_de_sala(era, sala_nv),   # el de los enemigos comunes (para el ajuste de experiencia)
                          'amigos': [], 'entrando_hasta': tiempo() + DURACION_ENTRADA, 'saliendo': None, 'frame': 0, 'temblor': 0, 'llegada': None,
                          'registro': registro, 'revisita': hecha, 'inicio': sala['inicio']}
@@ -2416,8 +2433,17 @@ def main():
                     nivel['vitrinas'] = [dict(v, item=i_, vendido=vendido) for v, (i_, vendido) in zip(sala['vitrinas'], registro['vitrinas'])]
                     titulo = 'Sala del tesoro'
                 elif hecha:
-                    titulo = (sala.get('variante') or tipo).capitalize() if tipo == 'combate' else mundos.jefe_de(era, tipo).title()
+                    titulo = ((sala.get('variante') or tipo).capitalize() if tipo == 'combate' else
+                              subjefes.SUBJEFES[nombre_sj]['titulo'] if nombre_sj else mundos.jefe_de(era, tipo).title())
                     titulo += ' (completada)'
+                elif tipo == 'subjefe':                                 # los subjefes de las salas 10 y 20 (ver subjefes.py)
+                    D_sj = subjefes.SUBJEFES[nombre_sj]
+                    nv = nivel['nivel_enemigos']
+                    vida = round(VIDA_JEFE * subjefes.VIDA * progreso.crecimiento(nombre_sj, nv, 'hp'))
+                    nivel['jefe'] = crear_jefe(nivel, nombre_sj, vida, nv, D_sj['tam'], None, D_sj['sprite'])
+                    subjefes.preparar(nivel['jefe'], ent, tiempo())
+                    nivel['stats'] = stats_nuevas(12)
+                    titulo = D_sj['titulo']
                 elif tipo in ('jefe', 'regi', 'final'):
                     nombre = mundos.jefe_de(era, tipo)
                     nv = nivel['nivel_enemigos']
@@ -2435,9 +2461,11 @@ def main():
                     titulo = sala['variante'].capitalize() + (' - desafío' if registro.get('desafio') else '')   # (la letra de los titulos no tiene la estrella)
                 clima_txt = 'Interior' if ent['clima'] is None else entorno.CLIMAS[ent['clima']]['nombre']
                 sub = datos_era['nombre'] + '  -  Sala ' + str(registro['sala'] + 1) + '/' + str(mundos.salas_de(rec, era)) + '  -  ' + clima_txt
+                if nombre_sj and not hecha: sub = 'Subjefe  -  ' + subjefes.SUBJEFES[nombre_sj]['lema'] + '  -  ' + sub
                 cartel(nivel, titulo, 2800 if not hecha else 1600, sub, grande=True)
                 if tipo == 'regi' and hecha: abrir_portal(nivel, False)   # volviste a la sala del Regi: el portal de Celebi sigue abierto
-                sonido.musica('tienda' if tipo in ('tienda', 'tesoro') else tipo if tipo in ('jefe', 'regi', 'final') and not hecha else 'era_' + str(era))
+                sonido.musica('tienda' if tipo in ('tienda', 'tesoro') else 'jefe' if tipo == 'subjefe' and not hecha
+                              else tipo if tipo in ('jefe', 'regi', 'final') and not hecha else 'era_' + str(era))
                 if nivel['jefe']: sonido.grito(nivel['jefe']['nombre'], 1.0)      # el jefe se presenta
                 return nivel
 
@@ -2789,7 +2817,7 @@ def main():
                 Reglas: uno por sala como mucho y despues una sala de espera sin ofertas. Si le bailaste (encariñado) tiene chance
                 de sumarse igual (x AMISTAD_EXTRA), asi con el baile podes amigar a mas de uno.
                 La chance depende de su especie, del nivel, de su naturaleza, del Lazo Amistad, de cuantas veces le bailaste y de las salas sin amigos."""
-                if e.get('jefe') or e.get('mini'): return
+                if e.get('jefe') or e.get('mini') or e.get('de_subjefe') or nivel.get('tipo') == 'subjefe': return   # en las peleas de subjefes nadie se une
                 forzado = e.get('amigo_seguro')                               # el Machop del tutorial se une si o si
                 if viaje.get('rush') or (nivel.get('prueba') and not forzado): return
                 am = amistad_de_era()
@@ -2883,7 +2911,7 @@ def main():
                 inv[mt] = inv.get(mt, 0) + 1
                 cartel(nivel, '¡Conseguiste ' + mts.MTS[mt]['nombre'] + '!', 2200)
                 necesita = [r['objeto'] for m in j['equipo'] for r in progreso.requisitos(m['nombre']) if 'objeto' in r]
-                if nivel['tipo'] != 'jefe' and necesita:
+                if nivel['tipo'] not in ('jefe', 'subjefe') and necesita:
                     obj = random.choice(necesita); inv[obj] = inv.get(obj, 0) + 1
                     cartel(nivel, '¡Conseguiste ' + tienda.ITEMS[obj]['nombre'] + '!', 2400)
 
@@ -3004,6 +3032,18 @@ def main():
                 cartel(nivel, mensaje)
                 return True
 
+            def invocar_minion(nivel, nombre, pos, vida=0.2, intocable=False):
+                """Un pokemon de la pelea de un subjefe (Arrokuda, Pikachu, Magnemite, Grimer): lo mueve el subjefe, no da monedas
+                ni experiencia y nunca quiere unirse. vida: parte de la vida de un enemigo comun. intocable: no recibe golpes."""
+                if nombre not in pokemones: return None
+                e = crear_enemigo(nivel, (round(pos[0]), round(pos[1])), None, nombre, max(1, nivel['nivel_enemigos'] - subjefes.NIVELES_MINION))
+                e['vida'] = e['max_vida'] = max(1, round(e['max_vida'] * vida)); e['vida_ant'] = e['vida']
+                e.update(de_jefe=True, de_subjefe=True, sin_premio=True)
+                if intocable: e.update(intocable=True, invulnerable=True)
+                nivel['enemigos'].append(e)
+                efectos.aparecer(mundo['ef'], *e['rect'].center)
+                return e
+
             def actualizar_nivel(nivel, j):
                 """Todo lo que pasa en un frame de la sala: jugador, entorno, enemigos, jefe, balas, monedas, llave y puertas.
                 Devuelve 'siguiente' al salir por una puerta, 'muerte' si cayo todo el equipo, o None."""
@@ -3057,7 +3097,9 @@ def main():
                             'parry': lambda e: intentar_parry(j, e, nivel),           # la IA lo llama antes de pegarte
                             'era': nivel['sala']['era'], 'proyectiles': nivel['proyectiles_pokemon'],
                             'facil': es_facil(), 'sin_maniobras': bool(nivel.get('tutorial')),
-                            'forzar_cambio': lambda: forzar_cambio(j), 'quitar_objeto': lambda: quitar_objeto(j)}   # Llave Giro y Desarme de Arceus Beta
+                            'forzar_cambio': lambda: forzar_cambio(j), 'quitar_objeto': lambda: quitar_objeto(j),   # Llave Giro y Desarme de Arceus Beta
+                            'poner_estado': lambda est, ms=None: poner_estado(j, est, ms),                        # los subjefes te queman, paralizan...
+                            'invocar': lambda nombre, pos, vida=0.2, intocable=False: invocar_minion(nivel, nombre, pos, vida, intocable)}
                 entorno.actualizar(ent, dict(contexto, dañar_jugador=lambda d, t, a=None: dañar_jugador(j, d, t, evitable=False)), ahora)   # terreno, maquinas, fuego, clima, explosiones
                 if ahora >= j['congelado_hasta']:                        # el frio de los golpes de hielo se va solo
                     if j['frio'] >= FRIO_MAX:
@@ -3091,6 +3133,7 @@ def main():
                         if salida_e: e['rect'].center = (round(salida_e[0]), round(salida_e[1]))
                     lento = mec.lento() and nivel['frame'] % 3                # camara lenta (Prediccion): un tercio de velocidad
                     if e.get('muñeco'): actualizar_muñeco(nivel, e, ahora)     # modo prueba: no se mueve, no ataca, no se muere
+                    elif e.get('de_subjefe'): pass                                # los Arrokuda, Grimer... los mueve su subjefe
                     elif e['vida'] > 0 and not lento and not mec.enemigo(e, j, nivel): ia.actualizar(e, contexto_ia)
                     actualizar_animacion_enemigo(e)
                     if (e.get('embestida_ia') or e.get('esquiva_ia')) and nivel['frame'] % ESTELA['cada'] == 0:   # embistiendo o esquivando: deja estela
@@ -3103,6 +3146,8 @@ def main():
                         efectos.aparecer(mundo['ef'], *e['rect'].center); efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
                         nivel['apariciones'].append({'pos': entorno.punto_libre(ent, random, j['rect'].center, 300), 'hasta': ahora + PRUEBA['reaparece'],
                                                      'estilo': e.get('estilo_prueba')})
+                    elif e['vida'] <= 0 and e.get('sin_premio'):              # los de las peleas de subjefes: sin monedas, experiencia ni amigos
+                        if not e.get('sin_humo'): efectos.aparecer(mundo['ef'], *e['rect'].center)
                     elif e['vida'] <= 0:
                         mision_evento('derrota')
                         soltar_monedas(nivel, j, *e['rect'].center, MONEDAS_ENEMIGO + nivel['sala']['era'])
@@ -3141,12 +3186,13 @@ def main():
                         ia.salir_arena(j, ahora)
                         entorno.sacar_de_regi(ent)
                         if jefe['estilo'] == 'beta': entorno.cerrar_vacios(ent); cartel(nivel, 'El piso vuelve...', 2000)
-                        soltar_monedas(nivel, j, *jefe['rect'].center, MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
-                        cartel(nivel, jefe['nombre'].title() + ' fue derrotado!', 2000)
+                        if jefe['estilo'] in subjefes.ESTILOS: subjefes.terminar(jefe, contexto)   # se van sus pokemon y vuelve el piso
+                        soltar_monedas(nivel, j, *jefe['rect'].center, subjefes.MONEDAS if nivel['tipo'] == 'subjefe' else MONEDAS_REGI if nivel['tipo'] != 'jefe' else MONEDAS_JEFE)
+                        cartel(nivel, (jefe.get('titulo') or jefe['nombre'].title()) + ' fue derrotado!', 2000)
                         mision_evento('jefe')
                         if nivel['tipo'] == 'regi': mision_evento('regi')
                         if viaje.get('rush'): viaje['rush']['jefes'] += 1
-                        if viaje.get('perfil') is not None and jefe['nombre'] not in viaje['perfil'].setdefault('jefes', []):
+                        if viaje.get('perfil') is not None and nivel['tipo'] != 'subjefe' and jefe['nombre'] not in viaje['perfil'].setdefault('jefes', []):
                             viaje['perfil']['jefes'].append(jefe['nombre'])       # queda esperandote en la sala de los titanes del refugio
                         efectos.explosion(mundo['ef'], *jefe['rect'].center, 160)
                         ganar_xp(nivel, j, progreso.xp_por_derrota(jefe['nombre'], jefe['nivel'], j['nivel'], True))
@@ -4179,6 +4225,7 @@ def main():
                 vida_t = render(f_borde, str(int(j['vida'])) + ' / ' + str(j['max_vida']), 'white')
                 ventana.blit(vida_t, vida_t.get_rect(midright=(barra.right - 10, barra.bottom - 9)))
                 if congelado: menus.icono_estado(ventana, 'congelado', (barra.x + 70, barra.bottom - 9))
+                subjefes.dibujar_hud_jugador(ventana, j, nivel['jefe'], barra, ahora, f_borde)   # tu polaridad (Magnezone) y el Robo de almas
                 ventana.blit(render(f_borde, 'EXP', (120, 210, 255)), (98, 78))
                 menus.barra_exp(ventana, 128, 78, 232, progreso.progreso_nivel(activo))
                 costo = ESQUIVE['energia'] * mod(j, 'gasto') / ENERGIA_MAX
@@ -4233,10 +4280,11 @@ def main():
                 # ----- el jefe: la barra del rival de BW -----
                 if nivel['jefe']:
                     b = nivel['jefe']
-                    nombre_j = render(f_borde2, b['nombre'].replace('_', ' ').title(), 'white')
+                    nombre_j = render(f_borde2, b.get('titulo') or b['nombre'].replace('_', ' ').title(), 'white')
                     ventana.blit(nombre_j, (W - 400, 4))
                     menus.chip_tipo(ventana, b['tipo'], W - 392 + nombre_j.get_width(), 10)
                     rb = menus.barra_hp(ventana, W - 404, 34, 392, b['vida'] / max(1, b['max_vida']), 'rival', 2, b.get('nivel'), f_borde)
+                    subjefes.dibujar_hud(ventana, b, rb, ahora, f_borde)         # los Arrokuda que se trago Cramorant, los metales de Tinkaton...
                     if b['estilo'] in ia.FASES_JEFE:                 # la barra de los jefes con fases se parte donde cambian
                         cortes = ia.FASES_JEFE[b['estilo']]
                         h0, h1 = rb.x + 44 * 2, rb.right - (124 - 91) * 2
@@ -4310,7 +4358,7 @@ def main():
                     t, resto = ahora - c['inicio'], c['hasta'] - ahora
                     alfa = max(0, min(255, round(255 * min(1.0, resto / 250))))
                     if c['grande']:
-                        jefe = nivel['tipo'] in ('jefe', 'regi', 'final')
+                        jefe = nivel['tipo'] in ('subjefe', 'jefe', 'regi', 'final')
                         acento = (230, 60, 70) if jefe else (70, 200, 255)
                         k_entra = menus.aparecer(t, 0, 240)
                         titulo_t = render(f_cartel, c['texto'], 'white')
@@ -4455,6 +4503,7 @@ def main():
                 ventana.fill('black')
                 entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
                 ia.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # Arceus Beta: el triangulo, charcos, rastros y arena
+                subjefes.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # agujeros, alcantarillas, metales, velas, agua...
                 mec.dibujar(nivel, j, cx, cy)                            # nubes, charcos, bombas, raices, jardin... y los avisos de enemigos con mecanica
                 if nivel['tipo'] == 'hall' or nivel.get('pasos'): dibujar_refugio(nivel, j, cx, cy)   # carteles, cuadros y cosas para tocar del refugio
                 for puerta in nivel['puertas'] if not nivel['ent'].get('guardado') else ():   # puertas con el cartel (en la torre de Regidrago no hay)
@@ -4612,6 +4661,7 @@ def main():
                     b = nivel['jefe']
                     if not dibujar_enemigo(b, cx, cy): dibujar_rect(b['rect'].move(0, -b.get('altura', 0)),cx,cy,b.get('color',(255,140,0)))
                     barra((b['rect'].x-cx,b['rect'].y-cy-12-b.get('altura', 0),b['rect'].width,8),b['vida'],b['max_vida'],8)
+                subjefes.dibujar(ventana, nivel['jefe'], j, cx, cy, ahora, f_hud_b, COLORES_TIPO)   # ataques de los subjefes y la oscuridad
                 ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b, COLORES_TIPO)
                 if j.get('fx_jefe'): ia.dibujar_pantalla_fx(ventana, j, ahora, f_hud_b)   # Foco Resplandor (pantalla blanca) y efectos encima
                 dibujar_numeros(nivel, cx, cy, ahora)

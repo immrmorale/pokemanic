@@ -1295,7 +1295,8 @@ def armar_menus():
                         '[Minimo de amigos] Desde la segunda sala de la Era Glacial, el primero que derrotes quiere unirse seguro. En cada era hay al menos 2 que quieren',
                         '(la 1ra antes de la sala ' + str(progreso.GARANTIA_AMISTAD[0] + 1) + ', la 2da antes de la ' + str(progreso.GARANTIA_AMISTAD[1] + 1) + '), y cada sala sin amigos hace la proxima un poco mas facil.']
         s['Salas y eras'] = ['5 eras de 30 salas: Glacial, Piedra, Metales, Media y Moderna. Al final, El Origen: Regigigas y Arceus.',
-                             'Semijefe en la sala 15 y el Regi de la era en la 30. Las puertas muestran que hay detras.',
+                             'Subjefes en las salas 10 y 20, semijefe en la 15 y el Regi de la era en la 30. Las puertas muestran que hay detras.',
+                             'En las peleas de subjefes nadie quiere unirse (ni los pokemon que salen en la pelea).',
                              'Limpia la sala para que aparezca la llave; con la llave se abren las puertas.',
                              'La vida no se recupera sola: al limpiar una sala el equipo recupera un 12%.',
                              'Con la sala completada podes volver por la puerta por la que entraste; las salas hechas quedan hechas.',

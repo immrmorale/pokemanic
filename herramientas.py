@@ -589,9 +589,9 @@ def herramienta_visor():
             for texto, f, color in lineas:
                 for parte in [texto[i:i + 40] for i in range(0, max(1, len(texto)), 40)]:
                     ventana.blit(f.render(parte, True, color or (235, 235, 235)), (x, y)); y += f.get_height() + 4
-            if ver_plan:                                            # plan de una partida: T tienda, J semijefe, R regi, A arceus
+            if ver_plan:                                            # plan de una partida: T tienda, S subjefe, J semijefe, R regi, A arceus
                 y += 10
-                letras = {'combate': '.', 'tienda': 'T', 'jefe': 'J', 'regi': 'R', 'final': 'A'}
+                letras = {'combate': '.', 'tienda': 'T', 'subjefe': 'S', 'jefe': 'J', 'regi': 'R', 'final': 'A'}
                 for i, plan in enumerate(rec['plan']):
                     ventana.blit(chica.render(mundos.ERAS[i]['clave'][:8].ljust(9) + ''.join(letras[t] for t in plan), True, (220, 220, 140)), (x, y)); y += 18
             pygame.display.flip(); reloj.tick(30)
@@ -1634,9 +1634,9 @@ def ver_salas():
 
 
 def ver_plan():
-    """Dibuja el plan de una partida: T tienda, J semijefe, R regi, A arceus. Y el clima de las primeras salas."""
+    """Dibuja el plan de una partida: T tienda, S subjefe, J semijefe, R regi, A arceus. Y el clima de las primeras salas."""
     rec = mundos.nuevo_recorrido()
-    letras = {'combate': '.', 'tienda': 'T', 'jefe': 'J', 'regi': 'R', 'final': 'A'}
+    letras = {'combate': '.', 'tienda': 'T', 'subjefe': 'S', 'jefe': 'J', 'regi': 'R', 'final': 'A'}
     for i, era in enumerate(rec['plan']):
         print(mundos.ERAS[i]['nombre'].ljust(22), ''.join(letras[t] for t in era))
     climas = []

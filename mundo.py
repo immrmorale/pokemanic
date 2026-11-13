@@ -661,10 +661,11 @@ def armar_generacion():
                        'piezas': est['piezas'], 'simetria': est['sim'], 'forma': est['forma']})
 
 
-    def generar_arena(era, salidas=('norte',), semilla=None, tipo='jefe'):
-        """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas))."""
+    def generar_arena(era, salidas=('norte',), semilla=None, tipo='jefe', datos=None):
+        """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas)).
+        datos: como se arma (los subjefes traen la suya, ver subjefes.arena); si no, la de la era."""
         azar = random.Random(semilla)
-        datos = mundos.ARENA_REGI if tipo == 'regi' and 'plan_fijo' not in mundos.ERAS[era] else mundos.ERAS[era]['arena']
+        if datos is None: datos = mundos.ARENA_REGI if tipo == 'regi' and 'plan_fijo' not in mundos.ERAS[era] else mundos.ERAS[era]['arena']
         columnas, filas = datos.get('tamaño', (COLUMNAS, FILAS))
         est = _generar(datos, 'sur', list(salidas), azar, columnas, filas, radio_centro=3)
         return _armar(est['m'], est['objetos'], TAM_CASILLA, 'sur', salidas,
