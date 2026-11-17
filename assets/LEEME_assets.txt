@@ -7,9 +7,19 @@ assets/
     terrenos/<nombre>.png              una casilla de terreno (agua.png, hierba.png, suelo.png...). Nombres: mundos.TERRENOS
     <era>/objetos/ y <era>/terrenos/   igual pero solo para esa era (glaciacion, piedra, metales, medieval, moderna, origen)
                                        ej: mundo/glaciacion/terrenos/suelo.png = piso de la Era Glacial
+    casas/<pokemon>_afuera|_adentro|_bandera.png   las chozas del barrio del refugio (jardin sin el bosque de alrededor, interior y bandera) + borde_calle.png (el borde de abajo de la calle)
+    objetos/arbol.png, tocon.png, cerca.png, arbusto.png, mata.png, cartel.png, flor_roja.png, flor_amarilla.png   lo suelto de la aldea (el arbol es UNO y se pega suelto en todos lados)
+    objetos/parcela_<nombre>.png       las chozas de la plaza con su patio (agua, fuego, planta, roca, hoja, obra_agua, obra_fuego)
+    medieval/objetos/arbol.png         el mismo arbol en azulado (los bosques de la Edad Media)
+    arenas/<era>_<jefe|regi|final>.png + .json     la arena ya dibujada de cada jefe y su piso (poligono de la plataforma y cuanto se agranda)
+  clima/<efecto>/<nn>.png              cuadros del clima: lluvia, granizo, nieve, ventisca, arena, niebla, sol, nubes (sombras) y brasas
   efectos/<nombre>.png                 efectos animados: una tira horizontal de frames cuadrados (alto = ancho de cada frame)
-                                       nombres: golpe, golpe_<tipo>, proyectil_<tipo>, romper, explosion, nivel, evolucion, cura, cambio, aparecer, destello
+                                       estado_<nombre>: lo que se ve arriba de un pokemon quemado, dormido, envenenado, confundido...
+                                       nombres: golpe, golpe_<tipo>, proyectil_<tipo>, romper, explosion, nivel, evolucion, cura, cambio, aparecer, destello,
+                                       estrella y brillo (las chispas de los golpes, de la hoja Effects del Red Rescue Team)
   interfaz/
+    logo.png                           el logo del juego en sus pixeles originales y sin fondo (sale de assets/typo_logo_pokemanic.png)
+    inicial/fondo_<color>.png, mano.png   la pantalla de elegir tu pokemon (Starter Selection Screen de Blanco/Negro)
     fondos/menu.png                    fondo del titulo y del menu principal (se estira a 1000x600)
     objetos/<clave>.png                (para mas adelante) iconos de la tienda y la mochila: claves de tienda.ITEMS
   hojas/                               hojas originales sin recortar (el juego no las usa; para recortar con recortar_assets.py)
@@ -25,11 +35,27 @@ Comandos para pasar las hojas al juego:
                                     el plan de que hoja va en cada era/variante esta en herramientas.py (PLAN)
   python herramientas.py decorados  rocas/hielo/pinos (la pieza de pared aislada de cada tileset) y arbustos/arboles (Poke Transfer de BW) -> mundo/objetos
   python herramientas.py props      mapa 'Sky Peak 8th Station' (Sky) -> mundo/objetos: caja, barril, anfora, cesto, fardo_de_heno, tronco, mesa_de_mercado
-                                    hojas 'Huts' del Red Rescue Team en hojas/red_rescue/Huts -> mundo/objetos/casa_<pokemon>.png (las casas del barrio del refugio)
+  python herramientas.py casas      hojas 'Huts' del Red Rescue Team (una por pokemon) -> mundo/casas (el barrio del refugio y tu casa por dentro)
+  python herramientas.py aldea      hojas 'Huts' (Water, Fire, Plant, Rock, Grass, las 'Construction' y Pikachu) -> mundo/objetos: el arbol suelto con su sombra,
+                                    tocon, cerca, mata, cartel, flores animadas y las chozas de la plaza con su patio (parcela_<nombre>.png)
+  python herramientas.py logo       assets/typo_logo_pokemanic.png -> interfaz/logo.png
+  python herramientas.py inicial    hoja 'Starter Selection Screen' de Blanco/Negro -> interfaz/inicial (fondos de arcos y la manito)
+  python herramientas.py chispas    hoja 'Miscellaneous - Effects' del Red Rescue Team -> efectos/estrella.png y brillo.png
+  python herramientas.py arenas     'Dungeon Boss Rooms' (y 'Friend Areas - Frigid Cavern') del Red Rescue Team -> mundo/arenas (la arena de cada jefe)
+                                    el piso de cada arena es un poligono medido a mano sobre la hoja: esta en la tabla ARENAS de herramientas.py
+  python herramientas.py clima      hojas 'Weather' del Red Rescue Team (Rain, Sunny, Fog, Miscellaneous y los zip Hail y Embers) -> clima/
+  python herramientas.py estados    hoja 'Status Effects' del Red Rescue Team -> efectos/estado_<nombre>.png
   python herramientas.py cielo      hoja 'Skies' del Explorers of Sky -> interfaz/fondos/cielo.png y nube_<n>.png (la intro)
   python herramientas.py efectos    'Attack Effects' del Explorers of Sky (el zip o la carpeta efectos/move_VFX) -> efectos/
                                     (golpe_<tipo>, proyectil_<tipo>, cura, cambio, nivel, explosion...) + aparecer/destello del Poke Transfer
   python herramientas.py objetos    hoja 'Items' de Blanco/Negro -> interfaz/objetos (iconos de la tienda y la mochila, mt_<tipo> para las MT)
+                                    y 'Items & Objects' del Red Rescue Team -> mundo/objetos: moneda, llave, pincho y manzana (lo que se junta del piso)
   python herramientas.py paneles    hojas 'Options Screen' y 'Party Screen' de Blanco/Negro -> interfaz/paneles (fondos, botones y paneles de los menus)
   python herramientas.py recortar assets/hojas/la_hoja.png    recortar a mano cualquier otra hoja
 Iconos de objetos (de Blanco/Negro): interfaz/objetos/<clave>.png (las MT pueden usar mt_<tipo>.png). Cursor: interfaz/cursor.png
+
+Donde estan las hojas:
+  assets/hojas/<juego>/<seccion>/      las hojas que YA usa el juego (las herramientas las buscan en assets y en todas sus subcarpetas, por el nombre)
+  assets/ (sueltas)                    las que todavia no se usan: Events, Friend Areas, Treasure Town, ataques del Red Rescue Team y del
+                                       Time/Darkness, Trainer Card y las chozas de otro molde (Bulbasaur, Machop, Cubone). Ya se usan (aunque sigan sueltas): Starter
+                                       Selection Screen, las chozas Water/Fire/Plant/Rock/Grass con sus 'Construction' y Miscellaneous - Effects del Red Rescue Team

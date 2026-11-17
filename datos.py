@@ -1478,7 +1478,8 @@ def armar_mundos():
         'choza': {'tam': (100, 90), 'material': 'planta', 'vida': 70, 'forma': 'circulo', 'color': (170, 140, 80), 'arde': True},
         'lanza': {'tam': (14, 50), 'material': 'madera', 'vida': 8, 'color': (150, 110, 70), 'arde': True},
         'cesto': {'tam': (36, 36), 'material': 'planta', 'vida': 10, 'forma': 'circulo', 'color': (190, 160, 90), 'arde': True},
-        'arbol': {'tam': (70, 70), 'material': 'madera', 'vida': 90, 'forma': 'circulo', 'color': (40, 110, 40), 'arde': True, 'cobertura': True},
+        'arbol': {'tam': (70, 70), 'material': 'madera', 'vida': 90, 'forma': 'circulo', 'color': (40, 110, 40), 'arde': True, 'cobertura': True, 'escala': 2},   # escala: el dibujo va x2 (la copa sobresale del tronco)
+        'tocon': {'tam': (56, 48), 'material': 'madera', 'vida': 60, 'forma': 'circulo', 'color': (170, 150, 100), 'arde': True, 'cobertura': True},
         'arbusto': {'tam': (50, 44), 'material': 'planta', 'vida': 20, 'forma': 'circulo', 'color': (70, 140, 60), 'arde': True},
         'hueso': {'tam': (40, 20), 'material': 'hueso', 'vida': 10, 'color': (230, 225, 210), 'solido': False},
         # edad de los metales
@@ -1548,6 +1549,9 @@ def armar_mundos():
         'banco': {'tam': (84, 30), 'material': 'madera', 'vida': None, 'color': (170, 115, 65), 'mueble': 'banco'},
         'cartel': {'tam': (70, 60), 'material': 'madera', 'vida': None, 'color': (200, 160, 100), 'mueble': 'cartel'},
         'maceta': {'tam': (40, 40), 'material': 'planta', 'vida': None, 'forma': 'circulo', 'color': (60, 150, 70)},
+        'parcela': {'tam': (432, 420), 'material': 'piedra', 'vida': None, 'color': (120, 170, 90), 'solido': False},   # una choza del PMD con su patio (es un dibujo: se camina por arriba)
+        'tope': {'tam': (40, 40), 'material': 'piedra', 'vida': None, 'color': (0, 0, 0)},                              # no se ve y no deja pasar (lo que no se pisa de una parcela)
+        'cerca': {'tam': (124, 30), 'material': 'madera', 'vida': None, 'color': (190, 170, 110)},
         # hall (a donde volves al perder; no se rompe nada)
         'celebi': {'tam': (40, 40), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 230, 120)},   # cuida el hall y te manda de viaje
     }
@@ -1635,7 +1639,7 @@ def armar_mundos():
                       'lillipup', 'herdier', 'zigzagoon', 'linoone', 'anorith', 'armaldo', 'tyrunt', 'tyrantrum', 'larvitar', 'pupitar', 'rockruff', 'lycanroc', 'phanpy', 'donphan', 'sandile', 'krokorok', 'diglett_alola', 'shroomish', 'breloom', 'croagunk', 'litten', 'torracat', 'flareon', 'leafeon', 'eevee'],
          'variantes': {
              'pradera': {'forma': {'rect': 2, 'esquinas': 1}, 'simetria': {'no': 2, 'h': 1}, 'terrenos': [('hierba', (3, 5), (6, 14))],
-                         'piezas': {'arboleda': 3, 'rocas': 2, 'fogata': 1}, 'num_piezas': (2, 4), 'objetos': {'arbusto': 3, 'roca': 2, 'arbol': 2}, 'cantidad': (3, 7)},
+                         'piezas': {'arboleda': 3, 'rocas': 2, 'fogata': 1}, 'num_piezas': (2, 4), 'objetos': {'arbusto': 3, 'roca': 2, 'arbol': 2, 'tocon': 1}, 'cantidad': (3, 7)},
              'aldea de cazadores': {'forma': {'rect': 1, 'cruz': 1}, 'terrenos': [('hierba', (1, 2), (4, 8)), ('lodo', (1, 2), (3, 6))],
                                     'piezas': {'choza': 3, 'fogata': 2, 'rocas': 1}, 'num_piezas': (3, 4), 'objetos': {'cesto': 2, 'tronco': 2, 'lanza': 1}, 'cantidad': (2, 5)},
              'cueva rupestre': {'forma': {'cueva': 1}, 'interior': True, 'terrenos': [('sombra', (3, 5), (5, 10))],
@@ -1645,7 +1649,7 @@ def armar_mundos():
              'valle volcanico': {'forma': {'rect': 1, 'esquinas': 1}, 'terrenos': [('lava', (1, 3), (3, 6)), ('roca_volcanica', (2, 3), (4, 8)), ('ceniza', (1, 2), (4, 8))],
                                  'piezas': {'rocas': 2}, 'num_piezas': (1, 2), 'objetos': {'roca': 3, 'hueso': 1}, 'cantidad': (3, 6)},
              'rio': {'forma': {'rect': 1}, 'especiales': ['rio'], 'terrenos': [('hierba', (2, 4), (5, 10)), ('lodo', (1, 2), (3, 6))],
-                     'piezas': {'arboleda': 2, 'choza': 1}, 'num_piezas': (1, 3), 'objetos': {'arbol': 2, 'arbusto': 2, 'roca': 1}, 'cantidad': (3, 6)},
+                     'piezas': {'arboleda': 2, 'choza': 1}, 'num_piezas': (1, 3), 'objetos': {'arbol': 2, 'arbusto': 2, 'roca': 1, 'tocon': 1}, 'cantidad': (3, 6)},
          },
          'arena': {'forma': {'esquinas': 1}, 'simetria': {'hv': 1}, 'terrenos': [('arena', (3, 4), (6, 10))], 'maquinas': [('monolito', (2, 2))],
                    'piezas': {'rocas': 1}, 'num_piezas': (2, 2), 'objetos': {}, 'cantidad': (0, 0)}},
@@ -1680,7 +1684,7 @@ def armar_mundos():
              'patio del castillo': {'forma': {'rect': 2, 'columnas': 1}, 'simetria': {'h': 2, 'hv': 1, 'no': 1}, 'terrenos': [('arena', (1, 2), (5, 10))], 'maquinas': [('brasero', (2, 4))],
                                     'piezas': {'polvorin': 2, 'campamento': 2}, 'num_piezas': (2, 3), 'objetos': {'estatua_de_caballero': 2, 'estandarte': 2, 'carreta': 1, 'caja': 2}, 'cantidad': (3, 6)},
              'bosque encantado': {'forma': {'rect': 1, 'esquinas': 2}, 'especiales': ['rio'], 'terrenos': [('hierba', (3, 5), (6, 14)), ('lodo', (0, 2), (3, 6))], 'maquinas': [('altar', (0, 1))],
-                                  'piezas': {'arboleda': 3}, 'num_piezas': (2, 3), 'objetos': {'arbol': 3, 'arbusto': 3}, 'cantidad': (3, 7)},
+                                  'piezas': {'arboleda': 3}, 'num_piezas': (2, 3), 'objetos': {'arbol': 3, 'arbusto': 3, 'tocon': 1}, 'cantidad': (3, 7)},
              'aldea': {'forma': {'rect': 1, 'cruz': 1}, 'terrenos': [('hierba', (1, 2), (4, 8)), ('lodo', (1, 2), (4, 8)), ('charco', (0, 2), (2, 4))],
                        'piezas': {'establo': 3, 'campamento': 1}, 'num_piezas': (2, 4), 'objetos': {'carreta': 2, 'barril': 2, 'pozo': 1}, 'cantidad': (2, 5)},
              'mazmorra': {'forma': {'columnas': 1, 'cruz': 1}, 'interior': True, 'simetria': {'hv': 1, 'no': 1}, 'terrenos': [('sombra', (3, 5), (6, 12)), ('charco', (1, 2), (2, 5))],

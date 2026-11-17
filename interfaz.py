@@ -13,7 +13,7 @@ import datos
 import mecanicas
 from datos import mts, tienda
 from sistema import controles, opciones, partidas, tipografia, animaciones, sonido
-from mundo import entorno
+from mundo import entorno, efectos
 from combate import progreso
 
 
@@ -243,9 +243,69 @@ def armar_menus():
         return final
 
 
+    _logo_nuevo = {}
+
+
+    def _partes_logo(escala):
+        """El logo del juego (assets/interfaz/logo.png, lo arma 'python herramientas.py logo') cortado en 'Poké' y cada letra Unown: se
+        separan por las columnas vacias (y las dos que se tocan, por la columna mas vacia). Cada parte agrandada x escala sin suavizar,
+        con su sombra. Devuelve (partes, tamaño): partes = [(x, dibujo, sombra, brillo)] ([] si falta el archivo)."""
+        if escala not in _logo_nuevo:
+            ruta, partes, tam = os.path.join(os.path.dirname(FONDOS), 'logo.png'), [], (0, 0)
+            if os.path.isfile(ruta):
+                img = pygame.image.load(ruta).convert_alpha()
+                w, h = img.get_size()
+                cuenta = [sum(img.get_at((x, y)).a > 0 for y in range(h)) for x in range(w)]
+                tramos, x = [], 0
+                while x < w:
+                    if not cuenta[x]: x += 1; continue
+                    x1 = x
+                    while x1 < w and cuenta[x1]: x1 += 1
+                    if tramos and x1 - x > 30:                           # dos Unown pegados: se cortan por donde menos se tocan
+                        corte = min(range(x + 10, x1 - 10), key=lambda c: cuenta[c])
+                        tramos += [(x, corte), (corte, x1)]
+                    else: tramos.append((x, x1))
+                    x = x1
+                for a, b in tramos:
+                    pieza = pygame.transform.scale(img.subsurface((a, 0, b - a, h)), ((b - a) * escala, h * escala))
+                    mascara = pygame.mask.from_surface(pieza)
+                    partes.append((a * escala, pieza, mascara.to_surface(setcolor=(12, 16, 48, 120), unsetcolor=(0, 0, 0, 0)),
+                                   mascara.to_surface(setcolor=(255, 255, 255, 150), unsetcolor=(0, 0, 0, 0))))
+                tam = (w * escala, h * escala)
+            _logo_nuevo[escala] = (partes, tam)
+        return _logo_nuevo[escala]
+
+
     def dibujar_logo(ventana, alto, ahora, **donde):
-        """POKEMANIC: POKE con la letra de los titulos del PMD (amarilla con borde azul, como el logo de Pokemon) y MANIC con letras
-        Unown de HGSS que flotan un poco. donde: como en get_rect (center=..., topright=...). Si faltan las hojas, el logo de antes."""
+        """El logo del juego: la imagen assets/interfaz/logo.png ('Poké' amarillo y MANIC en Unown) agrandada sin suavizar. Los Unown
+        flotan un poco, cada uno a su tiempo, y cada tanto un brillo cruza el 'Poké'. donde: como en get_rect (center=..., topright=...).
+        Si falta la imagen, el logo armado con las letras del PMD. Devuelve el rectangulo que ocupa."""
+        escala = max(2, round(alto / 24))
+        partes, tam = _partes_logo(escala)
+        if not partes: return _logo_letras(ventana, alto, ahora, **donde)
+        caja = pygame.Rect(0, 0, *tam)
+        for clave, valor in donde.items(): setattr(caja, clave, valor)
+        for i, (x, pieza, sombra, brillo) in enumerate(partes):
+            y = caja.y + (round(math.sin(ahora / 450 + i * 1.3) * alto * 0.05) if i else 0)   # 'Poké' quieto, los Unown flotan
+            ventana.blit(sombra, (caja.x + x + escala, y + escala * 2)); ventana.blit(pieza, (caja.x + x, y))
+            pasa = (ahora % 3600) / 520 * (tam[0] + 120) - 60 - x                    # el brillo: una franja que cruza todo el logo
+            franja = pygame.Rect(round(pasa), 0, 14 * escala, pieza.get_height()).clip(pieza.get_rect())
+            if franja.width > 0: ventana.blit(brillo, (caja.x + x + franja.x, y), franja)
+        return caja
+
+
+    def animacion(ventana, nombre, centro, lado, t, ms=60):
+        """Un efecto de assets/efectos (tira de cuadros) que pasa una sola vez: t = ms desde que arranco. False si no esta o ya termino."""
+        cuadros = efectos._frames(nombre, lado)
+        if not cuadros or not 0 <= t < len(cuadros) * ms: return False
+        cuadro = cuadros[int(t // ms)]
+        ventana.blit(cuadro, cuadro.get_rect(center=centro))
+        return True
+
+
+    def _logo_letras(ventana, alto, ahora, **donde):
+        """El logo armado con letras (si falta la imagen): POKE con la letra de los titulos del PMD (amarilla con borde azul) y MANIC con
+        letras Unown de HGSS que flotan un poco. donde: como en get_rect. Si faltan las hojas, el logo dibujado."""
         escala = max(2, round(alto / 24))
         poke_f = tipografia.fuente_titulo(escala, (40, 70, 160))
         letras = tipografia.unown('MANIC', max(2, round(alto / 14)))
@@ -478,10 +538,19 @@ def armar_menus():
     ESTADO_ICONO = {'quemar': 'estado_brn', 'paralizar': 'estado_par', 'congelado': 'estado_frz', 'veneno': 'estado_psn', 'debilitado': 'estado_fnt'}
 
 
+    # estados que tienen animacion del Red Rescue Team (assets/efectos/estado_<nombre>.png, 'python herramientas.py estados')
+    ESTADO_ANIMADO = {'quemar': 'estado_quemar', 'veneno': 'estado_veneno', 'dormir': 'estado_dormir', 'ralentizar': 'estado_lento',
+                      'confusion': 'estado_confuso', 'confundir': 'estado_confuso', 'aturdido': 'estado_confuso'}
+
+
     def icono_estado(ventana, estado, centro, escala=2):
-        """Icono de estado de BW (BRN, PAR, FRZ...) centrado en 'centro'. Dormido y frenado no tienen icono en BW: se escribe."""
+        """Icono de estado de BW (BRN, PAR, FRZ...) centrado en 'centro', con la animacion del PMD encima (la llama, la calavera...).
+        Dormido, frenado y confundido no tienen icono en BW: va solo la animacion (o, si falta, se escribe)."""
         nombre = ESTADO_ICONO.get(estado)
         img = hud(nombre, escala) if nombre else None
+        animado = ESTADO_ANIMADO.get(estado)                            # la animacion del PMD: arriba del icono de BW, o sola si no hay icono
+        arriba = (centro[0], centro[1] - (20 if img else 4))
+        if animado and entorno._loop(ventana, animado, arriba, 32, pygame.time.get_ticks(), 110) and not img: return
         if img: ventana.blit(img, img.get_rect(center=centro)); return
         texto = {'dormir': 'zZ', 'ralentizar': '↓', 'confusion': '??', 'aturdido': '**'}.get(estado)
         if texto:
@@ -1537,59 +1606,136 @@ def armar_menus():
             nombre = siguientes[0]; vistos.add(nombre)
 
 
+    FONDO_INICIAL = {'mudkip': 'celeste', 'torchic': 'dorado', 'riolu': 'blanco', 'natu': 'verde'}   # el fondo de BW que le toca a cada uno
+    _inicial = {}
+
+
+    def _pieza_inicial(nombre, tam=None):
+        """assets/interfaz/inicial/<nombre>.png al tamaño pedido: los fondos de arcos y la manito de la pantalla de elegir inicial de
+        Blanco/Negro (los recorta: python herramientas.py inicial). None si falta."""
+        clave = (nombre, tam)
+        if clave not in _inicial:
+            ruta = os.path.join(os.path.dirname(FONDOS), 'inicial', nombre + '.png')
+            try: img = pygame.image.load(ruta) if os.path.isfile(ruta) else None
+            except pygame.error: img = None
+            if img: img = pygame.transform.smoothscale(img.convert(), tam) if nombre.startswith('fondo') else img.convert_alpha()   # el fondo es un degrade: se estira suave
+            _inicial[clave] = img
+        return _inicial[clave]
+
+
     def elegir_inicial(ui, dibujar_fondo=None, texto_titulo='Elegi tu compañero'):
-        """Elegis tu primer pokemon: Mudkip, Torchic, Riolu o Natu (uno por rol).
-        dibujar_fondo(ahora): lo que va detras (el viaje temporal lo usa con el tunel); si no, el fondo del menu.
-        El elegido camina (Walk) y al confirmar salta de alegria (Hop) antes de volver."""
+        """Elegis tu primer pokemon: Mudkip, Torchic, Riolu o Natu (uno por rol), con la pantalla de elegir inicial de Blanco/Negro:
+        el fondo de arcos del color de cada uno, a la izquierda el elegido en grande sobre la Pokeball que gira (camina; al confirmar
+        salta de alegria y grita), a la derecha la lista en paneles con la manito y abajo que hace y en que se convierte.
+        dibujar_fondo(ahora): lo que va detras si faltan los fondos de BW (el tunel del viaje temporal). Devuelve el nombre, None (ESC) o 'salir'."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         n_ = len(INICIALES)
-        ANCHO_CAJA, SEPARACION = 220, 236
-        x0 = W // 2 - SEPARACION * (n_ - 1) / 2
-        animadores = []
-        for i, n in enumerate(INICIALES):
-            a = AnimadorPokemon(n, pygame.Rect(0, 0, 10, 10), 110); a.rect.center = (round(x0 + i * SEPARACION), 270); a.cambiar('idle', 0, True)
-            animadores.append(a)
-        elegido, confirmado = 1, None
+        grandes = [AnimadorPokemon(n, pygame.Rect(0, 0, 10, 10), 190) for n in INICIALES]
+        for a in grandes: a.cambiar('idle', 0, True)
+        finales = [_evolucion_final(n) for n in INICIALES]
+        unicos = [mecanicas.texto_de(n) or '' for n in INICIALES]
+        lista = [pygame.Rect(W - 450, 112 + i * 80, 410, 70) for i in range(n_)]
+        MOSTRADOR = (265, 262)                                          # el centro de donde se para el elegido
+        est = {'elegido': 1, 'anterior': 1, 'cambio': pygame.time.get_ticks()}
+        confirmado, abierto = None, pygame.time.get_ticks()
+        mano = _pieza_inicial('mano')
+        if mano: mano = pygame.transform.rotate(pygame.transform.scale(mano, (mano.get_width() * 2, mano.get_height() * 2)), 90)   # señala para la derecha
         reloj = pygame.time.Clock()
+        def elegir(i):
+            if i != est['elegido']: est.update(anterior=est['elegido'], elegido=i, cambio=pygame.time.get_ticks())
         while True:
-            cajas = [pygame.Rect(round(x0 + i * SEPARACION) - ANCHO_CAJA // 2, 160, ANCHO_CAJA, 360) for i in range(n_)]
+            ahora = pygame.time.get_ticks()
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
                 if confirmado is not None: continue
                 if e.type == pygame.KEYDOWN:
                     if e.key == pygame.K_ESCAPE: return None
-                    if e.key in (pygame.K_LEFT, pygame.K_a): elegido = (elegido - 1) % n_
-                    if e.key in (pygame.K_RIGHT, pygame.K_d): elegido = (elegido + 1) % n_
-                    if e.key in (pygame.K_RETURN, pygame.K_e): confirmado = pygame.time.get_ticks()
+                    if e.key in (pygame.K_LEFT, pygame.K_a, pygame.K_UP, pygame.K_w): elegir((est['elegido'] - 1) % n_)
+                    if e.key in (pygame.K_RIGHT, pygame.K_d, pygame.K_DOWN, pygame.K_s): elegir((est['elegido'] + 1) % n_)
+                    if e.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE): confirmado = ahora
                 if e.type == pygame.MOUSEMOTION:
-                    for i, c in enumerate(cajas):
-                        if c.collidepoint(ui['a_logico'](e.pos)): elegido = i
+                    for i, c in enumerate(lista):
+                        if c.collidepoint(ui['a_logico'](e.pos)): elegir(i)
                 if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                    for i, c in enumerate(cajas):
-                        if c.collidepoint(ui['a_logico'](e.pos)): elegido = i; confirmado = pygame.time.get_ticks()
-            if confirmado is not None and pygame.time.get_ticks() - confirmado > 700: return INICIALES[elegido]   # deja ver el salto de alegria
-            if dibujar_fondo: dibujar_fondo(pygame.time.get_ticks())
-            else: fondo_menu(ui, pygame.time.get_ticks(), False)
-            velo = pygame.Surface((W, 100), pygame.SRCALPHA); velo.fill((0, 0, 0, 120)); ventana.blit(velo, (0, 0))   # que el titulo se lea sobre el fondo
+                    for i, c in enumerate(lista):
+                        if c.collidepoint(ui['a_logico'](e.pos)): elegir(i); confirmado = ahora
+                if confirmado == ahora: sonido.grito(INICIALES[est['elegido']])      # el elegido grita de alegria
+            if confirmado is not None and ahora - confirmado > 950: return INICIALES[est['elegido']]   # deja ver el salto y el destello
+            elegido = est['elegido']
+            nombre, t, tc = INICIALES[elegido], ahora - abierto, ahora - est['cambio']
+            tf = ahora - confirmado if confirmado is not None else -1
+            # el fondo de arcos de BW del color del elegido (se funde con el del anterior al cambiar)
+            fondo_n = _pieza_inicial('fondo_' + FONDO_INICIAL.get(nombre, 'blanco'), (W, H))
+            if fondo_n:
+                ventana.blit(fondo_n, (0, 0))
+                viejo = _pieza_inicial('fondo_' + FONDO_INICIAL.get(INICIALES[est['anterior']], 'blanco'), (W, H))
+                if viejo and tc < 260: viejo.set_alpha(round(255 * (1 - tc / 260))); ventana.blit(viejo, (0, 0)); viejo.set_alpha(None)
+            elif dibujar_fondo: dibujar_fondo(ahora)
+            else: fondo_menu(ui, ahora, False)
+            pokeball_girando(ventana, MOSTRADOR, 440, ahora, 80, 5)       # la Pokeball de la pantalla tactil de BW, girando atras
+            velo = pygame.Surface((W, 84), pygame.SRCALPHA); velo.fill((14, 14, 26, 150)); ventana.blit(velo, (0, 0))   # que el titulo se lea sobre el fondo claro
             titulo(ventana, texto_titulo)
-            for i, (n, a) in enumerate(zip(INICIALES, animadores)):
-                c = cajas[i]
-                velo = pygame.Surface(c.size, pygame.SRCALPHA); velo.fill((0, 0, 0, 170 if i == elegido else 110)); ventana.blit(velo, c)
-                pygame.draw.rect(ventana, 'white', c, 3)
-                if i == elegido and confirmado is not None: a.cambiar('hop', 0, True) or a.cambiar('walk', 0, True)
-                else: a.cambiar('walk' if i == elegido else 'idle', 0, True)
-                a.actualizar()
-                if not a.dibujar(ventana): pygame.draw.circle(ventana, (200, 200, 200), a.rect.center, 40)
-                t = fuente(38).render(n.title(), True, 'white'); ventana.blit(t, t.get_rect(center=(c.centerx, c.y + 190)))
-                x = c.x + 16
-                for tipo in pokemones[n].get('tipo', []): x += chip_tipo(ventana, normalizar_tipo(tipo), x, c.y + 214)
-                ventana.blit(fuente(22).render('Rol: ' + ROL_POKEMON.get(n, '-'), True, (220, 220, 220)), (c.x + 16, c.y + 246))
-                final = _evolucion_final(n)
-                if final != n: ventana.blit(fuente(20).render('Llega a ser ' + final.title(), True, (240, 220, 120)), (c.x + 16, c.y + 270))
-                for k, linea in enumerate(ajustar_texto(ESTILO_INICIAL.get(n, ''), fuente(20), c.width - 32)[:3]):
-                    ventana.blit(fuente(20).render(linea, True, (200, 200, 200)), (c.x + 16, c.y + 298 + k * 18))
-                if i == elegido: dibujar_esquinas(ventana, c.inflate(6, 6))
-            pie(ventana, 'izq/der: elegir   ENTER: confirmar   ESC: volver')
+            # el elegido en grande: entra corriendo desde la izquierda y camina en el lugar; al confirmar, salta
+            a = grandes[elegido]
+            if tf >= 0: a.cambiar('hop', 0, True) or a.cambiar('walk', 0, True)
+            else: a.cambiar('walk', 0, True)
+            entra = aparecer(tc, 0, 240)
+            a.rect.center = (round(MOSTRADOR[0] - (1 - entra) * 150), MOSTRADOR[1] + 16)
+            if tf >= 0: animacion(ventana, 'cambio', MOSTRADOR, 460, tf, 55)      # confirmado: un anillo de luz atras
+            a.actualizar()
+            if not a.dibujar(ventana):
+                grande = ui['retrato'](nombre, 160)
+                if grande: ventana.blit(grande, grande.get_rect(center=a.rect.center))
+            animacion(ventana, 'destello', (MOSTRADOR[0], MOSTRADOR[1] + 10), 260, tc - 120, 60)        # estrellitas cuando aparece
+            if tf >= 0:                                                   # y brillitos y estrellas adelante
+                animacion(ventana, 'nivel', (MOSTRADOR[0], MOSTRADOR[1] - 30), 340, tf - 80, 70)
+                for k, (dx, dy) in enumerate(((-150, -90), (150, -70), (-120, 90), (140, 100))): animacion(ventana, 'destello', (MOSTRADOR[0] + dx, MOSTRADOR[1] + dy), 120, tf - 60 - k * 90, 70)
+            # la placa con el nombre, los tipos y el rol
+            placa = pygame.Rect(40 - round((1 - aparecer(t, 60)) * 520), 392, 450, 58)
+            panel_flecha(ventana, placa, (0, 1))
+            nom = tipografia.fuente_titulo(3).render(nombre.title(), True, 'white')
+            ventana.blit(nom, nom.get_rect(midleft=(placa.x + 26, placa.centery - 2)))
+            x = placa.right - 26
+            for tipo in reversed(pokemones[nombre].get('tipo', [])):
+                tipo = normalizar_tipo(tipo)
+                x -= fuente(20).size(str(tipo).upper())[0] + 20
+                chip_tipo(ventana, tipo, x, placa.centery - 14)
+            # abajo: que hace, lo que lo hace unico y en que se convierte
+            info = pygame.Rect(40, 462 + round((1 - aparecer(t, 140)) * 200), W - 80, 104)
+            caja(ventana, info, 'panel', OSCURO, 2, (220, 220, 220))
+            ventana.blit(fuente(24).render('Rol: ' + ROL_POKEMON.get(nombre, '-') + '  ·  ' + ESTILO_INICIAL.get(nombre, ''), True, (255, 236, 150)), (info.x + 22, info.y + 12))
+            for k, linea in enumerate(ajustar_texto(unicos[elegido], fuente(20), info.width - 300)[:3]):
+                ventana.blit(fuente(20).render(linea, True, (225, 225, 235)), (info.x + 22, info.y + 40 + k * 19))
+            final = finales[elegido]
+            if final != nombre:                                           # la cara de ahora, una flecha y la de la ultima evolucion
+                cara, cara_f = ui['retrato'](nombre, 44), ui['retrato'](final, 44)
+                x = info.right - 250
+                if cara: ventana.blit(cara, (x, info.y + 38))
+                fl = fuente(30).render('>', True, (255, 236, 150)); ventana.blit(fl, fl.get_rect(center=(x + 62, info.y + 60)))
+                if cara_f: ventana.blit(cara_f, (x + 80, info.y + 38))
+                llega = fuente(20).render('Llega a ser', True, (200, 200, 215)); ventana.blit(llega, (x + 134, info.y + 40))
+                ventana.blit(fuente(24).render(final.replace('_', ' ').title(), True, 'white'), (x + 134, info.y + 58))
+            # la lista: paneles de BW que entran desde la derecha; el elegido se corre y lo señala la manito
+            for i, (n, c) in enumerate(zip(INICIALES, lista)):
+                sale = aparecer(tf, 0, 320) * 520 if tf >= 0 and i != elegido else 0   # al confirmar, los otros se van
+                c = c.move(round((1 - aparecer(t, 80 + i * 70)) * 520 + sale) - (22 if i == elegido else 0), 0)
+                panel_flecha(ventana, c, (0, 1) if i == elegido else (0, 0))
+                cara = ui['retrato'](n, 52)
+                if cara: ventana.blit(cara, (c.x + 20, c.y + 9))
+                ventana.blit(fuente(34).render(n.title(), True, 'white'), (c.x + 86, c.y + 8))
+                ventana.blit(fuente(22).render(ROL_POKEMON.get(n, '-'), True, (255, 236, 150) if i == elegido else (190, 205, 225)), (c.x + 86, c.y + 40))
+                x = c.right - 24
+                for tipo in reversed(pokemones[n].get('tipo', [])):
+                    tipo = normalizar_tipo(tipo)
+                    x -= fuente(20).size(str(tipo).upper())[0] + 20
+                    chip_tipo(ventana, tipo, x, c.centery - 14)
+                if i == elegido:
+                    if math.sin(ahora / 140) > 0: pygame.draw.rect(ventana, (255, 255, 255), c.inflate(4, 4), 2, border_radius=8)   # el brillo que late, como los botones
+                    if mano: ventana.blit(mano, mano.get_rect(midright=(c.x - 4 + round(math.sin(ahora / 160) * 6), c.centery)))
+                    else: dibujar_esquinas(ventana, c, margen=5, largo=12)
+            if 0 <= tf < 260:                                             # un destello blanco al confirmar
+                blanco = pygame.Surface((W, H)); blanco.fill((255, 255, 255)); blanco.set_alpha(round(190 * (1 - tf / 260))); ventana.blit(blanco, (0, 0))
+            pie(ventana, 'arriba/abajo: elegir   ENTER: confirmar   ESC: volver')
             ui['presentar'](); reloj.tick(60)
 
 

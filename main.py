@@ -294,7 +294,13 @@ def main():
                 ahora = pygame.time.get_ticks()
                 menus.fondo_menu(ui, ahora)
                 k = menus.aparecer(ahora - inicio_t, 0, 600)              # el logo cae desde arriba al abrir
-                menus.dibujar_logo(ventana, 96, ahora, center=(W // 2, round(130 - (1 - k) * 220)))
+                t_l = ahora - inicio_t - 520                             # cuando el logo llega a su lugar: un anillo de luz atras y estrellas
+                menus.animacion(ventana, 'cambio', (W // 2, 130), 620, t_l, 45)
+                caja_l = menus.dibujar_logo(ventana, 96, ahora, center=(W // 2, round(130 - (1 - k) * 220)))
+                for i in range(4): menus.animacion(ventana, 'destello', (caja_l.x + 70 + i * 190, caja_l.y + 30 + (i % 2) * 100), 110, t_l - i * 90, 70)
+                if t_l > 900:                                            # y despues, cada tanto, brillitos en algun lugar del logo
+                    azar_b = random.Random(t_l // 1100)
+                    menus.animacion(ventana, 'nivel', (caja_l.x + azar_b.randrange(caja_l.width), caja_l.y + azar_b.randrange(caja_l.height)), 130, t_l % 1100, 75)
                 if (ahora // 450) % 2 == 0 or ahora - inicio_t < 600:     # el cartel titila, como en los juegos
                     p = f_med.render('Presioná cualquier tecla', True, 'white')
                     franja = p.get_rect(center=(W // 2, H - 80)).inflate(80, 24)
@@ -930,9 +936,11 @@ def main():
         DESTELLO = 140                              # ms del flash de pantalla en el parry, el esquive perfecto y el remate
         IMPACTO = {'remate': 70, 'parry': 100, 'baja': 30}   # pausa de impacto (ms): el juego se frena un instante para que el golpe pese
         ESTELA = {'dura': 220, 'cada': 2}           # copias transparentes del sprite al esquivar, embestir o arrancar a correr
-        CADENA = {'corte': 1600, 'desde': 3, 'salto': 140}   # contador de golpes seguidos: ms sin pegar que lo cortan, desde cuantos se muestra y ms del saltito
+        CADENA = {'corte': 1600, 'desde': 3, 'salto': 140, 'hitos': (10, 25, 50, 100)}   # contador de golpes seguidos: ms sin pegar que lo cortan, desde cuantos se muestra, ms del saltito y cuando se festeja
         PELIGRO = {'vida': 0.25, 'alfa': 90}        # con poca vida los bordes de la pantalla laten en rojo
         PATADA_CAMARA = {'golpe': 4, 'remate': 9, 'dura': 110}   # la camara se corre un poquito hacia donde pegas
+        ADELANTO = {'px': 36, 'suave': 0.07}        # la camara se adelanta hacia donde apuntas: cuantos pixeles y que tan rapido se acomoda
+        FRENESI = {'racha': 3, 'dura': 5000, 'vel': 1.18, 'recarga': 0.8}   # 3 bajas seguidas: mas velocidad y recargas mas cortas; cada baja lo estira y un golpe lo corta
         VEL_ORILLA = 3.5                            # pixeles por frame al nadar hasta la orilla (cambiaste en el agua a uno que no nada)
         trucos = config['trucos']                   # menu secreto (Konami): vida infinita, sin recarga...
         DISTANCIA_COMPRA = 95                       # que tan cerca de una vitrina hay que estar para comprar
@@ -1168,7 +1176,8 @@ def main():
                 """Velocidad del jugador con todo encima: buffs, sinergia, correr, terreno, tienda y nivel."""
                 sprint = (ARRANQUE['mult'] if tiempo() < j.get('pique_hasta', 0) else MULT_SPRINT) if j['corriendo'] else 1.0
                 paralisis = ESTADOS_J['paralisis']['vel'] if tiene_estado(j, 'paralisis') else 1.0
-                return (j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * sprint * mod(j, 'velocidad') * j['mults']['velocidad'] * paralisis
+                frenesi = FRENESI['vel'] if tiempo() < j.get('frenesi_hasta', 0) else 1.0
+                return (j['velocidad'] * mult_buff(j, 'velocidad') * (1 + j['sinergia'].get('velocidad', 0)) * sprint * mod(j, 'velocidad') * j['mults']['velocidad'] * paralisis * frenesi
                         * mec.mult_velocidad(j) * ia.mult_vel_fx(j, tiempo())        # Cara Susto (Giratina) y Gravedad (Palkia)
                         * subjefes.mult_vel(j, tiempo()))                            # grito de Cramorant, campo de Magnezone, agua de Armaldo
 
@@ -1217,7 +1226,8 @@ def main():
 
             def camara(j):
                 """Esquina de arriba a la izquierda de lo que se ve: centrada en el jugador sin salirse de la sala."""
-                return max(0, min(j['rect'].centerx - W // 2, ESC.width - W)), max(0, min(j['rect'].centery - H // 2, ESC.height - H))
+                ox, oy = j.get('cam_o', (0.0, 0.0))                         # un poco adelantada hacia donde apuntas (se actualiza una vez por cuadro)
+                return max(0, min(j['rect'].centerx + round(ox) - W // 2, ESC.width - W)), max(0, min(j['rect'].centery + round(oy) - H // 2, ESC.height - H))
 
             def apuntar(j):
                 """Hacia donde mira y apunta el jugador: mouse, palanca derecha o la ultima direccion caminada (segun el modo)."""
@@ -1348,6 +1358,9 @@ def main():
                 hueco = None if antes is None else ahora - antes
                 ritmo = 1.0 if hueco is None or hueco <= rapido else max(ESTILO['ritmo_piso'], 1 - (hueco - rapido) / (lento - rapido))
                 e['cadena'] = e.get('cadena', 0) + 1 if hueco is not None and hueco <= CADENA['corte'] else 1   # golpes seguidos (el contador del HUD)
+                if e['cadena'] in CADENA['hitos'] and nivel is not None:      # 10, 25, 50, 100 seguidos: se festeja
+                    cartel(nivel, '¡' + str(e['cadena']) + ' golpes seguidos!', 800); nivel['destello'] = (ahora, (255, 230, 120))
+                    efectos.brillos(mundo['ef'], *j['rect'].center, 6, 40)
                 e['ultimo_golpe_t'] = ahora
                 variedad = max(ESTILO['piso_repeticion'], 1 - ESTILO['por_repeticion'] * e['repite'])
                 sumar_estilo(j, ESTILO['golpe'] * variedad * ritmo, nivel)
@@ -1367,14 +1380,17 @@ def main():
                 e['racha'] = e['racha'] + 1 if ahora - e['ultima_baja'] <= ESTILO['racha_ms'] else 1
                 e['ultima_baja'] = ahora
                 sumar_estilo(j, ESTILO['baja'], nivel)
-                if e['racha'] >= 3:
-                    cartel(nivel, 'Racha x' + str(e['racha']) + '!', 700)
+                if e['racha'] >= FRENESI['racha']:                       # bajas seguidas: frenesi (cada baja nueva lo estira)
+                    entra = ahora >= j.get('frenesi_hasta', 0)
+                    j['frenesi_hasta'] = ahora + FRENESI['dura']
+                    cartel(nivel, ('¡Frenesí!  ' if entra else '') + 'Racha x' + str(e['racha']) + '!', 900 if entra else 700)
+                    if entra: nivel['destello'] = (ahora, (255, 190, 60)); efectos.brillos(mundo['ef'], *j['rect'].center, 5, 34)
                     soltar_monedas(nivel, j, *j['rect'].center, ESTILO['monedas_racha'] * min(5, e['racha'] - 2))   # con tope
 
             def golpe_recibido(j, nivel):
                 """Te pegaron: baja el estilo y se corta la racha."""
                 sumar_estilo(j, -ESTILO['golpe_recibido'])
-                j['estilo']['racha'] = 0
+                j['estilo']['racha'] = 0; j['frenesi_hasta'] = 0             # y se termina el frenesi
 
             def enfriar_estilo(j, nivel=None):
                 """Cada cuadro: moverte con enemigos vivos suma un poquito (y cuenta para la nota); el estilo se va solo,
@@ -1441,7 +1457,8 @@ def main():
                 try: base = max(0, int(float(datos.get('enfriamiento', 300))))
                 except (TypeError, ValueError): base = 300
                 if trucos.get('sin_enfriamiento'): return 0
-                return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento')
+                frenesi = FRENESI['recarga'] if tiempo() < j.get('frenesi_hasta', 0) else 1.0
+                return round(base * j['juego']['mult_enfriamiento'] * (1 - j['sinergia'].get('enfriamiento', 0)) * mult_buff(j, 'enfriamiento') * mod(j, 'enfriamiento') * frenesi
                              * mec.mult_recarga(j) * mec.mult_recarga_especial(j, datos) * subjefes.mult_recarga(j, tiempo()))   # Robo de almas (Chandelure)
 
             def iniciar_ataque(j, forma, enfriamiento, movimiento=None, tipo=None):
@@ -1678,7 +1695,7 @@ def main():
                 j['inv_hasta'] = ahora + ESQUIVE['invulnerable'] * largo
                 j['esquive_listo'] = ahora + ESQUIVE['espera']; j['sin_regen_hasta'] = ahora + 450
                 j['inercia'] = [0.0, 0.0]
-                efectos.polvo(mundo['ef'], j['rect'].centerx, j['rect'].bottom)
+                for _ in range(5): efectos.polvo(mundo['ef'], j['rect'].centerx + random.randint(-12, 12), j['rect'].bottom)   # la polvareda del salto
                 mec.al_esquivar(j, nivel, 0 if gratis else costo)               # planeo, estela electrica, sustituto, doble salto...
 
             def actualizar_esquive(j, piedras):
@@ -1842,6 +1859,11 @@ def main():
                 if daño >= 1 and mundo.get('nivel'):                     # lo que te sacaron, en rojo
                     mundo['nivel'].setdefault('numeros', []).append({'x': j['rect'].centerx, 'y': j['rect'].top, 'dx': 0, 'valor': int(round(daño)),
                                                                      'color': (255, 90, 80), 'grande': daño >= j['max_vida'] * 0.2, 'inicio': tiempo()})
+                if daño >= 1 and evitable and mundo.get('nivel'):        # se siente: chispas rojas, un sacudon y, si fue fuerte, la pantalla en rojo un instante
+                    nv, fuerte = mundo['nivel'], daño >= j['max_vida'] * 0.2
+                    efectos.chispas(mundo['ef'], *j['rect'].center, (255, 90, 80), 12 if fuerte else 7, 5.5, 16, 4)
+                    nv['temblor'] = max(nv.get('temblor', 0), tiempo() + (170 if fuerte else 80))
+                    if fuerte: nv['destello'] = (tiempo(), (255, 60, 50))
                 if tipo and normalizar_tipo(tipo) == 'hielo' and 'hielo' not in j['tipos'] and tiempo() >= j['congelado_hasta']:   # los de hielo no se congelan
                     j['frio'] = min(FRIO_MAX, j['frio'] + FRIO_POR_DAÑO * daño / max(1, j['max_vida']))
                 return daño
@@ -1942,6 +1964,9 @@ def main():
                     mundo['nivel'].setdefault('numeros', []).append({'x': obj['rect'].centerx + random.randint(-10, 10), 'y': obj['rect'].top,
                                                                      'dx': random.uniform(-0.6, 0.6), 'valor': int(daño), 'color': color,
                                                                      'grande': grande or daño >= obj['max_vida'] * 0.25, 'inicio': tiempo()})
+                    if datos.get('jugador') and (grande or m >= 2):      # golpe fuerte o muy eficaz: mas estrellas y un sacudon cortito
+                        efectos.estrellas(mundo['ef'], *obj['rect'].center, 3, 24)
+                        mundo['nivel']['temblor'] = max(mundo['nivel'].get('temblor', 0), tiempo() + 70)
                 efecto = datos.get('efecto'); ahora = tiempo()
                 try: probabilidad = max(0, min(100, float(efecto.get('probabilidad', 100)))) if efecto else 0
                 except (TypeError, ValueError): probabilidad = 100 if efecto else 0
@@ -3078,10 +3103,14 @@ def main():
                         and nivel['frame'] % 6 == 0 and j['rect'].collidelist(solidos_j) != -1):
                     j['a_la_orilla'] = entorno.orilla(ent, j['rect'], j['tipos'])   # quedaste adentro de algo (se derritio el hielo...): salis nadando
                 actualizar_jugador(j)
-                if (j.get('esquive') or j['embestida'] or (j['corriendo'] and ahora < j.get('pique_hasta', 0))) and nivel['frame'] % ESTELA['cada'] == 0:
+                ox, oy = j.get('cam_o', (0.0, 0.0))                       # la camara se va corriendo hacia donde apuntas
+                j['cam_o'] = (ox + (j['aim'][0] * ADELANTO['px'] - ox) * ADELANTO['suave'], oy + (j['aim'][1] * ADELANTO['px'] - oy) * ADELANTO['suave'])
+                en_frenesi = ahora < j.get('frenesi_hasta', 0)
+                if en_frenesi and nivel['frame'] % 9 == 0: efectos.brillos(mundo['ef'], *j['rect'].center, 1, 30)
+                if (j.get('esquive') or j['embestida'] or (j['corriendo'] and ahora < j.get('pique_hasta', 0)) or (en_frenesi and j['moviendose'])) and nivel['frame'] % ESTELA['cada'] == 0:
                     cuadro = j['animador'].cuadro()                  # estela: una copia transparente del sprite
                     if cuadro:
-                        color = (150, 230, 255) if j.get('esquive') else COLORES_TIPO.get(normalizar_tipo((j['embestida'] or {}).get('datos', {}).get('tipo')), (255, 255, 255)) if j['embestida'] else (255, 240, 180)
+                        color = (150, 230, 255) if j.get('esquive') else COLORES_TIPO.get(normalizar_tipo((j['embestida'] or {}).get('datos', {}).get('tipo')), (255, 255, 255)) if j['embestida'] else (255, 170, 60) if en_frenesi else (255, 240, 180)
                         nivel.setdefault('estela', []).append({'img': cuadro[0], 'x': cuadro[1], 'y': cuadro[2], 'inicio': ahora, 'color': color})
                 enfriar_estilo(j, nivel)
                 actualizar_estados(j)
@@ -3125,6 +3154,9 @@ def main():
                 nivel['efectos'] = [x for x in nivel['efectos'] if ahora < x['hasta']]
                 for proyectil in nivel['proyectiles_pokemon']: actualizar_proyectil_pokemon(proyectil, objetivos, solidos_p)
                 nivel['proyectiles_pokemon'] = [proyectil for proyectil in nivel['proyectiles_pokemon'] if proyectil['activo']]
+                if nivel['frame'] % 2 == 0:                               # la colita de los proyectiles, del color de su tipo
+                    for p_ in nivel['proyectiles_pokemon']: efectos.rastro(mundo['ef'], p_['x'], p_['y'], COLORES_TIPO.get(normalizar_tipo(p_['datos'].get('tipo')), (255, 255, 255)))
+                    for p_ in nivel['proyectiles_enemigos'][:40]: efectos.rastro(mundo['ef'], p_['x'], p_['y'], COLORES_TIPO.get(normalizar_tipo(p_.get('tipo')), (255, 150, 0)))
                 contexto_ia = dict(contexto, enemigos=enemigos)
                 for e in enemigos:
                     actualizar_estado(e)
@@ -3158,6 +3190,8 @@ def main():
                         nivel['pausa_hasta'] = max(nivel.get('pausa_hasta', 0), ahora + IMPACTO['baja'])
                         ganar_xp(nivel, j, progreso.xp_por_derrota(e['nombre'], e['nivel'], j['nivel']))
                         efectos.romper(mundo['ef'], *e['rect'].center, e['color'])
+                        efectos.baja(mundo['ef'], *e['rect'].center, e['color'], (entorno.tipos_de(e) or [None])[0])   # anillo de luz, el golpe de su tipo y estrellas
+                        nivel['temblor'] = max(nivel['temblor'], ahora + 80)
                         quiza_amigo(nivel, j, e)
                         mec.derrota(j, e, nivel)
                 nivel['enemigos'] = [e for e in enemigos if e['vida'] > 0 and not e.get('amigable')]
@@ -3417,11 +3451,12 @@ def main():
                 if zona.startswith('mini_'): return crear_minijuego(j, zona[5:])
                 estilo = estilo_hall(perfil)
                 era = 1 if estilo == 'celebi' else min(perfil['eras'], len(mundos.ERAS) - 1)   # el atemporal tiene el piso de la ultima era a la que llegaste
+                choza = generacion.choza_de(datos_juego(j['equipo'][0]['nombre'])['tipos'])   # tu choza del barrio: la del tipo de tu primer pokemon
                 if zona == 'plaza': sala = generacion.generar_plaza(era, estilo, random.random())
-                elif zona == 'barrio': sala = generacion.generar_barrio(era, estilo)
+                elif zona == 'barrio': sala = generacion.generar_barrio(era, estilo, None, choza)
                 elif zona == 'minijuegos': sala = generacion.generar_minijuegos(era, estilo)
                 elif zona == 'titanes': sala = generacion.generar_titanes()
-                else: sala = generacion.generar_habitacion(zona, era)
+                else: sala = generacion.generar_habitacion(zona, era, choza)
                 for puerta in sala['puertas']:
                     if zona == 'plaza' and puerta['lado'] == 'norte': puerta['destino'] = {'tipo': 'viaje'}
                     else: puerta['destino'] = {'tipo': 'zona', 'zona': 'barrio' if zona == 'plaza' else 'plaza'}
@@ -3438,8 +3473,9 @@ def main():
                          'registro': {'completada': True, 'salida': None}, 'revisita': True, 'inicio': inicio, 'pisables': pisables_hall(sala),
                          'puntos': sala.get('puntos', []), 'pasos': [dict(p_) for p_ in sala.get('pasos', [])]}
                 en_equipo = {m.get('id') for m in j['equipo']}
-                amigos_aca = [a for a in perfil['amigos'] if a['id'] not in en_equipo] if zona in ('plaza', 'comedor') else []
+                amigos_aca = [a for a in perfil['amigos'] if a['id'] not in en_equipo] if zona in ('plaza', 'comedor', 'barrio') else []
                 if zona == 'comedor': amigos_aca = amigos_aca[:4]                 # al lounge vienen algunos
+                if zona == 'barrio': amigos_aca = amigos_aca[-5:]                 # y por la calle del barrio pasean los ultimos que se sumaron
                 libres = random.sample(nivel['pisables'], min(len(nivel['pisables']), len(amigos_aca)))
                 nivel['residentes'] = [residente(a, p) for a, p in zip(amigos_aca, libres)]
                 if zona == 'titanes': nivel['titanes'] = crear_titanes(sala, perfil)
@@ -3711,6 +3747,7 @@ def main():
                 if a == 'puesto':
                     if perfil['viajes'] < 3: return pausado(menus.preguntar, ui, 'Los puestos están tapados con una manta.', ['Ok'], 'la tiendita abre después de tu ' + str(3) + 'er viaje (llevás ' + str(perfil['viajes']) + ')')
                     return pausado(menus.preguntar, ui, '¡Abierto! Por ahora solo se puede mirar.', ['Ok'], 'próximamente: cosas para llevarte al viaje')
+                if a == 'obra': return pausado(menus.preguntar, ui, 'Celebi está levantando una choza nueva.', ['Ok'], 'próximamente: un lugar nuevo para el refugio')
                 if a == 'casa_cerrada': return pausado(menus.preguntar, ui, p['texto'] + ': todavía está vacía.', ['Ok'], 'próximamente: tus amigos se van a mudar acá')
                 if a == 'fuente_deseos':
                     efectos.corazones(mundo['ef'], *p['pos']); cartel(nivel, random.choice(('Pediste un deseo. Ojalá esta vez llegues más lejos.', 'El agua está fresquita.', 'Se ve tu reflejo... con cara de cansancio.')), 1800)
@@ -3773,7 +3810,9 @@ def main():
             def revisar_pasos(nivel, j):
                 """Entrar o salir de una habitacion del refugio caminando por su puerta. True si hay que cambiar de zona."""
                 if viaje.pop('cambiar_zona', False): return True
-                if tiempo() < nivel['entrando_hasta']: return False
+                if tiempo() < nivel['entrando_hasta'] + 400:              # recien llegado: las puertas se arman cuando te corres de ellas
+                    for paso in nivel.get('pasos', ()): paso['armado'] = False   # (entrabas al salon caminando para arriba y salias por su puerta de atras)
+                    return False
                 for paso in nivel.get('pasos', ()):
                     if j['rect'].colliderect(paso['rect']):
                         if paso.get('armado'):
@@ -3906,6 +3945,19 @@ def main():
                             chico.set_at((x, y), (230, 30, 30, round(255 * d)))
                     _peligro.append(pygame.transform.smoothscale(chico, (W, H)))
                 return _peligro[0]
+
+            _frenesi = []
+            f_frenesi = tipografia.fuente(30, borde=True)
+
+            def borde_frenesi():
+                """Los bordes de la pantalla en naranja (como los del peligro, se arma una vez): se ven mientras dura el frenesi."""
+                if not _frenesi:
+                    chico = pygame.Surface((50, 30), pygame.SRCALPHA)
+                    for x in range(50):
+                        for y in range(30):
+                            chico.set_at((x, y), (255, 160, 40, round(255 * max(abs(x - 24.5) / 24.5, abs(y - 14.5) / 14.5) ** 3)))
+                    _frenesi.append(pygame.transform.smoothscale(chico, (W, H)))
+                return _frenesi[0]
 
             def render(f, texto, color):
                 """Texto ya renderizado: el HUD dibuja los mismos textos cada frame, asi se hace una sola vez."""
@@ -4529,7 +4581,13 @@ def main():
                         fondo_t = t.get_rect(center=centro_t).inflate(12, 6)
                         pygame.draw.rect(ventana, (20, 20, 20), fondo_t, border_radius=5)
                         ventana.blit(t, t.get_rect(center=fondo_t.center))
-                for piedra_verde in nivel['verdes']: dibujar_rect(piedra_verde['rect'],cx,cy,(0,220,80),'ellipse')
+                img_pincho = entorno.imagen('objetos', 'pincho')         # las piedras que lastiman: el pincho del PMD sobre un halo verde
+                for piedra_verde in nivel['verdes']:
+                    if img_pincho:
+                        r_p = piedra_verde['rect'].move(-cx, -cy)
+                        pygame.draw.ellipse(ventana, (0, 150, 70), r_p.inflate(0, -r_p.height // 2).move(0, r_p.height // 4), 2)
+                        ventana.blit(entorno._escalada(img_pincho, r_p.width - 8), entorno._escalada(img_pincho, r_p.width - 8).get_rect(center=r_p.center))
+                    else: dibujar_rect(piedra_verde['rect'],cx,cy,(0,220,80),'ellipse')
                 for a in nivel['apariciones']:                            # donde va a salir la proxima oleada
                     k = 1 - (a['hasta'] - ahora) / 900
                     pygame.draw.circle(ventana, (230, 60, 60), (round(a['pos'][0] - cx), round(a['pos'][1] - cy)), round(10 + 20 * k), 3)
@@ -4569,7 +4627,12 @@ def main():
                     icono = menus.icono_objeto(r['item'], 28)
                     if icono: ventana.blit(icono, icono.get_rect(center=(round(r['x'] - cx), round(r['y'] - cy) - 4 + flota)))
                     if (ahora // 120) % 6 == 0: pygame.draw.circle(ventana, (255, 255, 230), (round(r['x'] - cx) + 9, round(r['y'] - cy) - 14 + flota), 2)
+                img_moneda = entorno.imagen('objetos', 'moneda')        # la moneda del PMD (sube y baja un poquito, cada una a su tiempo)
                 for moneda in nivel['monedas']:
+                    if img_moneda:
+                        s_m = entorno._escalada(img_moneda, 24)
+                        ventana.blit(s_m, s_m.get_rect(center=(round(moneda['x'] - cx), round(moneda['y'] - cy - 3 * math.sin(ahora / 170 + moneda['x'])))))
+                        continue
                     pygame.draw.circle(ventana, (250, 210, 50), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8)
                     pygame.draw.circle(ventana, (150, 110, 20), (round(moneda['x'] - cx), round(moneda['y'] - cy)), 8, 2)
                 nivel['estela'] = [x for x in nivel.get('estela', []) if ahora - x['inicio'] < ESTELA['dura']]
@@ -4664,6 +4727,7 @@ def main():
                 subjefes.dibujar(ventana, nivel['jefe'], j, cx, cy, ahora, f_hud_b, COLORES_TIPO)   # ataques de los subjefes y la oscuridad
                 ia.dibujar_avisos(ventana, nivel['enemigos'] + ([nivel['jefe']] if nivel['jefe'] else []), cx, cy, ahora, f_hud_b, COLORES_TIPO)
                 if j.get('fx_jefe'): ia.dibujar_pantalla_fx(ventana, j, ahora, f_hud_b)   # Foco Resplandor (pantalla blanca) y efectos encima
+                entorno.dibujar_copas(nivel['ent'], ventana, cx, cy, [j['rect']] + [e['rect'] for e in nivel['enemigos']] + [r['rect'] for r in nivel.get('residentes', ())])   # las copas de los arboles tapan a los que pasan por atras
                 dibujar_numeros(nivel, cx, cy, ahora)
                 ventana_parry = PARRY['ventana'] * mod(j, 'parry')
                 for e in nivel['enemigos']:                                # el momento justo del parry: el aviso brilla amarillo
@@ -4678,7 +4742,12 @@ def main():
                     if ahora >= g['inicio']:
                         k = min(1.0, (ahora - g['inicio']) / LLEGADA_BETA['aviso'])
                         ia.dibujar_sello(ventana, (round(g['pos'][0] - cx), round(g['pos'][1] - cy)), LLEGADA_BETA['radio'], (245, 240, 220), k, ahora)
-                if nivel['llave']: dibujar_rect(nivel['llave'],cx,cy,'yellow')
+                if nivel['llave']:                                         # la llave del PMD flotando (o un cuadrado amarillo si falta)
+                    img_llave = entorno.imagen('objetos', 'llave')
+                    if img_llave:
+                        s_l = entorno._escalada(img_llave, 26)
+                        ventana.blit(s_l, s_l.get_rect(center=(nivel['llave'].centerx - cx, nivel['llave'].centery - cy - round(4 * math.sin(ahora / 200)))))
+                    else: dibujar_rect(nivel['llave'],cx,cy,'yellow')
                 if nivel['tipo'] in ('tienda', 'tesoro'): dibujar_tienda(nivel, j, cx, cy)
                 efectos.dibujar(mundo['ef'], ventana, cx, cy)              # chispas, pedazos, explosiones, brillitos
                 entorno.dibujar_clima(nivel['ent'], ventana, ahora)
@@ -4688,6 +4757,14 @@ def main():
                     ventana.blit(velo, (0, 0))
                 if j['vida'] > 0 and j['vida'] <= j['max_vida'] * PELIGRO['vida'] and nivel['tipo'] not in ('hall', 'tienda', 'tesoro'):   # poca vida: los bordes laten
                     velo_p = borde_peligro(); velo_p.set_alpha(round(PELIGRO['alfa'] * 1.2 * (0.55 + 0.45 * math.sin(ahora / 170)))); ventana.blit(velo_p, (0, 0))
+                if ahora < j.get('frenesi_hasta', 0):                     # frenesi: los bordes laten en naranja y arriba se ve cuanto queda
+                    velo_f = borde_frenesi(); velo_f.set_alpha(round(80 + 45 * math.sin(ahora / 90))); ventana.blit(velo_f, (0, 0))
+                    queda_f = (j['frenesi_hasta'] - ahora) / FRENESI['dura']
+                    t_f = render(f_frenesi, '¡FRENESÍ!', (255, 190, 60))
+                    if (ahora // 90) % 2: t_f = render(f_frenesi, '¡FRENESÍ!', (255, 240, 170))
+                    caja_f = t_f.get_rect(midtop=(W // 2, 58)); ventana.blit(t_f, caja_f)
+                    pygame.draw.rect(ventana, (40, 24, 10), (caja_f.centerx - 62, caja_f.bottom + 2, 124, 7))
+                    pygame.draw.rect(ventana, (255, 190, 60), (caja_f.centerx - 60, caja_f.bottom + 4, round(120 * queda_f), 3))
                 dibujar_indicadores(nivel, cx, cy)
                 cadena = j['estilo'].get('cadena', 0)
                 if cadena >= CADENA['desde'] and ahora - (j['estilo'].get('ultimo_golpe_t') or -10 ** 6) <= CADENA['corte']:      # golpes seguidos

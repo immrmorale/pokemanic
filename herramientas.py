@@ -16,6 +16,10 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py objetos             recorta los iconos de la tienda de la hoja 'Items' de BW a assets/interfaz/objetos
     python herramientas.py paneles             recorta fondos, botones y paneles de los menus de BW a assets/interfaz/paneles
     python herramientas.py hud                 recorta barras de HP, iconos de estado, la Pokeball y los paneles en flecha de BW a assets/interfaz/hud
+    python herramientas.py casas               recorta el jardin, el interior y la bandera de cada choza ('Huts' del Red Rescue Team) para el barrio del refugio
+    python herramientas.py arenas              recorta la arena ya dibujada de cada jefe ('Dungeon Boss Rooms' del Red Rescue Team) y guarda su piso
+    python herramientas.py estados             recorta los estados animados (llama, Zzz, calavera, pajaritos...) del Red Rescue Team a assets/efectos
+    python herramientas.py clima               recorta la lluvia, nieve, granizo, niebla, sol, brasas y sombras de nubes del Red Rescue Team a assets/clima
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
@@ -24,6 +28,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
 """
 
 import json
+import math
 import os
 import random
 import sys
@@ -854,16 +859,19 @@ def herramienta_tiles():
              'abismo': ('World Abyss B16F - B30F', 'suelo')},          # arena de Giratina, Dialga y Palkia origen (fase 2 de Arceus Beta)
         'glaciacion': dict(base('Vast Ice Mountain'), agua=('Ice Aegis Cave', 'agua')),
         'glaciacion/cueva de hielo': base('Ice Aegis Cave'),
+        'glaciacion/glaciar': base('Vast Ice Mountain Peak'),
+        'glaciacion/grieta': base('Dark Ice Mountain'),
+        'glaciacion/tundra': base('Icicle Forest'),
         'piedra': base('Tiny Meadow'),
         'piedra/aldea de cazadores': base('Forest Path'),
         'piedra/cueva rupestre': base('Limestone Cavern'),
         'piedra/valle volcanico': base('Barren Valley'),
-        'piedra/rio': base('Lush Prairie'),
+        'piedra/rio': base('Drenched Bluff'),
         'metales': base('Deep Boulder Quarry'),
         'metales/mina de cobre': base('Deep Limestone Cavern'),
         'metales/mercado': base('Shimmer Desert'),
         'metales/templo de bronce': base('Temporal Tower'),
-        'metales/puerto antiguo': base('Side Path'),
+        'metales/puerto antiguo': base('Craggy Coast'),
         'medieval': base('4th Station Pass'),
         'medieval/patio del castillo': base('Temporal Tower'),
         'medieval/bosque encantado': base('Apple Woods'),
@@ -883,7 +891,7 @@ def herramienta_tiles():
     VELOCIDAD = {'Beach Cave': (20, 4), 'Tiny Meadow': (12, 8), '4th Station Pass': (10, 8), '7th Station Pass': (12, 8), 'Ice Aegis Cave': (12, 14),
                  'Forest Path': (17, 13), 'Limestone Cavern': (13, 8), 'Deep Boulder Quarry': (13, 13), 'Temporal Tower': (18, 8), 'Side Path': (12, 8),
                  'Apple Woods': (17, 9), 'Lush Prairie': (12, 8), 'Amp Plains': (18, 6), 'Brine Cave': (18, 6), 'Deep Limestone Cavern': (13, 8),
-                 'Shimmer Desert': (12, 8), 'Murky Forest': (16, 8)}
+                 'Shimmer Desert': (12, 8), 'Murky Forest': (16, 8), 'Craggy Coast': (16, 8), 'Drenched Bluff': (16, 8)}
     # retoques de color: el brillo de cada color (0 oscuro, 1 claro) se pasa a esta escala de colores. Se aplica al dibujo, a los brillos
     # y a las paletas del agua, asi la lava sigue animada como el agua del PMD
     RETOQUES = {'lava': ((0, (60, 8, 0)), (0.35, (170, 30, 0)), (0.6, (240, 100, 10)), (0.85, (255, 200, 60)), (1, (255, 250, 200))),
@@ -1088,7 +1096,7 @@ def herramienta_decorados():
                'muro_de_hielo': 'Surrounded Sea', 'pino_nevado': 'Deep Dusk Forest 01F - 06F', 'pilar_de_cristal': 'The Nightmare',
                'menhir': 'Barren Valley', 'columna_rota': 'Limestone Cavern'}
     # Poke Transfer: (columna, fila) de las casillas; fila 1 copas claras, 2 copas oscuras, 3 troncos
-    TRANSFER = {'arbusto': [(0, 1)], 'arbol': [(1, 2), (1, 3)], 'maceta': [(2, 1)]}
+    TRANSFER = {'maceta': [(2, 1)]}                                 # (el arbol y el arbusto ahora salen del PMD: python herramientas.py aldea)
     CELESTE = (56, 144, 184)
 
     def buscar(parte):
@@ -1455,6 +1463,14 @@ def herramienta_objetos():
                 'revestimiento_metalico': 163, 'semilla_milagro': 169, 'pañuelo_seda': 181,
                 'piedra_trueno': 77, 'piedra_alba': 291, 'garra_afilada': 321, 'baya_oran': 106, 'caramelo_raro': 57, 'llave_tesoro': 439,
                 'mas_ps': 51, 'proteina': 52, 'hierro': 53, 'carburante': 54, 'calcio': 55, 'zinc': 56,
+                'pocion': 12, 'superpocion': 14, 'hiperpocion': 13, 'pocion_maxima': 21, 'remedio': 15, 'superremedio': 22, 'hiperremedio': 20,
+                'revivir': 23, 'maximo_revivir': 24, 'agua_fresca': 25, 'refresco': 26, 'limonada': 27, 'leche_mumu': 28, 'polvo_energia': 29,
+                'raiz_energia': 30, 'polvo_curacion': 31, 'hierba_revivir': 32, 'galleta_lava': 37, 'zumo_baya': 43, 'porcehelado': 46,
+                'crepe_luminalia': 260, 'bizcocho_jubileo': 261, 'baya_zreza': 100, 'baya_atania': 101, 'baya_meloc': 102, 'baya_safre': 103,
+                'baya_perasi': 104, 'baya_aranja': 106, 'baya_caquic': 107, 'baya_ziuela': 108, 'baya_zidra': 109,
+                'piedra_solar': 74, 'piedra_lunar': 75, 'piedra_fuego': 76, 'piedra_agua': 78, 'piedra_hoja': 79, 'piedra_dia': 289, 'piedra_noche': 290,
+                'piedra_hielo': 380, 'armadura_auspiciosa': 317, 'armadura_maldita': 320, 'mineral_negro': 304, 'cristal_paradoja': 379,
+                'lazo_amistad': 393, 'cordon_union': 72, 'chaleco_asalto': 147, 'pluma_agil': 145, 'polvo_plata': 152, 'pluma_hada': 144, 'cinturon_focus': 160,
                 'mt_normal': 228, 'mt_lucha': 224, 'mt_volador': 239, 'mt_veneno': 237, 'mt_tierra': 238, 'mt_roca': 235, 'mt_bicho': 231,
                 'mt_fantasma': 229, 'mt_acero': 234, 'mt_fuego': 232, 'mt_agua': 226, 'mt_planta': 231, 'mt_electrico': 236, 'mt_psiquico': 227,
                 'mt_hielo': 230, 'mt_dragon': 225, 'mt_siniestro': 233}
@@ -1491,6 +1507,15 @@ def herramienta_objetos():
         os.makedirs(carpeta, exist_ok=True)
         for clave, numero in ELEGIDOS.items(): pygame.image.save(icono(hoja, numero), os.path.join(carpeta, clave + '.png'))
         print(len(ELEGIDOS), 'iconos en assets/interfaz/objetos')
+        ruta = _buscar_hoja('Miscellaneous - Items & Objects.png')       # del Red Rescue Team: lo que se junta del piso en las salas
+        if ruta:
+            hoja = pygame.image.load(ruta).convert_alpha()
+            fila = hoja.subsurface((0, 0, 150, 16)).copy()               # primera fila: moneda, semilla, manzana, banana, pincho, botella, orbe, caja, llave, lentes
+            pa = pygame.PixelArray(fila); pa.replace(hoja.get_at((190, 10)), (0, 0, 0, 0)); pa.close()
+            cajas = sorted((r for r in pygame.mask.from_surface(fila).get_bounding_rects() if r.width >= 8), key=lambda r: r.x)
+            for nombre, i in (('moneda', 0), ('manzana', 2), ('pincho', 4), ('llave', 8)):
+                if i < len(cajas): pygame.image.save(fila.subsurface(cajas[i]), os.path.join(assets, 'mundo', 'objetos', nombre + '.png'))
+            print('moneda, manzana, pincho y llave (Red Rescue Team) en assets/mundo/objetos')
 
     main()
 
@@ -1622,6 +1647,476 @@ def herramienta_hud():
     if faltan: print('faltan las hojas (spriters-resource, Black/White > Miscellaneous):', ', '.join(sorted(faltan)))
 
 
+# ==================== clima del Red Rescue Team ====================
+
+def _buscar_hoja(final):
+    """Ruta de la hoja (o zip) que termina con ese nombre, en assets o en cualquier subcarpeta. None si no esta."""
+    assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+    return next((os.path.join(c, a) for c, _, archivos in os.walk(assets) if 'move_VFX' not in c and os.sep + 'sprites' not in c
+                 for a in sorted(archivos) if a.endswith(final)), None)
+
+
+def herramienta_clima():
+    """De las hojas 'Weather' del Red Rescue Team arma assets/clima/<efecto>/<nn>.png (como los lee mundo.entorno.dibujar_clima):
+        lluvia    'Rain': cuadros de 240x160 (5 columnas, paso 248x168 desde 8,8). Los del principio y del final son la lluvia que
+                  arranca y que para: se guardan solo los del medio, que se repiten en loop. El gris azulado de fondo queda transparente
+        granizo   'Hail.zip': 65 cuadros de 240x160 ya transparentes (igual: solo los del medio)
+        brasas    'Embers.zip': 14 cuadros de 488x328 sobre negro (se suman a la pantalla, el negro no se ve)
+        nieve     'Miscellaneous Weather Effects': 16 cuadros de 64x32 que se repiten como baldosas; ventisca: 16 de 32x32
+        arena     las dos franjas de la tormenta de arena (120x32, se repiten de costado)
+        nubes     las sombras de las nubes (720x408): la mancha azul pasa a sombra oscura transparente
+        niebla    'Fog': la niebla sobre negro (336x120, se suma a la pantalla)
+        sol       'Sunny': 13 cuadros de 240x112 del destello del sol"""
+    import io, zipfile
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    destino = os.path.join(raiz, 'assets', 'clima')
+    FONDO = (90, 90, 120)                                           # el gris azulado de las hojas de clima
+
+    def sin_fondo(sup, color=FONDO):
+        """Copia con ese color transparente."""
+        img = sup.copy().convert_alpha()
+        pa = pygame.PixelArray(img); pa.replace(color, (0, 0, 0, 0)); pa.close()
+        return img
+
+    def del_medio(frames, parte=0.6):
+        """Los cuadros 'llenos' (con al menos esa parte de lo que tiene el mas lleno): el loop sin el arranque ni el final."""
+        llenos = [pygame.mask.from_surface(f).count() for f in frames]
+        buenos = [i for i, n in enumerate(llenos) if n >= max(llenos) * parte]
+        return frames[buenos[0]:buenos[-1] + 1]
+
+    def guardar(nombre, frames):
+        """Deja los cuadros en assets/clima/<nombre>/00.png, 01.png..."""
+        carpeta = os.path.join(destino, nombre)
+        os.makedirs(carpeta, exist_ok=True)
+        for viejo in os.listdir(carpeta): os.remove(os.path.join(carpeta, viejo))
+        for i, f in enumerate(frames): pygame.image.save(f, os.path.join(carpeta, '%02d.png' % i))
+        print(nombre.ljust(10), len(frames), 'cuadros de', frames[0].get_size())
+
+    def del_zip(final, filtro):
+        """Los png de un zip (los que pasan el filtro), ordenados por su numero."""
+        ruta = _buscar_hoja(final)
+        if not ruta: print('falta', final); return []
+        z = zipfile.ZipFile(ruta)
+        numero = lambda n: int(''.join(ch for ch in os.path.basename(n) if ch.isdigit()) or 0)
+        return [pygame.image.load(io.BytesIO(z.read(n)), 'f.png').convert_alpha() for n in sorted((n for n in z.namelist() if filtro(n)), key=numero)]
+
+    pygame.init(); pygame.display.set_mode((1, 1))
+    ruta = _buscar_hoja('Weather - Rain.png')
+    if ruta:
+        hoja = pygame.image.load(ruta).convert()
+        guardar('lluvia', del_medio([sin_fondo(hoja.subsurface((8 + 248 * (i % 5), 8 + 168 * (i // 5), 240, 160))) for i in range(61)]))
+    else: print('falta la hoja Weather - Rain')
+    granizo = del_zip('Weather - Hail.zip', lambda n: n.endswith('.png') and 'Tiles' not in n)
+    if granizo: guardar('granizo', del_medio(granizo))
+    brasas = del_zip('Weather - Embers.zip', lambda n: n.endswith('.png'))
+    if brasas: guardar('brasas', [f.convert() for f in brasas])
+    ruta = _buscar_hoja('Weather - Miscellaneous Weather Effects.png')
+    if ruta:
+        hoja = pygame.image.load(ruta).convert()
+        guardar('nieve', [sin_fondo(hoja.subsurface((8 + 72 * (i % 4), 440 + 40 * (i // 4), 64, 32))) for i in range(16)])
+        guardar('ventisca', [sin_fondo(hoja.subsurface((304 + 40 * (i % 4), 440 + 40 * (i // 4), 32, 32))) for i in range(16)])
+        guardar('arena', [hoja.subsurface((8 + 128 * i, 608, 120, 32)).copy() for i in range(2)])
+        nubes = pygame.Surface((720, 408), pygame.SRCALPHA)           # la mancha azul de las nubes -> sombra
+        pygame.mask.from_threshold(hoja.subsurface((8, 16, 720, 408)), (82, 115, 189), (12, 12, 12, 255)).to_surface(nubes, setcolor=(10, 14, 40, 255), unsetcolor=(0, 0, 0, 0))
+        guardar('nubes', [nubes])
+    else: print('falta la hoja Weather - Miscellaneous Weather Effects')
+    ruta = _buscar_hoja('Weather - Fog.png')
+    if ruta: guardar('niebla', [pygame.image.load(ruta).convert().subsurface((8, 16, 336, 120)).copy()])
+    ruta = _buscar_hoja('Weather - Sunny.png')
+    if ruta:
+        hoja = pygame.image.load(ruta).convert()
+        guardar('sol', [sin_fondo(hoja.subsurface((8 + 248 * (i % 3), 8 + 120 * (i // 3), 240, 112))) for i in range(13)])
+
+
+# ==================== las chozas del Red Rescue Team (el barrio del refugio) ====================
+
+def herramienta_casas():
+    """De las hojas 'Huts' del Red Rescue Team (una por pokemon: Pikachu Hut, Mudkip Hut...) arma assets/mundo/casas/:
+        <pokemon>_afuera.png    el jardin con la choza (la parte de arriba de la hoja, 312 px de alto), sin el bosque de alrededor
+                                (chocaba con el del jardin vecino): queda pasto y los arboles se pegan sueltos (python herramientas.py aldea)
+        <pokemon>_adentro.png   la choza por dentro (la parte de abajo, sobre negro): solo el pedazo mas grande, sin carteles ni llamitas sueltas
+        <pokemon>_bandera.png   los cuadros de la bandera que flamea, en una tira (va en el mastil del jardin)
+    Las usa mundo.generacion: el barrio es una fila de jardines y 'Tu casa' es la choza por dentro."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    assets = os.path.join(raiz, 'assets')
+    destino = os.path.join(assets, 'mundo', 'casas')
+    ALTO = 312                                                      # alto del jardin (las hojas mas viejas, de otro alto, no se usan)
+    NEGRO = (0, 0, 0, 255)
+
+    def una(ruta, nombre):
+        """Recorta el jardin, el interior y la bandera de una hoja. False si la hoja tiene otra forma."""
+        hoja = pygame.image.load(ruta).convert_alpha()
+        w, h = hoja.get_size()
+        negro = lambda x, y: tuple(hoja.get_at((x, y))) == NEGRO
+        if h < ALTO + 200 or not (negro(1, ALTO) and negro(w - 2, ALTO)) or negro(w - 2, ALTO - 4): return False
+        ancho_caja = next((x for x in range(w) if not any(negro(x, y) for y in range(40))), 0)      # el recuadro negro de las banderas
+        alto_caja = 72 if ancho_caja else 0                           # (todas las hojas lo tienen del mismo alto)
+        afuera = hoja.subsurface((0, 0, w, ALTO)).copy()
+        if ancho_caja and alto_caja: afuera.fill(PISOS_RRT[0], (0, 0, ancho_caja, alto_caja))   # el recuadro de las banderas: pasto
+        afuera = _sin_bosque(afuera)                                  # sin el bosque de alrededor: los arboles van sueltos (herramienta_aldea)
+        pygame.image.save(afuera, os.path.join(destino, nombre + '_afuera.png'))
+        abajo = hoja.subsurface((0, ALTO, w, h - ALTO)).copy()        # el interior: el pedazo mas grande de lo que no es negro
+        pa = pygame.PixelArray(abajo); pa.replace((0, 0, 0), (0, 0, 0, 0)); pa.close()
+        mayor = max(pygame.mask.from_surface(abajo).connected_components(2000), key=lambda m_: m_.count())
+        caja = mayor.get_bounding_rects()[0]
+        solo = pygame.Surface(abajo.get_size(), pygame.SRCALPHA)       # (lo que no es de ese pedazo, aunque caiga adentro del recorte, no va)
+        mayor.to_surface(solo, setsurface=abajo, unsetcolor=None)
+        adentro = pygame.Surface(caja.size); adentro.fill((0, 0, 0))
+        adentro.blit(solo, (0, 0), caja)
+        pygame.image.save(adentro, os.path.join(destino, nombre + '_adentro.png'))
+        caja_b = hoja.subsurface((0, 0, ancho_caja, min(alto_caja, 44))).copy()   # las banderas: los dibujitos de color del recuadro (el texto es blanco)
+        pa = pygame.PixelArray(caja_b); pa.replace((0, 0, 0), (0, 0, 0, 0)); pa.close()
+        cuadros = [r for r in pygame.mask.from_surface(caja_b).get_bounding_rects() if r.width >= 14 and r.height >= 10 and r.width <= 40]
+        cuadros = [r for r in cuadros if sum(1 for x in range(r.x, r.right, 2) for y in range(r.y, r.bottom, 2) if min(caja_b.get_at((x, y))[:3]) < 200) > 12]
+        cuadros.sort(key=lambda r: (r.y // 12, r.x))
+        if cuadros:
+            lado_w, lado_h = max(r.width for r in cuadros), max(r.height for r in cuadros)
+            tira = pygame.Surface((lado_w * len(cuadros), lado_h), pygame.SRCALPHA)
+            for i, r in enumerate(cuadros): tira.blit(caja_b, (i * lado_w, lado_h - r.height), r)
+            pygame.image.save(tira, os.path.join(destino, nombre + '_bandera.png'))
+        print(nombre.ljust(11), 'jardin', afuera.get_size(), 'interior', adentro.get_size(), 'bandera', len(cuadros), 'cuadros')
+        return True
+
+    pygame.init(); pygame.display.set_mode((1, 1))
+    os.makedirs(destino, exist_ok=True)
+    hechas = 0
+    for carpeta, _, archivos in os.walk(assets):
+        if os.sep + 'mundo' in carpeta or os.sep + 'sprites' in carpeta: continue
+        for archivo in sorted(archivos):
+            if ' - Huts - ' not in archivo or not archivo.endswith(' Hut.png'): continue
+            hechas += una(os.path.join(carpeta, archivo), archivo.split(' - Huts - ')[1][:-8].lower())
+    print(hechas, 'chozas en assets/mundo/casas' if hechas else 'faltan las hojas "Huts" del Red Rescue Team (assets/hojas/faltan.txt)')
+
+
+# ==================== la aldea: arboles sueltos, flores, cercas y las chozas de la plaza ====================
+
+# colores de las hojas 'Huts' del Red Rescue Team: los tres pisos (pasto, claro y arena), el bosque azulado y la sombra de los arboles
+PISOS_RRT = ((112, 200, 80), (176, 240, 120), (248, 248, 192))
+BOSQUE_RRT = {(16, 184, 152), (0, 128, 136), (0, 96, 104), (0, 160, 144), (0, 56, 72), (0, 32, 48)}
+SOMBRA_RRT = (32, 136, 128)
+ARBOL_RRT = {(16, 112, 56), (32, 136, 64), (16, 88, 48), (8, 72, 40), (40, 160, 88), (72, 192, 88), (56, 176, 88), (80, 224, 96), (88, 240, 104), (0, 48, 48), (120, 64, 48)}   # el arbol verde
+BORDES_RRT = {(80, 184, 144), (96, 192, 112), (160, 216, 104), (163, 73, 73), (0, 0, 0)}     # bordecitos del pasto y el fondo de la hoja
+
+
+def _es_piso_rrt(c, margen=24):
+    """Si ese color es pasto, claro o arena de las hojas de chozas (o casi)."""
+    return any(max(abs(c[i] - b[i]) for i in range(3)) <= margen for b in PISOS_RRT)
+
+
+def _suelto(hoja, caja, minimo=30, sombra=True, centro=None):
+    """Recorta de una hoja de chozas lo que hay en 'caja' sin el piso: desde los bordes se borra el pasto, el claro, la arena y el bosque.
+    Quedan las cosas (arbol, choza, cerca...) sobre transparente; la sombra azulada pasa a ser una sombra negra que deja ver el piso.
+    minimo: los pedacitos mas chicos se tiran (matitas de pasto). centro: si se da, solo queda el pedazo que toca ese punto de la caja."""
+    sub = hoja.subsurface(pygame.Rect(caja).clip(hoja.get_rect())).copy().convert_alpha()
+    w, h = sub.get_size()
+    afuera = lambda c: c[3] == 0 or c[:3] in BOSQUE_RRT or c[:3] in BORDES_RRT or (not sombra and c[:3] == SOMBRA_RRT) or _es_piso_rrt(c)
+    pendientes = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for x in (0, w - 1) for y in range(h)]
+    visto = set()
+    while pendientes:
+        p = pendientes.pop()
+        if p in visto or not (0 <= p[0] < w and 0 <= p[1] < h): continue
+        visto.add(p)
+        if not afuera(tuple(sub.get_at(p))): continue
+        sub.set_at(p, (0, 0, 0, 0))
+        pendientes += [(p[0] + 1, p[1]), (p[0] - 1, p[1]), (p[0], p[1] + 1), (p[0], p[1] - 1)]
+    limpio = pygame.Surface((w, h), pygame.SRCALPHA)
+    for parte in pygame.mask.from_surface(sub).connected_components(minimo):       # sin las matitas sueltas
+        if centro and not parte.get_at(centro): continue
+        if parte.get_bounding_rects()[0].height <= 3: continue                    # ni las rayitas del borde del claro
+        parte.to_surface(limpio, setsurface=sub, unsetcolor=None)
+    pa = pygame.PixelArray(limpio); pa.replace(SOMBRA_RRT, (0, 0, 0, 70)); pa.close()   # la sombra sirve sobre cualquier piso
+    vecinos = lambda x, y: [tuple(limpio.get_at((x + a, y + b))) for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1)) if 0 <= x + a < w and 0 <= y + b < h]
+    orilla = [(x, y) for x in range(w) for y in range(h) if limpio.get_at((x, y)).a == 255                     # el bordecito verde entre la sombra y el pasto
+              and all(v[3] < 255 for v in vecinos(x, y)) and any(v[3] == 70 for v in vecinos(x, y))]
+    for p in orilla: limpio.set_at(p, (0, 0, 0, 35))                  # queda como el borde suave de la sombra
+    return limpio.subsurface(limpio.get_bounding_rect()).copy()
+
+
+def _sin_bosque(jardin):
+    """El jardin de una choza sin el bosque azulado que lo rodea (chocaba con el del jardin de al lado): se borra el bosque con su
+    sombra, sus troncos y el bordecito de la sombra, y ahi va pasto. Los arboles se ponen despues, sueltos (mundo.generar_barrio).
+    Los colores del bosque salen de la franja de arriba del jardin (ahi no hay otra cosa); se borra solo lo que esta pegado al bosque."""
+    w, h = jardin.get_size()
+    color = lambda p: tuple(jardin.get_at(p))[:3]
+    del_bosque = {color((x, y)) for x in range(60, w - 60) for y in range(48)}
+    del_bosque = {c for c in del_bosque if not _es_piso_rrt(c)} | BOSQUE_RRT | {SOMBRA_RRT} | ARBOL_RRT   # (el arbol verde del jardin tambien: toca el bosque)
+    bosque = set()
+    pendientes = [(x, y) for x in range(w) for y in range(h) if color((x, y)) in BOSQUE_RRT]
+    while pendientes:
+        p = pendientes.pop()
+        if p in bosque or not (0 <= p[0] < w and 0 <= p[1] < h) or color(p) not in del_bosque: continue
+        bosque.add(p)
+        pendientes += [(p[0] + 1, p[1]), (p[0] - 1, p[1]), (p[0], p[1] + 1), (p[0], p[1] - 1)]
+    resto = pygame.mask.Mask((w, h))                                 # puntitos que quedaron sueltos al lado de lo borrado (pedazos de tronco)
+    for x in range(w):
+        for y in range(h):
+            if (x, y) not in bosque and not _es_piso_rrt(color((x, y))): resto.set_at((x, y), 1)
+    for parte in resto.connected_components():
+        caja = parte.get_bounding_rects()[0]
+        if parte.count() > 16 and not (parte.count() < 300 and (caja.x == 0 or caja.right == w)): continue
+        puntos = [(x, y) for x in range(caja.x, caja.right) for y in range(caja.y, caja.bottom) if parte.get_at((x, y))]
+        if parte.count() <= 16 and any((x + a, y + b) in bosque for x, y in puntos for a in (-1, 0, 1) for b in (-1, 0, 1)): bosque.update(puntos)
+        elif parte.count() < 300 and (caja.x == 0 or caja.right == w): bosque.update(puntos)                # media flor cortada por el borde de la hoja
+    limpio = jardin.copy()
+    for p in bosque: limpio.set_at(p, (*PISOS_RRT[0], 255))
+    return limpio
+
+
+def herramienta_aldea():
+    """De las hojas 'Huts' del Red Rescue Team saca las cosas sueltas de la aldea (el fondo de pasto se vuelve transparente):
+        assets/mundo/objetos/arbol.png, arbol_bosque.png (el mismo en azulado), arbusto.png, tocon.png, cerca.png, cerca_v.png, cartel.png, mata.png
+        assets/mundo/objetos/flor_roja.png, flor_amarilla.png   las flores que se mueven: tira de 4 cuadros
+        assets/mundo/objetos/parcela_<nombre>.png               las chozas de la plaza con su patio: agua, fuego, planta, roca, hoja y las obras
+        assets/mundo/medieval/objetos/arbol.png                 el arbol azulado, para los bosques de la Edad Media
+        assets/mundo/casas/borde_calle.png                      el borde de abajo de la calle del barrio (arena -> pasto)
+    El arbol es UNO solo y se pega suelto donde haga falta (barrio, plaza, hall, isla y eras): ya no se usan tiras de arboles pegados."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    objetos, casas = os.path.join(raiz, 'assets', 'mundo', 'objetos'), os.path.join(raiz, 'assets', 'mundo', 'casas')
+    pygame.init(); pygame.display.set_mode((1, 1))
+    os.makedirs(objetos, exist_ok=True); os.makedirs(casas, exist_ok=True)
+    hechos = []
+    def hoja_de(nombre):
+        ruta = _buscar_hoja(' - Huts - ' + nombre + '.png')
+        return pygame.image.load(ruta).convert_alpha() if ruta else None
+    def guardar(img, carpeta, nombre):
+        pygame.image.save(img, os.path.join(carpeta, nombre + '.png')); hechos.append(nombre + ' ' + str(img.get_size()))
+    agua = hoja_de('Water Hut')
+    if agua:
+        arbol = _suelto(agua, (388, 163, 92, 84), centro=(46, 30))        # el arbol redondo de la derecha del jardin, con su sombra
+        guardar(arbol, objetos, 'arbol')
+        verdes = sorted(ARBOL_RRT - {(0, 48, 48), (120, 64, 48)}, key=sum)
+        azules = sorted(BOSQUE_RRT | {(32, 208, 168), (72, 224, 184), (0, 72, 88)}, key=sum)   # del mas oscuro al mas claro, como los verdes
+        bosque = arbol.copy()
+        pa = pygame.PixelArray(bosque)
+        for v, a in zip(verdes, azules): pa.replace(v, a)                  # la misma copa con los colores del bosque del PMD
+        pa.close()
+        guardar(bosque, objetos, 'arbol_bosque')
+        medieval = os.path.join(raiz, 'assets', 'mundo', 'medieval', 'objetos')
+        os.makedirs(medieval, exist_ok=True); guardar(bosque, medieval, 'arbol')   # el bosque de la Edad Media usa el azulado
+        guardar(_suelto(agua, (388, 116, 44, 44), centro=(20, 22)), objetos, 'tocon')
+        guardar(_suelto(agua, (74, 282, 66, 28), sombra=False), objetos, 'cerca')
+        guardar(_suelto(agua, (140, 192, 24, 92), sombra=False), objetos, 'cerca_v')
+        guardar(_suelto(agua, (54, 292, 28, 30), sombra=False), objetos, 'cartel')
+        for nombre, y in (('flor_roja', 560), ('flor_amarilla', 623)):     # 'Flower Frames': 4 cuadros en recuadros blancos
+            tira = pygame.Surface((32 * 4, 30), pygame.SRCALPHA)
+            for i in range(4):
+                cuadro = agua.subsurface((43 + 63 * i, y, 32, 30)).copy()
+                pa = pygame.PixelArray(cuadro); pa.replace((255, 255, 255), (0, 0, 0, 0)); pa.replace((0, 0, 0), (0, 0, 0, 0)); pa.close()
+                tira.blit(cuadro, (32 * i, 0))
+            guardar(tira, objetos, nombre)
+        borde = agua.subsurface((0, 340, 150, 28)).copy()                 # debajo de la calle: la arena y la franja clara (despues sigue el pasto)
+        doble = pygame.Surface((300, 28)); doble.blit(borde, (0, 0)); doble.blit(pygame.transform.flip(borde, True, False), (150, 0))   # espejado: se repite sin cortes
+        guardar(doble, casas, 'borde_calle')
+        mata = pygame.mask.Mask(agua.get_size())                          # una matita de pasto (las marquitas claras del piso)
+        for x in range(395, 470):
+            for y in range(236, 262):
+                if tuple(agua.get_at((x, y)))[:3] == (160, 216, 104): mata.set_at((x, y), 1)
+        partes = sorted(mata.connected_components(4), key=lambda m_: -m_.count())
+        if partes:
+            caja = partes[0].get_bounding_rects()[0].inflate(8, 4).clip(agua.get_rect())
+            img = pygame.Surface(caja.size, pygame.SRCALPHA)
+            for x in range(caja.w):
+                for y in range(caja.h):
+                    if mata.get_at((caja.x + x, caja.y + y)): img.set_at((x, y), (160, 216, 104, 255))
+            guardar(img.subsurface(img.get_bounding_rect()).copy(), objetos, 'mata')
+    pikachu = hoja_de('Pikachu Hut')
+    if pikachu: guardar(_suelto(pikachu, (94, 158, 28, 32), sombra=False), objetos, 'arbusto')   # una mata del cerco
+    # las chozas de la plaza: (hoja, caja del patio en la hoja)
+    PARCELAS = {'agua': ('Water Hut', (164, 84, 226, 216)), 'fuego': ('Fire Hut', (106, 124, 228, 216)), 'planta': ('Plant Hut', (100, 136, 232, 214)),
+                'roca': ('Rock Hut', (100, 124, 232, 222)), 'hoja': ('Grass Hut', (100, 150, 232, 200)),
+                'obra_fuego': ('Fire Hut (Construction)', (18, 8, 226, 216)), 'obra_agua': ('Water Hut (Construction)', (18, 8, 226, 222))}
+    for nombre, (hoja_n, caja) in PARCELAS.items():
+        hoja = hoja_de(hoja_n)
+        if hoja: guardar(_suelto(hoja, caja, minimo=26 if nombre == 'planta' else 100, sombra=False), objetos, 'parcela_' + nombre)   # (las piedritas del camino de la de planta son chicas)
+    print(len(hechos), 'piezas de la aldea:', ', '.join(hechos) if hechos else 'faltan las hojas "Huts" del Red Rescue Team (assets/hojas/faltan.txt)')
+
+
+# ==================== chispas de los golpes (hoja 'Effects' del Red Rescue Team) ====================
+
+def herramienta_chispas():
+    """De la hoja 'Miscellaneous - Effects' del Red Rescue Team saca dos efectos (tiras de cuadros cuadrados, como las lee mundo.efectos):
+        assets/efectos/estrella.png   la estrellita amarilla que salta cuando un golpe conecta (chica, grande, grande, chica)
+        assets/efectos/brillo.png     el brillito blanco (frenesi, hitos de la cadena de golpes)"""
+    ruta = _buscar_hoja('Red Rescue Team - Miscellaneous - Effects.png')
+    if not ruta: print('falta la hoja Miscellaneous - Effects del Red Rescue Team'); return
+    pygame.init(); pygame.display.set_mode((1, 1))
+    hoja = pygame.image.load(ruta).convert_alpha()
+    fondo = tuple(hoja.get_at((0, 0)))
+    destino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'efectos')
+    for nombre, caja, orden in (('estrella', (20, 22, 46, 28), (0, 1, 1, 0)), ('brillo', (4, 74, 62, 24), (0, 1, 2, 1, 0))):
+        zona = hoja.subsurface(caja).copy()
+        pa = pygame.PixelArray(zona); pa.replace(fondo, (0, 0, 0, 0)); pa.close()
+        cajas = sorted(pygame.mask.from_surface(zona).get_bounding_rects(), key=lambda r: r.x)
+        cajas = [r for r in cajas if r.width * r.height >= 30]          # (sin puntitos sueltos)
+        lado = max(max(r.size) for r in cajas)
+        tira = pygame.Surface((lado * len(orden), lado), pygame.SRCALPHA)
+        for i, k in enumerate(orden):
+            r = cajas[min(k, len(cajas) - 1)]
+            tira.blit(zona, (i * lado + (lado - r.width) // 2, (lado - r.height) // 2), r)
+        pygame.image.save(tira, os.path.join(destino, nombre + '.png'))
+        print(nombre, len(cajas), 'dibujos ->', len(orden), 'cuadros de', lado, 'px')
+
+
+# ==================== la pantalla de elegir inicial (Blanco/Negro) ====================
+
+def herramienta_inicial():
+    """De la hoja 'Starter Selection Screen' de Blanco/Negro saca lo que usa la pantalla de elegir tu pokemon (assets/interfaz/inicial/):
+        fondo_<color>.png   los fondos con arcos: gris, blanco, dorado, verde y celeste (sin el cuadradito ni la franja negra de abajo)
+        mano.png            la manito que señala"""
+    ruta = _buscar_hoja('Miscellaneous - Starter Selection Screen.png')
+    if not ruta: print('falta la hoja Starter Selection Screen de Blanco/Negro (assets/hojas/faltan.txt)'); return
+    pygame.init(); pygame.display.set_mode((1, 1))
+    hoja = pygame.image.load(ruta).convert_alpha()
+    destino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'inicial')
+    os.makedirs(destino, exist_ok=True)
+    for nombre, (x, y) in {'gris': (113, 130), 'blanco': (245, 130), 'dorado': (377, 130), 'verde': (4, 263), 'celeste': (134, 263)}.items():
+        pygame.image.save(hoja.subsurface((x, y + 10, 128, 92)).copy(), os.path.join(destino, 'fondo_' + nombre + '.png'))
+    mano = hoja.subsurface((9, 128, 32, 32)).copy()
+    fondo = tuple(mano.get_at((0, 0)))
+    pendientes = [(0, 0), (31, 0), (0, 31), (31, 31)]
+    while pendientes:                                                # el recuadro verde de atras de la manito, afuera
+        x, y = pendientes.pop()
+        if not (0 <= x < 32 and 0 <= y < 32) or tuple(mano.get_at((x, y))) != fondo: continue
+        mano.set_at((x, y), (0, 0, 0, 0))
+        pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    pygame.image.save(mano.subsurface(mano.get_bounding_rect()).copy(), os.path.join(destino, 'mano.png'))
+    print('5 fondos y la manito en assets/interfaz/inicial')
+
+
+# ==================== el logo ====================
+
+def herramienta_logo():
+    """Pasa el logo del juego (assets/typo_logo_pokemanic.png: pixel art agrandado sobre un fondo azul liso) a assets/interfaz/logo.png:
+    a su tamaño de pixel original (un pixel por bloque) y con el fondo transparente. El borde azul de 'Poké' se queda (es casi del color
+    del fondo, pero no igual: el fondo se borra desde afuera y solo lo que es exactamente de su color).
+    La pantalla de titulo y el menu lo agrandan sin suavizar (menus.dibujar_logo); si falta, arman el logo con las letras del PMD."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    origen = os.path.join(raiz, 'assets', 'typo_logo_pokemanic.png')
+    if not os.path.isfile(origen): print('falta assets/typo_logo_pokemanic.png'); return
+    pygame.init(); pygame.display.set_mode((1, 1))
+    hoja = pygame.image.load(origen).convert()
+    w, h = hoja.get_size()
+    fondo = tuple(hoja.get_at((2, 2)))[:3]
+    lejos = lambda c, margen: max(abs(c[i] - fondo[i]) for i in range(3)) > margen
+    puntos = [(x, y) for y in range(0, h, 2) for x in range(0, w, 2) if lejos(hoja.get_at((x, y)), 12)]
+    x0, y0, x1, y1 = min(p[0] for p in puntos), min(p[1] for p in puntos), max(p[0] for p in puntos), max(p[1] for p in puntos)
+    y_medio, largos, n, antes = (y0 + y1) // 2, {}, 0, None
+    for x in range(x0, x1):                                          # el lado del bloque: el largo mas comun de un tramo del mismo color
+        c = tuple(hoja.get_at((x, y_medio)))[:3]
+        if c == antes: n += 1
+        else: largos[n] = largos.get(n, 0) + 1; n, antes = 1, c
+    lado = max((l for l in largos if l > 3), key=lambda l: largos[l])
+    def cortes(horizontal, fase):                                    # cuantos cambios de color caen justo en la grilla con esa fase
+        total = 0
+        for k in range(8):
+            fijo = (y0 + (y1 - y0) * (k + 1) // 9) if horizontal else (x0 + (x1 - x0) * (k + 1) // 9)
+            for v in range((x0 if horizontal else y0) - lado + fase, (x1 if horizontal else y1), lado):
+                if v < 1: continue
+                a_, b_ = ((v - 1, fijo), (v, fijo)) if horizontal else ((fijo, v - 1), (fijo, v))
+                total += hoja.get_at(a_) != hoja.get_at(b_)
+        return total
+    fx, fy = max(range(lado), key=lambda f: cortes(True, f)), max(range(lado), key=lambda f: cortes(False, f))
+    gx, gy = x0 - lado + fx, y0 - lado + fy                          # donde arranca la grilla (un bloque antes del logo)
+    while gx > x0 - lado * 2: gx -= lado
+    while gy > y0 - lado * 2: gy -= lado
+    cols, filas = (x1 - gx) // lado + 3, (y1 - gy) // lado + 3
+    chico = pygame.Surface((cols, filas), pygame.SRCALPHA)
+    for f in range(filas):
+        for c in range(cols):
+            x, y = gx + c * lado + lado // 2, gy + f * lado + lado // 2
+            chico.set_at((c, f), (*tuple(hoja.get_at((x, y)))[:3], 255) if 0 <= x < w and 0 <= y < h else (*fondo, 255))
+    pendientes = [(c, f) for c in range(cols) for f in (0, filas - 1)] + [(c, f) for c in (0, cols - 1) for f in range(filas)]
+    while pendientes:                                                # el fondo se borra desde afuera
+        c, f = pendientes.pop()
+        if not (0 <= c < cols and 0 <= f < filas): continue
+        p = chico.get_at((c, f))
+        if p.a == 0 or lejos(p, 3): continue
+        chico.set_at((c, f), (0, 0, 0, 0))
+        pendientes += [(c + 1, f), (c - 1, f), (c, f + 1), (c, f - 1)]
+    logo = chico.subsurface(chico.get_bounding_rect()).copy()
+    destino = os.path.join(raiz, 'assets', 'interfaz', 'logo.png')
+    pygame.image.save(logo, destino)
+    print('logo', logo.get_size(), 'pixeles (bloques de', lado, 'px) ->', destino)
+
+
+# ==================== arenas de los jefes (Dungeon Boss Rooms del Red Rescue Team) ====================
+
+def herramienta_arenas():
+    """De las hojas 'Dungeon Boss Rooms' (y dos 'Friend Areas') del Red Rescue Team arma la arena ya dibujada de cada jefe:
+        assets/mundo/arenas/<era>_<tipo>.png    el recorte de la hoja: la plataforma y un margen alrededor (sin carteles ni esquinas negras)
+        assets/mundo/arenas/<era>_<tipo>.json   {'k': cuanto se agranda, 'piso': poligono de la plataforma en pixeles del recorte, 'brasas': si flotan brasas}
+    tipo es 'jefe' (el jefe de la era), 'regi' o 'final' (Arceus). mundo.generacion.generar_arena las usa solas si estan: el piso caminable
+    es el poligono (medido a mano sobre cada hoja, en pixeles de la hoja) y todo lo demas es pared invisible.
+    Cada entrada: hoja, k, margen, zona de la hoja que sirve (x, y, ancho, alto) y poligono."""
+    import json as _json
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    destino = os.path.join(raiz, 'assets', 'mundo', 'arenas')
+    circulo = lambda cx, cy, r, n=20: [(round(cx + r * math.cos(i * 2 * math.pi / n)), round(cy + r * math.sin(i * 2 * math.pi / n))) for i in range(n)]
+    ARENAS = {
+        'glaciacion_jefe': ('Dungeon Boss Rooms - Frosty Grotto', 6, 64, (24, 0, 408, 352), [(140, 84), (330, 84), (355, 108), (358, 270), (335, 298), (140, 298), (108, 275), (102, 110)]),
+        'glaciacion_regi': ('Friend Areas - Frigid Cavern', 4, 64, (0, 0, 480, 360),
+                            [(150, 112), (330, 112), (400, 140), (425, 190), (370, 235), (350, 300), (320, 345), (160, 345), (130, 300), (110, 235), (55, 190), (80, 140)]),
+        'piedra_jefe': ('Dungeon Boss Rooms - Wish Cave', 7, 56, (0, 0, 384, 328), [(106, 80), (278, 80), (278, 274), (106, 274)]),
+        'piedra_regi': ('Dungeon Boss Rooms - Mt. Faraway', 6, 64, (0, 0, 504, 448), [(150, 108), (385, 108), (398, 130), (398, 320), (380, 338), (150, 338), (135, 320), (135, 130)]),
+        'metales_jefe': ('Dungeon Boss Rooms - Mt. Steel', 6, 64, (12, 12, 430, 330),
+                         [(20, 135), (110, 132), (150, 142), (300, 142), (340, 132), (440, 135), (440, 190), (345, 195), (340, 260), (300, 278), (165, 278), (120, 260), (115, 195), (20, 190)]),
+        'metales_regi': ('Dungeon Boss Rooms - Magma Cavern', 6, 56, (24, 22, 384, 328), [(125, 85), (315, 85), (325, 100), (325, 290), (310, 300), (125, 300), (110, 290), (110, 100)], True),
+        'medieval_jefe': ('Dungeon Boss Rooms - Northern Range', 7, 64, (0, 0, 456, 432), [(160, 147), (295, 147), (335, 180), (342, 240), (300, 285), (150, 285), (118, 240), (118, 185)]),
+        'medieval_regi': ('Dungeon Boss Rooms - Sky Tower', 5, 64, (0, 0, 528, 496),
+                          [(200, 170), (290, 150), (340, 185), (385, 215), (400, 300), (385, 380), (330, 420), (240, 425), (160, 395), (125, 330), (120, 260), (150, 200)]),
+        'moderna_jefe': ('Dungeon Boss Rooms - Lightning Field', 6, 48, (46, 22, 384, 328), [(105, 90), (350, 90), (355, 300), (330, 325), (125, 325), (105, 300)]),
+        'moderna_regi': ('Dungeon Boss Rooms - Mt. Thunder', 6, 64, (24, 45, 384, 290), [(140, 78), (300, 78), (340, 105), (350, 200), (352, 290), (300, 302), (130, 302), (92, 285), (95, 180), (105, 105)]),
+        'origen_regi': ('Dungeon Boss Rooms - Stormy Sea', 7, 40, (0, 0, 444, 362), [(130, 95), (365, 95), (375, 110), (375, 310), (360, 322), (130, 322), (118, 310), (118, 110)]),
+        # el sello de Silver Trench esta cortado abajo y a la derecha: se arma entero espejando el cuarto de arriba a la izquierda
+        'origen_final': ('Dungeon Boss Rooms - Silver Trench', 7, 60, (0, 0, 480, 470), circulo(240, 235, 130), False, (240, 235)),
+    }
+
+    def main():
+        """Recorta cada arena alrededor de su plataforma y guarda el poligono en pixeles del recorte."""
+        pygame.init(); pygame.display.set_mode((1, 1))
+        os.makedirs(destino, exist_ok=True)
+        for nombre, (hoja, k, margen, zona, piso, *resto) in ARENAS.items():
+            ruta = _buscar_hoja(hoja + '.png')
+            if not ruta: print('falta la hoja', hoja); continue
+            img = pygame.image.load(ruta).convert()
+            if len(resto) > 1:                                         # espejar: el cuarto de arriba a la izquierda, cuatro veces
+                ex, ey = resto[1]
+                cuarto = img.subsurface((0, 0, ex, ey))
+                img = pygame.Surface((ex * 2, ey * 2))
+                for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)): img.blit(pygame.transform.flip(cuarto, bool(dx), bool(dy)), (dx * ex, dy * ey))
+            zona = pygame.Rect(zona).clip(img.get_rect())
+            xs, ys = [p[0] for p in piso], [p[1] for p in piso]
+            caja = pygame.Rect(min(xs) - margen, min(ys) - margen, max(xs) - min(xs) + 2 * margen, max(ys) - min(ys) + 2 * margen).clip(zona)
+            pygame.image.save(img.subsurface(caja), os.path.join(destino, nombre + '.png'))
+            datos_a = {'k': k, 'piso': [(x - caja.x, y - caja.y) for x, y in piso], 'brasas': bool(resto and resto[0])}
+            with open(os.path.join(destino, nombre + '.json'), 'w', encoding='utf-8') as f: _json.dump(datos_a, f)
+            print(nombre.ljust(16), hoja.split(' - ')[1].ljust(16), 'recorte', caja.size, '-> sala de', (caja.width * k, caja.height * k))
+
+    main()
+
+
+# ==================== estados animados del Red Rescue Team ====================
+
+def herramienta_estados():
+    """De la hoja 'Status Effects' del Red Rescue Team (filas de cuadros de 16 px desde x=104; el hielo es de 32) arma las tiras
+    animadas de assets/efectos/estado_<nombre>.png (una fila de cuadros cuadrados, como todos los efectos): la llama de la quemadura,
+    los Zzz del sueño, la calavera del veneno, los pajaritos de la confusion, la flecha para abajo (frenado), el signo de pregunta,
+    el escudo y el puño. interfaz.menus.icono_estado las dibuja arriba de la cabeza del pokemon."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    FILAS = {'quemar': (112, 16, 7), 'confuso': (128, 16, 8), 'hielo': (144, 32, 6), 'fuerza': (176, 16, 8), 'lento': (192, 16, 11),
+             'dormir': (232, 16, 10), 'veneno': (248, 16, 15), 'duda': (48, 16, 10), 'alerta': (32, 16, 9), 'escudo': (96, 16, 13)}   # nombre: (y, lado, cuadros)
+    pygame.init(); pygame.display.set_mode((1, 1))
+    ruta = _buscar_hoja('Miscellaneous - Status Effects.png')
+    if not ruta: print('falta la hoja Status Effects del Red Rescue Team'); return
+    hoja = pygame.image.load(ruta).convert_alpha()
+    fondo = hoja.get_at((330, 8))
+    for nombre, (y, lado, cuadros) in FILAS.items():
+        tira = hoja.subsurface((104, y, lado * cuadros, lado)).copy()
+        pa = pygame.PixelArray(tira); pa.replace(fondo, (0, 0, 0, 0)); pa.close()
+        pygame.image.save(tira, os.path.join(raiz, 'assets', 'efectos', 'estado_' + nombre + '.png'))
+    print(len(FILAS), 'estados animados en assets/efectos')
+
+
 def ver_salas():
     """Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego)."""
     letras = {'suelo': '.', 'pared': '#', 'puerta': 'D', 'entrada': 'E', 'agua': '~', 'puente': '=', 'hierba': '"', 'lava': '%', 'sombra': 's'}
@@ -1662,6 +2157,14 @@ if __name__ == '__main__':
     elif orden == 'objetos': herramienta_objetos()
     elif orden == 'paneles': herramienta_paneles()
     elif orden == 'hud': herramienta_hud()
+    elif orden == 'clima': herramienta_clima()
+    elif orden == 'estados': herramienta_estados()
+    elif orden == 'arenas': herramienta_arenas()
+    elif orden == 'casas': herramienta_casas()
+    elif orden == 'aldea': herramienta_aldea()
+    elif orden == 'logo': herramienta_logo()
+    elif orden == 'inicial': herramienta_inicial()
+    elif orden == 'chispas': herramienta_chispas()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()

@@ -665,11 +665,93 @@ def armar_generacion():
         """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas)).
         datos: como se arma (los subjefes traen la suya, ver subjefes.arena); si no, la de la era."""
         azar = random.Random(semilla)
-        if datos is None: datos = mundos.ARENA_REGI if tipo == 'regi' and 'plan_fijo' not in mundos.ERAS[era] else mundos.ERAS[era]['arena']
+        datos = mundos.ARENA_REGI if tipo == 'regi' and 'plan_fijo' not in mundos.ERAS[era] else mundos.ERAS[era]['arena']
         columnas, filas = datos.get('tamaño', (COLUMNAS, FILAS))
         est = _generar(datos, 'sur', list(salidas), azar, columnas, filas, radio_centro=3)
         return _armar(est['m'], est['objetos'], TAM_CASILLA, 'sur', salidas,
                       {'tipo': tipo, 'era': era, 'variante': 'arena', 'piezas': est['piezas'], 'simetria': est['sim'], 'forma': est['forma']})
+
+
+    # ---------- arenas ya dibujadas (assets/mundo/arenas/<era>_<tipo>.png + .json, las arma 'python herramientas.py arenas') ----------
+    _arenas_pmd = {}
+
+
+    def _arena_pmd(clave):
+        """Los datos de una arena dibujada ({'k', 'piso', 'brasas', 'imagen': el dibujo ya agrandado}) o None si no esta."""
+        if clave not in _arenas_pmd:
+            carpeta = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'mundo', 'arenas')
+            try:
+                with open(os.path.join(carpeta, clave + '.json'), encoding='utf-8') as f: d = json.load(f)
+                img = pygame.image.load(os.path.join(carpeta, clave + '.png')).convert()
+                suave = pygame.transform.scale2x(img)                     # el doble sin escalones (el PMD es de 240 px de ancho: hay que agrandarlo mucho)
+                d['imagen'] = pygame.transform.scale(suave, (img.get_width() * d['k'], img.get_height() * d['k']))
+                _arenas_pmd[clave] = d
+            except (OSError, ValueError, pygame.error): _arenas_pmd[clave] = None
+        return _arenas_pmd[clave]
+
+
+    def _arena_dibujada(era, salidas, azar, tipo, datos):
+        """La arena de un jefe sobre un 'Dungeon Boss Room' del PMD: el dibujo entero es el fondo, la plataforma (el poligono medido) es
+        el piso y lo demas pared invisible. La puerta de salida queda pegada al borde de la plataforma y entras por el lado de enfrente.
+        Las maquinas y manchas de terreno de la arena de la era (altares, generadores, charcos...) se reparten sobre la plataforma.
+        Todo lo que cambian los jefes (vacios, torres, escarcha) se dibuja con tiles encima del dibujo, como siempre. None si no esta el dibujo."""
+        d = _arena_pmd(mundos.ERAS[era]['clave'] + '_' + tipo)
+        if not d: return None
+        tam, k, img = TAM_CASILLA, d['k'], d['imagen']
+        columnas, filas = math.ceil(img.get_width() / tam), math.ceil(img.get_height() / tam)
+        fondo = pygame.Surface((columnas * tam, filas * tam)); fondo.fill(img.get_at((2, 2)))
+        ox, oy = (columnas * tam - img.get_width()) // 2, (filas * tam - img.get_height()) // 2
+        fondo.blit(img, (ox, oy))
+        piso = [(x * k + ox, y * k + oy) for x, y in d['piso']]
+        m = [['suelo' if 0 < f < filas - 1 and 0 < c < columnas - 1 and _adentro_poligono((c + 0.5) * tam, (f + 0.5) * tam, piso) else 'pared'
+              for c in range(columnas)] for f in range(filas)]
+        cf = round(sum(y for _, y in piso) / len(piso) / tam - 0.5)       # la casilla del medio de la plataforma
+        cc = round(sum(x for x, _ in piso) / len(piso) / tam - 0.5)
+
+        def borde(lado):
+            """La ultima casilla de piso yendo desde el medio hacia ese lado."""
+            df, dc = PASO_LADO[lado]
+            f, c = cf, cc
+            while m[f - df][c - dc] == 'suelo': f, c = f - df, c - dc
+            return f, c
+
+        puertas = []
+        for lado in salidas:                                              # cada salida: 3 casillas de puerta en la pared pegada a la plataforma
+            df, dc = PASO_LADO[lado]
+            f, c = borde(lado)
+            celdas = [(f - df + abs(dc) * n, c - dc + abs(df) * n) for n in (-1, 0, 1)]
+            for a, b in celdas:
+                m[a][b] = 'puerta'
+                for n in (1, 2): m[a + df * n][b + dc * n] = 'suelo'          # y piso delante de las tres
+            a0, b0 = min(celdas)
+            puertas.append({'lado': lado, 'rect': pygame.Rect(b0 * tam, a0 * tam, tam * (3 if df else 1), tam * (3 if dc else 1))})
+        f_i, c_i = borde('sur')                                           # entras por abajo (enfrente de la puerta del norte)
+        f_i -= 1
+        cerca = lambda f, c, lugares, r: any(abs(f - a) <= r and abs(c - b) <= r for a, b in lugares)
+        delicado = [(f_i, c_i)] + [(p_['rect'].centery // tam, p_['rect'].centerx // tam) for p_ in puertas]
+        libres = [(f, c) for f in range(2, filas - 2) for c in range(2, columnas - 2)
+                  if all(m[f + a][c + b] == 'suelo' for a in (-1, 0, 1) for b in (-1, 0, 1)) and math.hypot(f - cf, c - cc) >= 3.5 and not cerca(f, c, delicado, 3)]
+        puestas = []
+        for maquina, cantidad in datos.get('maquinas', []):               # maquinas de la era, lejos del medio y separadas entre ellas
+            if maquina == 'cascada' or mundos.TERRENOS[maquina].get('pegado_a_pared'): continue
+            for _ in range(azar.randint(*cantidad)):
+                lugares = [l for l in libres if not cerca(*l, puestas, 4)]
+                if not lugares: break
+                f, c = azar.choice(lugares)
+                m[f][c] = maquina; puestas.append((f, c))
+        for terreno, manchas, casillas in datos.get('terrenos', []):      # manchas de terreno: crecen de a una casilla desde un punto
+            for _ in range(azar.randint(*manchas)):
+                lugares = [l for l in libres if m[l[0]][l[1]] == 'suelo' and not cerca(*l, puestas, 1)]
+                if not lugares: break
+                f, c = azar.choice(lugares)
+                for _ in range(azar.randint(*casillas)):
+                    if m[f][c] == 'suelo' and not cerca(f, c, delicado, 2) and not cerca(f, c, puestas, 1): m[f][c] = terreno
+                    f, c = f + azar.choice((-1, 0, 1)), c + azar.choice((-1, 0, 1))
+                    if not (1 < f < filas - 2 and 1 < c < columnas - 2) or m[f][c] not in ('suelo', terreno): break
+        return {'matriz': m, 'objetos': [], 'tam': tam, 'columnas': columnas, 'filas': filas, 'esc': pygame.Rect(0, 0, columnas * tam, filas * tam),
+                'entrada': None, 'puertas': puertas, 'inicio': ((c_i + 0.5) * tam, (f_i + 0.5) * tam), 'alcanzables': _alcanzables(m, [], (f_i, c_i)),
+                'vitrinas': [], 'piezas': [], 'interior': False, 'tipo': tipo, 'era': era, 'variante': 'arena', 'simetria': 'no', 'forma': 'dibujo',
+                'fondo_base': fondo, 'brasas': d.get('brasas', False), 'centro': ((cc + 0.5) * tam, (cf + 0.5) * tam)}
 
 
     def generar_tienda(era, salidas=('oeste', 'este'), semilla=None):
@@ -812,27 +894,30 @@ def armar_generacion():
         return dentro
 
 
-    def generar_habitacion(nombre, era=0):
-        """Una habitacion del refugio con su fondo del PMD agrandado x2. El piso es el poligono medido; lo demas, pared invisible."""
-        d = HABITACIONES[nombre]
+    def generar_habitacion(nombre, era=0, choza=None):
+        """Una habitacion del refugio con su fondo del PMD agrandado x2. El piso es el poligono medido; lo demas, pared invisible.
+        'Tu casa' es tu choza del barrio por dentro (choza: cual), si estan las chozas del Red Rescue Team."""
+        d = (_habitacion_choza(choza) if nombre == 'casa' and choza in CHOZAS else None) or HABITACIONES[nombre]
         k, tam = 2, TIENDA_CASILLA
-        if d['hoja'] not in _hojas_refugio:
+        if d.get('imagen') is None and d['hoja'] not in _hojas_refugio:
             try: _hojas_refugio[d['hoja']] = pygame.image.load(d['hoja'])
             except (pygame.error, FileNotFoundError): _hojas_refugio[d['hoja']] = None
-        hoja = _hojas_refugio[d['hoja']]
+        hoja = d.get('imagen') or _hojas_refugio[d['hoja']]
         x0, y0, w, h = d['recorte']
-        columnas, filas = math.ceil(w * k / tam) + 2, math.ceil(h * k / tam) + 2      # una casilla de borde alrededor
-        fondo = pygame.Surface((columnas * tam, filas * tam)); fondo.fill((16, 18, 40))
-        if hoja: fondo.blit(pygame.transform.scale(hoja.subsurface(d['recorte']), (w * k, h * k)), (tam, tam))
-        def a_mundo(x, y): return x * k + tam, y * k + tam
+        columnas, filas = max(math.ceil(w * k / tam) + 2, TIENDA_COLUMNAS), max(math.ceil(h * k / tam) + 2, TIENDA_FILAS)   # una casilla de borde alrededor (y como minimo, la pantalla)
+        dx, dy = (columnas * tam - w * k) // 2, (filas * tam - h * k) // 2          # el dibujo va centrado en la sala
+        fondo = pygame.Surface((columnas * tam, filas * tam)); fondo.fill((0, 0, 0) if d.get('imagen') else (16, 18, 40))
+        if hoja: fondo.blit(pygame.transform.scale(hoja.subsurface(d['recorte']), (w * k, h * k)), (dx, dy))
+        def a_mundo(x, y): return x * k + dx, y * k + dy
         piso = [a_mundo(x, y) for x, y in d['piso']]
         tapados = [pygame.Rect(*a_mundo(x, y), ww * k, hh * k) for x, y, ww, hh in d['tapado']]
+        pasillo = pygame.Rect(*a_mundo(*d['pasillo'][:2]), d['pasillo'][2] * k, d['pasillo'][3] * k) if d.get('pasillo') else None   # del piso a la puerta
         m = []
         for f in range(filas):
             fila = []
             for c in range(columnas):
                 cx, cy = (c + 0.5) * tam, (f + 0.5) * tam
-                libre = 0 < f < filas - 1 and 0 < c < columnas - 1 and _adentro_poligono(cx, cy, piso) and not any(t.collidepoint(cx, cy) for t in tapados)
+                libre = 0 < f < filas - 1 and 0 < c < columnas - 1 and (_adentro_poligono(cx, cy, piso) or (pasillo and pasillo.collidepoint(cx, cy))) and not any(t.collidepoint(cx, cy) for t in tapados)
                 fila.append('suelo' if libre else 'pared')
             m.append(fila)
         sx, sy, sw, sh = d['salida']
@@ -850,10 +935,11 @@ def armar_generacion():
 
 
     def generar_plaza(era, estilo='celebi', semilla=None):
-        """La plaza del refugio (el plano): el portal arriba al medio con decoracion de la era a los costados, un patiecito arriba a
-        la izquierda (con la puerta del lounge), el tablon de misiones en la pared izquierda, la fuente en el medio (segun la era),
-        tres edificios a la derecha (minijuegos, salon de los modos y galeria), el patio grande abajo para descansar, el observatorio
-        afuera abajo a la izquierda (sobre el vacio) y la salida al barrio por el oeste."""
+        """La plaza del refugio (el plano): el portal arriba al medio con decoracion de la era a los costados, el patiecito de arriba a
+        la izquierda con el lounge, el tablon de misiones en la pared izquierda, la fuente en el medio (segun la era), dos chozas arriba
+        a la derecha (salon de los modos y minijuegos), dos abajo a la derecha (la galeria y una en obra), el patio grande abajo para
+        descansar, el observatorio afuera abajo a la izquierda (sobre el vacio) y la salida al barrio por el oeste.
+        Los edificios son las chozas del Red Rescue Team con su patio (PARCELAS): se entra caminando por el caminito hasta la puerta."""
         azar = random.Random(semilla)
         tam, columnas, filas = TIENDA_CASILLA, 72, 44
         ancho, alto = columnas * tam, filas * tam
@@ -870,9 +956,10 @@ def armar_generacion():
                         if f0 == f1 and 0 < f + d_ < filas - 1: m[f + d_][c] = 'suelo'
                         elif 0 < c + d_ < columnas - 1: m[f][c + d_] = 'suelo'
         camino(1, cc, fc, cc)                                             # del portal a la fuente
-        camino(fc, 3, fc, columnas - 12)                                  # de oeste a este pasando por la fuente
-        camino(fc, cc, filas - 8, cc)                                     # de la fuente al patio
-        camino(8, columnas - 12, filas - 10, columnas - 12)               # la calle de los edificios
+        camino(fc, 3, fc, columnas - 6)                                   # de oeste a este pasando por la fuente
+        camino(fc, cc, filas - 7, cc)                                     # de la fuente al patio
+        for f in (filas - 8, filas - 7):                                  # la callecita de las chozas de abajo
+            for c in range(cc, columnas - 6): m[f][c] = 'suelo'
         # la fuente del medio: agua en circulo con un borde de piedra (en el atemporal, el vacio con un cristal)
         for f in range(fc - 6, fc + 7):
             for c in range(cc - 6, cc + 7):
@@ -886,15 +973,30 @@ def armar_generacion():
                 m[f][c] = 'suelo' if d <= 3.6 else 'vacio'
         for c in range(7, 16): m[filas - 13][c] = 'suelo'                 # el puentecito hasta la isla
         for f in range(filas - 13, filas - 9): m[f][7] = 'suelo'
-        # el patio grande de abajo: un estanque y canteros
-        for f in range(filas - 6, filas - 3):
+        # el patio grande de abajo: un estanque
+        for f in range(filas - 5, filas - 2):
             for c in range(cc + 8, cc + 15):
                 if azar.random() < 0.9: m[f][c] = 'agua'
-        objetos, puntos, pasos, letreros = [], [], [], []
-        def obj(nombre, x, y, color=None):
+        objetos, puntos, pasos, letreros, llegadas = [], [], [], [], {}
+        def obj(nombre, x, y, color=None, sprite=None):
             o = crear_objeto(nombre, (round(x), round(y)))
             if color: o['color'] = color
+            if sprite: o['sprite'] = sprite
             objetos.append(o); return o
+        def choza(parcela, zona, titulo, color, c_puerta, f_arriba, f_calle):
+            """Una choza con la puerta en la columna c_puerta, la parte de arriba en la fila f_arriba y su caminito hasta la fila f_calle."""
+            cx = c_puerta * tam
+            puesta = _poner_parcela(objetos, parcela, cx, f_arriba * tam, tam)
+            if puesta: puerta, llegada, r = puesta
+            else:                                                         # sin los dibujos del PMD: el edificio de antes
+                e = obj('edificio', cx, f_arriba * tam + 200, color); r = e['rect']
+                puerta, llegada = pygame.Rect(r.centerx - 30, r.bottom - 6, 60, 30), (r.centerx, r.bottom + 70)
+            for f in range(r.bottom // tam, f_calle + 1):
+                for c in (c_puerta - 1, c_puerta): m[f][c] = 'suelo'
+            if zona: pasos.append({'rect': puerta, 'zona': zona, 'texto': 'Entrar: ' + titulo}); llegadas[zona] = llegada
+            else: puntos.append({'pos': (cx, llegada[1] - 30), 'accion': 'obra', 'texto': titulo, 'radio': 80})
+            letreros.append((cx, r.y - 16, titulo, color))
+            return r
         # la decoracion de los costados del portal (cambia con la era)
         for k in range(4):
             for lado in (-1, 1):
@@ -903,47 +1005,50 @@ def armar_generacion():
         guardian = ((cc + 2) * tam, 3 * tam)
         obj('celebi', *guardian)
         if atemporal: obj('pilar_de_cristal', cc * tam + tam // 2, fc * tam + tam // 2)
-        # patiecito de arriba a la izquierda (cerco de arbustos) con la puerta del lounge
-        for c in range(3, 22, 2):
-            if c not in (11, 13): obj('arbusto', c * tam, 15 * tam)
-        for f in range(4, 15, 2): obj('arbusto', 22 * tam, f * tam)
-        lounge = obj('edificio', 12 * tam, 4 * tam, (210, 150, 90))
-        pasos.append({'rect': pygame.Rect(lounge['rect'].centerx - 30, lounge['rect'].bottom - 10, 60, 30), 'zona': 'comedor', 'texto': 'Entrar al lounge'})
-        letreros.append((lounge['rect'].centerx, lounge['rect'].top - 52, 'Lounge', (210, 150, 90)))
-        for x in (6, 17): obj('banco', x * tam, 10 * tam)
-        obj('mesa', 12 * tam, 10 * tam, (230, 200, 120))
+        # patiecito de arriba a la izquierda (cerco de arbustos) con el lounge
+        choza('planta', 'comedor', 'Lounge', (210, 150, 90), 12, 2, fc - 2)
+        for x, y in ((3, 3), (21, 3), (3, 17), (21, 17)): obj('arbol', x * tam, y * tam)   # un arbol en cada esquina del patiecito
+        for x in (4, 20): obj('tronco', x * tam, 13 * tam + 14)          # troncos para sentarse
+        obj('mesa_de_mercado', 19 * tam + 20, 5 * tam)
         # el tablon de misiones en la pared de la izquierda
-        tablon = obj('tablon', 2 * tam + 10, (fc - 6) * tam)
+        tablon = obj('tablon', 2 * tam + 10, (fc - 6) * tam, sprite='cartel')
         puntos.append({'pos': (tablon['rect'].centerx + 50, tablon['rect'].centery), 'accion': 'misiones', 'texto': 'Tablón de misiones', 'radio': 90})
-        # los tres edificios de la derecha
-        for k, (zona, titulo, color) in enumerate((('minijuegos', 'Minijuegos', (90, 170, 230)), ('salon', 'Salón de los modos', (220, 110, 90)),
-                                                   ('galeria', 'Galería', (170, 120, 210)))):
-            e = obj('edificio', (columnas - 6) * tam, (7 + k * 11) * tam, color)
-            puerta = pygame.Rect(e['rect'].x - 26, e['rect'].centery - 28, 30, 56)       # la puerta mira a la calle (al oeste)
-            pasos.append({'rect': puerta, 'zona': zona, 'texto': 'Entrar: ' + titulo})
-            letreros.append((e['rect'].centerx, e['rect'].top - 52, titulo, color))
-        # el patio grande: arboles y bancos
-        for x, y in ((5, filas - 4), (24, filas - 3), (32, filas - 5), (48, filas - 3), (58, filas - 5), (66, filas - 3), (40, filas - 4)):
+        # las chozas de la derecha: dos arriba de la calle y dos abajo
+        choza('fuego', 'salon', 'Salón de los modos', (220, 110, 90), 49, 3, fc - 2)
+        choza('agua', 'minijuegos', 'Minijuegos', (90, 170, 230), 62, 3, fc - 2)
+        choza('roca', 'galeria', 'Galería', (170, 120, 210), 49, 25, filas - 8)
+        choza('obra_agua', None, 'Choza en obra', (200, 180, 120), 62, 25, filas - 8)
+        llegadas['dojo'] = llegadas.get('salon')
+        # el patio grande: arboles sueltos, tocones y troncos para sentarse
+        for x, y in ((18, filas - 3), (24, filas - 4), (31, filas - 3), (40, filas - 3), (54, filas - 3), (61, filas - 4), (68, filas - 3), (68, 16), (56, 16)):
             obj('arbol', x * tam, y * tam)
-        for x in (28, 44, 54): obj('banco', x * tam, (filas - 8) * tam)
-        letreros.append((cc * tam, (filas - 9) * tam, 'Patio', (120, 200, 110)))
+        for x, y in ((21, filas - 3), (57, filas - 4)): obj('tocon', x * tam, y * tam)
+        for x in (27, 34): obj('tronco', x * tam, (filas - 5) * tam)
+        letreros.append((27 * tam, (filas - 7) * tam, 'Patio', (120, 200, 110)))
         # el observatorio
-        tele = obj('telescopio', 7 * tam, (filas - 7) * tam)
+        tele = obj('telescopio', 7 * tam, (filas - 7) * tam, sprite='pilar_de_cristal')
         puntos.append({'pos': (tele['rect'].centerx, tele['rect'].bottom + 30), 'accion': 'observatorio', 'texto': 'Mirar el cosmos', 'radio': 80})
         letreros.append((7 * tam, (filas - 12) * tam, 'Observatorio', (150, 170, 255)))
         letreros.append((3 * tam, fc * tam - 70, 'Al barrio', (230, 210, 150)))
         for o in objetos:
-            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
-            o['vida'] = o['max_vida'] = None
-        llegadas = {'comedor': (12 * tam, 6 * tam + 40), 'minijuegos': ((columnas - 10) * tam, 7 * tam), 'salon': ((columnas - 10) * tam, 18 * tam),
-                    'galeria': ((columnas - 10) * tam, 29 * tam), 'barrio': (3 * tam, fc * tam), 'dojo': ((columnas - 10) * tam, 18 * tam)}
+            if o['nombre'] not in ('parcela', 'tope'): o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
+            o['vida'] = o['max_vida'] = None; o['empujable'] = False
+        animados = []                                                     # flores del PMD que se mueven, sueltas por el pasto
+        ocupado = [o['rect'].inflate(90, 150) for o in objetos if o['nombre'] != 'tope']
+        for _ in range(0 if atemporal else 60):
+            f, c = azar.randrange(2, filas - 2), azar.randrange(2, columnas - 2)
+            x, y = c * tam + tam // 2, f * tam + tam - 4
+            if m[f][c] != 'hierba' or any(r_.collidepoint(x, y - 10) for r_ in ocupado): continue
+            flor = _flor_animada(azar.choice(('flor_roja', 'flor_amarilla')), x // 2, y // 2, 2)
+            if flor: animados.append(flor); ocupado.append(pygame.Rect(x - 90, y - 90, 180, 180))
+        llegadas['barrio'] = (3 * tam, fc * tam)
         return _armar(m, objetos, tam, None, ['norte', 'oeste'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'guardian': guardian,
                       'interior': False, 'inicio': (cc * tam, (fc + 7) * tam), 'zona': 'plaza', 'titulo': 'El refugio de Celebi',
-                      'puntos': puntos, 'pasos': pasos, 'llegadas': llegadas, 'letreros': letreros})
+                      'puntos': puntos, 'pasos': pasos, 'llegadas': llegadas, 'letreros': letreros, 'animados': animados})
 
 
-    def generar_barrio(era, estilo='celebi', semilla=None):
-        """El barrio: una calle con casas. La tuya, la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas).
+    def _barrio_dibujado(era, estilo='celebi', semilla=None):
+        """El barrio de antes (si faltan las chozas del PMD): una calle con casas. La tuya, la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas).
         Vuelve a la plaza por el este."""
         tam, columnas, filas = TIENDA_CASILLA, 44, 18
         m = _matriz_base(columnas, filas, None, ['este'])
@@ -969,6 +1074,189 @@ def armar_generacion():
         return _armar(m, objetos, tam, None, ['este'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'interior': False,
                       'inicio': ((columnas - 3) * tam, 9 * tam), 'zona': 'barrio', 'titulo': 'El barrio', 'puntos': puntos, 'pasos': pasos,
                       'llegadas': llegadas, 'letreros': letreros, 'guardian': (-999, -999)})
+
+
+    # ---------- el barrio con las chozas del Red Rescue Team (assets/mundo/casas, las arma 'python herramientas.py casas') ----------
+    _CASAS = os.path.join(_ASSETS, 'mundo', 'casas')
+    try: CHOZAS = sorted(a[:-11] for a in os.listdir(_CASAS) if a.endswith('_afuera.png'))
+    except OSError: CHOZAS = []
+    # que choza le toca a cada tipo (la tuya sale del tipo de tu pokemon; si no hay, la de Eevee)
+    CHOZA_TIPO = {'fuego': 'charmander', 'agua': 'squirtle', 'planta': 'treecko', 'electrico': 'pikachu', 'normal': 'eevee', 'hada': 'skitty',
+                  'psiquico': 'psyduck', 'tierra': 'mudkip', 'hielo': 'totodile', 'dragon': 'cyndaquil', 'volador': 'torchic', 'siniestro': 'meowth',
+                  'bicho': 'chikorita', 'veneno': 'chikorita', 'lucha': 'torchic', 'roca': 'mudkip', 'acero': 'totodile', 'fantasma': 'meowth'}
+    _imagenes_casas = {}
+
+
+    def _imagen_casa(nombre):
+        """Imagen de assets/mundo/casas/<nombre>.png (None si no esta)."""
+        if nombre not in _imagenes_casas:
+            try: _imagenes_casas[nombre] = pygame.image.load(os.path.join(_CASAS, nombre + '.png'))
+            except (pygame.error, FileNotFoundError): _imagenes_casas[nombre] = None
+        return _imagenes_casas[nombre]
+
+
+    # las chozas de la plaza (assets/mundo/objetos/parcela_<nombre>.png, 'python herramientas.py aldea'): donde queda la puerta en el dibujo (x, y)
+    PARCELAS = {'agua': (107, 127), 'fuego': (107, 116), 'planta': (106, 105), 'roca': (106, 100), 'hoja': (115, 100), 'obra_fuego': (107, 107), 'obra_agua': (106, 118)}
+
+
+    def _tope(rect, tam):
+        """Un objeto que no se ve y no deja pasar (lo que no se pisa de una parcela)."""
+        o = crear_objeto('tope', rect.center); o['rect'] = pygame.Rect(rect); o['sin_dibujo'] = True
+        o['celdas'] = {(f, c) for f in range(rect.top // tam, (rect.bottom - 1) // tam + 1) for c in range(rect.left // tam, (rect.right - 1) // tam + 1)}
+        return o
+
+
+    def _poner_parcela(objetos, nombre, cx, y, tam, k=2):
+        """Pone la choza 'nombre' con su patio (el dibujo del PMD agrandado x k) con la puerta en cx y la parte de arriba en y. Del patio
+        solo se pisa el caminito de la puerta. Devuelve (rect de la puerta, donde quedas al salir, rect del dibujo) o None si falta el dibujo."""
+        img = _pieza_aldea('parcela_' + nombre)
+        if not img or nombre not in PARCELAS: return None
+        w, h = img.get_width() * k, img.get_height() * k
+        px, py = PARCELAS[nombre]
+        r = pygame.Rect(round(cx - px * k), round(y), w, h)
+        o = crear_objeto('parcela', r.center); o['rect'] = r; o['sprite'] = 'parcela_' + nombre; o['solido'] = False; o['celdas'] = set()
+        objetos.append(o)
+        paso, corte = 34 * k, r.y + py * k - 8                           # medio ancho del caminito y hasta donde tapa la choza
+        for tope in (pygame.Rect(r.x, r.y, w, corte - r.y), pygame.Rect(r.x, corte, cx - paso - r.x, r.bottom - corte), pygame.Rect(cx + paso, corte, r.right - cx - paso, r.bottom - corte)):
+            if tope.width > 0 and tope.height > 0: objetos.append(_tope(tope, tam))
+        return pygame.Rect(cx - 16 * k, corte - 2, 32 * k, 26), (cx, corte + 80), r
+
+
+    def choza_de(tipos):
+        """La choza que le toca a un pokemon con esos tipos (None si no hay chozas)."""
+        for t in tipos:
+            if CHOZA_TIPO.get(t) in CHOZAS: return CHOZA_TIPO[t]
+        return 'eevee' if 'eevee' in CHOZAS else (CHOZAS[0] if CHOZAS else None)
+
+
+    def _habitacion_choza(choza):
+        """Datos de 'Tu casa' cuando es una choza del PMD por dentro (como una entrada de HABITACIONES). El piso es redondo: sale del tamaño del dibujo."""
+        img = _imagen_casa(choza + '_adentro')
+        if img is None: return None
+        w, h = img.get_size()
+        cx, cy, rx, ry = w / 2, h * 0.64, w * 0.33, h * 0.24
+        piso = [(cx + rx * math.cos(a * math.pi / 12), cy + ry * math.sin(a * math.pi / 12)) for a in range(24)]
+        return dict(HABITACIONES['casa'], imagen=img, recorte=(0, 0, w, h), piso=piso, tapado=[], salida=(round(cx - 22), round(h * 0.88), 44, 26),
+                    pasillo=(round(cx - 22), round(cy), 44, round(h * 0.88 - cy) + 20), inicio=(round(cx), round(h * 0.80)),
+                    puntos=[((cx, h * 0.50), 'cama', 'Tu cama'), ((cx - w * 0.22, h * 0.60), 'cama', 'El rincón de las visitas'), ((cx + w * 0.22, h * 0.60), 'diario', 'Tu diario')])
+
+
+    def _pieza_aldea(nombre):
+        """Una pieza suelta de la aldea (arbol, tocon, cerca, flor...) de assets/mundo/objetos, o None. Las recorta: python herramientas.py aldea."""
+        clave = ('pieza', nombre)
+        if clave not in _imagenes_casas:
+            try: _imagenes_casas[clave] = pygame.image.load(os.path.join(_ASSETS, 'mundo', 'objetos', nombre + '.png'))
+            except (pygame.error, FileNotFoundError): _imagenes_casas[clave] = None
+        return _imagenes_casas[clave]
+
+
+    def _flor_animada(nombre, x, y, k):
+        """Una flor del PMD que se mueve (va y vuelve: cuadros 1-2-3-4-3-2), para la lista 'animados' de la sala. None si falta la tira.
+        (x, y): donde apoya el medio de la flor, en pixeles del dibujo sin agrandar."""
+        clave = ('flor', nombre, k)
+        if clave not in _imagenes_casas:
+            tira = _pieza_aldea(nombre)
+            if tira:
+                lado = tira.get_width() // 4
+                larga = pygame.Surface((lado * 6, tira.get_height()), pygame.SRCALPHA)
+                for i, cuadro in enumerate((0, 1, 2, 3, 2, 1)): larga.blit(tira, (i * lado, 0), (cuadro * lado, 0, lado, tira.get_height()))
+                tira = pygame.transform.scale(larga, (larga.get_width() * k, larga.get_height() * k))
+            _imagenes_casas[clave] = tira
+        tira = _imagenes_casas[clave]
+        return {'tira': tira, 'cuadros': 6, 'pos': (round(x * k - tira.get_width() / 12), round(y * k - tira.get_height())), 'ms': 230} if tira else None
+
+
+    def generar_barrio(era, estilo='celebi', semilla=None, choza=None):
+        """El barrio: una fila de jardines con chozas del Red Rescue Team y la calle de arena por delante. La tuya (la choza del tipo de tu
+        pokemon), la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas). Se camina por la calle y por el
+        caminito de cada jardin hasta la puerta; a la plaza se vuelve por el final de la calle, al este. Todo el fondo es dibujo del PMD
+        agrandado x2 (como las habitaciones); en cada mastil flamea la bandera de la choza y las flores se mueven.
+        Los arboles son UNO solo del PMD pegado suelto (arriba, al lado de cada jardin y pasando la calle): nada de tiras de arboles pegados."""
+        if len(CHOZAS) < 3: return _barrio_dibujado(era, estilo, semilla)
+        k, tam, n = 2, TIENDA_CASILLA, TIENDA_CASILLA // 2             # n: lado de una casilla en pixeles del dibujo original
+        mia = choza if choza in CHOZAS else choza_de(())
+        celebi = next((c for c in ('chikorita', 'treecko') if c in CHOZAS and c != mia), CHOZAS[0])
+        otras = [c for c in ('mudkip', 'torchic', 'meowth', 'squirtle', 'skitty', 'cyndaquil', 'psyduck', 'totodile', 'charmander', 'pikachu') if c in CHOZAS and c not in (mia, celebi)]
+        casas = [(mia, 'casa', 'Tu casa', (220, 120, 90)), (celebi, 'tienda_celebi', 'Tiendita de Celebi', (120, 200, 120))]
+        casas += [(c, None, 'Casa de un amigo', color) for c, color in zip(otras, ((130, 160, 220), (210, 170, 110), (190, 130, 200)))]
+        BAJA, ARENA, PASTO = 40, (248, 248, 192), (112, 200, 80)       # cuanto bajan los jardines (arriba queda una franja de pasto con arboles) y los colores del piso
+        Y0, CALLE = BAJA - 12, (300 + BAJA, 360 + BAJA)                # donde arranca cada jardin (se le cortan 12 px de arriba) y de donde a donde va la calle
+        jardines = [_imagen_casa(c + '_afuera') for c, *_ in casas]
+        ancho = math.ceil(sum(j.get_width() for j in jardines) / n) * n
+        alto = CALLE[1] + 140                                          # pasando la calle: una franja de pasto con cerca, arboles y flores
+        columnas, filas = ancho // n, alto // n
+        dibujo = pygame.Surface((ancho, alto)); dibujo.fill(PASTO)
+        dibujo.fill(ARENA, (0, CALLE[0], ancho, CALLE[1] - CALLE[0]))
+        azar = random.Random(7)
+        for _ in range(ancho // 6):                                    # piedritas de la calle
+            dibujo.fill((232, 232, 168), (azar.randrange(ancho), azar.randrange(CALLE[0] + 4, CALLE[1] - 4), 2, 1))
+        m = [['pared'] * columnas for _ in range(filas)]
+        for f in range(CALLE[0] // n, CALLE[1] // n):                  # la calle
+            for c in range(1, columnas - 1): m[f][c] = 'suelo'
+        pasos, puntos, letreros, animados, llegadas, sueltos = [], [], [], [], {}, []
+        x0 = 0
+        for jardin, (nombre, zona, titulo, color) in zip(jardines, casas):
+            w = jardin.get_width()
+            dibujo.blit(jardin, (x0, Y0))
+            puerta_x = x0 + {360: 181, 408: 204}.get(w, 205)             # donde esta la puerta segun el ancho de la hoja (hay tres moldes de jardin)
+            c_p = round(puerta_x / n)
+            for f in range(9 + BAJA // n, CALLE[0] // n):                # el caminito de la puerta a la calle (2 casillas de ancho)
+                for c in (c_p - 1, c_p): m[f][c] = 'suelo'
+            for c in range((x0 + 120) // n + 1, (x0 + w) // n - 1):        # la franja de pasto y arena de adelante del jardin (sin el cerco de la izquierda)
+                if 0 < c < columnas - 1: m[CALLE[0] // n - 1][c] = 'suelo'
+            puerta = pygame.Rect((puerta_x - 18) * k, (172 + BAJA) * k, 36 * k, 20 * k)
+            if zona:
+                pasos.append({'rect': puerta, 'zona': zona, 'texto': 'Entrar: ' + titulo})
+                llegadas[zona] = (puerta_x * k, (232 + BAJA) * k)
+            else: puntos.append({'pos': (puerta_x * k, (200 + BAJA) * k), 'accion': 'casa_cerrada', 'texto': titulo, 'radio': 70})
+            letreros.append((puerta_x * k, (58 + BAJA) * k, titulo, color))
+            bandera = _imagen_casa(nombre + '_bandera')
+            if bandera:                                                  # la bandera en la punta del mastil (a la izquierda de la choza)
+                cuadros = max(1, round(bandera.get_width() / (bandera.get_height() * 1.35)))
+                animados.append({'tira': pygame.transform.scale(bandera.convert_alpha(), (bandera.get_width() * k, bandera.get_height() * k)), 'cuadros': cuadros,
+                                 'pos': ((x0 + {360: 104, 408: 129}.get(w, 128)) * k, (64 + BAJA) * k), 'ms': 140})
+            sueltos.append(('arbol', x0 + w - 34, Y0 + 250))             # el arbol de la derecha de cada jardin
+            if x0 + w < ancho - 10: sueltos.append(('arbusto', x0 + w, CALLE[0] - 2))   # y una mata donde se juntan dos jardines
+            x0 += w
+        borde = _imagen_casa('borde_calle')                             # el borde de abajo de la calle (arena -> franja clara), repetido a lo ancho
+        if borde:
+            for x in range(0, ancho, borde.get_width()): dibujo.blit(borde, (x, CALLE[1] - 8))
+        mata = _pieza_aldea('mata')
+        for _ in range(ancho // 9 if mata else 0):                      # matitas de pasto donde quedo pasto liso (arriba y pasando la calle)
+            x, y = azar.randrange(4, ancho - 14), azar.choice((azar.randrange(2, Y0 + 40), azar.randrange(CALLE[1] + 24, alto - 8)))
+            if all(tuple(dibujo.get_at((x + a, y + b)))[:3] == PASTO for a in (0, 9) for b in (0, 4)): dibujo.blit(mata, (x, y))
+        for x in range(34 + azar.randrange(20), ancho - 20, 104):      # la hilera de arboles de arriba: sueltos, cada uno con su lugar
+            sueltos.append(('arbol', x + azar.randrange(-10, 11), Y0 + 44 + azar.randrange(10)))
+        x = 6
+        while x < ancho - 60:                                           # pasando la calle: tramos de cerca y, cada tanto, una mata
+            pieza = 'arbusto' if azar.random() < 0.22 else 'cerca'
+            img = _pieza_aldea(pieza)
+            if not img: break
+            sueltos.append((pieza, x + img.get_width() // 2, CALLE[1] + 50))
+            x += img.get_width() + azar.choice((6, 10, 14))
+        for x in range(60 + azar.randrange(30), ancho - 30, 122):      # y atras de la cerca, mas arboles sueltos con tocones y matas entre medio
+            sueltos.append(('arbol', x + azar.randrange(-12, 13), alto - 4 - azar.randrange(16)))
+            sueltos.append((azar.choice(('tocon', 'arbusto', 'arbusto')), x + 61 + azar.randrange(-8, 9), alto - 34 - azar.randrange(24)))
+        for pieza, x, y in sorted(sueltos, key=lambda s_: s_[2]):       # de atras para adelante (cada cosa apoyada en su base)
+            img = _pieza_aldea(pieza)
+            if img: dibujo.blit(img, (x - img.get_width() // 2, y - img.get_height()))
+        tapado = [pygame.Rect(x - 40, y - 84, 80, 90) for pieza, x, y in sueltos if pieza != 'cerca']   # donde ya hay un arbol, un tocon o una mata
+        for x in range(60, ancho - 40, 52):                            # flores que se mueven: arriba entre los arboles y pasando la cerca
+            for y in (Y0 + 58 + azar.randrange(8), CALLE[1] + 96 + azar.randrange(30)):
+                fx = x + azar.randrange(-12, 13)
+                if azar.random() < 0.6 and not any(t.collidepoint(fx, y - 8) or t.collidepoint(fx - 14, y - 20) or t.collidepoint(fx + 14, y - 20) for t in tapado):
+                    flor = _flor_animada(azar.choice(('flor_roja', 'flor_amarilla')), fx, y, k)
+                    if flor: animados.append(flor); tapado.append(pygame.Rect(fx - 30, y - 30, 60, 40))
+        fondo = pygame.transform.scale(dibujo, (ancho * k, alto * k))
+        salida = pygame.Rect((ancho - 30) * k, CALLE[0] * k, 30 * k, (CALLE[1] - CALLE[0]) * k)
+        pasos.append({'rect': salida, 'zona': 'plaza', 'texto': 'A la plaza'})
+        letreros.append(((ancho - 60) * k, (CALLE[0] - 14) * k, 'A la plaza →', (230, 210, 150)))
+        inicio = ((ancho - 90) * k, (CALLE[0] + 30) * k)
+        llegadas['plaza'] = inicio
+        return {'matriz': m, 'objetos': [], 'tam': tam, 'columnas': columnas, 'filas': filas, 'esc': pygame.Rect(0, 0, columnas * tam, filas * tam),
+                'entrada': None, 'puertas': [], 'inicio': inicio, 'alcanzables': _alcanzables(m, [], (CALLE[0] // n, columnas - 4)), 'vitrinas': [], 'piezas': [],
+                'interior': False, 'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'fondo_img': fondo, 'zona': 'barrio', 'titulo': 'El barrio',
+                'puntos': puntos, 'pasos': pasos, 'llegadas': llegadas, 'letreros': letreros, 'animados': animados, 'guardian': (-999, -999)}
 
 
     def generar_minijuegos(era, estilo='celebi', semilla=None):
@@ -2363,12 +2651,16 @@ def armar_entorno():
         ent['animadas'], ent['lava'] = [], []
         if ent['sala'].get('fondo_img') is not None:                   # habitacion del refugio: el fondo ya dibujado del PMD
             ent['fondo'] = ent['sala']['fondo_img']; return
-        fondo = pygame.Surface((len(m[0]) * tam, len(m) * tam))
+        base = ent['sala'].get('fondo_base')                            # arena ya dibujada del PMD: el dibujo es el piso y las paredes
+        fondo = base.copy() if base is not None else pygame.Surface((len(m[0]) * tam, len(m) * tam))
         con_sprite, entrada, charcos = set(), None, set()
-        piso = capa('suelo', era['clave'], variante)
+        piso = capa('suelo', era['clave'], variante) if base is None else None
         for f, fila in enumerate(m):
             for c, t in enumerate(fila):
                 r = pygame.Rect(c * tam, f * tam, tam, tam)
+                if base is not None and t in ('suelo', 'pared'): continue      # (se ve el dibujo)
+                if base is not None and t == 'fuego': fondo.blit(_chamuscado(tam, f * 31 + c * 17), r, special_flags=pygame.BLEND_RGB_MULT); continue
+                if base is not None and t == 'charco': charcos.add((f, c)); con_sprite.add(t); continue
                 if t == 'charco':                                        # charco: el piso de la era y despues una mancha de agua encima
                     if piso: _poner_tile(ent, fondo, piso, 'suelo', f, c, r)
                     else: pygame.draw.rect(fondo, _aclarar(era['suelo'], 8 if (f + c) % 2 else -4), r)
@@ -2586,9 +2878,43 @@ def armar_entorno():
         pygame.draw.rect(ventana, borde, (r.x, mantel.bottom - 2, r.width, 3))
 
 
+    def _sprite_de(d, img, r):
+        """El dibujo de un objeto al tamaño que va y donde se pone: del ancho del objeto y apoyado abajo; los que tienen 'escala' (el arbol
+        del PMD) van a esa escala con el tronco en la base, asi la copa sobresale para arriba y a los costados como en los juegos."""
+        if d.get('escala'):
+            sprite = _escalada(img, img.get_width() * d['escala'])
+            return sprite, sprite.get_rect(midbottom=(r.centerx, r.bottom - 8 + 8 * d['escala']))
+        sprite = _escalada(img, r.width)
+        return sprite, sprite.get_rect(midbottom=r.midbottom)
+
+
+    def _blanca(sprite):
+        """La silueta del dibujo en blanco suave (para el destello cuando le pegan), guardada."""
+        clave = (id(sprite), 'blanca')
+        if clave not in _escaladas: _escaladas[clave] = pygame.mask.from_surface(sprite).to_surface(setcolor=(110, 110, 110, 0), unsetcolor=(0, 0, 0, 0))
+        return _escaladas[clave]
+
+
+    def dibujar_copas(ent, ventana, cx, cy, rects):
+        """Despues de dibujar a los pokemon: la copa de cada arbol se vuelve a dibujar medio transparente arriba de los que estan parados
+        atras, asi no parece que caminan por encima del arbol y se los sigue viendo. rects: los rectangulos (del mundo) de los pokemon."""
+        for o in ent['objetos']:
+            d = mundos.OBJETOS[o['nombre']]
+            if not d.get('escala') or o.get('sin_dibujo'): continue
+            img = imagen('objetos', o.get('sprite') or o['nombre'], ent['era']['clave'])
+            if not img: continue
+            sprite, lugar = _sprite_de(d, img, o['rect'])
+            copa = pygame.Rect(lugar.x, lugar.y, lugar.width, o['rect'].top + 12 - lugar.y)       # lo que sobresale arriba del tronco
+            if copa.height <= 0 or not any(copa.colliderect(q) and q.bottom <= o['rect'].bottom for q in rects): continue
+            clave = (id(sprite), 'copa')
+            if clave not in _escaladas: _escaladas[clave] = sprite.copy(); _escaladas[clave].set_alpha(165)
+            ventana.blit(_escaladas[clave], (copa.x - cx, copa.y - cy), (0, 0, copa.width, copa.height))
+
+
     def dibujar(ent, ventana, cx, cy, ahora, tipos_jugador=()):
         """Dibuja la sala vista desde la camara (cx, cy). Las maquinas muestran su radio solo si ayudan a tus tipos."""
         if ent['fondo'] is None: _armar_fondo(ent)
+        ent['camara'] = (cx, cy)                                        # (la usa el clima para las sombras de las nubes)
         ventana.blit(ent['fondo'], (0, 0), pygame.Rect(cx, cy, *ventana.get_size()))
         tam = ent['tam']
         vista = pygame.Rect(cx - tam, cy - tam, ventana.get_width() + tam, ventana.get_height() + tam)
@@ -2634,11 +2960,16 @@ def armar_entorno():
                 puntos = [(r.x + azar.randint(0, r.width), r.y + azar.randint(0, r.height // 4))]
                 while puntos[-1][1] < r.bottom - 6: puntos.append((max(r.x, min(r.right, puntos[-1][0] + azar.randint(-14, 14))), puntos[-1][1] + azar.randint(8, 16)))
                 pygame.draw.lines(ventana, (255, 250, 150), False, puntos, 2)
-        for o in ent['objetos']:
+        for an in ent['sala'].get('animados', ()):                      # tiras animadas sobre el fondo (las banderas de las chozas)
+            ancho_c = an['tira'].get_width() // an['cuadros']
+            x, y = an['pos'][0] - cx, an['pos'][1] - cy
+            if -ancho_c < x < ventana.get_width() and -an['tira'].get_height() < y < ventana.get_height():
+                ventana.blit(an['tira'], (x, y), ((ahora // an['ms'] + an['pos'][0] // 97) % an['cuadros'] * ancho_c, 0, ancho_c, an['tira'].get_height()))
+        for o in sorted(ent['objetos'], key=lambda o_: (o_['nombre'] != 'parcela', o_['rect'].bottom)):   # de atras para adelante (los patios de las chozas, abajo de todo)
             if o.get('sin_dibujo'): continue
             d = mundos.OBJETOS[o['nombre']]
             r = o['rect'].move(-cx, -cy)
-            if not r.colliderect(ventana.get_rect()): continue
+            if not r.inflate(160, 260).colliderect(ventana.get_rect()): continue             # (con margen: la copa de un arbol sobresale)
             img = imagen('objetos', o.get('sprite') or o['nombre'], ent['era']['clave'])   # 'sprite': otro dibujo para el mismo objeto (las casas del barrio)
             if tiene_sprites(o['nombre']):                              # un pokemon puesto como objeto (Kecleon en la tienda): animado
                 if 'animador' not in o:
@@ -2656,9 +2987,10 @@ def armar_entorno():
                 elif dibujo: dibujo(ventana, r, o.get('color', d['color']))
                 continue
             if img:                                                     # sprite: mismo ancho que el objeto, apoyado abajo (un arbol sobresale hacia arriba)
-                sprite = _escalada(img, r.width)
-                ventana.blit(sprite, sprite.get_rect(midbottom=r.midbottom))
-                if ahora - o['golpe'] < 90: pygame.draw.rect(ventana, (255, 255, 255), sprite.get_rect(midbottom=r.midbottom), 2)
+                sprite, lugar = _sprite_de(d, img, r)
+                if ahora - o['golpe'] < 90: lugar = lugar.move(random.choice((-3, 3)), 0)   # le pegaron: se sacude
+                ventana.blit(sprite, lugar)
+                if ahora - o['golpe'] < 90: ventana.blit(_blanca(sprite), lugar, special_flags=pygame.BLEND_RGBA_ADD)   # y destella
             else:                                                       # sin sprite: forma basica con el nombre
                 color = (255, 255, 255) if ahora - o['golpe'] < 90 else o.get('color', d['color'])
                 (pygame.draw.ellipse if d.get('forma') == 'circulo' else pygame.draw.rect)(ventana, color, r)
@@ -2713,32 +3045,107 @@ def armar_entorno():
         return [(round(px * W + vx * ahora * v) % W, round(py * H + vy * ahora * v) % H) for px, py, v in _semillas[:cantidad]]
 
 
-    def dibujar_clima(ent, ventana, ahora):
-        """Capa del clima encima de todo y el cartelito de cuanto le queda."""
-        clima = ent['clima']
-        if not clima: return
+    # ---------- el clima del Red Rescue Team (assets/clima/<efecto>/<nn>.png, los arma 'python herramientas.py clima') ----------
+    CARPETA_CLIMA = os.path.join(os.path.dirname(CARPETA_ASSETS), 'clima')
+    _clima_cuadros, _clima_actual = {}, {}
+
+
+    def _cuadros_clima(nombre):
+        """Los cuadros de assets/clima/<nombre> en orden (lista vacia si no estan: se dibuja el clima de antes, con lineas y circulos)."""
+        if nombre not in _clima_cuadros:
+            carpeta = os.path.join(CARPETA_CLIMA, nombre)
+            try: cuadros = [pygame.image.load(os.path.join(carpeta, a)).convert_alpha() for a in sorted(os.listdir(carpeta)) if a.endswith('.png')]
+            except (OSError, pygame.error): cuadros = []
+            if nombre == 'sol': cuadros = cuadros + cuadros[-2:0:-1]         # el destello va y vuelve
+            if nombre == 'niebla':                                           # la niebla se suma a la pantalla: mas apagada para que no tape todo
+                for c in cuadros: c.fill((95, 95, 95), special_flags=pygame.BLEND_RGB_MULT)
+            _clima_cuadros[nombre] = cuadros
+        return _clima_cuadros[nombre]
+
+
+    def _cuadro_clima(nombre, ahora, ms, escala, alfa=255):
+        """El cuadro que toca ahora, agrandado. Se agranda una sola vez por cuadro (queda guardado hasta que cambia)."""
+        cuadros = _cuadros_clima(nombre)
+        if not cuadros: return None
+        i = (ahora // ms) % len(cuadros)
+        if _clima_actual.get(nombre, (None, None))[0] != (i, escala, alfa):
+            c = cuadros[i]
+            img = pygame.transform.scale(c, (round(c.get_width() * escala), round(c.get_height() * escala)))
+            if alfa < 255: img.set_alpha(alfa)
+            _clima_actual[nombre] = ((i, escala, alfa), img)
+        return _clima_actual[nombre][1]
+
+
+    def _embaldosar(ventana, img, dx=0, dy=0, banderas=0):
+        """Repite img por toda la ventana, corrida (dx, dy) pixeles (da la vuelta sola)."""
+        if img is None: return False
+        w, h = img.get_size()
         W, H = ventana.get_size()
-        if clima == 'lluvia':                                          # gotas que caen en diagonal
+        for y in range(round(dy) % h - h, H, h):
+            for x in range(round(dx) % w - w, W, w): ventana.blit(img, (x, y), special_flags=banderas)
+        return True
+
+
+    def _sombras_de_nubes(ent, ventana, ahora, alfa=60, velocidad=0.02):
+        """Las sombras de las nubes del PMD pasando despacio por el piso (pegadas al mundo: si caminas, quedan atras)."""
+        cx, cy = ent.get('camara', (0, 0))
+        return _embaldosar(ventana, _cuadro_clima('nubes', 0, 1000, 3, alfa), ahora * velocidad - cx, ahora * velocidad * 0.35 - cy)
+
+
+    def _hay_brasas(ent):
+        """Si en la sala hay lava, hornos o braseros (flotan brasas en el aire). Se mira una vez por sala."""
+        if 'brasas' not in ent: ent['brasas'] = any(t in ('lava', 'horno', 'brasero', 'fragua') for fila in ent['m'] for t in fila) or bool(ent['sala'].get('brasas'))
+        return ent['brasas']
+
+
+    def dibujar_clima(ent, ventana, ahora):
+        """Capa del clima encima de todo y el cartelito de cuanto le queda. Usa los cuadros animados del Red Rescue Team
+        (lluvia, granizo, nieve, niebla, arena, sol, sombras de nubes y brasas); si faltan, las lineas y circulos de antes."""
+        clima = ent['clima']
+        W, H = ventana.get_size()
+        if _hay_brasas(ent): _embaldosar(ventana, _cuadro_clima('brasas', ahora, 110, 2), banderas=pygame.BLEND_RGB_ADD)   # brasas de la lava y los hornos
+        if not clima or clima == 'despejado':                          # buen tiempo: afuera pasan sombras de nubes por el piso
+            if not ent['sala'].get('interior') and not ent['sala'].get('sin_nubes'): _sombras_de_nubes(ent, ventana, ahora, 38)
+            if not ent['sala'].get('interior') and ent['era']['clave'] == 'glaciacion':     # en la Era Glacial siempre caen unos copos
+                _embaldosar(ventana, _cuadro_clima('nieve', ahora, 160, 2, 120), ahora * 0.008, ahora * 0.01)
+            if not clima: return
+        elif clima == 'lluvia':                                        # la lluvia del PMD: rayitas que caen y salpican
             ventana.blit(_velo((W, H), (40, 60, 120, 45)), (0, 0))
-            for x, y in _particulas(90, W, H, ahora, -0.25, 1.1): pygame.draw.line(ventana, (150, 180, 255), (x, y), (x - 4, y + 14), 1)
-        elif clima == 'granizo':                                       # piedritas de hielo que caen rapido
+            if not _embaldosar(ventana, _cuadro_clima('lluvia', ahora, 50, 3)):
+                for x, y in _particulas(90, W, H, ahora, -0.25, 1.1): pygame.draw.line(ventana, (150, 180, 255), (x, y), (x - 4, y + 14), 1)
+        elif clima == 'granizo':                                       # piedritas de hielo que caen y se rompen contra el piso
             ventana.blit(_velo((W, H), (200, 220, 255, 40)), (0, 0))
-            for x, y in _particulas(70, W, H, ahora, 0.1, 0.8): pygame.draw.circle(ventana, (250, 250, 255), (x, y), 2)
-        elif clima == 'tormenta_arena':                                # arena que vuela de costado
-            ventana.blit(_velo((W, H), (190, 150, 80, 80)), (0, 0))
-            for x, y in _particulas(50, W, H, ahora, 1.2, 0.2): pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
-        elif clima == 'nieve':
+            _embaldosar(ventana, _cuadro_clima('ventisca', ahora, 60, 3, 170), ahora * 0.05, 0)
+            if not _embaldosar(ventana, _cuadro_clima('granizo', ahora, 55, 3)):
+                for x, y in _particulas(70, W, H, ahora, 0.1, 0.8): pygame.draw.circle(ventana, (250, 250, 255), (x, y), 2)
+        elif clima == 'tormenta_arena':                                # dos capas de arena que cruzan de costado a distinta velocidad
+            ventana.blit(_velo((W, H), (190, 150, 80, 60)), (0, 0))
+            a, b = _cuadro_clima('arena', 0, 1000, 5, 70), _cuadro_clima('arena', 1000, 1000, 4, 60)
+            if not (_embaldosar(ventana, a, ahora * 0.9, ahora * 0.05) and _embaldosar(ventana, b, ahora * 0.55, -ahora * 0.03)):
+                for x, y in _particulas(50, W, H, ahora, 1.2, 0.2): pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
+        elif clima == 'nieve':                                         # copos del PMD: una capa lenta y otra mas chica atras
             ventana.blit(_velo((W, H), (220, 230, 255, 30)), (0, 0))
-            for i in range(60):                                     # copos que caen despacio
-                x = (i * 97 + ahora // 40 * (1 + i % 3)) % W
-                y = (i * 53 + ahora // 25 * (1 + i % 2)) % H
-                pygame.draw.circle(ventana, (255, 255, 255), (x, y), 2 + i % 2)
-        elif clima == 'nublado': ventana.blit(_velo((W, H), (60, 60, 70, 40)), (0, 0))
-        elif clima == 'niebla': ventana.blit(_velo((W, H), (170, 170, 170, 110)), (0, 0))
-        elif clima == 'sol': ventana.blit(_velo((W, H), (255, 220, 80, 35)), (0, 0))
-        elif clima == 'tormenta_electrica':
+            _embaldosar(ventana, _cuadro_clima('nieve', ahora + 400, 150, 2, 150), -ahora * 0.01, ahora * 0.012)
+            if not _embaldosar(ventana, _cuadro_clima('nieve', ahora, 110, 3), ahora * 0.015, ahora * 0.02):
+                for i in range(60):
+                    pygame.draw.circle(ventana, (255, 255, 255), ((i * 97 + ahora // 40 * (1 + i % 3)) % W, (i * 53 + ahora // 25 * (1 + i % 2)) % H), 2 + i % 2)
+        elif clima == 'nublado':                                       # nubes cerradas: sombras grandes que pasan mas rapido
+            ventana.blit(_velo((W, H), (60, 60, 70, 30)), (0, 0))
+            _sombras_de_nubes(ent, ventana, ahora, 80, 0.035)
+        elif clima == 'niebla':                                        # bancos de niebla que se cruzan
+            ventana.blit(_velo((W, H), (170, 170, 170, 70)), (0, 0))
+            n = _cuadro_clima('niebla', 0, 1000, 4)
+            if _embaldosar(ventana, n, ahora * 0.018, ahora * 0.004, pygame.BLEND_RGB_ADD): _embaldosar(ventana, n, -ahora * 0.011 + 500, 240, pygame.BLEND_RGB_ADD)
+            else: ventana.blit(_velo((W, H), (170, 170, 170, 40)), (0, 0))
+        elif clima == 'sol':                                           # el destello del sol del PMD arriba a la izquierda
+            ventana.blit(_velo((W, H), (255, 220, 80, 30)), (0, 0))
+            d = _cuadro_clima('sol', ahora, 130, 3, 130)
+            if d: ventana.blit(d, (0, 0))
+        elif clima == 'tormenta_electrica':                            # nubes negras, lluvia y el fogonazo de cada rayo
             destello = any(v['clase'] == 'rayo' and v['vida'] > 12 for v in ent['visuales'])
             ventana.blit(_velo((W, H), (255, 255, 255, 70) if destello else (20, 20, 50, 70)), (0, 0))
+            _sombras_de_nubes(ent, ventana, ahora, 70, 0.05)
+            _embaldosar(ventana, _cuadro_clima('lluvia', ahora, 45, 3))
         texto = CLIMAS[clima]['nombre'] + ('' if ent['clima_hasta'] is None else ' ' + str(max(0, (ent['clima_hasta'] - ahora) // 1000 + 1)) + 's')
         t = _texto(texto, 20, (255, 255, 255))
         ventana.blit(t, t.get_rect(midtop=(W // 2, 24)))
@@ -2853,6 +3260,35 @@ def armar_efectos():
             chispas(ef, x, y, color, 9, 4.5, 16, 4)
         chispas(ef, x, y, color, 5, 4.0, 12, 3)                         # unas chispas del color del tipo siempre, para que se sienta el golpe
         chispas(ef, x, y, (255, 255, 255), 3, 2.5, 8, 2)
+        estrellas(ef, x, y, 2, 16)                                      # y las estrellitas del PMD
+
+
+    def estrellas(ef, x, y, cantidad=1, radio=14):
+        """Estrellitas amarillas del Red Rescue Team alrededor de (x, y): la chispa de un golpe que conecta."""
+        for _ in range(cantidad):
+            if not _animacion(ef, 'estrella', x + random.uniform(-radio, radio), y + random.uniform(-radio, radio), random.choice((40, 52)), 0.3): break
+
+
+    def brillos(ef, x, y, cantidad=3, radio=26):
+        """Brillitos blancos del Red Rescue Team (frenesi, hitos de la cadena de golpes)."""
+        for _ in range(cantidad):
+            if not _animacion(ef, 'brillo', x + random.uniform(-radio, radio), y + random.uniform(-radio, radio), 40, 0.22): break
+
+
+    def baja(ef, x, y, color, tipo=None):
+        """Un enemigo derrotado: un anillo de luz, el golpe de su tipo en grande, estrellas y chispas de su color para todos lados."""
+        _animacion(ef, 'cambio', x, y, 150, 0.8)
+        if not _animacion(ef, 'golpe_' + str(tipo), x, y, 128, 0.5): _animacion(ef, 'golpe', x, y, 96)
+        estrellas(ef, x, y, 4, 36)
+        chispas(ef, x, y, color, 16, 7.0, 26, 5, gravedad=0.12)
+        chispas(ef, x, y, (255, 255, 255), 8, 5.0, 16, 3)
+
+
+    def rastro(ef, x, y, color):
+        """La colita de un proyectil: una chispa de su color que queda atras y se apaga (si ya hay muchas particulas, no)."""
+        if len(ef['parts']) > 300: return
+        ef['parts'].append({'x': x + random.uniform(-3, 3), 'y': y + random.uniform(-3, 3), 'vx': 0, 'vy': 0, 'vida': 11, 'max': 11,
+                            'color': color, 'tam': 4, 'g': 0, 'forma': 'circulo'})
 
 
     def romper(ef, x, y, color):
@@ -2929,7 +3365,7 @@ def armar_efectos():
 
     def transicion(ef, clase, ahora, centro, duracion=None):
         """'entrar': el negro se abre en circulo desde donde entras. 'salir': se cierra hacia la puerta."""
-        ef['transicion'] = {'clase': clase, 'inicio': ahora, 'hasta': ahora + (duracion or (650 if clase == 'entrar' else 320)), 'centro': centro}
+        ef['transicion'] = {'clase': clase, 'inicio': ahora, 'hasta': ahora + (duracion or (500 if clase == 'entrar' else 250)), 'centro': centro}
 
 
     def en_transicion(ef, ahora):
