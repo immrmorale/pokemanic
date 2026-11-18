@@ -1721,11 +1721,32 @@ def _suelto(hoja, caja, minimo=30, sombra=True, centro=None):
         if parte.get_bounding_rects()[0].height <= 3: continue                    # ni las rayitas del borde del claro
         parte.to_surface(limpio, setsurface=sub, unsetcolor=None)
     pa = pygame.PixelArray(limpio); pa.replace(SOMBRA_RRT, (0, 0, 0, 70)); pa.close()   # la sombra sirve sobre cualquier piso
-    vecinos = lambda x, y: [tuple(limpio.get_at((x + a, y + b))) for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1)) if 0 <= x + a < w and 0 <= y + b < h]
-    orilla = [(x, y) for x in range(w) for y in range(h) if limpio.get_at((x, y)).a == 255                     # el bordecito verde entre la sombra y el pasto
-              and all(v[3] < 255 for v in vecinos(x, y)) and any(v[3] == 70 for v in vecinos(x, y))]
-    for p in orilla: limpio.set_at(p, (0, 0, 0, 35))                  # queda como el borde suave de la sombra
+    sin_orilla(limpio)
     return limpio.subsurface(limpio.get_bounding_rect()).copy()
+
+
+def sin_orilla(img):
+    """El borde de la sombra de la hoja (una linea opaca de 1 o 2 pixeles entre la sombra y el pasto) pasa a ser el borde suave de la
+    sombra; si no, sobre otro piso se ve como un contorno claro alrededor de la sombra. Es orilla un pixel opaco que de un lado tiene
+    vacio y del lado de enfrente (a 1 o 2 pixeles) tiene sombra. Cambia img y devuelve cuantos pixeles toco."""
+    w, h = img.get_size()
+    alfa = lambda x, y: img.get_at((x, y)).a if 0 <= x < w and 0 <= y < h else 0
+    sombra = lambda x, y: 0 < alfa(x, y) < 255
+    total = set()
+    for _ in range(3):                                                     # (en las escaleras de la curva la linea es mas gruesa: otra pasada)
+        orilla = []
+        for y in range(h):
+            for x in range(w):
+                if alfa(x, y) != 255: continue
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    if alfa(x + dx, y + dy) not in (0, 35): continue          # de este lado: vacio (o el borde suave)...
+                    if sombra(x - dx, y - dy) or (alfa(x - dx, y - dy) == 255 and sombra(x - 2 * dx, y - 2 * dy)):   # ...y del otro, la sombra
+                        orilla.append((x, y)); orilla += [(x - dx, y - dy)] if alfa(x - dx, y - dy) == 255 else []
+                        break
+        if not orilla: break
+        for p in orilla: img.set_at(p, (0, 0, 0, 35))
+        total.update(orilla)
+    return len(total)
 
 
 def _sin_bosque(jardin):

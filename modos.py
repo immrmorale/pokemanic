@@ -72,9 +72,10 @@ TUTORIAL = (
     ('asistencia', 'Asistencias', 'El que espera en la banca también ayuda: apretá {asist1} y tira su asistencia. Tardan mucho en recargar, guardalas para cuando haga falta.'),
     ('amistad', 'Baile y amistad', 'Acá nadie captura a nadie. Ese Machop está cansado: bailale cerca con {bailar} para que se encariñe, derrotalo y hablale con {interactuar}.'),
     ('romper', 'Romper cosas', 'Las cajas y las vasijas se rompen, y a veces tienen bayas, llaves o caramelos. Rompé una vasija.'),
+    ('equipo', 'Tu equipo', 'Apretá {equipo} para abrir el menú de equipo: ahí están tus pokémon, sus ataques, el bonus que le dan los de la banca al que pelea y los LAZOS. Miralo un rato y cerralo.'),
     ('sala', 'Salas y llaves', 'Así son las salas del viaje: limpiás la sala, aparece la llave y se abren las puertas. Derrotá a los dos que vienen, agarrá la llave y cruzá el muelle del norte.'),
     ('comprar', 'La tienda', 'Cada mostrador vende algo distinto: curaciones, mejoras y MT. Te dejé unas monedas: acercate a un objeto y compralo con {interactuar}.'),
-    ('fin', 'Sinergias y lazos', 'Lo último: los de la banca le dan un bonus al que pelea, y si tu equipo se lleva bien (mismo tipo, o historia en común) se forma un LAZO. Mirá el menú de equipo ({equipo}) y salí por una puerta cuando quieras.'),
+    ('fin', 'A viajar', 'Eso es todo lo que te puedo enseñar acá. Si te olvidás de algo, el glosario está en el menú. Salí por una puerta cuando quieras.'),
 )
 CONSEJOS_TUTORIAL = {                             # lo que aparece abajo, chiquito, mientras haces el paso
     'esquivar': 'Si te iban a pegar mientras esquivabas es un esquive perfecto: recuperás energía y tu próximo golpe pega x1,8.',
@@ -83,8 +84,9 @@ CONSEJOS_TUTORIAL = {                             # lo que aparece abajo, chiqui
     'relevo': 'Cambiar tiene 2 segundos de espera. Si el que pelea cae, entra solo el siguiente.',
     'amistad': 'Con poca vida (menos del 40%) se encariñan; con mucha vida, el baile los confunde y se pegan entre ellos.',
     'romper': 'El daño a las cosas depende del material y de tu tipo: lucha rompe casi todo, el fuego quema la madera...',
+    'equipo': 'Si tu equipo se lleva bien (mismo tipo, o historia en común) se forma un LAZO: un bonus mientras viajen juntos. Lo podés abrir en cualquier momento.',
     'sala': 'Arriba a la derecha se ve tu estilo (de D a S): pegá seguido, movete, hacé combos, relevos y asistencias.',
-    'comprar': 'Las curaciones van al cinturón (abajo a la derecha) y se usan con {curar}.',
+    'comprar': 'Las curaciones van al cinturón (abajo a la derecha): tocá {curar} dos veces para usar la primera, o mantenela para elegir.',
 }
 FIN_TUTORIAL = ('¡Eso es todo! Ya sabés moverte, pelear, hacer amigos y comprar.', 'El resto se aprende viajando. Cuando quieras, te espero en el flujo del tiempo.')
 

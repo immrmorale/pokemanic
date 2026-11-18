@@ -1382,7 +1382,8 @@ def armar_entorno():
 
     # lo que le pasa a un terreno cuando lo toca un ataque: (terreno, tipo del ataque) -> accion
     # 'convertir' cambia el terreno (con probabilidad opcional), 'electrificar' electrifica el agua conectada,
-    # 'encender'/'apagar' fuego, 'invertir' da vuelta una cinta, 'pulso' descarga un generador, 'cortocircuito' lo hace explotar
+    # 'encender'/'apagar' fuego, 'derretir' el hielo, 'invertir' da vuelta una cinta, 'pulso' descarga un generador, 'cortocircuito' lo hace explotar
+    # (si agregas una accion, ponele su texto en el glosario: interfaz.secciones_glosario)
     REACCIONES = {
         ('agua', 'hielo'): ('convertir', 'hielo'), ('agua', 'electrico'): ('electrificar',), ('agua', 'veneno'): ('convertir', 'toxico'),
         ('charco', 'hielo'): ('convertir', 'hielo'), ('charco', 'electrico'): ('electrificar',), ('charco', 'fuego'): ('convertir', 'suelo'),
@@ -2890,6 +2891,54 @@ def armar_entorno():
             ventana.blit(_escaladas[clave], (copa.x - cx, copa.y - cy), (0, 0, copa.width, copa.height))
 
 
+    PASTO = {'onda': 34, 'ancho': 260, 'vel': 650, 'destello': 0.08, 'ciclo': (1900, 3900)}   # brillo del viento (de 255), px entre ondas, ms, parte del ciclo con destello
+
+
+    def _brillo_pasto(ent, ventana, cx, cy, ahora, vista):
+        """La hierba viva: una franja de luz que pasa con el viento (como cuando el sol pega en el pasto que se mueve) y, cada tanto, un
+        destellito de rocio en alguna mata. Las casillas de hierba se buscan una vez por segundo (el fuego la quema)."""
+        tam = ent['tam']
+        if ent.get('pastos_t') != ahora // 1000:
+            ent['pastos_t'] = ahora // 1000
+            ent['pastos'] = [((c + 0.5) * tam, (f + 0.5) * tam) for f, fila in enumerate(ent['m']) for c, t in enumerate(fila) if t == 'hierba']
+        if not ent['pastos']: return
+        r = round(tam * 0.8)
+        for x, y in ent['pastos']:
+            if not vista.collidepoint(x, y): continue
+            onda = math.cos((x * 0.8 + y * 0.5) / PASTO['ancho'] * math.tau / 2 - ahora / PASTO['vel'])
+            v = round(PASTO['onda'] * max(0.0, onda) ** 6)
+            if v >= 3: ventana.blit(_brillo_suave(r, (v, v, round(v * 0.45))), (round(x - cx - r), round(y - cy - r)), special_flags=pygame.BLEND_RGB_ADD)
+            h = int(x * 73856093) ^ int(y * 19349663)
+            ciclo = PASTO['ciclo'][0] + h % (PASTO['ciclo'][1] - PASTO['ciclo'][0])
+            k = ((ahora + h % 5000) % ciclo) / ciclo
+            if k >= PASTO['destello']: continue
+            brillo = math.sin(k / PASTO['destello'] * math.pi)                # crece y se apaga
+            px, py = round(x - cx + (h % 50) - 25), round(y - cy + (h // 50 % 50) - 25)
+            largo = 1 + round(4 * brillo)
+            c = (round(255 * brillo), round(255 * brillo), round(200 * brillo))
+            ventana.fill(c, (px - largo, py, largo * 2 + 1, 1), special_flags=pygame.BLEND_RGB_ADD)
+            ventana.fill(c, (px, py - largo, 1, largo * 2 + 1), special_flags=pygame.BLEND_RGB_ADD)
+            ventana.fill(c, (px - 1, py - 1, 3, 3), special_flags=pygame.BLEND_RGB_ADD)
+
+
+    def _brillo_suave(radio, color):
+        """Un circulo de color que se apaga hacia el borde, para sumar encima (se arma una vez por tamaño y color)."""
+        clave = ('suave', radio, color)
+        if clave not in _velos:
+            if 'suave_base' not in _velos:
+                n = 48; base = pygame.Surface((n, n))
+                for yy in range(n):
+                    for xx in range(n):
+                        d = min(1.0, math.hypot(xx + 0.5 - n / 2, yy + 0.5 - n / 2) / (n / 2))
+                        g = round(255 * (1 - d) ** 2)
+                        base.set_at((xx, yy), (g, g, g))
+                _velos['suave_base'] = base
+            sup = pygame.transform.smoothscale(_velos['suave_base'], (radio * 2, radio * 2))
+            sup.fill(color, special_flags=pygame.BLEND_RGB_MULT)
+            _velos[clave] = sup
+        return _velos[clave]
+
+
     def dibujar(ent, ventana, cx, cy, ahora, tipos_jugador=()):
         """Dibuja la sala vista desde la camara (cx, cy). Las maquinas muestran su radio solo si ayudan a tus tipos."""
         if ent['fondo'] is None: _armar_fondo(ent)
@@ -2907,6 +2956,7 @@ def armar_entorno():
                 ventana.blit(_reflejo(tam), (x - cx + round(tam * 0.2 * k), y - cy), special_flags=pygame.BLEND_RGB_ADD)
             if brillo and cp['paleta_brillo']:
                 ventana.blit(_tile(cp, i, 0, tam, _frame(ahora, cp['cada_brillo'], len(cp['paleta_brillo'])), True), (x - cx, y - cy))
+        _brillo_pasto(ent, ventana, cx, cy, ahora, vista)                 # el viento pasa por la hierba y titilan gotitas de rocio
         for r in ent['lava']:                                          # la lava late
             if not vista.colliderect(r): continue
             k = (math.sin(ahora / 260 + (r.x + r.y) / 90) + 1) / 2
@@ -3089,30 +3139,60 @@ def armar_entorno():
         return fuerza
 
 
+    NIEVE = {'altura': (90, 230), 'cae': (5200, 9000), 'derrite': 0.12, 'viento': 26}   # px de alto de donde caen, ms que tarda cada copo, parte final derritiendose
+
+
+    def area_sala(ent, cx, cy, ventana):
+        """El rectangulo de la sala en la pantalla (lo de afuera es negro: ahi no nieva ni llueve)."""
+        return pygame.Rect(-cx, -cy, len(ent['m'][0]) * ent['tam'], len(ent['m']) * ent['tam']).clip(ventana.get_rect())
+
+
     def _nevar(ent, ventana, ahora, cantidad, alfa=255):
-        """Copos sueltos de la nieve del Red Rescue Team (cada uno recortado de la hoja): dos capas, los de adelante mas grandes y
-        rapidos, todos meciendose y corridos con la camara. Calculados por tiempo, sin guardar nada. False si falta la hoja."""
+        """Copos del Red Rescue Team (cada uno recortado de la hoja) cayendo de verdad sobre la sala: cada copo tiene su lugar en el piso
+        (pegado al mundo: si caminas quedan atras), baja desde una altura meciendose con el viento, su sombrita crece mientras cae y al
+        tocar el piso se derrite. Solo sobre la sala (no sobre el negro de afuera). Calculados por tiempo, sin guardar nada.
+        False si falta la hoja."""
         if 'formas' not in _copos:
             hoja = (_cuadros_clima('nieve') or [None])[0]
             _copos['formas'] = [hoja.subsurface(r).copy() for r in pygame.mask.from_surface(hoja).get_bounding_rects()] if hoja else []
+            _copos['sombra'] = pygame.Surface((8, 4), pygame.SRCALPHA); pygame.draw.ellipse(_copos['sombra'], (10, 20, 50, 60), (0, 0, 8, 4))
         formas = _copos['formas']
         if not formas: return False
         W, H = ventana.get_size()
         cx, cy = ent.get('camara', (0, 0))
+        area = area_sala(ent, cx, cy, ventana)
+        if not area.width or not area.height: return True
+        antes = ventana.get_clip(); ventana.set_clip(area)
+        PX, PY = W + 80, H + NIEVE['altura'][1] + 80                      # el campo de copos se repite cada PX x PY pixeles del mundo
+        h0, h1 = NIEVE['altura']; t0, t1 = NIEVE['cae']
         for i in range(cantidad):
-            cerca = i % 3 == 0
-            clave = (i % len(formas), cerca, alfa)
+            cerca = i % 4 == 0                                            # uno de cada cuatro: mas grande, mas alto y mas claro
+            dura = t0 + (i * 2654435761 % 1000) / 1000 * (t1 - t0)
+            vuelta, t = divmod(ahora + i * 977, dura)
+            k = t / dura                                                  # 0 recien aparece arriba, 1 ya se derritio
+            semilla = i * 100003 + int(vuelta)                            # cada vuelta cae en otro lugar
+            azar = [((semilla * m + 0x9E3779B9) * 2654435761 % 4294967296) / 4294967296 for m in (1, 7919, 104729)]   # (tres numeros al azar baratos)
+            alto = (h1 if cerca else h0 + (h1 - h0) * 0.5) * (0.75 + 0.25 * azar[0])
+            cae = min(1.0, k / (1 - NIEVE['derrite']))                  # hasta que toca el piso
+            z = alto * (1 - cae)
+            mece = math.sin(ahora / (700 + i * 131 % 600) + i) * (6 + i % 4 * 3) * (1 - cae * 0.6)
+            sx = (azar[1] * PX + NIEVE['viento'] * cae - cx) % PX - 40 + mece
+            sy = (azar[2] * PY - cy) % PY - 40
+            if not (area.left - 20 < sx < area.right + 20 and area.top - 20 < sy < area.bottom + 20): continue   # el piso de este copo no se ve
+            clave = (i % len(formas), cerca)
             if clave not in _copos:
-                k = 3 if cerca else 2
-                img = pygame.transform.scale(formas[clave[0]], (formas[clave[0]].get_width() * k, formas[clave[0]].get_height() * k))
-                img.set_alpha(alfa if cerca else round(alfa * 0.55))
-                _copos[clave] = img
-            paralaje, vy = (0.55, 0.06) if cerca else (0.25, 0.032)
-            vy += (i * 37 % 11) * 0.002
-            mece = math.sin(ahora / (800 + i * 131 % 900) + i) * (8 + i % 5 * 4)
-            x = (i * 7919 % (W + 40) + ahora * 0.006 + mece - cx * paralaje) % (W + 40) - 20
-            y = (i * 104729 % (H + 40) + ahora * vy - cy * paralaje) % (H + 40) - 20
-            ventana.blit(_copos[clave], (round(x), round(y)))
+                e = 3 if cerca else 2
+                _copos[clave] = pygame.transform.scale(formas[clave[0]], (formas[clave[0]].get_width() * e, formas[clave[0]].get_height() * e))
+            img = _copos[clave]
+            aparece = min(1.0, k / 0.08)                                  # entra de a poco arriba...
+            derrite = 1.0 if cae < 1 else max(0.0, 1 - (k - (1 - NIEVE['derrite'])) / NIEVE['derrite'])   # ...y se derrite abajo
+            a = round(alfa * (1.0 if cerca else 0.7) * aparece * derrite)
+            if a <= 4: continue
+            sombra = _copos['sombra']; sombra.set_alpha(round(255 * cae * derrite))
+            ventana.blit(sombra, (round(sx - 4), round(sy - 1)))
+            img.set_alpha(a)
+            ventana.blit(img, img.get_rect(center=(round(sx), round(sy - z))))
+        ventana.set_clip(antes)
         return True
 
 
@@ -3122,20 +3202,205 @@ def armar_entorno():
         return _embaldosar(ventana, _cuadro_clima('nubes', 0, 1000, 3, alfa), ahora * velocidad - cx, ahora * velocidad * 0.35 - cy)
 
 
+    HOJAS_ERAS = ('piedra', 'medieval')                                # las eras con arboles: de dia vuelan hojitas
+
+
+    def _ambiente(ent, ventana, ahora, noche):
+        """Lo que flota en el aire cuando no hay clima fuerte: adentro (o a oscuras) polvito que brilla despacio; afuera de dia, polen
+        dorado, y en las eras con arboles hojitas que caen girando. Pegado al mundo, calculado por tiempo."""
+        W, H = ventana.get_size()
+        cx, cy = ent.get('camara', (0, 0))
+        adentro = ent['sala'].get('interior') or ent.get('a_oscuras')
+        if not adentro and noche: return                                  # (de noche estan las luciernagas)
+        hojas = not adentro and ent['era']['clave'] in HOJAS_ERAS
+        PX, PY = W + 120, H + 120
+        for i in range(18 if adentro else 14):
+            t = ahora + i * 1733
+            if hojas and i % 2 == 0:                                       # una hojita: cae en diagonal meciendose y girando
+                x = (i * 7919 % PX + t * 0.035 + 30 * math.sin(t / 900 + i) - cx) % PX - 60
+                y = (i * 104729 % PY + t * 0.045 - cy) % PY - 60
+                giro = math.sin(t / 260 + i)
+                ancho = max(1, round(4 * abs(giro)))
+                color = ((120, 170, 60), (200, 150, 50), (170, 110, 40))[i % 3]
+                pygame.draw.ellipse(ventana, color, (round(x), round(y), ancho, 3))
+                continue
+            x = (i * 7919 % PX + 25 * math.sin(t / (1700 + i * 37 % 500) + i) - cx) % PX - 60
+            y = (i * 104729 % PY - t * (0.006 if adentro else 0.012) + 18 * math.sin(t / 1300 + i * 2) - cy) % PY - 60
+            prende = (math.sin(t / (600 + i * 71 % 500)) + 1) / 2
+            v = round((70 if adentro else 120) * prende)
+            if v < 12: continue
+            c = (v, round(v * 0.92), round(v * 0.7)) if adentro else (v, round(v * 0.85), round(v * 0.3))
+            ventana.fill(c, (round(x), round(y), 2, 2), special_flags=pygame.BLEND_RGB_ADD)
+
+
     def _hay_brasas(ent):
         """Si en la sala hay lava, hornos o braseros (flotan brasas en el aire). Se mira una vez por sala."""
         if 'brasas' not in ent: ent['brasas'] = any(t in ('lava', 'horno', 'brasero', 'fragua') for fila in ent['m'] for t in fila) or bool(ent['sala'].get('brasas'))
         return ent['brasas']
 
 
-    def dibujar_clima(ent, ventana, ahora):
+    # ---------- la luz: de noche (y en las salas a oscuras) solo se ve cerca de las pocas cosas que alumbran ----------
+    # La oscuridad es una capa azul muy oscura con agujeros de luz de borde suave (cada luz es un degrade que se arma una vez por tamaño);
+    # encima, las luces de color (fuego naranja, electricidad celeste...) se suman. Las fuentes son pocas a proposito: lo que no esta
+    # cerca de una luz no se ve, y los enemigos se te pueden venir encima desde lo oscuro.
+    LUZ = {'noche': 205, 'oscura': 236, 'refugio': 125, 'interior': 0.55,        # que tan negra es la oscuridad (de 255) y adentro cuanto menos
+           'color': (6, 8, 24),                                                    # el color de lo oscuro
+           'jugador': 165, 'jugador_oscura': 125,                                  # el radio de luz que llevas encima
+           'max_fuentes': 9,                                                        # como mucho tantas luces de la sala a la vez (las mas cercanas)
+           'chance_oscura': 0.18, 'chance_cueva': 0.5}                             # salas de combate a oscuras (a cualquier hora); en cuevas y mazmorras, mas
+    # lo que alumbra de la sala: (radio en px del mundo, color de la luz, si titila)
+    FUENTES_LUZ = {'fogata': (230, (255, 150, 60), True), 'brasero': (210, (255, 160, 70), True), 'forja': (240, (255, 120, 40), True),
+                   'horno': (220, (255, 130, 50), True), 'generador': (190, (120, 200, 255), False), 'cristal_dragonico': (180, (190, 120, 255), False),
+                   'altar': (150, (255, 230, 160), False), 'monolito': (130, (160, 255, 200), False), 'lava': (150, (255, 90, 20), True),
+                   'fuego': (140, (255, 140, 40), True),
+                   'poste_de_luz': (250, (255, 230, 150), False), 'torre_electrica': (120, (255, 80, 80), False), 'maquina_expendedora': (140, (170, 220, 255), False),
+                   'cabina_telefonica': (130, (230, 240, 255), False), 'pilar_de_cristal': (150, (140, 230, 255), False)}
+    CUEVAS = ('cueva', 'mazmorra', 'grieta', 'mina', 'tunel', 'catacumba', 'cripta', 'alcantarilla', 'sotano', 'guarida')
+    _luz = {}
+
+
+    def a_oscuras(ent, variante, semilla, tipo='combate'):
+        """Decide (siempre igual para la misma sala) si es una sala a oscuras: solo pasa en las de combate; en las cuevas y mazmorras
+        es mas comun. Lo deja en ent['a_oscuras']."""
+        chance = LUZ['chance_cueva'] if any(c in (variante or '') for c in CUEVAS) else LUZ['chance_oscura']
+        ent['a_oscuras'] = tipo == 'combate' and random.Random(round(semilla * 10 ** 6) + 7).random() < chance
+        return ent['a_oscuras']
+
+
+    def oscuridad_de(ent, hora_luz, tipo):
+        """Que tan oscura esta la sala ahora (0: nada, hasta 255). hora_luz: el color del dia (mundos.luz). Las salas de jefes no (tienen
+        lo suyo); el refugio, apenas; adentro, menos."""
+        if tipo in ('subjefe', 'jefe', 'regi', 'final', 'tienda', 'tesoro'): return 0
+        if ent.get('a_oscuras'): return LUZ['oscura']
+        noche = max(0.0, min(1.0, (765 - sum(hora_luz)) / (765 - 354)))       # 0 de dia, 1 en plena noche (ver LUZ_HORA)
+        if noche < 0.12: return 0
+        base = LUZ['refugio'] if tipo == 'hall' else LUZ['noche']
+        if ent['sala'].get('interior'): base *= LUZ['interior']
+        return round(base * noche)
+
+
+    def _sello_luz(radio):
+        """El agujero de una luz en la oscuridad: transparente en el medio y cada vez mas oscuro hasta el borde (para BLEND_RGBA_MIN).
+        Se arma una vez chico, pixel por pixel, y se agranda suavizado (asi no se ven anillos)."""
+        clave = ('sello', radio)
+        if clave not in _luz:
+            if 'sello_base' not in _luz:
+                n = 96; base = pygame.Surface((n, n), pygame.SRCALPHA)
+                for y in range(n):
+                    for x in range(n):
+                        d = min(1.0, math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / (n / 2))
+                        k = min(1.0, max(0.0, (d - 0.15) / 0.85))
+                        base.set_at((x, y), (*LUZ['color'], round(255 * k * k * (3 - 2 * k))))
+                _luz['sello_base'] = base
+            _luz[clave] = pygame.transform.smoothscale(_luz['sello_base'], (radio * 2, radio * 2))
+        return _luz[clave]
+
+
+    def _brillo_luz(radio, color):
+        """El color de una luz para sumar encima (mas fuerte en el medio y nada en el borde)."""
+        clave = ('brillo', radio, color)
+        if clave not in _luz:
+            if len(_luz) > 400: _luz.clear()
+            sup = pygame.Surface((radio * 2, radio * 2))
+            pasos = 16
+            for k in range(pasos, 0, -1):
+                d = k / pasos
+                v = (1 - d) ** 2 * 0.5
+                pygame.draw.circle(sup, tuple(round(c * v) for c in color), (radio, radio), max(1, round(radio * d)))
+            _luz[clave] = sup
+        return _luz[clave]
+
+
+    def fuentes_de_luz(ent):
+        """Las luces fijas de la sala (maquinas prendidas, lava, postes...): [(x, y, radio, color, titila)] en el mundo. Se arma una vez por
+        sala y se rehace si cambia el piso (una fogata apagada que se prende)."""
+        firma = (len(ent['maquinas']), len(ent['lava']), len(ent['objetos']))
+        if ent.get('luces_firma') != firma:
+            luces = [(x, y, *FUENTES_LUZ[t]) for x, y, t in ent['maquinas'] if t in FUENTES_LUZ]
+            luces += [(r.centerx, r.centery, *FUENTES_LUZ['lava']) for r in ent['lava']]
+            luces += [(o['rect'].centerx, o['rect'].top, *FUENTES_LUZ[o['nombre']]) for o in ent['objetos'] if o['nombre'] in FUENTES_LUZ and (o['vida'] is None or o['vida'] > 0)]
+            ent['luces_fijas'], ent['luces_firma'] = luces, firma
+        return ent['luces_fijas']
+
+
+    def dibujar_oscuridad(ent, ventana, cx, cy, ahora, alfa, extra=()):
+        """Tapa la sala con la oscuridad y le abre agujeros de luz: las fuentes de la sala (las mas cercanas, como mucho LUZ['max_fuentes']),
+        el fuego del piso y las de 'extra' [(x, y, radio, color o None, titila)] en el mundo (vos, tus ataques, la llave...). Despues
+        suma el color de cada luz. Las luciernagas de la noche van arriba (se ven en lo oscuro)."""
+        if alfa <= 0: return
+        W, H = ventana.get_size()
+        if _luz.get('tam') != (W, H): _luz['tam'] = (W, H); _luz['capa'] = pygame.Surface((W, H), pygame.SRCALPHA)
+        capa = _luz['capa']
+        capa.fill((*LUZ['color'], alfa))
+        centro = (cx + W / 2, cy + H / 2)
+        fijas = sorted(fuentes_de_luz(ent), key=lambda l: (l[0] - centro[0]) ** 2 + (l[1] - centro[1]) ** 2)[:LUZ['max_fuentes']]
+        fuego = sorted((((c + 0.5) * ent['tam'], (f + 0.5) * ent['tam'], *FUENTES_LUZ['fuego']) for f, c in ent['fuego']),
+                       key=lambda l: (l[0] - centro[0]) ** 2 + (l[1] - centro[1]) ** 2)[:6]
+        luces = []
+        for i, (x, y, radio, color, titila) in enumerate(list(extra) + fijas + fuego):
+            if titila: radio *= 0.94 + 0.06 * math.sin(ahora / 95 + i * 1.7) + 0.03 * math.sin(ahora / 37 + i)
+            r = max(8, round(radio / 6) * 6)                                    # (de a 6 px: asi se reusan los degrades)
+            sx, sy = round(x - cx), round(y - cy)
+            if sx + r < 0 or sy + r < 0 or sx - r > W or sy - r > H: continue
+            capa.blit(_sello_luz(r), (sx - r, sy - r), special_flags=pygame.BLEND_RGBA_MIN)
+            if color: luces.append((sx, sy, r, color))
+        ventana.blit(capa, (0, 0))
+        fuerza = alfa / 255
+        for sx, sy, r, color in luces:                                          # el color de cada luz, sumado
+            c = tuple(round(v * fuerza) for v in color)
+            b = _brillo_luz(r, c)
+            ventana.blit(b, (sx - r, sy - r), special_flags=pygame.BLEND_RGB_ADD)
+        if not ent['sala'].get('interior') and not ent.get('a_oscuras'): _luciernagas(ent, ventana, cx, cy, ahora, fuerza)
+
+
+    def _luciernagas(ent, ventana, cx, cy, ahora, fuerza, cantidad=14):
+        """Luciernagas de la noche: puntitos verde-amarillos que vagan pegados al mundo y se prenden y se apagan (solo sobre la sala)."""
+        antes = ventana.get_clip(); ventana.set_clip(area_sala(ent, cx, cy, ventana))
+        try: _luciernagas_en(ent, ventana, cx, cy, ahora, fuerza, cantidad)
+        finally: ventana.set_clip(antes)
+
+
+    def _luciernagas_en(ent, ventana, cx, cy, ahora, fuerza, cantidad):
+        W, H = ventana.get_size()
+        PX, PY = W + 200, H + 200
+        for i in range(cantidad):
+            prende = (math.sin(ahora / (700 + i * 53 % 400) + i * 2.1) + 1) / 2
+            if prende < 0.35: continue
+            x = (i * 7919 % PX + 60 * math.sin(ahora / (2300 + i * 97 % 900) + i) - cx) % PX - 100
+            y = (i * 104729 % PY + 40 * math.sin(ahora / (1900 + i * 131 % 700) + i * 3) - cy) % PY - 100
+            v = (prende - 0.35) / 0.65 * fuerza
+            b = _brillo_luz(12, (round(200 * v), round(255 * v), round(90 * v)))
+            ventana.blit(b, (round(x) - 12, round(y) - 12), special_flags=pygame.BLEND_RGB_ADD)
+            ventana.fill((round(150 + 100 * v), 255, round(120 + 60 * v)), (round(x), round(y), 2, 2), special_flags=pygame.BLEND_RGB_MAX)
+
+
+    def dibujar_clima(ent, ventana, ahora, cartel=True):
         """Capa del clima encima de todo y el cartelito de cuanto le queda. Usa los cuadros animados del Red Rescue Team
         (lluvia, granizo, nieve, niebla, arena, sol, sombras de nubes y brasas); si faltan, las lineas y circulos de antes."""
+        antes = ventana.get_clip()
+        ventana.set_clip(area_sala(ent, *ent.get('camara', (0, 0)), ventana))   # el clima cae sobre la sala, no sobre el negro de afuera
+        try: _clima_en_sala(ent, ventana, ahora)
+        finally: ventana.set_clip(antes)
+        if cartel: cartel_clima(ent, ventana, ahora)
+
+
+    def cartel_clima(ent, ventana, ahora):
+        """El cartelito de arriba con el clima y cuanto le queda (aparte, para dibujarlo encima de la oscuridad)."""
+        clima = 'despejado' if ent['clima'] == 'sol' and ent.get('momento') == 'noche' else ent['clima']
+        if clima:
+            texto = CLIMAS[clima]['nombre'] + ('' if ent['clima_hasta'] is None else ' ' + str(max(0, (ent['clima_hasta'] - ahora) // 1000 + 1)) + 's')
+            t = _texto(texto, 20, (255, 255, 255))
+            ventana.blit(t, t.get_rect(midtop=(ventana.get_width() // 2, 24)))
+
+
+    def _clima_en_sala(ent, ventana, ahora):
+        """Las capas del clima (ver dibujar_clima)."""
         clima = ent['clima']
         W, H = ventana.get_size()
         noche = ent.get('momento') == 'noche'
         if clima == 'sol' and noche: clima = 'despejado'                 # (de noche no hay sol: ver CLIMA_HORA)
         if _hay_brasas(ent): _embaldosar(ventana, _cuadro_clima('brasas', ahora, 110, 2), banderas=pygame.BLEND_RGB_ADD)   # brasas de la lava y los hornos
+        if not clima or clima in ('despejado', 'sol', 'nublado'): _ambiente(ent, ventana, ahora, noche)   # polvito, polen, hojitas en el aire
         if not clima or clima == 'despejado':                          # buen tiempo: afuera pasan sombras de nubes por el piso
             if not ent['sala'].get('interior') and not ent['sala'].get('sin_nubes') and not noche: _sombras_de_nubes(ent, ventana, ahora, 38)
             if not ent['sala'].get('interior') and ent['era']['clave'] == 'glaciacion':     # en la Era Glacial siempre caen unos copos
@@ -3157,7 +3422,7 @@ def armar_entorno():
                 for x, y in _particulas(50, W, H, ahora, 1.2, 0.2): pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
         elif clima == 'nieve':                                         # copos del PMD: una capa lenta y otra mas chica atras
             ventana.blit(_velo((W, H), (220, 230, 255, 30)), (0, 0))
-            if not _nevar(ent, ventana, ahora, 85):
+            if not _nevar(ent, ventana, ahora, 120):
                 for i in range(60):
                     pygame.draw.circle(ventana, (255, 255, 255), ((i * 97 + ahora // 40 * (1 + i % 3)) % W, (i * 53 + ahora // 25 * (1 + i % 2)) % H), 2 + i % 2)
         elif clima == 'nublado':                                       # nubes cerradas: sombras grandes que pasan mas rapido
@@ -3176,9 +3441,6 @@ def armar_entorno():
             ventana.blit(_velo((W, H), (255, 255, 255, 70) if destello else (20, 20, 50, 70)), (0, 0))
             _sombras_de_nubes(ent, ventana, ahora, 70, 0.05)
             _embaldosar(ventana, _cuadro_clima('lluvia', ahora, 45, 3))
-        texto = CLIMAS[clima]['nombre'] + ('' if ent['clima_hasta'] is None else ' ' + str(max(0, (ent['clima_hasta'] - ahora) // 1000 + 1)) + 's')
-        t = _texto(texto, 20, (255, 255, 255))
-        ventana.blit(t, t.get_rect(midtop=(W // 2, 24)))
 
     return SimpleNamespace(**locals())
 
