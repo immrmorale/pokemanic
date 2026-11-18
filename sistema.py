@@ -744,7 +744,7 @@ def armar_animaciones():
         """Carpeta de sprites del pokemon en assets/sprites/pokemones (se busca en el disco una sola vez por nombre)."""
         objetivo = _normalizar_nombre(nombre)
         if objetivo in _CARPETAS: return _CARPETAS[objetivo]
-        base = os.path.join('assets', 'sprites', 'pokemones')
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sprites', 'pokemones')   # (al lado del codigo: asi anda tambien en el .exe)
         encontrada = None
         for ruta in (os.path.join(base, 'sprite_' + objetivo), os.path.join(base, objetivo)):
             if os.path.isdir(ruta): encontrada = ruta; break

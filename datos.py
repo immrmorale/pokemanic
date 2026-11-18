@@ -11,6 +11,7 @@ datos.py - Todo lo que es informacion del juego (no dibuja nada):
 """
 
 import json
+import math
 import os
 import random
 import unicodedata
@@ -1396,6 +1397,18 @@ def armar_mundos():
     LUZ_HORA = ((0, (92, 102, 160)), (300, (100, 110, 165)), (390, (232, 182, 188)), (480, (255, 255, 255)), (1020, (255, 255, 255)),
                 (1110, (255, 196, 150)), (1200, (150, 136, 186)), (1290, (92, 102, 160)), (1440, (92, 102, 160)))   # (minuto, color que multiplica la pantalla)
     CLIMA_REFUGIO = {'despejado': 5, 'nublado': 2, 'lluvia': 1, 'niebla': 1, 'sol': 2}   # el del refugio (tambien segun la hora)
+
+
+    SOL_HORA = {'sale': 6 * 60, 'pone': 19 * 60 + 30}   # el sol sale por el este (la derecha), al mediodia esta al norte (arriba) y se pone por el oeste
+
+
+    def sol(hora):
+        """Donde esta el sol: (altura de 0 a 1, hacia donde caen las sombras (dx, dy)). De noche la altura es 0. A la mañana las
+        sombras van a la izquierda, al mediodia para abajo (cortitas) y a la tarde a la derecha."""
+        h0, h1, h = SOL_HORA['sale'], SOL_HORA['pone'], hora % 1440
+        if not h0 < h < h1: return 0.0, (0.0, 1.0)
+        k = (h - h0) / (h1 - h0)
+        return math.sin(k * math.pi), (-math.cos(k * math.pi), math.sin(k * math.pi))
 
 
     def momento(hora):
