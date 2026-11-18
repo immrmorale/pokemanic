@@ -19,6 +19,14 @@ subjefes.py - Los subjefes de cada era: uno en la sala 10 y otro en la sala 20 (
 Los pokemon que aparecen en estas peleas (Arrokuda, Pikachu, Magnemite y Grimer) no dan monedas ni experiencia y nunca quieren
 unirse; en las salas de los subjefes nadie se ofrece como amigo.
 Todos los numeros estan en SUBJEFES: tiempos en ms, velocidades en pixeles por frame, daños como multiplicador del daño del subjefe.
+
+Cada subjefe tiene sus funciones con el mismo nombre de base (las tablas que las juntan estan al final):
+    _prep_<subjefe>     al empezar la pelea: lo que cambia en la arena (PREPARAR)
+    _mec_<subjefe>      su mecanica, cada cuadro (MECANICAS)
+    _quieto_<subjefe>   que hace entre ataque y ataque (QUIETO)
+    _elegir_<subjefe>   el proximo ataque (ELEGIR)
+    _fin_<subjefe>      al terminar un ataque, si hace falta (FIN)
+    _mov_<ataque>       cada ataque paso a paso; devuelve True mientras sigue (MOVS)
 """
 
 import math
@@ -295,6 +303,7 @@ def _cambiar(b, ent, f, c, nuevo):
     viejo = ent['m'][f][c]
     if viejo == nuevo or not entorno.cambiar(ent, f, c, nuevo): return False
     b['sj']['antes'].setdefault((f, c), viejo)
+    if nuevo == 'agua': ent.setdefault('lagos', set()).add((f, c))      # (si alguien la congela y la derrite, vuelve a ser agua)
     return True
 
 
@@ -374,6 +383,7 @@ def _empujar(b, direccion, vel, distancia):
 
 
 def _actualizar_empuje(b, ctx):
+    """Cada cuadro: el empujón del subjefe (frena contra las paredes)."""
     S, j = b['sj'], ctx['jugador']
     e = S['empuje']
     if not e: return
@@ -441,6 +451,7 @@ def _centro(ent, f, c):
 
 
 def _marca(b, ahora, clase, dura, **extra):
+    """Una marca en el piso (aviso o efecto) que dura un rato."""
     m = dict({'clase': clase, 'inicio': ahora, 'hasta': ahora + dura}, **extra)
     b['sj']['marcas'].append(m)
     return m
@@ -460,6 +471,7 @@ def _golpe(jefe, ahora, forma, aviso, tipo, daño, dura=150, tick=None, ef=None,
 
 
 def _actualizar_golpes(b, ctx):
+    """Cada cuadro: los golpes avisados del subjefe (cuando se cumple el aviso, pegan)."""
     j, ahora = ctx['jugador'], ctx['ahora']
     for g in b['golpes'][:]:
         if ahora >= g['hasta']: b['golpes'].remove(g); continue
@@ -484,6 +496,7 @@ def _actualizar_golpes(b, ctx):
 # ----- balas propias (rebotan, siguen, empujan o solo ponen un efecto) -----
 
 def _bala(b, ahora, pos, ang, vel, radio, daño, tipo, clase, dist=1000, dura=None, rebota=False, sigue=0, ef=None, ms=0, empuje=0, color=None, **extra):
+    """Agrega una bala del subjefe."""
     p = {'pos': pos, 'ang': ang, 'vel': vel, 'radio': radio, 'daño': daño, 'tipo': tipo, 'clase': clase, 'dist': dist,
          'hasta': None if dura is None else ahora + dura, 'rebota': rebota, 'sigue': sigue, 'ef': ef, 'ms': ms, 'empuje': empuje,
          'color': color, 'inicio': ahora}
@@ -493,6 +506,7 @@ def _bala(b, ahora, pos, ang, vel, radio, daño, tipo, clase, dist=1000, dura=No
 
 
 def _actualizar_proys(b, ctx):
+    """Cada cuadro: las balas del subjefe."""
     ent, j, ahora, S = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sj']
     A = S['area']
     for p in S['proys'][:]:
@@ -531,6 +545,7 @@ def _onda(b, ahora, centro, dura, maximo, grosor, daño, tipo, ef=None, ms=0, co
 
 
 def _actualizar_ondas(b, ctx):
+    """Cada cuadro: las ondas (pegan cuando el anillo te pasa por encima)."""
     j, ahora, S = ctx['jugador'], ctx['ahora'], b['sj']
     for o in S['ondas'][:]:
         k = (ahora - o['inicio']) / o['dura']
@@ -626,6 +641,7 @@ def actualizar(b, ctx):
 
 
 def _empezar(b, ahora, mov):
+    """Arranca un ataque del subjefe."""
     S = b['sj']
     S['accion'] = {'mov': mov}
     S['ultimo'] = mov
@@ -633,6 +649,7 @@ def _empezar(b, ahora, mov):
 
 
 def _fin_accion(b, ahora, mov):
+    """Termina el ataque en curso: espera hasta el próximo y su FIN si tiene."""
     S, D = b['sj'], _datos(b)
     S['listo'][mov] = ahora + D['movs'].get(mov, {}).get('espera', 0)
     S['accion'] = None
@@ -677,6 +694,7 @@ def limpiar_jugador(j):
 # ----- lo que te hacen a vos (main.py lo usa al moverte, al pegar y al recargar) -----
 
 def mult_vel(j, ahora):
+    """Cuánto te frena lo que te hizo el subjefe."""
     m = 1.0
     for k in ('sj_lento', 'sj_lento_leve', 'agua_lenta'):
         if ia.fx(j, k, ahora): m *= FX[k]
@@ -699,6 +717,7 @@ def alfa(b):
 # ==================== Cramorant ====================
 
 def _prep_cramorant(b, ent, ahora):
+    """Prepara la pelea de Cramorant: lo que cambia en la arena y su estado al empezar (tabla PREPARAR)."""
     S = b['sj']
     S['agujeros'] = []
     for f, c in _anillo(ent, SUBJEFES['cramorant']['agujeros']):
@@ -711,6 +730,7 @@ def _prep_cramorant(b, ent, ahora):
 
 
 def _mec_cramorant(b, ctx):
+    """La mecánica propia de Cramorant, cada cuadro (tabla MECANICAS)."""
     S, M, D = b['sj'], b['sj']['mec'], SUBJEFES['cramorant']
     ahora = ctx['ahora']
     if 'prox_peces' not in M: M.update(prox_peces=ahora + 1200, prox_pika=ahora + D['pikachu'])
@@ -781,6 +801,7 @@ def _reserva(b, ctx):
 
 
 def _quieto_cramorant(b, ctx):
+    """Lo que hace Cramorant entre ataque y ataque: cómo se mueve y te sigue (tabla QUIETO)."""
     S, ahora = b['sj'], ctx['ahora']
     if S['tragando']: return
     peces = [m['e'] for m in S['minions']]
@@ -796,6 +817,7 @@ def _elegir_cramorant(b, ctx):
 
 
 def _mov_buceo(b, ctx, a):
+    """El ataque «Buceo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'buceo')
     j = ctx['jugador']
     if 't0' not in a:
@@ -825,6 +847,7 @@ def _mov_buceo(b, ctx, a):
 
 
 def _mov_picotaladro(b, ctx, a):
+    """El ataque «Picotaladro», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'picotaladro')
     if 't0' not in a:
         ang = _ang(_bc(b), _jc(ctx))
@@ -855,6 +878,7 @@ def _robar_baya(b, ctx, cura):
 
 
 def _mov_tragamisil(b, ctx, a):
+    """El ataque «Tragamisil», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'tragamisil')
     if 't0' not in a:
         a.update(t0=ahora, ang=_ang(_bc(b), _jc(ctx)))
@@ -874,6 +898,7 @@ def _mov_tragamisil(b, ctx, a):
 
 
 def _mov_onda_electrica(b, ctx, a):
+    """El ataque «Onda Electrica», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'onda_electrica')
     if 't0' not in a:
         a['t0'] = ahora
@@ -891,6 +916,7 @@ def _prep_mamoswine(b, ent, ahora):
 
 
 def _mec_mamoswine(b, ctx):
+    """La mecánica propia de Mamoswine, cada cuadro (tabla MECANICAS)."""
     S, M, D = b['sj'], b['sj']['mec'], SUBJEFES['mamoswine']
     ent, ahora = ctx['ent'], ctx['ahora']
     N = D['nevada']
@@ -906,6 +932,7 @@ def _mec_mamoswine(b, ctx):
 
 
 def _romper_casillas(b, ctx, casillas):
+    """Rompe el piso en esas casillas (se vuelve agua), sin romper debajo de nadie."""
     S, ent, j = b['sj'], ctx['ent'], ctx['jugador']
     ocupadas = ent['ocupadas']
     ent['ocupadas'] = set(entorno._casillas_rect(ent, j['rect'].inflate(10, 10))) | set(entorno._casillas_rect(ent, b['rect'].inflate(10, 10)))
@@ -955,6 +982,7 @@ def _rocas_mamoswine(b, ctx, cantidad, cada):
 
 
 def _mov_fuerza_equina(b, ctx, a):
+    """El ataque «Fuerza Equina», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'fuerza_equina')
     if 't0' not in a: a.update(t0=ahora, i=0, etapa=None)
     if a['etapa'] is None:
@@ -977,6 +1005,7 @@ def _mov_fuerza_equina(b, ctx, a):
 
 
 def _mov_terratemblor(b, ctx, a):
+    """El ataque «Terratemblor», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'terratemblor')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1007,6 +1036,7 @@ def _cubierto(ctx, viento, largo):
 
 
 def _mov_alud(b, ctx, a):
+    """El ataque «Alud», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'alud')
     j = ctx['jugador']
     if 't0' not in a:
@@ -1025,6 +1055,7 @@ def _mov_alud(b, ctx, a):
 
 
 def _mov_poder_pasado(b, ctx, a):
+    """El ataque «Poder Pasado», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'poder_pasado')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1064,6 +1095,7 @@ def _tapan_vista(ent, S):
 
 
 def _rayo_vista(malas, tam, origen, ang, largo, paso=16):
+    """Hasta dónde llega la vista del subjefe en un ángulo (para la oscuridad de Tyrantrum)."""
     dx, dy = _v(ang)
     x, y = origen
     d = 0
@@ -1075,6 +1107,7 @@ def _rayo_vista(malas, tam, origen, ang, largo, paso=16):
 
 
 def _mec_tyrantrum(b, ctx):
+    """La mecánica propia de Tyrantrum, cada cuadro (tabla MECANICAS)."""
     S, D = b['sj'], SUBJEFES['tyrantrum']
     ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
     V = D['vision']
@@ -1104,6 +1137,7 @@ def _mirar(b, hacia, giro):
 
 
 def _quieto_tyrantrum(b, ctx):
+    """Lo que hace Tyrantrum entre ataque y ataque: cómo se mueve y te sigue (tabla QUIETO)."""
     S, D, ahora = b['sj'], SUBJEFES['tyrantrum'], ctx['ahora']
     vel = _vel(b, ahora)
     antes = _bc(b)
@@ -1124,6 +1158,7 @@ def _quieto_tyrantrum(b, ctx):
 
 
 def _elegir_tyrantrum(b, ctx):
+    """Elige el próximo ataque de Tyrantrum según dónde estás y qué usó antes (tabla ELEGIR)."""
     S, ahora = b['sj'], ctx['ahora']
     listo = lambda m: ahora >= S['listo'].get(m, 0)
     d = _d(_bc(b), _jc(ctx))
@@ -1143,6 +1178,7 @@ def _fin_tyrantrum(b, ahora, mov):
 
 
 def _mov_triple_colmillo(b, ctx, a):
+    """El ataque «Triple Colmillo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'triple_colmillo')
     if 't0' not in a:
         clave = random.choice(list(SUBJEFES['tyrantrum']['colmillos']))
@@ -1175,6 +1211,7 @@ def _mov_triple_colmillo(b, ctx, a):
 
 
 def _mov_danza_dragon(b, ctx, a):
+    """El ataque «Danza Dragon», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'danza_dragon')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1185,6 +1222,7 @@ def _mov_danza_dragon(b, ctx, a):
 
 
 def _mov_testarazo(b, ctx, a):
+    """El ataque «Testarazo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'testarazo')
     if 't0' not in a:
         a.update(t0=ahora, etapa='aviso')
@@ -1207,6 +1245,7 @@ def _mov_testarazo(b, ctx, a):
 
 
 def _mov_cola_dragon(b, ctx, a):
+    """El ataque «Cola Dragon», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'cola_dragon')
     if 't0' not in a:
         a.update(t0=ahora, atras=S['mira'] + math.pi)
@@ -1227,6 +1266,7 @@ def _prep_armaldo(b, ent, ahora):
 
 
 def _mec_armaldo(b, ctx):
+    """La mecánica propia de Armaldo, cada cuadro (tabla MECANICAS)."""
     S, D = b['sj'], SUBJEFES['armaldo']
     ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
     for k in [k for k, hasta in S['agua'].items() if ahora >= hasta]: del S['agua'][k]
@@ -1252,6 +1292,7 @@ def _elegir_armaldo(b, ctx):
 
 
 def _mov_pin_misil(b, ctx, a):
+    """El ataque «Pin Misil», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'pin_misil')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1265,6 +1306,7 @@ def _mov_pin_misil(b, ctx, a):
 
 
 def _mov_cortefuria(b, ctx, a):
+    """El ataque «Cortefuria», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'cortefuria')
     if 't0' not in a: a.update(t0=ahora, i=0, prox=ahora)
     if a['i'] >= 3: return ahora < a['prox']
@@ -1290,6 +1332,7 @@ def _mov_cortefuria(b, ctx, a):
 
 
 def _mov_trampa_rocas(b, ctx, a):
+    """El ataque «Trampa Rocas», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'trampa_rocas')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1306,6 +1349,7 @@ def _mov_trampa_rocas(b, ctx, a):
 
 
 def _mov_giro_rapido(b, ctx, a):
+    """El ataque «Giro Rapido», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ent, ahora, D = b['sj'], ctx['ent'], ctx['ahora'], _md(b, 'giro_rapido')
     if 't0' not in a:
         a.update(t0=ahora, dir=list(_v(_ang(_bc(b), _jc(ctx)))))
@@ -1334,6 +1378,7 @@ def _prep_scizor(b, ent, ahora):
 
 
 def _mec_scizor(b, ctx):
+    """La mecánica propia de Scizor, cada cuadro (tabla MECANICAS)."""
     S, D = b['sj'], SUBJEFES['scizor']
     j, ahora = ctx['jugador'], ctx['ahora']
     if S['calor'] and ahora < S['calor']:                           # el aleteo te empuja para atras
@@ -1351,6 +1396,7 @@ def _ataques_listos(b, ahora):
 
 
 def _quieto_scizor(b, ctx):
+    """Lo que hace Scizor entre ataque y ataque: cómo se mueve y te sigue (tabla QUIETO)."""
     S, D, ahora = b['sj'], SUBJEFES['scizor'], ctx['ahora']
     vel = _vel(b, ahora)
     if _ataques_listos(b, ahora): _acercar(b, ctx, 300, vel)
@@ -1358,6 +1404,7 @@ def _quieto_scizor(b, ctx):
 
 
 def _elegir_scizor(b, ctx):
+    """Elige el próximo ataque de Scizor según dónde estás y qué usó antes (tabla ELEGIR)."""
     S, ahora = b['sj'], ctx['ahora']
     listos = _ataques_listos(b, ahora)
     d = _d(_bc(b), _jc(ctx))
@@ -1381,6 +1428,7 @@ def _ondas_pinzas(b, ctx):
 
 
 def _mov_danza_espada(b, ctx, a):
+    """El ataque «Danza Espada», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'danza_espada')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1392,6 +1440,7 @@ def _mov_danza_espada(b, ctx, a):
 
 
 def _mov_agilidad(b, ctx, a):
+    """El ataque «Agilidad», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'agilidad')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1403,6 +1452,7 @@ def _mov_agilidad(b, ctx, a):
 
 
 def _mov_puño_bala(b, ctx, a):
+    """El ataque «Puño Bala», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ent, ahora, D = b['sj'], ctx['ent'], ctx['ahora'], _md(b, 'puño_bala')
     if 't0' not in a:
         a.update(t0=ahora, i=0, prox=ahora + 180)
@@ -1429,6 +1479,7 @@ def _mov_puño_bala(b, ctx, a):
 
 
 def _mov_ida_y_vuelta(b, ctx, a):
+    """El ataque «Ida Y Vuelta», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'ida_y_vuelta')
     if 't0' not in a:
         a.update(t0=ahora, etapa='aviso', origen=_bc(b), dir=_v(_ang(_bc(b), _jc(ctx))))
@@ -1463,6 +1514,7 @@ def _mov_ida_y_vuelta(b, ctx, a):
 
 
 def _mov_sobrecalentamiento(b, ctx, a):
+    """El ataque «Sobrecalentamiento», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], SUBJEFES['scizor']['calor']
     if 't0' not in a:
         a['t0'] = ahora
@@ -1478,12 +1530,14 @@ def _mov_sobrecalentamiento(b, ctx, a):
 # ==================== Tinkaton ====================
 
 def _prep_tinkaton(b, ent, ahora):
+    """Prepara la pelea de Tinkaton: lo que cambia en la arena y su estado al empezar (tabla PREPARAR)."""
     S = b['sj']
     S.update(metales=[{'pos': _centro(ent, f, c)} for f, c in _anillo(ent, SUBJEFES['tinkaton']['metales']['cantidad'])],
              n_metales=0, clavada=None, desde_colosal=2, martillo=None, salto=None, agarre=None)
 
 
 def _mec_tinkaton(b, ctx):
+    """La mecánica propia de Tinkaton, cada cuadro (tabla MECANICAS)."""
     S, D, ahora = b['sj'], SUBJEFES['tinkaton'], ctx['ahora']
     Me = D['metales']
     S['mult_vel'] = max(0.4, 1 - Me['lento'] * S['n_metales'])
@@ -1518,6 +1572,7 @@ def _quieto_tinkaton(b, ctx):
 
 
 def _elegir_tinkaton(b, ctx):
+    """Elige el próximo ataque de Tinkaton según dónde estás y qué usó antes (tabla ELEGIR)."""
     S = b['sj']
     colosal = S['desde_colosal'] >= _md(b, 'martillo_colosal')['entre']
     return _elegir(b, ctx, lambda m: m != 'martillo_colosal' or colosal, {'martillo_colosal': 2.5})
@@ -1529,6 +1584,7 @@ def _fin_tinkaton(b, ahora, mov):
 
 
 def _mov_martillo_colosal(b, ctx, a):
+    """El ataque «Martillo Colosal», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'martillo_colosal')
     j = ctx['jugador']
     n = S['n_metales']
@@ -1571,6 +1627,7 @@ def _mov_martillo_colosal(b, ctx, a):
 
 
 def _mov_giro_vil(b, ctx, a):
+    """El ataque «Giro Vil», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'giro_vil')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1581,6 +1638,7 @@ def _mov_giro_vil(b, ctx, a):
 
 
 def _mov_ojitos_tiernos(b, ctx, a):
+    """El ataque «Ojitos Tiernos», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D, j = ctx['ahora'], _md(b, 'ojitos_tiernos'), ctx['jugador']
     if 't0' not in a:
         a['t0'] = ahora
@@ -1594,6 +1652,7 @@ def _mov_ojitos_tiernos(b, ctx, a):
 
 
 def _mov_carantoña(b, ctx, a):
+    """El ataque «Carantoña», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'carantoña')
     j = ctx['jugador']
     if 't0' not in a:
@@ -1631,6 +1690,7 @@ def _mov_carantoña(b, ctx, a):
 # ==================== Chandelure ====================
 
 def _prep_chandelure(b, ent, ahora):
+    """Prepara la pelea de Chandelure: lo que cambia en la arena y su estado al empezar (tabla PREPARAR)."""
     S, D = b['sj'], SUBJEFES['chandelure']
     A = S['area']
     velas = []
@@ -1645,6 +1705,7 @@ def _luz_choca(b, v, D):
 
 
 def _mec_chandelure(b, ctx):
+    """La mecánica propia de Chandelure, cada cuadro (tabla MECANICAS)."""
     S, M, D = b['sj'], b['sj']['mec'], SUBJEFES['chandelure']
     ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
     R = D['robo']
@@ -1713,6 +1774,7 @@ def _circulos_sofoco(So, Sd):
 
 
 def _quieto_chandelure(b, ctx):
+    """Lo que hace Chandelure entre ataque y ataque: cómo se mueve y te sigue (tabla QUIETO)."""
     S, D, ahora = b['sj'], SUBJEFES['chandelure'], ctx['ahora']
     prendidas = [v for v in S['velas'] if v['luz'] and not v['vuela']]
     if prendidas and ahora >= S['mec'].get('prox_polter', 0):        # va a buscar un candelabro prendido para tirartelo
@@ -1723,6 +1785,7 @@ def _quieto_chandelure(b, ctx):
 
 
 def _mov_fuego_fatuo(b, ctx, a):
+    """El ataque «Fuego Fatuo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'fuego_fatuo')
     for i in range(D['llamas']):
         ang = i * math.tau / D['llamas'] + random.uniform(-0.3, 0.3)
@@ -1733,6 +1796,7 @@ def _mov_fuego_fatuo(b, ctx, a):
 
 
 def _mov_infortunio(b, ctx, a):
+    """El ataque «Infortunio», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'infortunio')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1749,6 +1813,7 @@ def _mov_infortunio(b, ctx, a):
 
 
 def _mov_sofoco(b, ctx, a):
+    """El ataque «Sofoco», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'sofoco')
     S['sofoco'] = {'centro': _bc(b), 'dir': _v(_ang(_bc(b), _jc(ctx))), 'giro': 0.0, 'sale': ahora + D['aviso'], 'hasta': ahora + D['aviso'] + D['dura'],
                    'pego': [False, False]}
@@ -1763,6 +1828,7 @@ def _prep_samurott_hisui(b, ent, ahora):
 
 
 def _mec_samurott_hisui(b, ctx):
+    """La mecánica propia de Samurott Hisui, cada cuadro (tabla MECANICAS)."""
     S, M, D = b['sj'], b['sj']['mec'], SUBJEFES['samurott_hisui']
     j, ahora = ctx['jugador'], ctx['ahora']
     P = D['puas']
@@ -1788,12 +1854,14 @@ def _quieto_samurott_hisui(b, ctx):
 
 
 def _elegir_samurott_hisui(b, ctx):
+    """Elige el próximo ataque de Samurott Hisui según dónde estás y qué usó antes (tabla ELEGIR)."""
     d = _d(_bc(b), _jc(ctx))
     return _elegir(b, ctx, lambda m: m != 'concha_filo' or d <= _md(b, 'concha_filo')['cerca'],
                    {'corte_metralla': 1.3 if d < 240 else 0.6, 'megacuerno': 1.4 if d > 300 else 0.7})
 
 
 def _mov_contraataque(b, ctx, a):
+    """El ataque «Contraataque», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, C = ctx['ahora'], SUBJEFES['samurott_hisui']['contra']
     if 't0' not in a:
         a.update(t0=ahora, dir=_v(_ang(_bc(b), _jc(ctx))), restante=C['largo'], etapa='dash')
@@ -1809,6 +1877,7 @@ def _mov_contraataque(b, ctx, a):
 
 
 def _mov_corte_metralla(b, ctx, a):
+    """El ataque «Corte Metralla», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'corte_metralla')
     if 't0' not in a: a.update(t0=ahora, i=0, prox=ahora)
     if a['i'] < D['cortes']:
@@ -1833,6 +1902,7 @@ def _mov_corte_metralla(b, ctx, a):
 
 
 def _mov_aqua_jet(b, ctx, a):
+    """El ataque «Aqua Jet», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'aqua_jet')
     if 't0' not in a:
         a.update(t0=ahora, etapa='aviso')
@@ -1846,6 +1916,7 @@ def _mov_aqua_jet(b, ctx, a):
 
 
 def _mov_concha_filo(b, ctx, a):
+    """El ataque «Concha Filo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'concha_filo')
     if 't0' not in a:
         ang = _ang(_bc(b), _jc(ctx))
@@ -1856,6 +1927,7 @@ def _mov_concha_filo(b, ctx, a):
 
 
 def _mov_megacuerno(b, ctx, a):
+    """El ataque «Megacuerno», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'megacuerno')
     if 't0' not in a:
         a.update(t0=ahora, etapa='aviso', dir=_v(_ang(_bc(b), _jc(ctx))), restante=D['largo'])
@@ -1876,6 +1948,7 @@ def _prep_magnezone(b, ent, ahora):
 
 
 def _mec_magnezone(b, ctx):
+    """La mecánica propia de Magnezone, cada cuadro (tabla MECANICAS)."""
     S, M, D = b['sj'], b['sj']['mec'], SUBJEFES['magnezone']
     ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
     C = D['campo']
@@ -1929,6 +2002,7 @@ def _fijado(b, ahora):
 
 
 def _elegir_magnezone(b, ctx):
+    """Elige el próximo ataque de Magnezone según dónde estás y qué usó antes (tabla ELEGIR)."""
     S, ahora = b['sj'], ctx['ahora']
     d = _d(_bc(b), _jc(ctx))
     if _fijado(b, ahora):
@@ -1938,6 +2012,7 @@ def _elegir_magnezone(b, ctx):
 
 
 def _mov_fijar_blanco(b, ctx, a):
+    """El ataque «Fijar Blanco», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'fijar_blanco')
     if 't0' not in a:
         a['t0'] = ahora
@@ -1958,6 +2033,7 @@ def _rayo_toca(j, a, c, ancho):
 
 
 def _mov_electrocañon(b, ctx, a):
+    """El ataque «Electrocañon», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'electrocañon')
     j = ctx['jugador']
     bc = _bc(b)
@@ -1988,6 +2064,7 @@ TRI = (('fuego', 'quemadura'), ('hielo', 'congelar'), ('electrico', 'paralisis')
 
 
 def _mov_triataque(b, ctx, a):
+    """El ataque «Triataque», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'triataque')
     if 't0' not in a:
         a.update(t0=ahora, fijado=_fijado(b, ahora), i=0, prox=ahora)
@@ -2019,6 +2096,7 @@ def _mov_triataque(b, ctx, a):
 
 
 def _mov_chispazo(b, ctx, a):
+    """El ataque «Chispazo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'chispazo')
     if 't0' not in a:
         a['t0'] = ahora
@@ -2030,6 +2108,7 @@ def _mov_chispazo(b, ctx, a):
 # ==================== Muk de Alola ====================
 
 def _prep_muk_alola(b, ent, ahora):
+    """Prepara la pelea de Muk Alola: lo que cambia en la arena y su estado al empezar (tabla PREPARAR)."""
     S = b['sj']
     A = S['area']
     tam = ent['tam']
@@ -2039,6 +2118,7 @@ def _prep_muk_alola(b, ent, ahora):
 
 
 def _mec_muk_alola(b, ctx):
+    """La mecánica propia de Muk Alola, cada cuadro (tabla MECANICAS)."""
     S, D = b['sj'], SUBJEFES['muk_alola']
     j, ahora = ctx['jugador'], ctx['ahora']
     Al, Gr = D['alcantarilla'], D['grimer']
@@ -2097,6 +2177,7 @@ def _elegir_muk_alola(b, ctx):
 
 
 def _mov_bomba_lodo(b, ctx, a):
+    """El ataque «Bomba Lodo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'bomba_lodo')
     j = ctx['jugador']
     base = _jc(ctx)
@@ -2112,6 +2193,7 @@ def _mov_bomba_lodo(b, ctx, a):
 
 
 def _mov_lanzamugre(b, ctx, a):
+    """El ataque «Lanzamugre», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'lanzamugre')
     if 't0' not in a:
         a['t0'] = ahora
@@ -2122,6 +2204,7 @@ def _mov_lanzamugre(b, ctx, a):
 
 
 def _mov_eructo(b, ctx, a):
+    """El ataque «Eructo», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     ahora, D = ctx['ahora'], _md(b, 'eructo')
     if 't0' not in a: a.update(t0=ahora, i=0)
     if a['i'] >= D['ondas']: return False
@@ -2134,6 +2217,7 @@ def _mov_eructo(b, ctx, a):
 
 
 def _mov_armadura_acida(b, ctx, a):
+    """El ataque «Armadura Acida», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
     S, ahora, D = b['sj'], ctx['ahora'], _md(b, 'armadura_acida')
     S['acida_hasta'] = ahora + D['dura']
     _mensaje(b, 'Armadura Ácida: Muk no recibe daño', 1200)

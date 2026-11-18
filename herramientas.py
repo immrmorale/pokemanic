@@ -2,6 +2,7 @@
 herramientas.py - Programas aparte para preparar el juego (no se usan mientras jugas).
 
     python herramientas.py descargar           baja los sprites y retratos del PMD (SpriteCollab)
+    python herramientas.py caras celebi ...    baja las demas caras del retrato (feliz, sorprendido, preocupado...) para las charlas
     python herramientas.py animaciones [poke]  dice que hace cada animacion de los sprites y cual usa cada ataque (y lo guarda en asignacion_animaciones.json)
     python herramientas.py sonidos             baja los gritos de todos los pokemon (PokeAPI) a assets/sonidos/gritos
     python herramientas.py datos               arma datos_pokeapi.json desde la PokeAPI
@@ -20,11 +21,15 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py arenas              recorta la arena ya dibujada de cada jefe ('Dungeon Boss Rooms' del Red Rescue Team) y guarda su piso
     python herramientas.py estados             recorta los estados animados (llama, Zzz, calavera, pajaritos...) del Red Rescue Team a assets/efectos
     python herramientas.py clima               recorta la lluvia, nieve, granizo, niebla, sol, brasas y sombras de nubes del Red Rescue Team a assets/clima
+    python herramientas.py aldea               el arbol suelto, tocon, cerca, matas, flores y las chozas de la plaza ('Huts' del Red Rescue Team)
+    python herramientas.py logo                pasa assets/typo_logo_pokemanic.png a assets/interfaz/logo.png (pixeles originales, sin fondo)
+    python herramientas.py chispas             estrellitas y brillos de los golpes ('Miscellaneous - Effects' del Red Rescue Team)
+    python herramientas.py icono               el icono de Pokemanic.exe (la cara de Celebi) para crear_exe.bat
+    python herramientas.py portal              el portal violeta de las escenas ('Dimensional Hole' del Explorers of Time/Darkness)
+    python herramientas.py espiritu            el aura redonda del espiritu ('Moonlight' del Explorers of Sky)
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
-    python herramientas.py sincronizar         baja stats, tipos y movimientos de la PokeAPI (formato viejo de datos_pokeapi.json)
-    python herramientas.py verificar           compara la tabla de tipos y los movimientos con la PokeAPI
 """
 
 import json
@@ -52,6 +57,7 @@ def herramienta_descargar():
     BASE = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/'
     DESTINO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sprites', 'pokemones')
     RETRATOS = ('Normal', 'Pain')
+    CARAS = ('Happy', 'Surprised', 'Worried', 'Determined', 'Inspired', 'Joyous', 'Sigh', 'Sad', 'Shouting', 'Teary-Eyed', 'Stunned')   # las de 'caras'
     FORMAS = {'samurott_hisui': '0001', 'dialga_origen': '0001', 'palkia_origen': '0001', 'giratina_origen': '0001', 'arceus_beta': '0019'}
     SALTEAR = ('missigno',)
     SOLO_RETRATO = ('amoonguss', 'brute_bonnet')     # SpriteCollab todavia no tiene sus animaciones: se baja el retrato solo
@@ -109,6 +115,15 @@ def herramienta_descargar():
             if not guardar(BASE + 'portrait/' + subruta + '/' + emocion + '.png', os.path.join(carpeta, 'portrait', emocion + '.png')):
                 faltan.append('portrait/' + emocion + '.png')
         return nombre, len(animaciones), faltan
+
+
+    if len(sys.argv) > 2 and sys.argv[1] == 'caras':               # 'caras <pokemon>...': las demas caras del retrato (para las charlas)
+        for nombre in sys.argv[2:]:
+            carpeta = os.path.join(DESTINO, 'sprite_' + nombre, 'portrait')
+            subruta = '%04d' % pokemones[nombre]['pokedex'] + ('/' + FORMAS[nombre] if nombre in FORMAS else '')
+            caras = [e for e in CARAS if guardar(BASE + 'portrait/' + subruta + '/' + e + '.png', os.path.join(carpeta, e + '.png'))]
+            print(nombre + ':', ', '.join(caras) or 'ninguna')
+        return
 
 
     def main():
@@ -240,11 +255,13 @@ def herramienta_sonidos():
     os.makedirs(DESTINO, exist_ok=True)
 
     def bajar(url):
+        """Baja una URL (None si falla)."""
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'pokemanic-sonidos'}), timeout=30) as r: return r.read()
         except (urllib.error.URLError, OSError): return None
 
     def uno(nombre):
+        """Baja el grito de un pokemon."""
         ruta = os.path.join(DESTINO, nombre + '.ogg')
         if os.path.isfile(ruta): return nombre, 'ya estaba'
         dex = pokemones[nombre].get('pokedex')
@@ -602,138 +619,6 @@ def herramienta_visor():
             pygame.display.flip(); reloj.tick(30)
 
     main()
-
-
-# ==================== sincronizar pokeapi ====================
-
-def herramienta_sincronizar():
-    """Baja de la PokeAPI stats, altura, peso, tipos y movimientos y los guarda en datos_pokeapi.json."""
-    pokemones = datos.pokemones.pokemones
-
-    BASE = 'https://pokeapi.co/api/v2/pokemon/'
-    DESTINO = os.path.join(os.path.dirname(__file__), 'datos_pokeapi.json')
-
-
-    def descargar(nombre):
-        """Datos de un pokemon de la PokeAPI (None para los inventados, como Arceus Beta)."""
-        slug = nombre.replace('_', '-')
-        if nombre in ('arceus_beta', 'missigno'):
-            return None
-        peticion = urllib.request.Request(BASE + slug, headers={'User-Agent': 'Pokemanic-PokeAPI-Sync/1.0'})
-        with urllib.request.urlopen(peticion, timeout=15) as respuesta:
-            return json.loads(respuesta.read().decode('utf-8'))
-
-
-    def main():
-        """Actualiza stats, tipos y movimientos de datos_pokeapi.json (formato viejo)."""
-        if os.path.isfile(DESTINO):
-            try:
-                with open(DESTINO, 'r', encoding='utf-8') as archivo:
-                    datos = json.load(archivo)
-            except (OSError, ValueError):
-                datos = {}
-        else:
-            datos = {}
-        errores = []
-        for nombre in pokemones:
-            if nombre in ('arceus_beta', 'missigno'):
-                continue
-            try:
-                pokemon = descargar(nombre)
-                if not pokemon:
-                    continue
-                stats = {x['stat']['name']: x['base_stat'] for x in pokemon.get('stats', [])}
-                moves = sorted({x['move']['name'] for x in pokemon.get('moves', [])})
-                tipos = [x['type']['name'] for x in pokemon.get('types', [])]
-                datos[nombre] = {
-                    'id': pokemon.get('id'),
-                    'stats': stats,
-                    'height_m': pokemon.get('height', 0) / 10,
-                    'weight_kg': pokemon.get('weight', 0) / 10,
-                    'types': tipos,
-                    'moves': moves
-                }
-                print(nombre + ': datos sincronizados')
-            except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as error:
-                errores.append((nombre, str(error)))
-                print(nombre + ': no se pudo descargar')
-            time.sleep(0.08)
-        with open(DESTINO, 'w', encoding='utf-8') as archivo:
-            json.dump(datos, archivo, ensure_ascii=False, indent=2)
-        print('Archivo guardado: ' + DESTINO)
-        print('Pokémon guardados: ' + str(len(datos)))
-        if errores:
-            print('Sin actualizar: ' + ', '.join(nombre for nombre, _ in errores))
-            print('Puedes volver a ejecutar el script para completar los datos faltantes.')
-
-    main()
-
-
-# ==================== verificar pokeapi ====================
-
-def herramienta_verificar():
-    """Compara la tabla de tipos y los movimientos del juego con los de la PokeAPI (guarda lo bajado en cache_pokeapi.json)."""
-    pokemones, TABLA_TIPOS = datos.pokemones.pokemones, datos.pokemones.TABLA_TIPOS
-    habilidades, sinergias = datos.habilidades, datos.sinergias
-
-    API = 'https://pokeapi.co/api/v2/'
-    CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache_pokeapi.json')
-    TIPOS_EN = {'normal': 'normal', 'fuego': 'fire', 'agua': 'water', 'electrico': 'electric', 'planta': 'grass', 'hielo': 'ice',
-                'lucha': 'fighting', 'veneno': 'poison', 'tierra': 'ground', 'volador': 'flying', 'psiquico': 'psychic',
-                'roca': 'rock', 'fantasma': 'ghost', 'dragon': 'dragon', 'siniestro': 'dark', 'acero': 'steel'}
-    EN_TIPOS = {v: k for k, v in TIPOS_EN.items()}
-    cache = json.load(open(CACHE, encoding='utf-8')) if os.path.isfile(CACHE) else {}
-
-
-    def pedir(ruta):
-        """JSON de la PokeAPI (guardado para no pedir dos veces lo mismo)."""
-        if ruta not in cache:
-            pedido = urllib.request.Request(API + ruta, headers={'User-Agent': 'pokemanic-verificacion'})
-            with urllib.request.urlopen(pedido, timeout=30) as r:
-                cache[ruta] = json.loads(r.read().decode('utf-8'))
-        return cache[ruta]
-
-
-    def verificar_tipos():
-        """Compara la tabla de tipos del juego con la de la PokeAPI y muestra las diferencias."""
-        print('--- tabla de tipos')
-        errores = 0
-        for tipo, en in TIPOS_EN.items():
-            rel = pedir('type/' + en)['damage_relations']
-            oficial = {}
-            for clave, valor in (('double_damage_to', 2.0), ('half_damage_to', 0.5), ('no_damage_to', 0.0)):
-                for t in rel[clave]:
-                    if t['name'] in EN_TIPOS:
-                        oficial[EN_TIPOS[t['name']]] = valor
-            propio = {k: float(v) for k, v in TABLA_TIPOS.get(tipo, {}).items()}
-            if oficial != propio:
-                errores += 1
-                print(tipo, 'difiere | oficial:', oficial, '| juego:', propio)
-        print('tipos con diferencias:', errores)
-
-
-    def verificar_movimientos():
-        """Revisa que cada pokemon pueda aprender en los juegos sus especiales y asistencias."""
-        print('--- habilidades y sinergias que cada pokemon puede aprender')
-        errores = 0
-        for nombre, datos in pokemones.items():
-            if not datos.get('jugable'):
-                continue
-            movimientos = {m['move']['name'] for m in pedir('pokemon/' + nombre.replace('_', '-'))['moves']}
-            pedidos = [habilidades[c] for c in datos.get('habilidades', [])]
-            if datos.get('apoyo'):
-                pedidos.append(sinergias[datos['apoyo']])
-            for movimiento in pedidos:
-                if movimiento['api'] not in movimientos:
-                    errores += 1
-                    print(nombre, 'no aprende', movimiento['api'], '(' + movimiento['nombre'] + ')')
-        print('habilidades que no aprende el pokemon:', errores)
-
-    try:
-        verificar_tipos()
-        verificar_movimientos()
-    finally:
-        json.dump(cache, open(CACHE, 'w', encoding='utf-8'))
 
 
 # ==================== pruebas ====================
@@ -1314,13 +1199,15 @@ def herramienta_cielo():
 
 def herramienta_minimapa():
     """De la hoja 'Map Sprites' del Explorers of Time/Darkness (el mapa de la pantalla de arriba del PMD) recorta las piezas del minimapa:
-    assets/interfaz/minimapa/ yo, compañero, objeto, enemigo, jefe (outlaw), baldosa (wondertile), escalera, trampa y portal (warpzone),
-    borde_h / borde_v (las rayitas blancas de las paredes) y relleno (la trama azul del piso explorado). El verde de fondo queda transparente."""
+    assets/interfaz/minimapa/ yo, aliado, objeto, enemigo, jefe (outlaw), baldosa (wondertile), escalera, trampa y portal (warpzone),
+    borde_h / borde_v (las rayitas blancas de las paredes), relleno (la trama azul del piso explorado) y fondo_mapa (el marron a cuadros
+    que va detras del mapa, para el mapa grande de la tecla M). El verde de fondo queda transparente."""
     raiz = os.path.dirname(os.path.abspath(__file__))
     assets = os.path.join(raiz, 'assets')
-    PIEZAS = {'yo': (2, 3, 4, 4), 'yo_claro': (9, 3, 4, 4), 'compañero': (2, 10, 4, 4), 'objeto': (2, 17, 4, 4), 'enemigo': (2, 24, 4, 4),
+    PIEZAS = {'yo': (2, 3, 4, 4), 'yo_claro': (9, 3, 4, 4), 'aliado': (2, 10, 4, 4), 'objeto': (2, 17, 4, 4), 'enemigo': (2, 24, 4, 4),
               'jefe': (2, 31, 4, 4), 'baldosa': (3, 39, 2, 2), 'escalera': (2, 45, 4, 4), 'trampa': (2, 52, 4, 4), 'portal': (2, 59, 4, 4),
-              'borde_h': (37, 79, 4, 1), 'borde_v': (46, 79, 1, 4), 'relleno': (5, 104, 4, 4), 'relleno_lleno': (31, 104, 4, 4)}
+              'borde_h': (37, 79, 4, 1), 'borde_v': (46, 79, 1, 4), 'relleno': (5, 104, 4, 4), 'relleno_lleno': (31, 104, 4, 4),
+              'fondo_mapa': (5, 78, 24, 24)}                                 # (el marron a cuadros de atras del mapa: el fondo del mapa grande)
 
     def main():
         """Recorta cada pieza de la hoja y saca el verde de fondo."""
@@ -1343,7 +1230,9 @@ def herramienta_minimapa():
 def herramienta_viaje():
     """Lo del viaje temporal (interfaz.menus.viaje_temporal y cruzar_portal), en assets/interfaz/fondos:
         viaje_<n>.png     de 'Time Travel' del Explorers of Sky (13 cuadros de 312x240 en la columna izquierda, separados por 3 px):
-                          los 12 cuadros animados del tunel, recortados a 5:3 como la pantalla (el 13 es el tunel quieto y no se usa)
+                          los 12 cuadros animados del tunel, recortados a 5:3 como la pantalla
+        viaje_fondo.png   el cuadro 13: el cosmos quieto (sin los cuadrados ni las rayas)
+        viaje_capa_<n>.png  la columna derecha: solo lo que se mueve (cuadrados y rayas), con el magenta transparente
         apertura_<n>.png  de 'Dimensional Scream' del Explorers of Time/Darkness (cuadros de 256x192 en 3 columnas, separados por 2 px):
                           la estela que cruza, la estrella y el estallido hasta quedar todo blanco (los 22 primeros cuadros)"""
     raiz = os.path.dirname(os.path.abspath(__file__))
@@ -1370,7 +1259,13 @@ def herramienta_viaje():
         else:
             hoja = pygame.image.load(ruta).convert()
             for i in range(CUADROS): pygame.image.save(a_cinco_tercios(hoja, 0, i * PASO, ANCHO, ALTO), os.path.join(carpeta, 'viaje_' + str(i) + '.png'))
-            print(CUADROS, 'cuadros del tunel en assets/interfaz/fondos')
+            pygame.image.save(a_cinco_tercios(hoja, 0, CUADROS * PASO, ANCHO, ALTO), os.path.join(carpeta, 'viaje_fondo.png'))
+            magenta = tuple(hoja.get_at((ANCHO + 8, 5)))[:3]
+            for i in range(CUADROS):
+                capa = a_cinco_tercios(hoja, ANCHO + 3, i * PASO, ANCHO, ALTO).copy().convert_alpha()
+                pa = pygame.PixelArray(capa); pa.replace(magenta, (0, 0, 0, 0)); pa.close()
+                pygame.image.save(capa, os.path.join(carpeta, 'viaje_capa_' + str(i) + '.png'))
+            print(CUADROS, 'cuadros del tunel, el cosmos quieto y la capa que se mueve en assets/interfaz/fondos')
         ruta = buscar(' - Dimensional Scream.png')
         if not ruta: print('falta la hoja (spriters-resource, Explorers of Time/Darkness > Miscellaneous > Dimensional Scream) en assets'); return
         hoja, a = pygame.image.load(ruta).convert(), APERTURA
@@ -1603,6 +1498,7 @@ def herramienta_hud():
                    'alfombra_fondo': (BAZAR, (300, 232, 4, 3), None)})
 
     def buscar_hoja(nombre):
+        """Busca una hoja de BW en las carpetas de assets."""
         for carpeta in (os.path.join(assets, 'hojas', 'blanco_negro'), os.path.join(assets, 'hojas', 'blanco_negro', 'Miscellaneous'), assets):
             if not os.path.isdir(carpeta): continue
             for archivo in os.listdir(carpeta):
@@ -1957,30 +1853,94 @@ def herramienta_chispas():
         print(nombre, len(cajas), 'dibujos ->', len(orden), 'cuadros de', lado, 'px')
 
 
-# ==================== la pantalla de elegir inicial (Blanco/Negro) ====================
+# ==================== el portal y el espiritu (escenas del cosmos) ====================
 
-def herramienta_inicial():
-    """De la hoja 'Starter Selection Screen' de Blanco/Negro saca lo que usa la pantalla de elegir tu pokemon (assets/interfaz/inicial/):
-        fondo_<color>.png   los fondos con arcos: gris, blanco, dorado, verde y celeste (sin el cuadradito ni la franja negra de abajo)
-        mano.png            la manito que señala"""
-    ruta = _buscar_hoja('Miscellaneous - Starter Selection Screen.png')
-    if not ruta: print('falta la hoja Starter Selection Screen de Blanco/Negro (assets/hojas/faltan.txt)'); return
+def herramienta_portal():
+    """De 'Dimensional Hole' del Explorers of Time/Darkness arma assets/efectos/portal.png: los 8 cuadros del portal violeta
+    (4 latiendo, 2 agrietandose y 2 rompiendose en pedazos) en cuadrados de 112 px, todos alineados al mismo centro.
+    Es el portal de las escenas: para ir entre eras, en la llegada a cada era y al final de la partida nueva."""
+    ruta = _buscar_hoja(' - Dimensional Hole.png')
+    if not ruta: print('falta la hoja Dimensional Hole del Explorers of Time/Darkness'); return
     pygame.init(); pygame.display.set_mode((1, 1))
-    hoja = pygame.image.load(ruta).convert_alpha()
-    destino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'interfaz', 'inicial')
-    os.makedirs(destino, exist_ok=True)
-    for nombre, (x, y) in {'gris': (113, 130), 'blanco': (245, 130), 'dorado': (377, 130), 'verde': (4, 263), 'celeste': (134, 263)}.items():
-        pygame.image.save(hoja.subsurface((x, y + 10, 128, 92)).copy(), os.path.join(destino, 'fondo_' + nombre + '.png'))
-    mano = hoja.subsurface((9, 128, 32, 32)).copy()
-    fondo = tuple(mano.get_at((0, 0)))
-    pendientes = [(0, 0), (31, 0), (0, 31), (31, 31)]
-    while pendientes:                                                # el recuadro verde de atras de la manito, afuera
-        x, y = pendientes.pop()
-        if not (0 <= x < 32 and 0 <= y < 32) or tuple(mano.get_at((x, y))) != fondo: continue
-        mano.set_at((x, y), (0, 0, 0, 0))
-        pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-    pygame.image.save(mano.subsurface(mano.get_bounding_rect()).copy(), os.path.join(destino, 'mano.png'))
-    print('5 fondos y la manito en assets/interfaz/inicial')
+    hoja = pygame.image.load(ruta).convert()
+    verde, gris = tuple(hoja.get_at((0, 0)))[:3], tuple(hoja.get_at((5, 5)))[:3]
+    fuera = pygame.mask.from_threshold(hoja, verde, (2, 2, 2, 255)); fuera.invert()
+    piezas = sorted((c for c in fuera.connected_components() if c.count() > 2000), key=lambda c: (c.get_bounding_rects()[0].y // 40, c.get_bounding_rects()[0].x))
+    tira = pygame.Surface((112 * len(piezas), 112), pygame.SRCALPHA)
+    for i, pieza in enumerate(piezas):
+        caja = pieza.get_bounding_rects()[0]
+        cuadro = pygame.Surface(caja.size, pygame.SRCALPHA)
+        cuadro.blit(pieza.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0)), (0, 0), caja)
+        cuadro.blit(hoja.subsurface(caja), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        pa = pygame.PixelArray(cuadro); pa.replace(gris, (0, 0, 0, 0)); pa.close()
+        tira.blit(cuadro, (i * 112 + 16, 24))                    # (el cuadro de 80x64 queda centrado; el ultimo se pasa con los pedazos)
+    pygame.image.save(tira, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'efectos', 'portal.png'))
+    print(len(piezas), 'cuadros del portal en assets/efectos/portal.png')
+
+
+def herramienta_espiritu():
+    """El espiritu de la partida nueva: assets/efectos/aura.png, la luz redonda del cielo de 'Moonlight' del Explorers of Sky (el
+    resplandor de la luna sin el cielo ni las estrellas: la mediana de cada anillo alrededor del centro, asi queda redonda), y
+    assets/efectos/estrellita.png, la estrella que titila del efecto 0038 de los Attack Effects del Explorers of Sky, y
+    assets/efectos/mano.png, la mano rosa del efecto 0200 (cuando Celebi te agarra de la mano)."""
+    ruta = _buscar_hoja(' - Moonlight.png')
+    if not ruta: print('falta la hoja Moonlight del Explorers of Sky'); return
+    pygame.init(); pygame.display.set_mode((1, 1))
+    hoja = pygame.image.load(ruta).convert()
+    panel = pygame.Rect(316, 0, 311, 240)
+    zona = lambda x, y: sum(hoja.get_at((x + a, y + b))[2] for a in range(-12, 13, 4) for b in range(-12, 13, 4))   # azul alrededor (una estrella sola no gana)
+    cx, cy = max(((x, y) for x in range(panel.x + 30, panel.right - 30, 3) for y in range(panel.y + 30, panel.bottom - 30, 3)), key=lambda p: zona(*p))
+    cielo = hoja.get_at((panel.x + 6, panel.bottom - 6))
+    RADIO = 70
+    anillos = {}
+    for y in range(cy - RADIO, cy + RADIO + 1):
+        for x in range(cx - RADIO, cx + RADIO + 1):
+            d = round(math.hypot(x - cx, y - cy))
+            if d <= RADIO: anillos.setdefault(d, []).append(tuple(hoja.get_at((x, y)))[:3])
+    perfil = {d: [sorted(c[k] for c in v)[len(v) // 2] for k in range(3)] for d, v in anillos.items()}   # la mediana: las estrellas no cuentan
+    aura = pygame.Surface((RADIO * 2 + 1, RADIO * 2 + 1))
+    for y in range(RADIO * 2 + 1):
+        for x in range(RADIO * 2 + 1):
+            d = round(math.hypot(x - RADIO, y - RADIO))
+            if d <= RADIO: aura.set_at((x, y), [max(0, perfil[d][k] - cielo[k]) for k in range(3)])
+    pygame.image.save(aura, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'efectos', 'aura.png'))
+    print('aura del espiritu en assets/efectos/aura.png (centro', (cx, cy), ')')
+    zip_ = next((os.path.join(c, a) for c, _, archivos in os.walk(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'))
+                 for a in archivos if a.endswith('Explorers of Sky - Miscellaneous - Attack Effects.zip')), None)
+    if not zip_: print('falta Attack Effects.zip del Explorers of Sky (la estrellita del espiritu)'); return
+    import zipfile, io
+    z = zipfile.ZipFile(zip_)
+    cuadros = sorted(n for n in z.namelist() if n.startswith('move_VFX/0038/000/') and n.endswith('.png'))
+    estrellas = [pygame.image.load(io.BytesIO(z.read(cuadros[i * len(cuadros) // 6]))).convert_alpha() for i in range(6)]   # la estrella y sus crucecitas, titilando
+    lado = max(max(e.get_size()) for e in estrellas)   # (sin recortar: asi la estrella queda siempre en el centro del cuadro)
+    lado = max(max(e.get_size()) for e in estrellas)
+    tira = pygame.Surface((lado * len(estrellas), lado), pygame.SRCALPHA)
+    for i, e in enumerate(estrellas): tira.blit(e, e.get_rect(center=(i * lado + lado // 2, lado // 2)))
+    pygame.image.save(tira, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'efectos', 'estrellita.png'))
+    print('la estrellita del espiritu (efecto 0038 del Explorers of Sky) en assets/efectos/estrellita.png')
+    cuadros = sorted(n for n in z.namelist() if n.startswith('move_VFX/0200/000/') and n.endswith('.png'))[:9]   # la mano rosa (los primeros 9)
+    tira = pygame.Surface((64 * len(cuadros), 64), pygame.SRCALPHA)
+    for i, n in enumerate(cuadros): tira.blit(pygame.image.load(io.BytesIO(z.read(n))).convert_alpha(), (i * 64 + 4, 0))
+    pygame.image.save(tira, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'efectos', 'mano.png'))
+    print('la mano de Celebi (efecto 0200 del Explorers of Sky) en assets/efectos/mano.png')
+
+
+# ==================== el icono del ejecutable ====================
+
+def herramienta_icono():
+    """Arma assets/interfaz/icono.ico (el icono de Pokemanic.exe) con la cara de Celebi del retrato del PMD, agrandada sin suavizar.
+    El .ico lleva adentro un PNG de 256x256 (lo entiende Windows desde Vista)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    cara = os.path.join(raiz, 'assets', 'sprites', 'pokemones', 'sprite_celebi', 'portrait', 'Happy.png')
+    if not os.path.isfile(cara): cara = os.path.join(os.path.dirname(cara), 'Normal.png')
+    pygame.init(); pygame.display.set_mode((1, 1))
+    temporal = os.path.join(raiz, 'assets', 'interfaz', 'icono_256.png')
+    pygame.image.save(pygame.transform.scale(pygame.image.load(cara), (256, 256)), temporal)
+    png = open(temporal, 'rb').read(); os.remove(temporal)
+    import struct
+    ico = struct.pack('<HHH', 0, 1, 1) + struct.pack('<BBBBHHII', 0, 0, 0, 0, 1, 32, len(png), 22) + png
+    open(os.path.join(raiz, 'assets', 'interfaz', 'icono.ico'), 'wb').write(ico)
+    print('assets/interfaz/icono.ico listo')
 
 
 # ==================== el logo ====================
@@ -2007,6 +1967,7 @@ def herramienta_logo():
         else: largos[n] = largos.get(n, 0) + 1; n, antes = 1, c
     lado = max((l for l in largos if l > 3), key=lambda l: largos[l])
     def cortes(horizontal, fase):                                    # cuantos cambios de color caen justo en la grilla con esa fase
+        """Cuántos cambios de color caen justo en la grilla con esa fase (para encontrar el tamaño del pixel del logo)."""
         total = 0
         for k in range(8):
             fijo = (y0 + (y1 - y0) * (k + 1) // 9) if horizontal else (x0 + (x1 - x0) * (k + 1) // 9)
@@ -2141,7 +2102,7 @@ def ver_plan():
 
 if __name__ == '__main__':
     orden = sys.argv[1] if len(sys.argv) > 1 else ''
-    if orden == 'descargar': herramienta_descargar()
+    if orden in ('descargar', 'caras'): herramienta_descargar()
     elif orden == 'animaciones': herramienta_animaciones(sys.argv[2] if len(sys.argv) > 2 else None)
     elif orden == 'sonidos': herramienta_sonidos()
     elif orden == 'datos': herramienta_datos()
@@ -2163,11 +2124,11 @@ if __name__ == '__main__':
     elif orden == 'casas': herramienta_casas()
     elif orden == 'aldea': herramienta_aldea()
     elif orden == 'logo': herramienta_logo()
-    elif orden == 'inicial': herramienta_inicial()
     elif orden == 'chispas': herramienta_chispas()
+    elif orden == 'icono': herramienta_icono()
+    elif orden == 'portal': herramienta_portal()
+    elif orden == 'espiritu': herramienta_espiritu()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()
-    elif orden == 'sincronizar': herramienta_sincronizar()
-    elif orden == 'verificar': herramienta_verificar()
     else: print(__doc__)

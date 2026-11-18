@@ -14,6 +14,7 @@ sistema.py - Lo basico para que el juego funcione: ajustes guardados, ventana, t
 import json
 import math
 import os
+import random
 import re
 import xml.etree.ElementTree as ET
 from types import SimpleNamespace
@@ -188,8 +189,6 @@ def armar_tipografia():
         def set_bold(self, valor): pass
         def get_height(self): return (self.ABAJO - self.ARRIBA) * self.escala + (2 * self.escala if self.borde else 0)
         def get_linesize(self): return self.get_height() + self.escala * 2
-        def get_ascent(self): return self.get_height()
-
         def _glifo(self, letra):
             if letra not in _glifos: letra = PARECIDOS.get(letra, letra)
             return _glifos.get(letra) or _glifos.get(letra.upper()) or _glifos['?']
@@ -199,6 +198,7 @@ def armar_tipografia():
             return max(0, ancho - 1) * self.escala + (2 * self.escala if self.borde else 0), self.get_height()
 
         def render(self, texto, antialias=False, color=(255, 255, 255), fondo=None):
+            """El texto dibujado con esta letra (como Font.render de pygame, guardado en caché)."""
             texto = str(texto)
             tinta = _color(color); sombra = sombra_de(tinta)
             clave = (texto, tinta, self.escala, self.borde, None if fondo is None else _color(fondo))
@@ -298,6 +298,7 @@ def armar_tipografia():
         def size(self, texto): return self.render(texto).get_size()
 
         def render(self, texto, antialias=False, color=(255, 255, 255), fondo=None):
+            """El texto dibujado con esta letra (como Font.render de pygame, guardado en caché)."""
             texto = str(texto); tinte = _color(color)
             clave = ('titulo', texto, tinte, self.escala, self.borde)
             if clave in _cache: return _cache[clave]
@@ -485,15 +486,15 @@ def armar_controles():
                 ('correr', 'Correr'), ('basico1', 'Ataque cuerpo a cuerpo'), ('basico2', 'Ataque a distancia'), ('especial1', 'Especial 1'),
                 ('especial2', 'Especial 2'), ('asist1', 'Asistencia 1'), ('asist2', 'Asistencia 2'), ('poke1', 'Pokemon 1'), ('poke2', 'Pokemon 2'),
                 ('poke3', 'Pokemon 3'), ('interactuar', 'Interactuar / comprar'), ('equipo', 'Ver equipo'), ('pausa', 'Pausa'), ('esquivar', 'Esquivar'),
-                ('bailar', 'Bailar (amigar / confundir)'), ('evolucionar', 'Evolucionar (mantener)'), ('curar', 'Usar curación (lugar 1 del cinturón)')]
+                ('bailar', 'Bailar (amigar / confundir)'), ('evolucionar', 'Evolucionar (mantener)'), ('curar', 'Curarse (tocar: la 1 / mantener: rueda)'), ('mapa', 'Mapa (de la era o del refugio)')]
     MOVIMIENTO = ('arriba', 'abajo', 'izquierda', 'derecha')
     PRESET_TECLADO = {'arriba': 'w', 'abajo': 's', 'izquierda': 'a', 'derecha': 'd', 'correr': 'left ctrl', 'basico1': 'e', 'basico2': 'q',
                       'especial1': 'left shift', 'especial2': 'r', 'asist1': 'f', 'asist2': 'g', 'poke1': '1', 'poke2': '2', 'poke3': '3',
-                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v', 'evolucionar': 'c', 'curar': 'z'}
+                      'interactuar': 'e', 'equipo': 'tab', 'pausa': 'escape', 'esquivar': 'space', 'bailar': 'v', 'evolucionar': 'c', 'curar': 'z', 'mapa': 'm'}
     PRESET_CONTROL = {'arriba': 'ninguno', 'abajo': 'ninguno', 'izquierda': 'ninguno', 'derecha': 'ninguno',     # con control se camina con la palanca
                       'correr': 'LB', 'basico1': 'X', 'basico2': 'RT', 'especial1': 'RB', 'especial2': 'Y', 'asist1': 'LT', 'asist2': 'B',
                       'poke1': 'cruz izq', 'poke2': 'cruz arriba', 'poke3': 'cruz der', 'interactuar': 'A', 'equipo': 'Back', 'pausa': 'Start', 'esquivar': 'palanca izq',
-                      'bailar': 'palanca der', 'evolucionar': 'cruz abajo', 'curar': 'ninguno'}
+                      'bailar': 'palanca der', 'evolucionar': 'cruz abajo', 'curar': 'ninguno', 'mapa': 'ninguno'}
 
     estado = {'config': None, 'contexto': 'menu', 'mandos': {}, 'konami': [], 'palanca_menu': (0, 0), 'repetir': 0}
 
@@ -920,6 +921,9 @@ def armar_animaciones():
         VELOCIDAD_REFERENCIA = 5.0
         RITMO_XML = ('sleep', 'eventsleep', 'wake', 'hurt', 'nod', 'pose', 'sit', 'laying', 'eat', 'lookup', 'deepbreath', 'faint', 'cringe', 'float', 'hover')   # estas van con las duraciones del AnimData.xml
         SUAVIZADO = False
+        GESTOS = (('deepbreath', 3), ('lookup', 3), ('nod', 2), ('pose', 1), ('hop', 1))   # lo que hacen cada tanto cuando estan quietos
+        GESTO_CADA = (150, 420)          # cada cuantos cuadros quietos (a 60 por segundo) hacen un gesto
+        ANTICIPO = (0.3, 1.9, 0.75)      # ataques: el primer 30% de los cuadros va 1,9 veces mas lento (se carga) y el resto mas rapido (sale)
         nombres_ataque = ('attack', 'strike', 'stricke', 'quickstrike', 'quick_strike', 'kick', 'punch', 'slash', 'body', 'melee', 'hit')
         nombres_forma = {
             'proyectil': ('shoot', 'charge'),
@@ -951,6 +955,8 @@ def armar_animaciones():
             self.ritmo = 1.0
             self.escala = 1.0
             self.altura_base = 0
+            self.gesto = None                  # un gesto de los que hace estando quieto (mirar arriba, respirar, asentir...)
+            self.cuadros_quieto, self.prox_gesto = 0, random.randint(*self.GESTO_CADA)
             self._cargar_con_cache()
             if self.usando_hojas and self.altura_base:
                 self.escala = self.tamaño / float(self.altura_base)
@@ -1187,6 +1193,12 @@ def armar_animaciones():
             encontrada = self._buscar_animacion(animacion)
             if encontrada is None:
                 return False
+            if self.gesto:                                   # haciendo un gesto: 'quedate quieto' lo deja terminar; otra cosa lo corta
+                if encontrada == 'idle':
+                    self.direccion = max(0, min(7, direccion)); self.indice_frame = min(self.indice_frame, max(0, len(self._frames_actuales()) - 1))
+                    return True
+                self.gesto = None
+            if encontrada != 'idle': self.cuadros_quieto = 0
             if self.animacion_actual != encontrada:
                 self.animacion_actual = encontrada
                 self.direccion = max(0, min(7, direccion))
@@ -1203,6 +1215,17 @@ def armar_animaciones():
 
         def actualizar(self):
             """Avanza un frame del juego: pasa al siguiente frame de la animacion cuando se cumple su duracion."""
+            if self.gesto and self.terminada:                # termino el gesto: vuelve a quedarse quieto
+                self.gesto = None; self.cambiar('idle', self.direccion, True)
+                self.cuadros_quieto, self.prox_gesto = 0, random.randint(*self.GESTO_CADA)
+            elif not self.gesto and self.animacion_actual == 'idle' and self.repetir and self.usando_hojas:
+                self.cuadros_quieto += 1
+                if self.cuadros_quieto >= self.prox_gesto:   # quieto un rato: hace un gesto (los que tenga)
+                    posibles = [(g, peso) for g, peso in self.GESTOS if g in self.sprites]
+                    if posibles:
+                        self.gesto = random.choices([g for g, _ in posibles], [peso for _, peso in posibles])[0]
+                        self.animacion_actual, self.indice_frame, self.acumulado, self.repetir, self.terminada = self.gesto, 0, 0.0, False, False
+                    else: self.cuadros_quieto = 0
             frames = self._frames_actuales()
             if not frames:
                 if not self.repetir:
@@ -1255,9 +1278,11 @@ def armar_animaciones():
                 anim = self.animaciones.get(self.animacion_actual)
                 if not anim or not anim.duraciones:
                     return 1
-                if self.animacion_actual in self.RITMO_XML: factor = 1.0      # dormir, despertar, asentir...: ritmo del juego original
-                elif self.animacion_actual not in ('idle', 'walk'):           # los ataques mantienen su ritmo rapido
-                    return max(1, math.ceil(factor))
+                if self.animacion_actual in self.RITMO_XML or self.gesto: factor = 1.0   # dormir, despertar, asentir, los gestos: ritmo del juego original
+                elif self.animacion_actual not in ('idle', 'walk'):           # los ataques: se cargan lento y salen rapido
+                    corte, lento, rapido = self.ANTICIPO
+                    k = self.indice_frame / max(1, len(self._frames_actuales()))
+                    return max(1, round(math.ceil(factor) * (lento if k < corte else rapido)))
                 duracion = anim.duraciones[min(self.indice_frame, len(anim.duraciones) - 1)]
                 return max(1, math.ceil(duracion * factor))
             return max(1, round(6 * factor))
@@ -1399,6 +1424,7 @@ def armar_sonido():
             s.play()
 
     def _archivo(pista):
+        """El archivo de música de una pista (o el de la pista de respaldo si falta)."""
         while pista:
             for ext in EXTENSIONES:
                 ruta = os.path.join(MUSICA, pista + ext)

@@ -1,5 +1,6 @@
 """
-interfaz.py - Los menus: ajustes, controles, trucos, glosario, inicial, equipo (TAB), ficha, mochila y dialogos.
+interfaz.py - Lo que se ve fuera de la sala: menus (ajustes, controles, trucos, glosario, equipo, ficha, mochila), dialogos,
+la rueda de curaciones, el logo y las escenas del borde del cosmos (la partida nueva y el viaje entre eras).
 
     from interfaz import menus
 """
@@ -700,7 +701,8 @@ def armar_menus():
 
     GENEROS = ('chico', 'chica', 'otro')
     LARGO_NOMBRE = 12
-    _viaje = {'cuadros': None, 'apertura': None}
+    _viaje = {'cuadros': None, 'apertura': None, 'fondo': None, 'capas': None}
+    COSMOS = {'ms': 240, 'alfa': 165}               # el tunel: ms por cuadro de la capa que se mueve (antes 90) y que tan marcada se ve
 
 
     def _cuadros_viaje(prefijo, cantidad, W, H):
@@ -719,10 +721,27 @@ def armar_menus():
         return {'chico': chico, 'chica': chica}.get(genero, otro)
 
 
-    def fondo_viaje(ui, ahora):
-        """El tunel del viaje temporal del Explorers of Sky (assets/interfaz/fondos/viaje_<n>.png, los recorta: python herramientas.py viaje).
-        Si no estan, rayos de colores girando sobre azul oscuro."""
+    def fondo_viaje(ui, ahora, fase=None):
+        """El tunel del viaje temporal del Explorers of Sky: el cosmos quieto (viaje_fondo.png) y encima, medio transparente, la capa de
+        cuadrados y rayas que va pasando despacio y fundiendo un cuadro con el siguiente (viaje_capa_<n>.png). Los recorta:
+        python herramientas.py viaje. fase: por que cuadro va (si no se da, sale del reloj); asi la escena lo acelera o lo frena.
+        Si faltan, los cuadros del tunel de antes; y si tampoco, rayos girando sobre azul oscuro."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        if _viaje['fondo'] is None:
+            ruta = os.path.join(FONDOS, 'viaje_fondo.png')
+            _viaje['fondo'] = pygame.transform.smoothscale(pygame.image.load(ruta).convert(), (W, H)) if os.path.isfile(ruta) else False
+            _viaje['capas'] = []
+            for i in range(12):
+                ruta = os.path.join(FONDOS, 'viaje_capa_' + str(i) + '.png')
+                if not os.path.isfile(ruta): break
+                _viaje['capas'].append(pygame.transform.smoothscale(pygame.image.load(ruta).convert_alpha(), (W, H)))
+        if _viaje['fondo'] and _viaje['capas']:
+            ventana.blit(_viaje['fondo'], (0, 0))
+            paso, mezcla = divmod(ahora / COSMOS['ms'] if fase is None else fase, 1)
+            capas = _viaje['capas']
+            for capa, alfa in ((capas[int(paso) % len(capas)], 1 - mezcla), (capas[(int(paso) + 1) % len(capas)], mezcla)):
+                capa.set_alpha(round(COSMOS['alfa'] * alfa)); ventana.blit(capa, (0, 0))
+            return
         if _viaje['cuadros'] is None: _viaje['cuadros'] = _cuadros_viaje('viaje', 12, W, H)
         if _viaje['cuadros']:
             ventana.blit(_viaje['cuadros'][(ahora // 90) % len(_viaje['cuadros'])], (0, 0))
@@ -735,289 +754,650 @@ def armar_menus():
         pygame.draw.circle(ventana, (230, 250, 255), (W // 2, H // 2), 40)
 
 
+    # ---------- el borde del cosmos: la partida nueva y los viajes entre eras ----------
+    # Todo con piezas del PMD: el tunel del viaje temporal (Explorers of Sky) es el cosmos, tu espiritu es el brillo del Red Rescue Team,
+    # el "!" es el de los estados, Celebi usa sus animaciones (Float, Twirl, Pull...) y sus caras del retrato (las baja 'herramientas.py caras celebi').
+
+    CARAS_CELEBI = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'sprites', 'pokemones', 'sprite_celebi', 'portrait')
+    _caras, _portal = {}, {}
+
+
+    def cara_celebi(ui, emocion, lado=80):
+        """El retrato de Celebi con esa cara (Happy, Surprised, Worried...). Si falta, el normal."""
+        if (emocion, lado) not in _caras:
+            ruta, img = os.path.join(CARAS_CELEBI, emocion + '.png'), None
+            if os.path.isfile(ruta):
+                try: img = pygame.transform.scale(pygame.image.load(ruta).convert_alpha(), (lado, lado))
+                except pygame.error: img = None
+            _caras[(emocion, lado)] = img or ui['retrato']('celebi', lado)
+        return _caras[(emocion, lado)]
+
+
+    def portal(ventana, centro, radio, ahora, cierre=None):
+        """El portal del tiempo: el agujero dimensional violeta del Explorers of Time/Darkness (assets/efectos/portal.png, lo arma
+        'python herramientas.py portal'). Abierto late (cuadros 1 a 4); al cerrarse se agrieta y se rompe en pedazos (5 a 8).
+        radio: la mitad del ancho del agujero; cierre: None abierto, 0 a 1 mientras se rompe. Si falta, el ovalo de antes."""
+        radio = round(radio)
+        if radio < 3 or (cierre is not None and cierre >= 1): return
+        cuadros = efectos._tira('portal')
+        if cuadros and len(cuadros) >= 8:
+            lado = max(8, round(radio * 2 * 112 / 80 / 8) * 8)            # (el agujero mide 80 de los 112 del cuadro)
+            i = (ahora // 150) % 4 if cierre is None else 4 + min(3, int(cierre * 4))
+            img = efectos._frames('portal', lado)[i]
+            ventana.blit(img, img.get_rect(center=(round(centro[0]), round(centro[1]))))
+            brillo = efectos._frames('brillo', 24)
+            if brillo and cierre is None:                                 # unos brillitos alrededor
+                for k in range(3):
+                    ang = ahora / 900 + k * math.tau / 3
+                    b = brillo[(ahora // 120 + k) % len(brillo)]
+                    ventana.blit(b, b.get_rect(center=(round(centro[0] + math.cos(ang) * radio * 1.05), round(centro[1] + math.sin(ang) * radio * 0.85))))
+            return
+        W, H = ventana.get_size()
+        if _viaje['cuadros'] is None: _viaje['cuadros'] = _cuadros_viaje('viaje', 12, W, H)
+        ancho, alto = radio * 2, max(2, round(radio * 1.6))
+        disco = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+        if _viaje['cuadros']: disco.blit(pygame.transform.smoothscale(_viaje['cuadros'][int(ahora // COSMOS['ms']) % len(_viaje['cuadros'])], (ancho, alto)), (0, 0))
+        else: disco.fill((70, 150, 230))
+        if (ancho, alto) not in _portal:
+            m = pygame.Surface((ancho, alto), pygame.SRCALPHA); pygame.draw.ellipse(m, (255, 255, 255, 255), m.get_rect()); _portal[(ancho, alto)] = m
+        disco.blit(_portal[(ancho, alto)], (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        ventana.blit(disco, disco.get_rect(center=centro))
+        anillo = efectos._frames('cambio', 64)
+        if anillo:
+            a = pygame.transform.scale(anillo[(ahora // 140) % 2], (round(ancho * 1.22), round(alto * 1.22)))
+            ventana.blit(a, a.get_rect(center=centro))
+        brillo = efectos._frames('brillo', 30)
+        if brillo:
+            for k in range(5):
+                ang = ahora / 700 + k * math.tau / 5
+                b = brillo[(ahora // 110 + k) % len(brillo)]
+                ventana.blit(b, b.get_rect(center=(round(centro[0] + math.cos(ang) * ancho * 0.6), round(centro[1] + math.sin(ang) * alto * 0.6))))
+
+
+    ESTELA_COSMOS = {'cada': 90, 'dura': 260, 'alfa': 70, 'fondo': 26}   # dos copias como mucho: cada cuanto se deja una, cuanto tarda
+                                                    # en irse, que tan fuerte y cuanto se corren hacia el fondo del cosmos
+    _aura = {}
+
+
+    def _aura_de(lado, nivel=1.0, nucleo=False):
+        """El resplandor de assets/efectos/aura.png (la luz de Moonlight, 'python herramientas.py espiritu') de un tamaño: celeste
+        casi blanco (o blanco, el nucleo), transparente segun cuanta luz tiene cada punto y mas apagado segun 'nivel'."""
+        clave = (lado, round(nivel * 10), nucleo)
+        if clave not in _aura:
+            if 'base' not in _aura:                                      # una vez: de azul a celeste blanco, segun cuanta luz tiene cada pixel
+                hoja = (efectos._tira('aura') or [None])[0]
+                if hoja is None: _aura['base'] = None
+                else:
+                    tope = max(hoja.get_at((x, y))[2] for x in range(hoja.get_width()) for y in range(hoja.get_height())) or 1
+                    for clase, color in (('base', (200, 236, 255)), ('blanco', (255, 255, 255))):
+                        s = pygame.Surface(hoja.get_size(), pygame.SRCALPHA)
+                        for x in range(hoja.get_width()):
+                            for y in range(hoja.get_height()):
+                                c = hoja.get_at((x, y))[2] / tope
+                                s.set_at((x, y), (*color, round(255 * c ** 1.8)))   # (mas suave hacia el borde)
+                        _aura[clase] = s
+            base = _aura['blanco' if nucleo else 'base']
+            if base is None: _aura[clave] = None
+            else:
+                img = pygame.transform.smoothscale(base, (lado, lado))
+                if nivel < 1: img.fill((255, 255, 255, round(255 * nivel)), special_flags=pygame.BLEND_RGBA_MULT)
+                _aura[clave] = img
+        return _aura[clave]
+
+
+    def espiritu(ventana, pos, esc, ahora, hacia=None, rapidez=0.0):
+        """Tu espiritu: una luz redonda con su aura y, encima, el brillito del PMD titilando. El aura se estira hacia 'hacia' (el fondo
+        del cosmos: el cosmos va para atras y la luz para adelante), mas cuanto mas rapido va. esc: 0 lejisimos, 1 adelante."""
+        lado = max(8, round(125 * esc / 8) * 8)
+        x, y = pos
+        if _aura_de(lado) is None: return
+        if hacia and lado > 16:
+            dx, dy = hacia[0] - x, hacia[1] - y; n = math.hypot(dx, dy)
+            if n > 4:
+                dx, dy = dx / n, dy / n
+                paso = (8 + min(16, rapidez * 2.4)) * max(esc, 0.3)
+                for i in (5, 4, 3, 2, 1):                                 # la cola del aura, cada vez mas chica y apagada
+                    img = _aura_de(max(8, round(lado * (1 - i * 0.11) / 8) * 8), 0.6 * (1 - i * 0.16))
+                    ondea = math.sin(ahora / 300 + i * 0.8) * i * 1.2       # (se mece un poco, como una llama)
+                    ventana.blit(img, img.get_rect(center=(round(x + dx * paso * i - dy * ondea), round(y + dy * paso * i + dx * ondea))))
+        late = 1 + 0.06 * math.sin(ahora / 260)
+        aura = _aura_de(max(8, round(lado * late / 8) * 8), 0.75)
+        ventana.blit(aura, aura.get_rect(center=(round(x), round(y))))
+        nucleo = _aura_de(max(8, round(lado * 0.32 / 8) * 8), 0.95, True)
+        ventana.blit(nucleo, nucleo.get_rect(center=(round(x), round(y))))
+        estrella = efectos._frames('estrellita', max(6, round(lado * 0.5 / 6) * 6)) or efectos._frames('brillo', max(6, round(lado * 0.38 / 6) * 6))
+        if estrella:                                                      # la estrellita del medio, titilando
+            b = estrella[(ahora // 140) % len(estrella)]
+            ventana.blit(b, b.get_rect(center=(round(x), round(y))))
+
+
+    def _copia_apagada(img, _cache={}):
+        """La copia de la estela: en gris y oscurecida (sin color ni brillo), guardada para no rehacerla."""
+        if id(img) not in _cache:
+            gris = pygame.transform.grayscale(img)
+            gris.fill((150, 150, 165), special_flags=pygame.BLEND_RGB_MULT)
+            _cache[id(img)] = gris
+        return _cache[id(img)]
+
+
+    def dejar_estela(estela, img, x, y, ahora):
+        """Deja una copia en la estela si ya paso un rato desde la ultima (asi nunca hay mas de dos)."""
+        if not estela or ahora - estela[-1][3] >= ESTELA_COSMOS['cada']: estela.append((img, x, y, ahora))
+        del estela[:-2]
+
+
+    def dibujar_estela(ventana, estela, ahora, fondo=None):
+        """Las copias de la estela, cada vez mas transparentes hasta que se van, corriendose hacia el fondo del cosmos."""
+        for img, x, y, cuando in estela[:]:
+            edad = (ahora - cuando) / ESTELA_COSMOS['dura']
+            if edad >= 1: estela.remove((img, x, y, cuando)); continue
+            if fondo:
+                dx, dy = fondo[0] - x - img.get_width() / 2, fondo[1] - y - img.get_height() / 2; n = math.hypot(dx, dy) or 1
+                x, y = x + dx / n * edad * ESTELA_COSMOS['fondo'], y + dy / n * edad * ESTELA_COSMOS['fondo']
+            copia = _copia_apagada(img); copia.set_alpha(round(ESTELA_COSMOS['alfa'] * (1 - edad)))
+            ventana.blit(copia, (round(x), round(y)))
+
+
+    def _mira(dx, dy):
+        """La direccion del sprite (0 abajo, 2 derecha, 4 arriba, 6 izquierda) para mirar hacia (dx, dy)."""
+        return round((90 - math.degrees(math.atan2(dy, dx))) / 45) % 8 if dx or dy else 0
+
+
+    def _suave(k):
+        k = max(0.0, min(1.0, k))
+        return k * k * k * (k * (k * 6 - 15) + 10)
+
+
+    def _rapido(k):
+        """Arranca rapido y se pasa un poquito antes de frenar (los movimientos de golpe de Celebi)."""
+        k = max(0.0, min(1.0, k)); s = 1.6
+        return 1 + (s + 1) * (k - 1) ** 3 + s * (k - 1) ** 2
+
+
     def viaje_temporal(ui):
-        """Partida nueva: se abre el tiempo (la apertura del Explorers of Time), aparece el tunel y Celebi llega dormido.
-        Se despierta, te ve (sos una lucecita sin forma) y te habla: tu nombre, tu genero y que pokemon sos (como armar tu cuerpo en Deltarune).
-        Devuelve {'nombre', 'genero', 'inicial'}, None si volves con ESC o 'salir'.
-        Animaciones de Celebi: Float (llega dormido, flotando) -> Wake (se despierta) -> Idle mirandote -> Nod cuando le contestas.
-        Vos: una luz que late; al elegir, un destello y aparece tu pokemon saltando (Hop) y despues quieto (Idle)."""
+        """Partida nueva en el borde del cosmos. Negro, y muy lejos un brillo; se abre el tiempo (la apertura del Explorers of Time) y
+        aparece el cosmos. Tu espiritu (el brillo) se acerca serpenteando como una hoja; Celebi llega dando vueltas, pasa por la luz, sale
+        de cuadro, aparece un "!" y vuelve. Te rodea, te habla (cambia de lugar y de cara), te pregunta tu nombre y tu genero (desde ahi
+        los textos van segun el genero) y te pide que te materialices: elegis tu pokemon viendo su sombra, que se transforma al cambiar,
+        y al elegir se materializa entre estrellas. Celebi abre el portal y se van juntos; todo se apaga.
+        Devuelve {'nombre', 'genero', 'inicial'}, None si volves con ESC o 'salir'."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         reloj = pygame.time.Clock()
-        celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 100) if tiene_sprites('celebi') else None
-        # celebi: 'lejos' (todavia no llego), 'durmiendo', 'despertando' o 'despierto'
-        estado = {'asiente_hasta': 0, 'celebi': 'lejos', 'llego': 0, 'cuerpo': None, 'forma': 0}
-        retrato = ui['retrato']('celebi', 84)
-        caja_dialogo = pygame.Rect(40, H - 170, W - 80, 140)
-        VELOCIDAD_TEXTO = 45                                             # letras por segundo
-        CELEBI, VOS = (W // 2, 170), (W // 2, 330)                       # Celebi arriba mirando para abajo, vos abajo
-        LLEGADA, VUELTA = 1500, 1900                                     # ms que tarda en llegar por el tunel y en darte una vuelta alrededor
-        polvo = [[random.uniform(0, W), random.uniform(0, H), random.uniform(0.3, 1.3), random.uniform(0, math.tau)] for _ in range(48)]   # polvo del tiempo
-        rastro = []                                                      # brillitos que va dejando Celebi cuando se mueve
+        FONDO_CENTRO = (W // 2, H // 2 - 40)                             # el punto de fuga del tunel (de ahi viene todo)
+        ARRIBA, DERECHA, IZQUIERDA = (W // 2, 140), (W // 2 + 200, 175), (W // 2 - 200, 175)
+        AL_COSTADO = (W - 150, 215)                                      # donde queda Celebi mientras elegis tu forma
+        celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 96) if tiene_sprites('celebi') else None
+        e = {'fondo': 'negro', 'oscuro': 0, 'luz': None, 'cel': None, 'alerta': None, 'portal': 0, 'cierre': None, 'cuerpo': None, 'sombra': None,
+             'blanco': 0, 'anims': [], 'habla': False, 'cara': 'Normal', 'fase': 0.0, 'vel': 1.0, 'antes': None}
+        estela = []                                                      # [(imagen, x, y, cuando)] lo que van dejando atras
+        caja_dialogo = pygame.Rect(40, H - 168, W - 80, 140)
 
-        def dibujar_polvo(ahora):
-            """Motas verdes que suben despacio por el tunel (y el rastro de Celebi, que se apaga)."""
-            for m_ in polvo:
-                m_[1] -= m_[2]; m_[0] += math.sin(ahora / 900 + m_[3]) * 0.6
-                if m_[1] < -6: m_[1] = H + 6; m_[0] = random.uniform(0, W)
-                brillo = 150 + round(100 * math.sin(ahora / 300 + m_[3]))
-                pygame.draw.circle(ventana, (brillo, 255, min(255, brillo + 40)), (round(m_[0]), round(m_[1])), 2 if m_[2] > 0.9 else 1)
-            for r_ in rastro[:]:
-                edad = (ahora - r_[2]) / 700
-                if edad >= 1: rastro.remove(r_); continue
-                pygame.draw.circle(ventana, (190, 255, 200), (round(r_[0]), round(r_[1] + edad * 14)), max(1, round(4 * (1 - edad))))
+        # ----- dibujo -----
+        def brillo(centro, lado, ahora, alfa=255, fase=0):
+            """Dibuja el brillo del PMD (tu espíritu) de un tamaño, con su titileo."""
+            cuadros = efectos._frames('brillo', max(6, round(lado / 6) * 6))
+            if not cuadros: return
+            b = cuadros[(ahora // 110 + fase) % len(cuadros)]
+            if alfa < 255: b = b.copy(); b.set_alpha(alfa)
+            ventana.blit(b, b.get_rect(center=(round(centro[0]), round(centro[1]))))
 
-        def lugar_celebi(ahora):
-            """Donde esta Celebi: llega dormido en espiral por el tunel, flota en su lugar y, cuando te descubre, te da una vuelta alrededor."""
-            t = ahora - estado['llego']
-            if t < LLEGADA:
-                k = 1 - t / LLEGADA
-                return CELEBI[0] + math.cos(k * 5.2) * k ** 1.4 * 430, CELEBI[1] - k * 130 + math.sin(k * 5.2) * k ** 1.4 * 200
-            v = ahora - estado.get('vuelta', -10 ** 7)
-            if 0 <= v < VUELTA:
-                ang = -math.pi / 2 + (1 - math.cos(v / VUELTA * math.pi)) / 2 * math.tau    # arranca y frena suave
-                return VOS[0] + math.cos(ang) * 210, VOS[1] + math.sin(ang) * 160
-            return CELEBI[0], CELEBI[1] + math.sin(ahora / 500) * 10
+        def actor(a, pos, esc, direccion, anim):
+            """Dibuja un pokemon (agrandado o achicado) y devuelve (imagen, x, y) para la estela."""
+            if not a.cambiar(anim, direccion, True): a.cambiar('idle', direccion, True)
+            a.rect.center = (round(pos[0]), round(pos[1])); a.actualizar()
+            c = a.cuadro()
+            if not c: return None
+            img, x, y = c
+            if esc != 1:
+                img = pygame.transform.scale(img, (max(1, round(img.get_width() * esc)), max(1, round(img.get_height() * esc))))
+                x, y = pos[0] - (pos[0] - x) * esc, pos[1] - (pos[1] - y) * esc
+            ventana.blit(img, (round(x), round(y)))
+            return img, x, y
 
-        def dibujar_celebi(ahora):
-            """Celebi segun en que parte esta: llega por el tunel dormido, un destello cuando frena, se despierta, te mira y te rodea curioso."""
-            if not celebi or estado['celebi'] == 'lejos': return
-            x, y = lugar_celebi(ahora)
-            t = ahora - estado['llego']
-            k = (t - LLEGADA) / 500
-            if 0 <= k < 1:                                               # destello al frenar en su lugar
-                pygame.draw.circle(ventana, (235, 255, 235), CELEBI, round(70 * (1 - k) + 10), 4)
-                for ang in range(0, 360, 45):
-                    largo = 120 * (1 - k)
-                    pygame.draw.line(ventana, 'white', CELEBI, (CELEBI[0] + math.cos(math.radians(ang)) * largo, CELEBI[1] + math.sin(math.radians(ang)) * largo), 3)
-            anterior = estado.get('pos_celebi', (x, y)); estado['pos_celebi'] = (x, y)
-            if math.hypot(x - anterior[0], y - anterior[1]) > 2.5: rastro.append([x + random.uniform(-10, 10), y + random.uniform(-6, 14), ahora])
-            mira = 0
-            if 0 <= ahora - estado.get('vuelta', -10 ** 7) < VUELTA:      # mientras te rodea no te saca los ojos de encima
-                mira = round((90 - math.degrees(math.atan2(VOS[1] - y, VOS[0] - x))) / 45) % 8
-            if estado['celebi'] == 'durmiendo': celebi.cambiar('float', 0, True) or celebi.cambiar('sleep', 0, True)
-            elif estado['celebi'] == 'despertando':
-                if not celebi.cambiar('wake', 0, False) or celebi.esta_terminada(): estado['celebi'] = 'despierto'
-            if estado['celebi'] == 'despierto':
-                celebi.cambiar('nod' if ahora < estado['asiente_hasta'] else 'idle', mira, True)
-            celebi.rect.center = (round(x), round(y))
-            celebi.actualizar(); celebi.dibujar(ventana)
+        def dibujar(ahora):
+            """Dibuja la escena del cosmos entera: fondo, portal, estelas, tu luz o tu cuerpo, Celebi, el '!' y los efectos."""
+            dt = 0 if e['antes'] is None else min(50, ahora - e['antes']); e['antes'] = ahora
+            e['fase'] += dt / COSMOS['ms'] * e['vel']                    # el cosmos a su velocidad (la escena lo acelera o lo frena)
+            if e['fondo'] == 'negro': ventana.fill((0, 0, 0))
+            else: fondo_viaje(ui, ahora, e['fase'])
+            oscuro = max(e['oscuro'], 0 if e['fondo'] == 'negro' else 70)      # el cosmos un poco apagado: que se lean Celebi y tu luz
+            if oscuro: velo = pygame.Surface((W, H)); velo.fill((6, 8, 30)); velo.set_alpha(oscuro); ventana.blit(velo, (0, 0))
+            if e['portal'] > 2: portal(ventana, (W // 2, 150), e['portal'], ahora, e['cierre'])
+            dibujar_estela(ventana, estela, ahora, FONDO_CENTRO)          # la estela: dos copias apagadas que se van hacia el fondo
+            if e['luz'] and not e['cuerpo']:                             # tu espiritu (o tu sombra, si estas eligiendo)
+                l = e['luz']
+                if e['sombra']: dibujar_sombra(ahora)
+                previo = l.get('ultimo', tuple(l['pos'])); l['ultimo'] = tuple(l['pos'])
+                l['rapidez'] = l.get('rapidez', 0) * 0.85 + math.hypot(l['pos'][0] - previo[0], l['pos'][1] - previo[1]) * 0.15
+                if e['fondo'] == 'negro': brillo(l['pos'], 14 * l['esc'] / 0.12, ahora, round(255 * min(1.0, l['esc'] / 0.06)))   # a lo lejos, solo el brillito
+                else: espiritu(ventana, l['pos'], l['esc'] * (0.55 if e['sombra'] else 1), ahora, FONDO_CENTRO, l['rapidez'] + e['vel'])
+            if e['cuerpo']:
+                c = e['cuerpo']; actor(c['a'], c['pos'], 1.0, 0, c.get('anim', 'idle'))
+                if e['blanco'] > 0: dibujar_sombra(ahora, (255, 255, 255), e['blanco'], c['a'])
+            if celebi and e['cel']:
+                c = e['cel']
+                previo = c.get('ultimo', tuple(c['pos']))
+                dx, dy = c['pos'][0] - previo[0], c['pos'][1] - previo[1]
+                if math.hypot(dx, dy) > 1.2: c['dir'] = _mira(dx, dy)
+                elif c.get('mira'): c['dir'] = _mira(c['mira'][0] - c['pos'][0], c['mira'][1] - c['pos'][1])
+                vivo = (math.sin(ahora / 730) * 5 + math.sin(ahora / 1270) * 3, math.sin(ahora / 480) * 6 + math.sin(ahora / 910) * 3)   # flota y se mece
+                pos = (c['pos'][0] + vivo[0], c['pos'][1] + vivo[1] - (abs(math.sin(ahora / 70)) * 3 if e['habla'] else 0))
+                hecho = actor(celebi, pos, c['esc'], c.get('dir', 0), c.get('anim', 'float'))
+                if hecho and math.hypot(dx, dy) > 1.5: dejar_estela(estela, hecho[0], hecho[1], hecho[2], ahora)
+                c['ultimo'] = tuple(c['pos'])
+            if e['alerta']:                                              # el "!" de cuando Celebi te ve
+                pos, desde = e['alerta']
+                animacion(ventana, 'estado_alerta', pos, round(54 * min(1.0, (ahora - desde) / 150 + 0.4)), (ahora - desde) % 900, 100)
+            for nombre, centro, lado, desde, ms in e['anims'][:]:
+                if not animacion(ventana, nombre, centro, lado, ahora - desde, ms) and ahora - desde > 0: e['anims'].remove((nombre, centro, lado, desde, ms))
+            if e['blanco'] and not e['cuerpo']:
+                velo = pygame.Surface((W, H)); velo.fill((255, 255, 255)); velo.set_alpha(e['blanco']); ventana.blit(velo, (0, 0))
 
-        def dibujar_vos(ahora):
-            """Vos: una lucecita que late hasta que elegis que pokemon sos; despues tu pokemon (con un destello al aparecer)."""
-            a = estado['cuerpo']
-            k = (ahora - estado['forma']) / 600
-            if a and k >= 0.3:
-                if k > 1.6: a.cambiar('idle', 0, True)
-                a.rect.center = VOS
-                a.actualizar(); a.dibujar(ventana)
-            if a and 0 < k < 1.8:                                        # al tomar forma: tres anillos que se abren uno atras del otro
-                for i in range(3):
-                    kk = k - i * 0.22
-                    if 0 < kk < 1: pygame.draw.circle(ventana, (255, 240, 190), VOS, round(20 + 170 * kk), max(1, round(5 * (1 - kk))))
-            if not a or k < 1:                                           # dorada con borde oscuro: si fuera blanca se perderia en el centro del tunel
-                radio = (14 + round(math.sin(ahora / 260) * 3)) if not a else round(14 + 90 * k)
-                apaga = (1 - k) if a else 1
-                luz = pygame.Surface((radio * 4, radio * 4), pygame.SRCALPHA)
-                for i, color in ((2.0, (255, 150, 60, 60)), (1.45, (255, 190, 90, 110)), (1.15, (70, 30, 90, 230)), (1.0, (255, 235, 170, 255))):
-                    pygame.draw.circle(luz, (*color[:3], round(color[3] * apaga)), (radio * 2, radio * 2), round(radio * i))
-                pygame.draw.circle(luz, (255, 255, 240, round(255 * apaga)), (radio * 2, radio * 2), max(2, radio // 2))
-                ventana.blit(luz, (VOS[0] - radio * 2, VOS[1] - radio * 2))
+        def dibujar_sombra(ahora, color=(12, 12, 28), alfa=255, a=None):
+            """La sombra del pokemon que estas eligiendo (o el blanco que lo cubre al materializarse), con la transformacion al cambiar."""
+            k = 1.0
+            if a is None:                                                 # la sombra que estas eligiendo, donde esta tu espiritu
+                a, k = e['sombra']['a'], e['sombra'].get('escala', 1.0)
+                a.cambiar('idle', 0, True); a.rect.center = (round(e['luz']['pos'][0]), round(e['luz']['pos'][1])); a.actualizar()
+            c = a.cuadro()
+            if not c: return
+            img, x, y = c
+            mascara = pygame.mask.from_surface(img).to_surface(setcolor=(*color, alfa), unsetcolor=(0, 0, 0, 0))
+            if k != 1:
+                cx_, cy_ = x + img.get_width() / 2, y + img.get_height() / 2
+                mascara = pygame.transform.scale(mascara, (max(1, round(img.get_width() * k)), max(1, round(img.get_height() * k))))
+                x, y = cx_ - mascara.get_width() / 2, cy_ - mascara.get_height() / 2
+            if color != (255, 255, 255):                                  # un borde de luz atras, para que se lea sobre el cosmos
+                borde = pygame.mask.from_surface(img).to_surface(setcolor=(220, 255, 240, 90), unsetcolor=(0, 0, 0, 0))
+                borde = pygame.transform.scale(borde, (mascara.get_width() + 8, mascara.get_height() + 8))
+                ventana.blit(borde, (round(x) - 4, round(y) - 4))
+            ventana.blit(mascara, (round(x), round(y)))
 
-        def escena(ahora):
-            """El tunel, Celebi arriba y vos abajo."""
-            fondo_viaje(ui, ahora)
-            dibujar_polvo(ahora)
-            atras = not celebi or estado['celebi'] == 'lejos' or lugar_celebi(ahora)[1] < VOS[1]   # cuando pasa por delante tuyo se dibuja despues
-            if atras: dibujar_celebi(ahora)
-            dibujar_vos(ahora)
-            if not atras: dibujar_celebi(ahora)
-
-        def asentir():
-            """Celebi asiente un momento (Nod) cuando le contestas."""
-            estado['asiente_hasta'] = pygame.time.get_ticks() + 900
-
-        def esperar(ms):
-            """Deja correr la escena ms milisegundos. Cualquier tecla adelanta. None si ESC, 'salir' si se cerro la ventana."""
-            fin = pygame.time.get_ticks() + ms
-            while pygame.time.get_ticks() < fin:
-                for e in controles.eventos():
-                    if e.type == pygame.QUIT: return 'salir'
-                    if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE: return None
-                    if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN): fin = 0
-                escena(pygame.time.get_ticks())
+        # ----- tiempo -----
+        def correr(ms, mover=None):
+            """Deja correr la escena ms milisegundos llamando a mover(k, ahora) (k de 0 a 1). Una tecla la adelanta al final.
+            'ok', None si ESC o 'salir'."""
+            inicio = pygame.time.get_ticks()
+            while True:
+                ahora = pygame.time.get_ticks()
+                for ev in controles.eventos():
+                    if ev.type == pygame.QUIT: return 'salir'
+                    if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE: return None
+                    if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN): inicio = ahora - ms
+                k = min(1.0, (ahora - inicio) / max(1, ms))
+                if mover: mover(k, ahora)
+                dibujar(ahora)
                 ui['presentar'](); reloj.tick(60)
-            return 'ok'
+                if k >= 1: return 'ok'
 
-        def apertura():
-            """Se abre el tiempo: la estela que cruza, la estrella y el estallido (apertura_<n>.png); del blanco aparece el tunel.
-            Cualquier tecla la saltea. None si ESC, 'salir' si se cerro la ventana."""
-            if _viaje['apertura'] is None: _viaje['apertura'] = _cuadros_viaje('apertura', 22, W, H)
-            cuadros = _viaje['apertura']
-            blanco = pygame.Surface((W, H)); blanco.fill((255, 255, 255))
-            pasos = [('cuadro', c) for c in cuadros] + [('blanco', None)] * 12 + [('aclara', k / 35) for k in range(36)]
-            for clase, valor in pasos:
-                for e in controles.eventos():
-                    if e.type == pygame.QUIT: return 'salir'
-                    if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE: return None
-                    if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN): return 'ok'
-                if clase == 'cuadro':
-                    ventana.blit(valor, (0, 0)); ui['presentar'](); reloj.tick(15)   # el original va lento: 15 cuadros por segundo
-                    continue
-                if clase == 'blanco': ventana.blit(blanco, (0, 0))
-                else:                                                    # del blanco aparece el tunel (y vos, la lucecita)
-                    escena(pygame.time.get_ticks())
-                    blanco.set_alpha(round(255 * (1 - valor))); ventana.blit(blanco, (0, 0)); blanco.set_alpha(None)
-                ui['presentar'](); reloj.tick(60)
-            return 'ok'
+        def ir(destino, ms, esc=None, anim=None, mira=None, curva=0.0, rapido=False):
+            """Celebi va a 'destino' en ms: suave (arranca y frena despacio) o rapido (sale disparado y se pasa un poquito)."""
+            c = e['cel']; x0, y0, e0 = c['pos'][0], c['pos'][1], c['esc']
+            if anim: c['anim'] = anim
+            c['mira'] = mira
+            def mover(k, ahora):
+                """Un paso del movimiento de Celebi en la escena (de k = 0 a 1)."""
+                s = _rapido(k) if rapido else _suave(k)
+                c['pos'] = [x0 + (destino[0] - x0) * s + math.sin(s * math.pi) * curva, y0 + (destino[1] - y0) * s]
+                if esc is not None: c['esc'] = e0 + (esc - e0) * s
+            return correr(ms, mover)
 
+        def rodear(centro, ms, rx=170, ry=105, vueltas=1.0, desde=None, rapido=False):
+            """Celebi da vueltas alrededor de un punto mirandolo, desde donde esta (suave, o de golpe si es rapido)."""
+            c = e['cel']; c['anim'] = 'float'; c['mira'] = centro
+            x0, y0 = c['pos']
+            if desde is None: desde = math.atan2((y0 - centro[1]) / ry, (x0 - centro[0]) / rx)
+            def mover(k, ahora):
+                """Un paso del movimiento de Celebi en la escena (de k = 0 a 1)."""
+                ang = desde + (_rapido(k) if rapido else _suave(k)) * math.tau * vueltas
+                lugar = (centro[0] + math.cos(ang) * rx, centro[1] + math.sin(ang) * ry)
+                entra = min(1.0, k * 6)                                   # el primer pedacito: de donde estaba al circulo
+                c['pos'] = [x0 + (lugar[0] - x0) * entra, y0 + (lugar[1] - y0) * entra]
+            return correr(ms, mover)
+
+        # ----- dialogos -----
         def caja_de_celebi(texto, cuanto):
-            """La caja de dialogo de abajo con el retrato de Celebi y las primeras 'cuanto' letras del texto."""
+            """La caja de diálogo con la cara de Celebi y el texto que va apareciendo."""
             caja(ventana, caja_dialogo, 'panel', OSCURO, 2, (220, 220, 220))
             x = caja_dialogo.x + 20
-            if retrato: ventana.blit(retrato, (x, caja_dialogo.y + 28)); x += 104
+            cara = cara_celebi(ui, e['cara'])
+            if cara: ventana.blit(cara, (x, caja_dialogo.y + 30)); x += 100
             ventana.blit(fuente(30).render('Celebi', True, (150, 240, 140)), (x, caja_dialogo.y + 10))
             for k, linea in enumerate(ajustar_texto(texto[:cuanto], fuente(30), caja_dialogo.right - x - 40)[:3]):
                 ventana.blit(fuente(30).render(linea, True, 'white'), (x, caja_dialogo.y + 46 + k * 28))
             return x
 
-        def decir(texto, opciones_=None):
-            """Celebi dice algo (aparece letra por letra; ENTER lo completa y despues sigue).
-            Con opciones_ devuelve el indice elegido. None si ESC, 'salir' si se cerro la ventana."""
+        def decir(texto, cara='Normal', opciones_=None, anim=None):
+            """Celebi dice algo con esa cara (letra por letra; mientras habla se mueve un poquito). Con opciones_ devuelve el indice."""
+            e['cara'] = cara
+            if anim and e['cel']: e['cel']['anim'] = anim
             inicio, elegido = pygame.time.get_ticks(), 0
             botones = [pygame.Rect(W - 380, caja_dialogo.y - 16 - (len(opciones_ or ()) - k) * 52, 340, 44) for k in range(len(opciones_ or ()))]
             while True:
                 ahora = pygame.time.get_ticks()
-                cuanto = (ahora - inicio) * VELOCIDAD_TEXTO // 1000
+                cuanto = (ahora - inicio) * 45 // 1000
                 completo = cuanto >= len(texto)
-                for e in controles.eventos():
-                    if e.type == pygame.QUIT: return 'salir'
+                e['habla'] = not completo
+                for ev in controles.eventos():
+                    if ev.type == pygame.QUIT: return 'salir'
                     elegir = None
-                    if e.type == pygame.KEYDOWN:
-                        if e.key == pygame.K_ESCAPE: return None
-                        if opciones_ and completo and e.key in (pygame.K_UP, pygame.K_w): elegido = (elegido - 1) % len(opciones_)
-                        if opciones_ and completo and e.key in (pygame.K_DOWN, pygame.K_s): elegido = (elegido + 1) % len(opciones_)
-                        if e.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE): elegir = elegido
-                    if e.type == pygame.MOUSEMOTION and completo:
+                    if ev.type == pygame.KEYDOWN:
+                        if ev.key == pygame.K_ESCAPE: return None
+                        if opciones_ and completo and ev.key in (pygame.K_UP, pygame.K_w): elegido = (elegido - 1) % len(opciones_)
+                        if opciones_ and completo and ev.key in (pygame.K_DOWN, pygame.K_s): elegido = (elegido + 1) % len(opciones_)
+                        if ev.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE): elegir = elegido
+                    if ev.type == pygame.MOUSEMOTION and completo:
                         for k, b in enumerate(botones):
-                            if b.collidepoint(ui['a_logico'](e.pos)): elegido = k
-                    if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1: elegir = elegido
+                            if b.collidepoint(ui['a_logico'](ev.pos)): elegido = k
+                    if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1: elegir = elegido
                     if elegir is None: continue
-                    if not completo: inicio = -10 ** 7; continue                # primero se completa el texto
-                    if opciones_: asentir(); return elegir
-                    return 0
-                escena(ahora)
+                    if not completo: inicio = -10 ** 7; continue
+                    e['habla'] = False
+                    if e['cel']: e['cel']['anim'] = 'float'
+                    return elegir if opciones_ else 0
+                dibujar(ahora)
                 caja_de_celebi(texto, cuanto)
                 if completo and opciones_:
                     for k, b in enumerate(botones): boton(ventana, b, opciones_[k], k == elegido, 30)
-                elif completo and (ahora // 400) % 2:                       # flechita de "segui"
+                elif completo and (ahora // 400) % 2:
                     pygame.draw.polygon(ventana, 'white', [(caja_dialogo.right - 34, caja_dialogo.bottom - 24), (caja_dialogo.right - 20, caja_dialogo.bottom - 24),
                                                            (caja_dialogo.right - 27, caja_dialogo.bottom - 16)])
                 ui['presentar'](); reloj.tick(60)
 
         def escribir_nombre(pregunta):
-            """Caja para escribir tu nombre con el teclado (hasta LARGO_NOMBRE letras). ENTER confirma. None si ESC, 'salir' si se cerro."""
+            """Celebi te pregunta el nombre y lo escribís en la caja."""
             nombre = ''
+            e['cara'] = 'Happy'
             while True:
                 ahora = pygame.time.get_ticks()
-                for e in controles.eventos():
-                    if e.type == pygame.QUIT: return 'salir'
-                    if e.type != pygame.KEYDOWN: continue
-                    if e.key == pygame.K_ESCAPE: return None
-                    if e.key == pygame.K_RETURN and nombre.strip(): asentir(); return nombre.strip()
-                    if e.key == pygame.K_BACKSPACE: nombre = nombre[:-1]
-                    elif e.unicode and e.unicode.isprintable() and len(nombre) < LARGO_NOMBRE: nombre += e.unicode
-                escena(ahora)
+                for ev in controles.eventos():
+                    if ev.type == pygame.QUIT: return 'salir'
+                    if ev.type != pygame.KEYDOWN: continue
+                    if ev.key == pygame.K_ESCAPE: return None
+                    if ev.key == pygame.K_RETURN and nombre.strip(): return nombre.strip()
+                    if ev.key == pygame.K_BACKSPACE: nombre = nombre[:-1]
+                    elif ev.unicode and ev.unicode.isprintable() and len(nombre) < LARGO_NOMBRE: nombre += ev.unicode
+                dibujar(ahora)
                 x = caja_de_celebi(pregunta, len(pregunta))
                 campo = pygame.Rect(x, caja_dialogo.y + 82, 360, 44)
                 caja(ventana, campo, 'boton_elegido', (60, 60, 90), 2)
                 texto_ = fuente(32).render(nombre or 'escribí tu nombre', True, 'white' if nombre else (170, 170, 200))
-                lugar = texto_.get_rect(midleft=(campo.x + 16, campo.centery))
-                ventana.blit(texto_, lugar)
+                lugar = texto_.get_rect(midleft=(campo.x + 16, campo.centery)); ventana.blit(texto_, lugar)
                 if nombre and (ahora // 500) % 2: pygame.draw.line(ventana, 'white', (lugar.right + 3, campo.y + 9), (lugar.right + 3, campo.bottom - 9), 2)
-                listo = fuente(24).render('ENTER: listo', True, (210, 210, 220))
-                ventana.blit(listo, listo.get_rect(midleft=(campo.right + 16, campo.centery)))
+                listo = fuente(24).render('ENTER: listo', True, (210, 210, 220)); ventana.blit(listo, listo.get_rect(midleft=(campo.right + 16, campo.centery)))
                 ui['presentar'](); reloj.tick(60)
 
-        # se abre el tiempo, llega Celebi dormido, se despierta y te ve (cada paso puede cortarse con ESC o cerrando la ventana)
-        r = apertura()
+        # ----- elegir tu forma (la sombra) -----
+        def elegir_forma():
+            """Elegis que pokemon eras viendo su sombra donde esta tu espiritu (la sombra se encoge y crece distinta al cambiar).
+            A la derecha, que hace y en que se convierte. Devuelve el nombre, None o 'salir'."""
+            animadores = [AnimadorPokemon(n, pygame.Rect(0, 0, 10, 10), 150) for n in INICIALES]
+            finales = [_evolucion_final(n) for n in INICIALES]
+            elegido, cambio = 1, pygame.time.get_ticks()
+            e['sombra'] = {'a': animadores[elegido], 'escala': 1.0}
+            info = pygame.Rect(40, 96, 400, 250)
+            while True:
+                ahora = pygame.time.get_ticks()
+                for ev in controles.eventos():
+                    if ev.type == pygame.QUIT: return 'salir'
+                    nuevo = None
+                    if ev.type == pygame.KEYDOWN:
+                        if ev.key == pygame.K_ESCAPE: return None
+                        if ev.key in (pygame.K_LEFT, pygame.K_a, pygame.K_UP, pygame.K_w): nuevo = (elegido - 1) % len(INICIALES)
+                        if ev.key in (pygame.K_RIGHT, pygame.K_d, pygame.K_DOWN, pygame.K_s): nuevo = (elegido + 1) % len(INICIALES)
+                        if pygame.K_1 <= ev.key < pygame.K_1 + len(INICIALES): nuevo = ev.key - pygame.K_1
+                        if ev.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE) and ahora - cambio > 300: return INICIALES[elegido]
+                    if ev.type == pygame.MOUSEWHEEL: nuevo = (elegido - ev.y) % len(INICIALES)
+                    if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and ahora - cambio > 300: return INICIALES[elegido]
+                    if nuevo is not None and nuevo != elegido:
+                        elegido, cambio = nuevo, ahora
+                        e['anims'].append(('cambio', tuple(e['luz']['pos']), 200, ahora, 45))
+                t = ahora - cambio                                       # la sombra vieja se encoge y crece la nueva
+                e['sombra']['a'] = animadores[elegido]
+                e['sombra']['escala'] = 1.0 if t > 420 else max(0.05, 1 - t / 160) if t < 160 else _suave((t - 160) / 260)
+                dibujar(ahora)
+                nombre = INICIALES[elegido]
+                panel_flecha(ventana, (info.x, info.y, info.width, 54), (0, 1))
+                ventana.blit(tipografia.fuente_titulo(2).render(nombre.title(), True, 'white'), (info.x + 22, info.y + 8))
+                x = info.right - 20
+                for tipo in reversed(pokemones[nombre].get('tipo', [])):
+                    tipo = normalizar_tipo(tipo); x -= fuente(20).size(str(tipo).upper())[0] + 20
+                    chip_tipo(ventana, tipo, x, info.y + 14)
+                cuerpo = pygame.Rect(info.x, info.y + 62, info.width, info.height - 62)
+                caja(ventana, cuerpo, 'panel', OSCURO, 2, (220, 220, 220))
+                ventana.blit(fuente(24).render('Rol: ' + ROL_POKEMON.get(nombre, '-'), True, (255, 236, 150)), (cuerpo.x + 16, cuerpo.y + 10))
+                for k, linea in enumerate(ajustar_texto(ESTILO_INICIAL.get(nombre, '') + '. ' + (mecanicas.texto_de(nombre) or ''), fuente(20), cuerpo.width - 32)[:6]):
+                    ventana.blit(fuente(20).render(linea, True, (225, 225, 235)), (cuerpo.x + 16, cuerpo.y + 38 + k * 19))
+                abajo = pygame.Rect(info.x, info.bottom + 10, info.width, 74)       # en que se convierte
+                caja(ventana, abajo, 'panel', OSCURO, 2, (220, 220, 220))
+                cara, cara_f = ui['retrato'](nombre, 52), ui['retrato'](finales[elegido], 52)
+                if cara: ventana.blit(cara, (abajo.x + 20, abajo.y + 11))
+                flecha = fuente(30).render('>', True, (255, 236, 150)); ventana.blit(flecha, flecha.get_rect(center=(abajo.x + 98, abajo.centery)))
+                if cara_f: ventana.blit(cara_f, (abajo.x + 124, abajo.y + 11))
+                ventana.blit(fuente(20).render('Llega a ser', True, (200, 200, 215)), (abajo.x + 190, abajo.y + 16))
+                ventana.blit(fuente(26).render(finales[elegido].replace('_', ' ').title(), True, 'white'), (abajo.x + 190, abajo.y + 36))
+                pista = fuente(24).render('<  ' + str(elegido + 1) + ' / ' + str(len(INICIALES)) + '  >', True, (230, 240, 255))
+                ventana.blit(pista, pista.get_rect(midtop=(round(e['luz']['pos'][0]), round(e['luz']['pos'][1]) + 96)))
+                pie(ventana, 'izq/der: cambiar   ENTER: este soy yo   ESC: volver')
+                ui['presentar'](); reloj.tick(60)
+
+        # ===== 1. negro: muy lejos, un brillo =====
+        e['luz'] = {'pos': [FONDO_CENTRO[0], FONDO_CENTRO[1]], 'esc': 0.0}
+        def a_lo_lejos(k, ahora):
+            e['luz']['esc'] = 0.0 if k < 0.4 else 0.12 * min(1.0, (k - 0.4) / 0.06) * (0.8 + 0.2 * math.sin(ahora / 160))   # aparece de golpe, lejisimos
+        r = correr(2800, a_lo_lejos)
+        if r != 'ok': return r
+        # ===== 2. se abre el tiempo (la apertura del Explorers of Time) y aparece el cosmos =====
+        if _viaje['apertura'] is None: _viaje['apertura'] = _cuadros_viaje('apertura', 22, W, H)
+        for cuadro in _viaje['apertura']:
+            for ev in controles.eventos():
+                if ev.type == pygame.QUIT: return 'salir'
+                if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE: return None
+            ventana.blit(cuadro, (0, 0)); ui['presentar'](); reloj.tick(15)
+        e['fondo'], e['blanco'], e['luz']['esc'], e['vel'] = 'cosmos', 255, 0.05, 1.0
+        r = correr(700, lambda k, a: e.update(blanco=round(255 * (1 - k))))
+        if r != 'ok': return r
+        # ===== 3. tu espiritu se acerca de fondo, despacio, meciendose como una hoja que cae de costado =====
+        def hoja(k, ahora):
+            """Tu espíritu acercándose de fondo, serpenteando como una hoja que cae de costado."""
+            l = e['luz']; s = _suave(k)
+            l['esc'] = 0.05 + 0.95 * s ** 1.4
+            vaiven = math.sin(k * math.pi * 2.6)                          # va y viene de costado, cada vez menos
+            l['pos'] = [FONDO_CENTRO[0] + vaiven * 230 * (1 - s) ** 0.8,
+                        FONDO_CENTRO[1] + (345 - FONDO_CENTRO[1]) * s - abs(vaiven) * 22 * (1 - s)]   # (en las puntas del vaiven sube un poco, como una hoja)
+            e['vel'] = 1.0 + 0.5 * math.sin(k * math.pi)
+        r = correr(6500, hoja)
+        if r != 'ok': return r
+        e['vel'] = 1.0
+        VOS = [W // 2, 345]; e['luz']['pos'] = list(VOS)               # un poco abajo del resplandor del centro, asi se ve su aura
+        # ===== 4. Celebi llega de lejos dando vueltas, pasa por la luz y se va de cuadro =====
+        if celebi:
+            e['cel'] = {'pos': [W * 0.22, H * 0.2], 'esc': 0.2, 'anim': 'twirl'}
+            def vueltas(k, ahora):
+                """Celebi llega de lejos dando vueltas en espiral y pasa por la luz."""
+                c = e['cel']
+                if k < 0.62:                                              # en espiral, acercandose (de lejos va lento, de cerca rapido)
+                    kk = (k / 0.62) ** 1.5; ang = kk * math.tau * 1.6; e['vel'] = 1.0 + kk * 0.6
+                    centro = (W * 0.22 + (W * 0.62 - W * 0.22) * kk, H * 0.2 + (H * 0.36 - H * 0.2) * kk)
+                    radio = 130 * (1 - kk * 0.5)
+                    c['pos'] = [centro[0] + math.cos(ang) * radio, centro[1] + math.sin(ang) * radio * 0.6]; c['esc'] = 0.2 + 0.6 * kk; c['anim'] = 'twirl'
+                else:                                                     # pasa rozando la luz y sale por la derecha
+                    kk = (k - 0.62) / 0.38; inicio = (W * 0.62 + 130 * 0.5 * math.cos(math.tau * 1.6), H * 0.36)
+                    c['pos'] = [inicio[0] + (VOS[0] - 60 - inicio[0]) * min(1, kk * 2) + max(0, kk * 2 - 1) * (W + 140 - VOS[0] + 60),
+                                inicio[1] + (VOS[1] - 30 - inicio[1]) * min(1, kk * 2)]
+                    c['esc'] = 0.8 + 0.2 * kk; c['anim'] = 'float'; e['vel'] = 2.0 - kk
+            r = correr(4600, vueltas)
+            if r != 'ok': return r
+            e['vel'] = 1.0
+            e['alerta'] = ((W - 46, VOS[1] - 50), pygame.time.get_ticks())   # se dio cuenta: "!"
+            r = correr(1000)
+            if r != 'ok': return r
+            e['alerta'] = None
+            e['cel'].update(pos=[W + 70, VOS[1] - 40], esc=1.0)
+            for paso_ in ((ir, ((VOS[0] + 170, VOS[1] - 40), 2300, 1.0, 'float', VOS)),   # vuelve despacio, frenando
+                          (correr, (700,)),                                               # te mira
+                          (rodear, (VOS, 2700, 170, 105, 0.75)),                          # te rodea despacio
+                          (rodear, (VOS, 900, 150, 95, 1.0, None, True)),                 # y rapido
+                          (ir, (ARRIBA, 450, None, None, VOS, 0.0, True)),                # sale disparado al centro
+                          (ir, ((ARRIBA[0] - 38, ARRIBA[1] + 10), 230, None, None, VOS, 0.0, True)),   # unos movimientos cortitos
+                          (ir, ((ARRIBA[0] + 30, ARRIBA[1] - 8), 210, None, None, VOS, 0.0, True)),
+                          (ir, (ARRIBA, 420, None, None, VOS))):
+                r = paso_[0](*paso_[1])
+                if r != 'ok': return r
+        # ===== 5. la charla =====
+        def hablar(lineas):
+            """Varias líneas de Celebi seguidas (algunas lo mueven antes a otro lugar)."""
+            for texto, cara, *resto in lineas:
+                if resto and e['cel']:
+                    r_ = ir(resto[0], 900, mira=VOS, curva=40)
+                    if r_ != 'ok': return r_
+                r_ = decir(texto, cara)
+                if r_ is None or r_ == 'salir': return r_
+            return 'ok'
+        r = hablar((('Qué interesante...', 'Inspired'), ('¿Un espíritu? ¿Por acá?', 'Surprised')))
+        if r != 'ok': return r
+        if e['cel']:                                                       # te examina un poco mas: se acerca despacio, cruza rapido y vuelve
+            for destino, ms, rapido in (((VOS[0] - 90, VOS[1] - 70), 900, False), ((VOS[0] + 90, VOS[1] - 70), 380, True), (ARRIBA, 700, False)):
+                r = ir(destino, ms, mira=VOS, rapido=rapido)
+                if r != 'ok': return r
+        r = hablar((('¡Hola! No sabía que me escuchabas.', 'Happy'),
+                    ('Qué descortés de mi parte no presentarme: soy Celebi.', 'Joyous'),
+                    ('Sé que todo esto te confunde... al igual que a mí me confunde verte.', 'Normal', DERECHA),
+                    ('Esto es el borde del cosmos, un puente entre las distintas eras temporales. Y vos quedaste del lado de adentro, sin poder salir.', 'Worried'),
+                    ('Pero puedo ayudarte... solo si me devolvés el favor.', 'Determined', IZQUIERDA),
+                    ('El espacio-tiempo está siendo corrompido por fuerzas inimaginables para vos: fuerzas hambrientas que buscan poder absoluto sobre el cosmos. Y necesito que me ayudes a repararlo.', 'Worried', ARRIBA),
+                    ('A cambio, te voy a sacar de acá y te voy a llevar a que vivas una vida pacífica y feliz.', 'Happy'),
+                    ('Me encantaría llevarte a tu hogar, pero no tengo forma de saber cuál es: tu alma quedó separada de tu cuerpo físico.', 'Sad'),
+                    ('Pero por suerte pude recuperar un poco de tu memoria... aunque está algo borrosa.', 'Sigh')))
+        if r != 'ok': return r
+        r = decir('¿Podrías recordarme cuál es tu nombre?', 'Normal')
         if r is None or r == 'salir': return r
-        r = esperar(900)                                                 # un momento solo con el tunel y tu lucecita
-        if r is None or r == 'salir': return r
-        estado['celebi'], estado['llego'] = 'durmiendo', pygame.time.get_ticks()
-        r = esperar(LLEGADA + 1900)                                      # llega por el tunel y flota dormido
-        if r is None or r == 'salir': return r
-        estado['llego'] = min(estado['llego'], pygame.time.get_ticks() - LLEGADA - 600)   # (si se salteo la espera, ya esta en su lugar)
-        estado['celebi'] = 'despertando'
-        r = esperar(1400)                                                # se despierta y te mira
-        if r is None or r == 'salir': return r
-        estado['celebi'] = 'despierto'
-        estado['vuelta'] = pygame.time.get_ticks()
-        r = esperar(VUELTA + 200)                                        # te da una vuelta alrededor, curioso
-        if r is None or r == 'salir': return r
-        estado['vuelta'] = -10 ** 7
-        for texto in ('Mmm... ¿y esa lucecita?',
-                      'Hace siglos que no encontraba a nadie perdido acá adentro. Estabas dando vueltas en el flujo del tiempo.',
-                      'Soy Celebi. Me la paso yendo y viniendo entre épocas... alguien tiene que cuidar el tiempo, ¿no?'):
-            r = decir(texto)
-            if r is None or r == 'salir': return r
-        nombre = escribir_nombre('¿Cómo te llamás?')
+        nombre = escribir_nombre('¿Podrías recordarme cuál es tu nombre?')
         if nombre is None or nombre == 'salir': return nombre
-        r = decir(nombre + '. Me lo voy a acordar, y mirá que tengo memoria para rato. ¿Y vos sos...?', ['Chico', 'Chica', 'Prefiero no decirlo'])
+        r = hablar((('¡Perfecto! ' + nombre + '... qué lindo nombre.', 'Joyous'),))
+        if r != 'ok': return r
+        r = decir('¿Te acordás tu género?', 'Normal', ['Chico', 'Chica', 'Prefiero no decirlo'])
         if r is None or r == 'salir': return r
         genero = GENEROS[r]
-        for texto in ('El tiempo te desarmó. Pasa, aunque no muy seguido... Por ahora sos una lucecita.',
-                      'Cerrá los ojos y acordate de cómo eras. ¿Qué pokemon sos?'):
-            r = decir(texto)
-            if r is None or r == 'salir': return r
-        inicial = elegir_inicial(ui, lambda ahora: fondo_viaje(ui, ahora), '¿Que pokemon sos?')
-        if inicial is None or inicial == 'salir': return inicial
-        cuerpo = AnimadorPokemon(inicial, pygame.Rect(0, 0, 10, 10), 100)
-        cuerpo.cambiar('hop', 0, True) or cuerpo.cambiar('idle', 0, True)   # aparece saltando de alegria
-        estado['cuerpo'], estado['forma'] = cuerpo, pygame.time.get_ticks()
-        r = esperar(1300)                                                # el destello y tu forma nueva
+        r = decir('Parece que hay más pedazos de vos de lo que me imaginaba dentro de tu alma.', 'Inspired')
         if r is None or r == 'salir': return r
-        for texto in ('¡Ahí estás! ' + inicial.title() + '. ' + segun_genero(genero, 'Bienvenido de vuelta', 'Bienvenida de vuelta', 'Qué bueno tenerte de vuelta') + ', ' + nombre + '.',
-                      'Te cuento rápido: algo está quebrando las eras, una por una, desde la Glacial para acá. Yo solo no llego.',
-                      'Vos arreglás cada era y yo te abro el portal a la que sigue. Agarrate, que arrancamos por el hielo.'):
-            r = decir(texto)
-            if r is None or r == 'salir': return r
-        for k in range(40):                                              # destello blanco: entran a la era
-            escena(pygame.time.get_ticks())
-            velo = pygame.Surface((W, H)); velo.fill((255, 255, 255)); velo.set_alpha(round(255 * k / 39)); ventana.blit(velo, (0, 0))
-            ui['presentar'](); reloj.tick(60)
+        if e['cel']:                                                       # Celebi se corre a la derecha y vos subis un poco
+            e['cel']['mira'] = VOS; x0 = e['cel']['pos'][:]
+            def correrse(k, ahora):
+                """Celebi se corre a un costado y tu espíritu sube un poco (antes de materializarte)."""
+                s = _suave(k)
+                e['cel']['pos'] = [x0[0] + (AL_COSTADO[0] - x0[0]) * s, x0[1] + (AL_COSTADO[1] - x0[1]) * s]
+                e['luz']['pos'] = [VOS[0] + 60 * s, VOS[1] - 70 * s]
+            r = correr(800, correrse)
+            if r != 'ok': return r
+        VOS = [VOS[0] + 60, VOS[1] - 70]; e['luz']['pos'] = list(VOS)
+        r = hablar((('Vamos a hacer un ejercicio de concentración. Necesito que concentres toda tu identidad y que trates de materializarte.', 'Determined'),
+                    ('(Pensá en cómo era tu cuerpo...)', 'Normal')))
+        if r != 'ok': return r
+        inicial = elegir_forma()
+        if inicial is None or inicial == 'salir': return inicial
+        # ===== 6. te materializas: estrellas que giran y se juntan, un destello y tu cuerpo =====
+        ahora0 = pygame.time.get_ticks()
+        def materializar(k, ahora):
+            """Te materializás: estrellas que giran y se juntan, un destello y aparece tu pokemon."""
+            if k < 0.6:
+                for i in range(8):
+                    ang = ahora / 260 + i * math.tau / 8; radio = 170 * (1 - k / 0.6)
+                    e['anims'].append(('estrella' if i % 2 else 'brillo', (VOS[0] + math.cos(ang) * radio, VOS[1] + math.sin(ang) * radio * 0.7), 34, ahora, 40))
+            elif not e.get('destello'):
+                e['destello'] = True; e['anims'] += [('evolucion', tuple(VOS), 300, ahora, 50), ('cambio', tuple(VOS), 340, ahora, 45)]
+                cuerpo = AnimadorPokemon(inicial, pygame.Rect(0, 0, 10, 10), 120)
+                e['cuerpo'] = {'a': cuerpo, 'pos': list(VOS), 'anim': 'hop'}; e['sombra'] = None
+                sonido.grito(inicial)
+            e['blanco'] = round(255 * max(0.0, 1 - (k - 0.6) / 0.4)) if k >= 0.6 else 0
+        r = correr(1700, materializar)
+        if r != 'ok': return r
+        e['blanco'] = 0
+        if not e['cuerpo']:
+            e['cuerpo'] = {'a': AnimadorPokemon(inicial, pygame.Rect(0, 0, 10, 10), 120), 'pos': list(VOS)}; e['sombra'] = None
+        e['cuerpo']['anim'] = 'idle'
+        if e['cel']:                                                       # te mira, te rodea y vuelve a su lugar
+            r = rodear(VOS, 2000, 150, 95, 1.0, 0.0)
+            if r != 'ok': return r
+            r = ir(AL_COSTADO, 700, mira=VOS)
+            if r != 'ok': return r
+        r = decir('¡Muy bien, ' + nombre + '! Ahora que tenés un cuerpo, ' + segun_genero(genero, 'estás listo', 'estás lista', 'ya estás en condiciones') + ' para viajar.', 'Happy')
+        if r is None or r == 'salir': return r
+        # ===== 7. se abre el portal atras, suerte, y se van juntos (todo se apaga) =====
+        r = correr(1300, lambda k, a: e.update(portal=round(115 * _suave(k)), vel=1.0 + k))
+        if r != 'ok': return r
+        r = decir('¡Mucha suerte en tu camino!', 'Joyous')
+        if r is None or r == 'salir': return r
+        if e['cel']:
+            r = ir((VOS[0] + 50, VOS[1] - 10), 420, anim='pull', mira=VOS, rapido=True)   # te agarra
+            if r != 'ok': return r
+            e['anims'].append(('mano', (VOS[0] + 26, VOS[1] - 6), 72, pygame.time.get_ticks(), 65))   # (la mano del PMD)
+            r = correr(450)
+            if r != 'ok': return r
+        inicio_c, inicio_v = (e['cel']['pos'][:] if e['cel'] else None), e['cuerpo']['pos'][:]
+        def adentro(k, ahora):
+            """Celebi te lleva de la mano al portal."""
+            s = _suave(k)
+            if e['cel']: e['cel']['pos'] = [inicio_c[0] + (W // 2 - inicio_c[0]) * s, inicio_c[1] + (150 - inicio_c[1]) * s]; e['cel']['esc'] = 1 - 0.85 * s; e['cel']['anim'] = 'pull'
+            kk = max(0.0, (k - 0.12) / 0.88)
+            e['cuerpo']['pos'] = [inicio_v[0] + (W // 2 - inicio_v[0]) * _suave(kk), inicio_v[1] + (150 - inicio_v[1]) * _suave(kk)]
+            e['cuerpo']['anim'] = 'walk'
+        r = correr(1400, adentro)
+        if r != 'ok': return r
+        e['cel'] = None; e['cuerpo'] = None; e['luz'] = {'pos': [W // 2, 150], 'esc': 0.3}
+        def apagar(k, ahora):                                              # el portal se cierra y todo se apaga: queda un brillo que se va
+            """El portal se cierra y todo se apaga (queda un brillo que se va)."""
+            e['cierre'] = min(1.0, k * 1.8)                                # se agrieta y se rompe en pedazos
+            e['oscuro'] = round(255 * _suave(k)); e['vel'] = 2.0 * (1 - k)
+            e['luz']['esc'] = 0.3 * (1 - k)
+        r = correr(1600, apagar)
+        if r != 'ok': return r
         return {'nombre': nombre, 'genero': genero, 'inicial': inicial}
 
 
-    def cruzar_portal(ui, era_nombre, pokemon, duracion=2600):
-        """Terminaste una era y cruzaste el portal de Celebi: el tunel del tiempo con tu pokemon flotando (Float),
-        Celebi adelante guiando y el nombre de la era a la que vas. Termina en un destello blanco. Cualquier tecla lo acorta.
-        Devuelve 'salir' si se cerro la ventana."""
+    def cruzar_portal(ui, era_nombre, pokemon, duracion=4200):
+        """Terminaste una era: Celebi te arrastra de la mano por el cosmos hasta la siguiente. Se abre desde el blanco del portal; Celebi
+        (Pull) va adelante y vos atras, serpenteando con estela mientras aparece el nombre de la era; al final se tiran al fondo del tunel,
+        todo se apaga y queda un brillo (la apertura al reves). Una tecla lo adelanta. Devuelve 'salir' si se cerro la ventana."""
         ventana, W, H = ui['ventana'], ui['W'], ui['H']
         reloj = pygame.time.Clock()
         vos = AnimadorPokemon(pokemon, pygame.Rect(0, 0, 10, 10), 100)
-        vos.cambiar('float', 0, True) or vos.cambiar('idle', 0, True)
-        celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 80) if tiene_sprites('celebi') else None
-        if celebi: celebi.cambiar('idle', 4, True)                        # mirando para adelante, hacia donde van
-        inicio = pygame.time.get_ticks()
+        celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 84) if tiene_sprites('celebi') else None
+        FONDO = (W // 2, H // 2 - 40)
+        estela, inicio = ([], []), pygame.time.get_ticks()
+        fase, antes = 0.0, None                                          # el cosmos: tranquilo y, al tirarse al fondo, rapido
+        camino = lambda t: (W / 2 + math.sin(t / 760) * 230, H * 0.62 + math.sin(t / 470) * 45)   # Celebi va adelante; vos, por el mismo camino un poco atras
         while True:
-            ahora = pygame.time.get_ticks()
-            t = ahora - inicio
-            for e in controles.eventos():
-                if e.type == pygame.QUIT: return 'salir'
-                if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN): inicio = min(inicio, ahora - duracion + 500)   # salta al destello final
+            ahora = pygame.time.get_ticks(); t = ahora - inicio
+            for ev in controles.eventos():
+                if ev.type == pygame.QUIT: return 'salir'
+                if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN) and t < duracion - 1500: inicio = ahora - (duracion - 1500)
             if t >= duracion: return None
-            fondo_viaje(ui, ahora)
-            if celebi:
-                celebi.rect.center = (W // 2, 150 + round(math.sin(ahora / 400) * 10)); celebi.actualizar(); celebi.dibujar(ventana)
-            vos.rect.center = (W // 2, 330 + round(math.sin(ahora / 450 + 1) * 12)); vos.actualizar(); vos.dibujar(ventana)
-            k = min(1.0, t / 600)                                        # el nombre de la era aparece de a poco
-            texto = fuente(64).render(era_nombre, True, 'white')
-            sombra = fuente(64).render(era_nombre, True, (20, 30, 80))
-            texto.set_alpha(round(255 * k)); sombra.set_alpha(round(200 * k))
-            ventana.blit(sombra, sombra.get_rect(center=(W // 2 + 3, H - 113))); ventana.blit(texto, texto.get_rect(center=(W // 2, H - 116)))
-            final = (t - (duracion - 500)) / 500
-            if final > 0:                                                # destello blanco al llegar
-                velo = pygame.Surface((W, H)); velo.fill((255, 255, 255)); velo.set_alpha(round(255 * min(1.0, final))); ventana.blit(velo, (0, 0))
+            fin = max(0.0, (t - (duracion - 1500)) / 1500)                # al final: al fondo del tunel y se apaga todo
+            fase += (0 if antes is None else min(50, ahora - antes)) / COSMOS['ms'] * (1.2 + 2.5 * fin); antes = ahora
+            fondo_viaje(ui, ahora, fase)
+            hundir = _suave(min(1.0, fin * 1.6))
+            dibujar_estela(ventana, estela[0], ahora, FONDO); dibujar_estela(ventana, estela[1], ahora, FONDO)   # (una estela para cada uno)
+            for k_a, (a, retraso, esc0, anim) in enumerate(((vos, 260, 1.0, 'float'), (celebi, 0, 0.9, 'pull'))):
+                if not a: continue
+                (x, y), (x2, y2) = camino(t - retraso), camino(t - retraso + 40)
+                x, y = x + (FONDO[0] - x) * hundir, y + (FONDO[1] - y) * hundir
+                esc = esc0 * (1 - 0.9 * hundir)
+                if not a.cambiar(anim, _mira(x2 - x, y2 - y), True): a.cambiar('idle', _mira(x2 - x, y2 - y), True)
+                a.rect.center = (round(x), round(y)); a.actualizar(); c = a.cuadro()
+                if not c: continue
+                img = pygame.transform.scale(c[0], (max(1, round(c[0].get_width() * esc)), max(1, round(c[0].get_height() * esc))))
+                lugar = img.get_rect(center=(round(x), round(y))); ventana.blit(img, lugar)
+                dejar_estela(estela[k_a], img, lugar.x, lugar.y, ahora)
+            k = min(1.0, t / 600) * (1 - fin)                             # el nombre de la era
+            texto = tipografia.fuente_titulo(3).render(era_nombre, True, 'white'); texto.set_alpha(round(255 * k))
+            ventana.blit(texto, texto.get_rect(center=(W // 2, 90)))
+            if t < 450:                                                  # viene del blanco del portal
+                velo = pygame.Surface((W, H)); velo.fill((255, 255, 255)); velo.set_alpha(round(255 * (1 - t / 450))); ventana.blit(velo, (0, 0))
+            if fin > 0:
+                velo = pygame.Surface((W, H)); velo.set_alpha(round(255 * _suave(fin))); ventana.blit(velo, (0, 0))
+                brillos = efectos._frames('brillo', max(6, round(30 * (1 - fin))))
+                if brillos and fin < 0.95: b = brillos[(ahora // 110) % len(brillos)]; ventana.blit(b, b.get_rect(center=FONDO))
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1054,6 +1434,61 @@ def armar_menus():
                 ventana.blit(fuente(32).render(linea, True, 'white'), (cuadro.x + 30, cuadro.y + 22 + i * 30))
             if detalle: ventana.blit(fuente(22).render(ajustar_texto(detalle, fuente(22), cuadro.width - 50)[0], True, (200, 200, 200)), (cuadro.x + 30, cuadro.y + 88 + extra))
             for i, b in enumerate(botones): boton(ventana, b, opciones_[i], i == elegido, 30)
+            ui['presentar'](); reloj.tick(60)
+
+
+    # ---------- rueda de curaciones ----------
+
+    def rueda_curacion(ui, opciones_, mantener):
+        """Rueda de curaciones como la de Breath of the Wild: la pelea queda congelada detras y alrededor del centro estan tus curaciones
+        (cada una con su icono de BW y cuantas llevas) en botones de la pantalla tactil. Se elige con el mouse, las flechas o los numeros
+        y se usa al soltar la tecla de curarse (o con ENTER / clic). opciones_: [(clave, cantidad)]. mantener(): si la tecla sigue apretada.
+        Devuelve el indice elegido, None si se cancela (ESC / clic derecho) o 'salir'."""
+        ventana, W, H = ui['ventana'], ui['W'], ui['H']
+        fondo = ventana.copy()
+        velo = pygame.Surface((W, H), pygame.SRCALPHA); velo.fill((8, 10, 24, 150))
+        centro, n = (W // 2, H // 2 - 20), len(opciones_)
+        angulo = lambda i: math.radians(-90 + 360 * i / n)
+        elegido, abierto, reloj = 0, pygame.time.get_ticks(), pygame.time.Clock()
+        def mas_cerca(dx, dy):
+            a = math.atan2(dy, dx)
+            return min(range(n), key=lambda i: abs((angulo(i) - a + math.pi) % math.tau - math.pi))
+        while True:
+            ahora = pygame.time.get_ticks()
+            for e in controles.eventos():
+                if e.type == pygame.QUIT: return 'salir'
+                if e.type == pygame.KEYDOWN:
+                    if e.key == pygame.K_ESCAPE: return None
+                    if pygame.K_1 <= e.key < pygame.K_1 + n: return e.key - pygame.K_1
+                    if e.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE): return elegido
+                if e.type == pygame.MOUSEMOTION:
+                    x, y = ui['a_logico'](e.pos)
+                    if math.hypot(x - centro[0], y - centro[1]) > 40: elegido = mas_cerca(x - centro[0], y - centro[1])
+                if e.type == pygame.MOUSEBUTTONDOWN: return elegido if e.button == 1 else None
+            dx, dy = controles.direccion()
+            flechas = pygame.key.get_pressed()
+            dx, dy = dx + flechas[pygame.K_RIGHT] - flechas[pygame.K_LEFT], dy + flechas[pygame.K_DOWN] - flechas[pygame.K_UP]
+            if dx or dy: elegido = mas_cerca(dx, dy)
+            if ahora - abierto > 80 and not mantener(): return elegido
+            radio = round((110 if n <= 3 else 135) * aparecer(ahora - abierto, 0, 140))
+            ventana.blit(fondo, (0, 0)); ventana.blit(velo, (0, 0))
+            for i, (clave, cantidad) in enumerate(opciones_):
+                x, y = round(centro[0] + radio * math.cos(angulo(i))), round(centro[1] + radio * math.sin(angulo(i)))
+                yo = i == elegido
+                boton_tactil(ventana, (x, y), 40 if yo else 33, 0.0, tienda.ITEMS[clave]['color'] if yo else None)
+                icono = icono_objeto(clave, 40 if yo else 30)
+                if icono: ventana.blit(icono, icono.get_rect(center=(x, y)))
+                if cantidad > 1:
+                    t = tipografia.fuente(20, borde=True).render('x' + str(cantidad), True, 'white'); ventana.blit(t, t.get_rect(bottomright=(x + 34, y + 34)))
+                t = tipografia.fuente(20, borde=True).render(str(i + 1), True, (255, 230, 150)); ventana.blit(t, t.get_rect(topleft=(x - 34, y - 36)))
+            clave = opciones_[elegido][0]
+            nombre = tipografia.fuente_titulo(2).render(tienda.ITEMS[clave]['nombre'], True, 'white')
+            ventana.blit(nombre, nombre.get_rect(center=centro))
+            info = pygame.Rect(W // 2 - 300, H - 104, 600, 56)
+            caja(ventana, info, 'panel', OSCURO, 2, (220, 220, 220))
+            for k, linea in enumerate(ajustar_texto(tienda.ITEMS[clave].get('desc', ''), fuente(24), info.width - 40)[:2]):
+                ventana.blit(fuente(24).render(linea, True, 'white'), (info.x + 20, info.y + 12 + k * 24))
+            pie(ventana, 'soltá la tecla: usar   flechas, mouse o 1-' + str(n) + ': elegir   ESC: cancelar')
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1210,6 +1645,7 @@ def armar_menus():
 
     TRUCOS = [('todas_mt', 'Tener todas las MT'), ('mt_infinitas', 'Las MT no se gastan'), ('vida_infinita', 'Vida infinita'),
               ('sin_enfriamiento', 'Sin tiempo de recarga'), ('monedas_infinitas', 'Monedas infinitas'), ('golpe_letal', 'Un golpe mata'),
+              ('llaves_auto', 'Llaves solas (puertas y cofres abiertos)'), ('desbloquear_todo', 'Desbloquear todo (eras, titanes y amigos)'),
               ('subir_niveles', 'Subir 5 niveles al equipo (al volver al juego)')]
 
 
@@ -1219,7 +1655,7 @@ def armar_menus():
         elegido = 0
         reloj = pygame.time.Clock()
         while True:
-            botones = [pygame.Rect(100, 130 + i * 56, 640, 46) for i in range(len(TRUCOS) + 1)]
+            botones = [pygame.Rect(100, 104 + i * 50, 700, 42) for i in range(len(TRUCOS) + 1)]
             accion = None
             for e in controles.eventos():
                 if e.type == pygame.QUIT: return 'salir'
@@ -1382,8 +1818,9 @@ def armar_menus():
             '[Envenenado] pierde vida de a poco (nunca te deja en 0). [Quemado] pierde vida y pega 20% menos. [Paralizado] más lento y a veces',
             'no le sale el especial. [Dormido] no se mueve ni ataca hasta que le pegan. [Confundido] camina al revés. [Aturdido] un instante quieto.',
             'Cada pokemon tiene sus propios estados: si cambiás, el que entra no los trae. Los de veneno y acero no se envenenan, los de fuego no se queman...',
-            'Cinturón: las curaciones van en el cuarto de círculo de abajo a la derecha (como mucho ' + str(tienda.CINTURON_MAX) + '). Con ' + tecla('curar') + ' usás la del lugar 1',
-            'en el que pelea (si no le sirve, no se gasta) y las de atrás avanzan. En la mochila las usás en quien quieras, las acomodás o las tirás.',
+            'Cinturón: las curaciones van en el cuarto de círculo de abajo a la derecha (como mucho ' + str(tienda.CINTURON_MAX) + '). Tocando ' + tecla('curar') + ' usás la del lugar 1',
+            'en el que pelea (si no le sirve, no se gasta) y las de atrás avanzan. Manteniéndola se abre la rueda (como en Breath of the Wild): la pelea se',
+            'congela y elegís cuál usar con el mouse, las flechas o los números; al soltar se usa. En la mochila las usás en quien quieras o las tirás.',
             'Chikorita rosa vende 5 curaciones al azar en cada tienda. La Poción Máxima no se vende: Celebi te da una al empezar cada viaje',
             'y en cada era nueva si tenés lugar en el cinturón (solo se lleva una).',
             ''] + [it['nombre'] + ' (' + (str(it['precio']) + ' $' if it['precio'] else 'de Celebi') + '): ' + it['desc'] for k, it in tienda.ITEMS.items() if it.get('curativo')]
@@ -1606,137 +2043,6 @@ def armar_menus():
             nombre = siguientes[0]; vistos.add(nombre)
 
 
-    FONDO_INICIAL = {'mudkip': 'celeste', 'torchic': 'dorado', 'riolu': 'blanco', 'natu': 'verde'}   # el fondo de BW que le toca a cada uno
-    _inicial = {}
-
-
-    def _pieza_inicial(nombre, tam=None):
-        """assets/interfaz/inicial/<nombre>.png al tamaño pedido: los fondos de arcos y la manito de la pantalla de elegir inicial de
-        Blanco/Negro (los recorta: python herramientas.py inicial). None si falta."""
-        clave = (nombre, tam)
-        if clave not in _inicial:
-            ruta = os.path.join(os.path.dirname(FONDOS), 'inicial', nombre + '.png')
-            try: img = pygame.image.load(ruta) if os.path.isfile(ruta) else None
-            except pygame.error: img = None
-            if img: img = pygame.transform.smoothscale(img.convert(), tam) if nombre.startswith('fondo') else img.convert_alpha()   # el fondo es un degrade: se estira suave
-            _inicial[clave] = img
-        return _inicial[clave]
-
-
-    def elegir_inicial(ui, dibujar_fondo=None, texto_titulo='Elegi tu compañero'):
-        """Elegis tu primer pokemon: Mudkip, Torchic, Riolu o Natu (uno por rol), con la pantalla de elegir inicial de Blanco/Negro:
-        el fondo de arcos del color de cada uno, a la izquierda el elegido en grande sobre la Pokeball que gira (camina; al confirmar
-        salta de alegria y grita), a la derecha la lista en paneles con la manito y abajo que hace y en que se convierte.
-        dibujar_fondo(ahora): lo que va detras si faltan los fondos de BW (el tunel del viaje temporal). Devuelve el nombre, None (ESC) o 'salir'."""
-        ventana, W, H = ui['ventana'], ui['W'], ui['H']
-        n_ = len(INICIALES)
-        grandes = [AnimadorPokemon(n, pygame.Rect(0, 0, 10, 10), 190) for n in INICIALES]
-        for a in grandes: a.cambiar('idle', 0, True)
-        finales = [_evolucion_final(n) for n in INICIALES]
-        unicos = [mecanicas.texto_de(n) or '' for n in INICIALES]
-        lista = [pygame.Rect(W - 450, 112 + i * 80, 410, 70) for i in range(n_)]
-        MOSTRADOR = (265, 262)                                          # el centro de donde se para el elegido
-        est = {'elegido': 1, 'anterior': 1, 'cambio': pygame.time.get_ticks()}
-        confirmado, abierto = None, pygame.time.get_ticks()
-        mano = _pieza_inicial('mano')
-        if mano: mano = pygame.transform.rotate(pygame.transform.scale(mano, (mano.get_width() * 2, mano.get_height() * 2)), 90)   # señala para la derecha
-        reloj = pygame.time.Clock()
-        def elegir(i):
-            if i != est['elegido']: est.update(anterior=est['elegido'], elegido=i, cambio=pygame.time.get_ticks())
-        while True:
-            ahora = pygame.time.get_ticks()
-            for e in controles.eventos():
-                if e.type == pygame.QUIT: return 'salir'
-                if confirmado is not None: continue
-                if e.type == pygame.KEYDOWN:
-                    if e.key == pygame.K_ESCAPE: return None
-                    if e.key in (pygame.K_LEFT, pygame.K_a, pygame.K_UP, pygame.K_w): elegir((est['elegido'] - 1) % n_)
-                    if e.key in (pygame.K_RIGHT, pygame.K_d, pygame.K_DOWN, pygame.K_s): elegir((est['elegido'] + 1) % n_)
-                    if e.key in (pygame.K_RETURN, pygame.K_e, pygame.K_SPACE): confirmado = ahora
-                if e.type == pygame.MOUSEMOTION:
-                    for i, c in enumerate(lista):
-                        if c.collidepoint(ui['a_logico'](e.pos)): elegir(i)
-                if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                    for i, c in enumerate(lista):
-                        if c.collidepoint(ui['a_logico'](e.pos)): elegir(i); confirmado = ahora
-                if confirmado == ahora: sonido.grito(INICIALES[est['elegido']])      # el elegido grita de alegria
-            if confirmado is not None and ahora - confirmado > 950: return INICIALES[est['elegido']]   # deja ver el salto y el destello
-            elegido = est['elegido']
-            nombre, t, tc = INICIALES[elegido], ahora - abierto, ahora - est['cambio']
-            tf = ahora - confirmado if confirmado is not None else -1
-            # el fondo de arcos de BW del color del elegido (se funde con el del anterior al cambiar)
-            fondo_n = _pieza_inicial('fondo_' + FONDO_INICIAL.get(nombre, 'blanco'), (W, H))
-            if fondo_n:
-                ventana.blit(fondo_n, (0, 0))
-                viejo = _pieza_inicial('fondo_' + FONDO_INICIAL.get(INICIALES[est['anterior']], 'blanco'), (W, H))
-                if viejo and tc < 260: viejo.set_alpha(round(255 * (1 - tc / 260))); ventana.blit(viejo, (0, 0)); viejo.set_alpha(None)
-            elif dibujar_fondo: dibujar_fondo(ahora)
-            else: fondo_menu(ui, ahora, False)
-            pokeball_girando(ventana, MOSTRADOR, 440, ahora, 80, 5)       # la Pokeball de la pantalla tactil de BW, girando atras
-            velo = pygame.Surface((W, 84), pygame.SRCALPHA); velo.fill((14, 14, 26, 150)); ventana.blit(velo, (0, 0))   # que el titulo se lea sobre el fondo claro
-            titulo(ventana, texto_titulo)
-            # el elegido en grande: entra corriendo desde la izquierda y camina en el lugar; al confirmar, salta
-            a = grandes[elegido]
-            if tf >= 0: a.cambiar('hop', 0, True) or a.cambiar('walk', 0, True)
-            else: a.cambiar('walk', 0, True)
-            entra = aparecer(tc, 0, 240)
-            a.rect.center = (round(MOSTRADOR[0] - (1 - entra) * 150), MOSTRADOR[1] + 16)
-            if tf >= 0: animacion(ventana, 'cambio', MOSTRADOR, 460, tf, 55)      # confirmado: un anillo de luz atras
-            a.actualizar()
-            if not a.dibujar(ventana):
-                grande = ui['retrato'](nombre, 160)
-                if grande: ventana.blit(grande, grande.get_rect(center=a.rect.center))
-            animacion(ventana, 'destello', (MOSTRADOR[0], MOSTRADOR[1] + 10), 260, tc - 120, 60)        # estrellitas cuando aparece
-            if tf >= 0:                                                   # y brillitos y estrellas adelante
-                animacion(ventana, 'nivel', (MOSTRADOR[0], MOSTRADOR[1] - 30), 340, tf - 80, 70)
-                for k, (dx, dy) in enumerate(((-150, -90), (150, -70), (-120, 90), (140, 100))): animacion(ventana, 'destello', (MOSTRADOR[0] + dx, MOSTRADOR[1] + dy), 120, tf - 60 - k * 90, 70)
-            # la placa con el nombre, los tipos y el rol
-            placa = pygame.Rect(40 - round((1 - aparecer(t, 60)) * 520), 392, 450, 58)
-            panel_flecha(ventana, placa, (0, 1))
-            nom = tipografia.fuente_titulo(3).render(nombre.title(), True, 'white')
-            ventana.blit(nom, nom.get_rect(midleft=(placa.x + 26, placa.centery - 2)))
-            x = placa.right - 26
-            for tipo in reversed(pokemones[nombre].get('tipo', [])):
-                tipo = normalizar_tipo(tipo)
-                x -= fuente(20).size(str(tipo).upper())[0] + 20
-                chip_tipo(ventana, tipo, x, placa.centery - 14)
-            # abajo: que hace, lo que lo hace unico y en que se convierte
-            info = pygame.Rect(40, 462 + round((1 - aparecer(t, 140)) * 200), W - 80, 104)
-            caja(ventana, info, 'panel', OSCURO, 2, (220, 220, 220))
-            ventana.blit(fuente(24).render('Rol: ' + ROL_POKEMON.get(nombre, '-') + '  ·  ' + ESTILO_INICIAL.get(nombre, ''), True, (255, 236, 150)), (info.x + 22, info.y + 12))
-            for k, linea in enumerate(ajustar_texto(unicos[elegido], fuente(20), info.width - 300)[:3]):
-                ventana.blit(fuente(20).render(linea, True, (225, 225, 235)), (info.x + 22, info.y + 40 + k * 19))
-            final = finales[elegido]
-            if final != nombre:                                           # la cara de ahora, una flecha y la de la ultima evolucion
-                cara, cara_f = ui['retrato'](nombre, 44), ui['retrato'](final, 44)
-                x = info.right - 250
-                if cara: ventana.blit(cara, (x, info.y + 38))
-                fl = fuente(30).render('>', True, (255, 236, 150)); ventana.blit(fl, fl.get_rect(center=(x + 62, info.y + 60)))
-                if cara_f: ventana.blit(cara_f, (x + 80, info.y + 38))
-                llega = fuente(20).render('Llega a ser', True, (200, 200, 215)); ventana.blit(llega, (x + 134, info.y + 40))
-                ventana.blit(fuente(24).render(final.replace('_', ' ').title(), True, 'white'), (x + 134, info.y + 58))
-            # la lista: paneles de BW que entran desde la derecha; el elegido se corre y lo señala la manito
-            for i, (n, c) in enumerate(zip(INICIALES, lista)):
-                sale = aparecer(tf, 0, 320) * 520 if tf >= 0 and i != elegido else 0   # al confirmar, los otros se van
-                c = c.move(round((1 - aparecer(t, 80 + i * 70)) * 520 + sale) - (22 if i == elegido else 0), 0)
-                panel_flecha(ventana, c, (0, 1) if i == elegido else (0, 0))
-                cara = ui['retrato'](n, 52)
-                if cara: ventana.blit(cara, (c.x + 20, c.y + 9))
-                ventana.blit(fuente(34).render(n.title(), True, 'white'), (c.x + 86, c.y + 8))
-                ventana.blit(fuente(22).render(ROL_POKEMON.get(n, '-'), True, (255, 236, 150) if i == elegido else (190, 205, 225)), (c.x + 86, c.y + 40))
-                x = c.right - 24
-                for tipo in reversed(pokemones[n].get('tipo', [])):
-                    tipo = normalizar_tipo(tipo)
-                    x -= fuente(20).size(str(tipo).upper())[0] + 20
-                    chip_tipo(ventana, tipo, x, c.centery - 14)
-                if i == elegido:
-                    if math.sin(ahora / 140) > 0: pygame.draw.rect(ventana, (255, 255, 255), c.inflate(4, 4), 2, border_radius=8)   # el brillo que late, como los botones
-                    if mano: ventana.blit(mano, mano.get_rect(midright=(c.x - 4 + round(math.sin(ahora / 160) * 6), c.centery)))
-                    else: dibujar_esquinas(ventana, c, margen=5, largo=12)
-            if 0 <= tf < 260:                                             # un destello blanco al confirmar
-                blanco = pygame.Surface((W, H)); blanco.fill((255, 255, 255)); blanco.set_alpha(round(190 * (1 - tf / 260))); ventana.blit(blanco, (0, 0))
-            pie(ventana, 'arriba/abajo: elegir   ENTER: confirmar   ESC: volver')
-            ui['presentar'](); reloj.tick(60)
 
 
     # ---------- equipo (TAB) ----------
@@ -2022,6 +2328,7 @@ def armar_menus():
 
 
     def _parrafo(ventana, texto, x, y, ancho, tam=19, color=(230, 230, 236), max_lineas=99):
+        """Escribe un texto cortado en renglones y devuelve dónde terminó."""
         for linea in ajustar_texto(texto, fuente(tam), ancho)[:max_lineas]:
             ventana.blit(fuente(tam).render(linea, True, color), (x, y)); y += tam + 1
         return y
@@ -2525,6 +2832,7 @@ def armar_menus():
             viejo = AnimadorPokemon(antes, pygame.Rect(0, 0, 10, 10), 150); viejo.rect.center = centro; viejo.cambiar('idle', 0, True)
         blancos = {}
         def silueta(a):
+            """La silueta del pokemon que evoluciona (blanca, para el destello)."""
             c = a.cuadro()
             if not c: return None
             img, x, y = c

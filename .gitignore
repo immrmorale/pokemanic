@@ -3,3 +3,6 @@ venv/
 __pycache__/
 partidas/
 asignacion_animaciones.json
+build/
+dist/
+*.spec

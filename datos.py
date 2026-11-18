@@ -1288,25 +1288,6 @@ def armar_tienda():
         return lineas
 
 
-    def surtido(azar, tipos_equipo, vitrinas, equipo=(), necesita=()):
-        """Que objeto va en cada vitrina: comunes en los estantes (una MT que alguien de tu equipo puede aprender),
-        permanentes en las mesas (uno suele ser del tipo de tu equipo o el objeto que alguien necesita para evolucionar)."""
-        comunes = azar.sample(COMUNES, min(len(COMUNES), sum(1 for v in vitrinas if not v['destacado'])))
-        posibles = sorted({k for n in equipo for k in mts.aprendibles(n)})
-        if posibles and comunes: comunes[-1] = azar.choice(posibles)
-        if comunes: comunes[0] = 'llave_tesoro'                   # siempre hay una llave para las salas del tesoro
-        propios = [k for k in DE_TIPO if ITEMS[k]['tipo'][0] in tipos_equipo]
-        destacados = azar.sample(DESTACADOS, 2)
-        if propios and azar.random() < 0.6: destacados[1] = azar.choice(propios)
-        elif azar.random() < 0.3: destacados[1] = azar.choice(DE_TIPO)
-        if necesita and azar.random() < 0.7: destacados[0] = azar.choice(list(necesita))
-        salida, ic, idd = [], 0, 0
-        for v in vitrinas:
-            if v['destacado']: salida.append(destacados[idd % len(destacados)]); idd += 1
-            else: salida.append(comunes[ic % len(comunes)]); ic += 1
-        return salida
-
-
     # los 3 mostradores de la tienda (5 objetos cada uno, al azar)
     POTENCIADORES = ('ataque_x', 'defensa_x', 'velocidad_x', 'especial_x', 'directo') + DE_TIPO   # Riolu: los X y los de tipo
     EVOLUCION_TIENDA = tuple(k for k in EVOLUCION if k != 'cristal_paradoja')                     # Riolu: sin el Cristal Paradoja (lo suelta el Regi)
@@ -1405,6 +1386,50 @@ def armar_mundos():
     TIENDA_COMPENSA = 15                   # si sale pronto, la siguiente tarda mas: hueco_siguiente >= 15 - hueco_anterior
     PUERTAS_POR_SALA = ((1, 20), (2, 50), (3, 30))   # (cantidad de salidas, peso) en las salas de combate
     PROB_SEGUIR_CLIMA = 0.6                # chance de que la sala siguiente tenga el mismo clima
+    # la hora del juego: minutos del dia (0 a 1439). Corre un minuto por segundo jugado: el dia dura 24 minutos
+    RELOJ = {'por_segundo': 1.0, 'empieza': 8 * 60}
+    MOMENTOS = ((0, 'noche'), (5 * 60, 'mañana'), (9 * 60, 'dia'), (16 * 60, 'tarde'), (21 * 60, 'noche'))
+    CLIMA_HORA = {'noche': {'sol': 0, 'despejado': 2.5, 'nieve': 1.3, 'niebla': 1.2, 'lluvia': 0.8},     # cuanto mas (o menos) sale cada
+                  'mañana': {'niebla': 3, 'despejado': 1.5, 'sol': 0.4, 'nublado': 1.2},                # clima segun la hora (multiplica lo de
+                  'dia': {'sol': 2, 'despejado': 1.4, 'niebla': 0.3},                                    # la era); 0: a esa hora no puede
+                  'tarde': {'lluvia': 1.8, 'tormenta_electrica': 2, 'nublado': 1.5, 'sol': 0.7}}
+    LUZ_HORA = ((0, (92, 102, 160)), (300, (100, 110, 165)), (390, (232, 182, 188)), (480, (255, 255, 255)), (1020, (255, 255, 255)),
+                (1110, (255, 196, 150)), (1200, (150, 136, 186)), (1290, (92, 102, 160)), (1440, (92, 102, 160)))   # (minuto, color que multiplica la pantalla)
+    CLIMA_REFUGIO = {'despejado': 5, 'nublado': 2, 'lluvia': 1, 'niebla': 1, 'sol': 2}   # el del refugio (tambien segun la hora)
+
+
+    def momento(hora):
+        """'noche', 'mañana', 'dia' o 'tarde' segun la hora (minutos del dia)."""
+        return [m for desde, m in MOMENTOS if hora % 1440 >= desde][-1]
+
+
+    def texto_hora(hora):
+        """La hora como en un reloj de 24 h: '07:05'."""
+        h = int(hora) % 1440
+        return '%02d:%02d' % (h // 60, h % 60)
+
+
+    def luz(hora):
+        """El color con el que se tiñe la pantalla a esa hora (blanco de dia, azul de noche, rosado al amanecer, naranja al atardecer)."""
+        h = hora % 1440
+        for (m0, c0), (m1, c1) in zip(LUZ_HORA, LUZ_HORA[1:]):
+            if m0 <= h <= m1:
+                k = (h - m0) / max(1, m1 - m0)
+                return tuple(round(a + (b - a) * k) for a, b in zip(c0, c1))
+        return (255, 255, 255)
+
+
+    def _pesos_hora(pesos, hora):
+        """Los pesos de los climas con lo que suma o resta la hora."""
+        if hora is None: return dict(pesos)
+        extra = CLIMA_HORA[momento(hora)]
+        return {c: p * extra.get(c, 1) for c, p in pesos.items() if p * extra.get(c, 1) > 0}
+
+
+    def clima_refugio(hora, dia=0):
+        """El clima del refugio: el mismo durante un rato (cambia cada 3 horas del juego) y segun la hora."""
+        pesos = _pesos_hora(CLIMA_REFUGIO, hora)
+        return random.Random(dia * 8 + int(hora) // 180).choices(list(pesos), list(pesos.values()))[0]
     PROB_TESORO = 0.4                      # chance de que una de las puertas (si hay 2 o mas) sea de una sala del tesoro
     PROB_DESAFIO = 0.2                     # chance de que una puerta de combate sea de desafio (mas enemigos, mejor premio)
 
@@ -1763,16 +1788,17 @@ def armar_mundos():
         return plan + [list(e['plan_fijo']) for e in ERAS if 'plan_fijo' in e]
 
 
-    def clima_inicial(azar, era):
-        """Clima al azar segun lo comun que es en la era."""
-        pesos = ERAS[era]['clima']
+    def clima_inicial(azar, era, hora=None):
+        """Clima al azar segun lo comun que es en la era (y la hora)."""
+        pesos = _pesos_hora(ERAS[era]['clima'], hora) or ERAS[era]['clima']
         return azar.choices(list(pesos), list(pesos.values()))[0]
 
 
-    def siguiente_clima(azar, era, actual):
-        """Clima de la sala que viene: casi siempre sigue igual o pasa a uno vecino, y segun lo que es comun en la era."""
-        pesos = ERAS[era]['clima']
-        if actual not in pesos: return clima_inicial(azar, era)     # cambio de era: arranca de cero
+    def siguiente_clima(azar, era, actual, hora=None):
+        """Clima de la sala que viene: casi siempre sigue igual o pasa a uno vecino, segun lo que es comun en la era y la hora
+        (si a esta hora no puede, como el sol de noche, cambia)."""
+        pesos = _pesos_hora(ERAS[era]['clima'], hora) or ERAS[era]['clima']
+        if actual not in pesos: return clima_inicial(azar, era, hora)     # cambio de era (o a esta hora ya no puede): arranca de cero
         if azar.random() < PROB_SEGUIR_CLIMA: return actual
         vecinos = [v for v in VECINOS_CLIMA.get(actual, ()) if pesos.get(v)]
         if not vecinos: return actual
@@ -1803,20 +1829,20 @@ def armar_mundos():
         return None
 
 
-    def avanzar(rec):
-        """Pasa a la sala siguiente y le elige el clima (si cambia de era, el clima arranca de nuevo)."""
+    def avanzar(rec, hora=None):
+        """Pasa a la sala siguiente y le elige el clima segun la hora (si cambia de era, el clima arranca de nuevo)."""
         pos = siguiente(rec)
         if pos is None: return False
         cambio_era = pos[0] != rec['era']
         rec['era'], rec['sala'] = pos
-        rec['clima'] = clima_inicial(rec['azar'], rec['era']) if cambio_era else siguiente_clima(rec['azar'], rec['era'], rec['clima'])
+        rec['clima'] = clima_inicial(rec['azar'], rec['era'], hora) if cambio_era else siguiente_clima(rec['azar'], rec['era'], rec['clima'], hora)
         return True
 
 
-    def ir_a(rec, era, sala):
+    def ir_a(rec, era, sala, hora=None):
         """Salto directo (menu debug F2)."""
         rec['era'], rec['sala'] = era, sala
-        rec['clima'] = clima_inicial(rec['azar'], era)
+        rec['clima'] = clima_inicial(rec['azar'], era, hora)
 
 
     def destinos_siguientes(rec, azar):

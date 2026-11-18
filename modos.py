@@ -4,6 +4,56 @@ los minijuegos del refugio, las charlas de tus amigos y las misiones del tablon.
 La logica esta en main.py (armar_modos); aca solo estan los datos, para poder cambiarlos sin tocar el juego.
 """
 
+# ---------------------------------------------------------------- tus amigos en el refugio
+# Cada amigo esta en un solo lugar del refugio a la vez y sigue una de estas rutinas segun la hora del juego: (desde que hora, donde).
+# A cada uno le toca una (por su id) y la corre un poco (hasta 45 minutos antes o despues), asi no se mueven todos juntos.
+RUTINAS = (((0, 'barrio'), (7, 'plaza'), (12, 'comedor'), (14, 'minijuegos'), (18, 'plaza'), (21, 'barrio')),        # madrugador
+           ((0, 'barrio'), (9, 'plaza'), (13, 'comedor'), (16, 'plaza'), (20, 'comedor'), (23, 'barrio')),             # dormilon
+           ((0, 'barrio'), (6, 'minijuegos'), (11, 'comedor'), (14, 'minijuegos'), (19, 'plaza'), (22, 'barrio')),     # deportista
+           ((0, 'barrio'), (8, 'comedor'), (11, 'plaza'), (15, 'barrio'), (17, 'plaza'), (20, 'comedor'), (23, 'barrio')))   # charlatan
+AMIGOS_POR_ZONA = 18            # como mucho en un mismo lugar (con 'desbloquear todo' son muchos)
+
+
+# ---------------------------------------------------------------- escenas (llegada a la era, jefes, fin de era)
+# Como te espera cada jefe la primera vez: (pose, cuando se da vuelta). pose: 'sentado' (Sit), 'dormido' (Sleep) o 'espalda'
+# (mirando para el otro lado). cuando: 'entrar' (apenas entras) o 'cerca' (cuando te siente cerca, o si le pegas).
+POSE_JEFE = {'walrein': ('dormido', 'cerca'), 'regice': ('espalda', 'entrar'), 'golem': ('sentado', 'cerca'), 'regirock': ('espalda', 'entrar'),
+             'corviknight': ('espalda', 'cerca'), 'registeel': ('espalda', 'entrar'), 'garchomp': ('sentado', 'cerca'), 'regidrago': ('dormido', 'entrar'),
+             'magnezone': ('espalda', 'cerca'), 'regieleki': ('espalda', 'entrar'), 'regigigas': ('dormido', 'entrar'), 'arceus': ('espalda', 'entrar'),
+             'cramorant': ('sentado', 'cerca'), 'mamoswine': ('dormido', 'cerca'), 'tyrantrum': ('espalda', 'cerca'), 'armaldo': ('sentado', 'cerca'),
+             'scizor': ('espalda', 'cerca'), 'tinkaton': ('sentado', 'cerca'), 'chandelure': ('espalda', 'cerca'), 'samurott_hisui': ('sentado', 'cerca'),
+             'muk_alola': ('dormido', 'cerca')}
+JEFE_GRANDE = {'peso': 1400, 'altura': 17}   # desde este peso (hectogramos) o altura (decimetros) el jefe hace temblar todo al presentarse
+# Al caer el Regi Celebi sale del portal, te agarra de la mano y te lleva. En cada era dice otra cosa y te lleva distinto:
+# curva: cuanto se abre el camino hasta el portal; saltos: si va dando saltitos.
+RESCATE = {'glaciacion': {'frase': '¡Bien ahí! Vamos, que el portal se congela.', 'curva': 140, 'saltos': False},
+           'piedra': {'frase': '¡Lo hiciste! Agarrate fuerte, que esto se mueve.', 'curva': -120, 'saltos': True},
+           'metales': {'frase': '¡Eso! Rápido, antes de que se oxide el portal.', 'curva': 200, 'saltos': False},
+           'medieval': {'frase': '¡Victoria! El reino está a salvo. ¡Vamos!', 'curva': -180, 'saltos': True},
+           'moderna': {'frase': '¡Volvió la luz! Vamos, que se corta otra vez.', 'curva': 60, 'saltos': False},
+           'origen': {'frase': 'Ya casi... falta uno solo. Vení conmigo.', 'curva': 0, 'saltos': False}}
+
+
+# ---------------------------------------------------------------- caminos entre salas
+# A veces, al salir de una sala, antes de la siguiente hay un camino tranquilo: sin enemigos, con pokemon de la era paseando.
+PASILLO = {'prob': 0.3,            # chance de que haya un camino entre dos salas
+           'antes_jefe': 0.75,     # y antes del jefe o del Regi (una antesala para respirar)
+           'pokes': (3, 6),        # cuantos pokemon de la era pasean
+           'regalo': 0.25}         # chance de que uno te de una baya al hablarle (una vez cada uno)
+NOMBRE_PASILLO = {'glaciacion': 'Sendero helado', 'piedra': 'Sendero de las cuevas', 'metales': 'Camino de las minas',
+                  'medieval': 'Camino real', 'moderna': 'Avenida vacía', 'origen': 'Puente del tiempo'}
+CHARLAS_PASILLO = {
+    'glaciacion': ('Acá el frío no se va nunca. Por eso me gusta.', 'Más adelante el hielo cruje distinto... tené cuidado.', '¿Venís del portal? Hace mucho que no pasaba nadie.'),
+    'piedra': ('Las cuevas de por acá tienen dibujos de pokemon. Alguien los hizo hace mucho.', 'No pises las rocas sueltas, se caen solas.', 'Hay algo enorme moviéndose bajo tierra.'),
+    'metales': ('El ruido de las fraguas no para ni de noche.', 'Los humanos de esta era aprendieron a fundir metal. Y lo usan para todo.', 'Más adelante hay un pájaro de acero que no deja pasar a nadie.'),
+    'medieval': ('Los caballeros pasan por acá a caballo. Bueno, en Rapidash.', 'Dicen que en la torre duerme un dragón de piedra.', 'El rey del castillo nos deja pasear si no rompemos nada.'),
+    'moderna': ('Antes esta calle estaba llena de gente. Ahora se cortó la luz y se fueron.', 'Algo eléctrico anda suelto por la ciudad.', 'Me gusta el ruido de los cables. Me hace cosquillas.'),
+    'origen': ('Acá el tiempo no corre: camina.', 'Todo empezó en este lugar. Y puede terminar acá también.', 'Sentís eso? Alguien muy grande nos está mirando.'),
+}
+CHARLAS_PASILLO_TODAS = ('¡Hola! Por acá no hay peleas, podés descansar.', 'Lindo día para caminar, ¿no?', 'Vos no sos de esta época, se nota.',
+                         'Celebi pasó volando hace un rato. Iba apurado.', 'Si seguís derecho llegás a la próxima sala.')
+
+
 # ---------------------------------------------------------------- tutorial (la isla de practica de Celebi)
 # Cada paso: (clave, titulo, lo que dice Celebi). {teclas} se cambian por las teclas que tengas puestas.
 # El orden es el del tutorial; que hace falta para pasar cada uno esta en main.py (paso_cumplido).

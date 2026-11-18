@@ -31,6 +31,7 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 14. [Tabla de tipos](#tabla-de-tipos)
 15. [Gráficos e interfaz](#gráficos-e-interfaz)
 16. [Herramientas](#herramientas)
+17. [Crear el .exe](#crear-el-exe)
 
 ---
 
@@ -45,9 +46,11 @@ Necesita `pygame`. Las partidas se guardan en la carpeta `partidas/`. En la mism
 | `combate.py` | progreso (niveles, IV/EV, evoluciones, amistad) e IA de enemigos y jefes |
 | `mecanicas.py` | la mecánica única de cada línea evolutiva nueva (pasivas y especiales) y lo que hacen algunos enemigos |
 | `modos.py` | textos y números del tutorial, el boss rush, los titanes, los minijuegos, las charlas de tus amigos y las misiones |
-| `interfaz.py` | menús: ajustes, controles, glosario, inicial, equipo, ficha, mochila |
+| `interfaz.py` | menús (ajustes, controles, glosario, equipo, ficha, mochila), la rueda de curaciones y las escenas del borde del cosmos |
 | `subjefes.py` | los subjefes de las salas 10 y 20 de cada era: sus números, mecánicas, movimientos y cómo se dibujan (ver [Subjefes](#subjefes-salas-10-y-20)) |
 | `herramientas.py` | programas aparte para preparar el juego (ver [Herramientas](#herramientas)) |
+| `EXPLICACION_DEL_CODIGO.md` | cómo está hecho el código: qué hace cada archivo, cómo corre una partida y cada función una por una |
+| `crear_exe.bat` | arma el ejecutable (ver [Crear el .exe](#crear-el-exe)) |
 
 ---
 
@@ -68,7 +71,8 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 | Interactuar, comprar, hablar | E | A |
 | Bailar (amigar / confundir) | V | palanca der (R3) |
 | Evolucionar (mantener) | C | cruz abajo |
-| Usar la curación del lugar 1 del [cinturón](#estados-y-curaciones) | Z | sin asignar (se elige en Controles) |
+| Curarse: tocar usa la del lugar 1 del [cinturón](#estados-y-curaciones), mantener abre la **rueda** | Z | sin asignar (se elige en Controles) |
+| Mapa (de la era o del refugio) | M | sin asignar (se elige en Controles) |
 | Menú de equipo | TAB | Back |
 | Pausa | ESC | Start |
 
@@ -80,13 +84,13 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 **Teclas secretas:**
 - **F1** (en el menú principal o jugando): menú debug para poner cualquier pokemon en el equipo. Están agrupados por tipo (en el orden de la [tabla de tipos](#tabla-de-tipos), según el tipo principal de la primera forma de cada línea), y adentro de cada tipo por generación, con cada línea evolutiva junta (Pichu, Pikachu y Raichu van seguidos aunque Pichu sea de la 2ª). Con el Konami se suman los jefes, ordenados igual.
 - **F2** (jugando): saltar a cualquier sala, tienda o jefe. TAB o Shift cambian de era.
-- **Código Konami** (↑ ↑ ↓ ↓ ← → ← → B A) en Ajustes o en la pausa: menú de trucos (vida infinita, sin recarga, todas las MT, monedas infinitas, un golpe mata, subir 5 niveles). Los trucos no se guardan.
+- **Código Konami** (↑ ↑ ↓ ↓ ← → ← → B A) en Ajustes o en la pausa: menú de trucos. **Vida infinita** deja a todo el equipo con la vida llena (no solo al que pelea); también hay sin recarga, todas las MT, monedas infinitas, un golpe mata, **llaves solas** (las puertas y los cofres del tesoro se abren sin limpiar la sala ni gastar llaves), **desbloquear todo** (al volver al refugio: todas las eras derrotadas, todos los titanes en su sala y un amigo de cada especie) y subir 5 niveles.
 
 ---
 
 ## Cómo se juega
 
-- **Partida nueva:** se abre el tiempo (la apertura del Explorers of Time) y flotás en el túnel como una lucecita sin forma. Llega Celebi dormido, se despierta, te ve y te pregunta tu **nombre**, tu **género** (chico, chica o prefiero no decirlo; cambia los textos) y **qué pokemon sos** (como armar tu cuerpo en Deltarune: ese pokemon sos vos y lo controlás). Uno por rol, y todos evolucionan:
+- **Partida nueva: el borde del cosmos.** Todo negro unos segundos y, de golpe, muy al fondo, un brillito. Se abre el tiempo (la apertura del Explorers of Time) y aparece el cosmos (el túnel del viaje temporal, tranquilo, que se acelera en los momentos de movimiento). Tu espíritu es un **orbe de luz con su aura y una estrellita** que titila; se acerca despacio, meciéndose como una hoja, y su aura se estira hacia el fondo del cosmos (el cosmos va para atrás y ustedes para adelante). Celebi llega de lejos dando vueltas, pasa por la luz, sale de cuadro, aparece un **"!"** y vuelve frenando: te mira, te rodea despacio, después rápido, sale disparado al centro y se mueve con pequeños saltos, siempre flotando. Al moverse deja dos copias tenues, sin color, que se van hacia el fondo. Te rodea, te examina y te habla, cambiando de lugar y de cara (sus caras del retrato del PMD): el borde del cosmos, el espacio-tiempo corrompido, el trato. Te pregunta tu **nombre** y tu **género** (desde ahí los textos van según lo que elijas) y te pide que te materialices: elegís **qué pokemon sos** viendo su **sombra** donde está tu espíritu (al cambiar, la sombra se encoge y crece distinta), con lo que hace y en qué se convierte. Al elegir, estrellas que giran y se juntan, un destello y aparece tu cuerpo; Celebi te mira, te rodea, abre el **portal violeta** y te lleva de la mano; el portal se agrieta y se rompe en pedazos detrás de ustedes. Todo se apaga y elegís dónde empezar: el refugio, directo al viaje (la primera sala de la Era Glacial, con la llegada por el portal) o el tutorial. Uno por rol, y todos evolucionan:
   - **Mudkip** (agua, tanque → Swampert): aguanta los golpes y pelea de cerca.
   - **Torchic** (fuego, atacante → Blaziken): pega fuerte.
   - **Riolu** (lucha, velocista → Lucario): rápido, vive del parry y del combo.
@@ -96,8 +100,11 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
 - Peleás con un solo pokemon a la vez. Los otros dos esperan en la **banca**. Cambiar de pokemon tiene una espera de 2 s. Si cambiás en el agua a uno que no nada, nada solo hasta la orilla.
 - Cada sala de combate trae enemigos, a veces en 2 o 3 oleadas. Al limpiar la sala aparece una **llave**, y con la llave se abren las puertas.
 - Cada puerta muestra un cartel con lo que hay detrás: una variante de sala, la tienda, el jefe o la era siguiente.
+- **Caminos entre salas:** a veces, al salir de una sala, antes de la siguiente hay un **camino tranquilo** (casi siempre antes del jefe y del Regi): largo, con el piso y los adornos de la era, sin enemigos, con pokemon de la era paseando. Hablales con E: te cuentan cosas de su época y a veces te regalan una baya. Cada era tiene el suyo (Sendero helado, Camino de las minas, Camino real...).
+- **Mapa (M):** en un viaje, el mapa de la era como en un metroidvania: cada sala y cada camino por los que pasaste (los bloques azules del mapa del PMD), las puertas que no tomaste con lo que había detrás, la tienda, el tesoro y los jefes, y vos (el punto que titila). Se va armando a medida que explorás. En el refugio muestra la zona donde estás con todo lo que hay y su nombre. Con las flechas se corre.
 - **Volver atrás:** con la sala completada, la puerta por la que entraste queda abierta y te lleva a la sala anterior. Las salas hechas quedan hechas (sin enemigos, sin monedas ni experiencia de nuevo); en ellas solo sigue abierta la puerta que tomaste.
 - **La vida no se recupera sola.** Al limpiar una sala, los que siguen en pie recuperan un **12%**. Si tu pokemon activo cae, entra solo el siguiente que esté vivo.
+- **La hora del juego:** arriba, al lado de la era y la sala, hay un reloj de 24 horas. Corre un minuto por segundo jugado (un día dura 24 minutos; no corre en la pausa), arranca a las 08:00 y se guarda con la partida. Cambia la luz (azulada de noche, rosada al amanecer, naranja al atardecer; adentro se nota menos), el [clima](#clima) y dónde están tus amigos en el refugio.
 - **Energía:** la barra azul debajo de la vida. Correr y esquivar la gastan; se recarga sola y también al pegar, hacer parry o esquivar perfecto. Si se vacía, quedás agotado hasta recuperar un poco. Al empezar a correr arrancás con un pique.
 - **Enemigos:** avisan antes de atacar. Un anillo rojo es un golpe, una línea con mira es un disparo y una línea naranja es una embestida. Como mucho tres te atacan cuerpo a cuerpo al mismo tiempo. Si te escondés en hierba o sombra (si tu tipo puede), casi no te ven.
 - **Maniobras** (desde la segunda era, cada vez más seguido): los pegadores a veces encadenan un **segundo golpe** más rápido y, si les pegás de lejos y te escapás mucho rato, **saltan** hasta donde estás (línea naranja). Los tiradores, si te quedás quieto o te escondés, tiran un **mortero** (un círculo rojo en el piso que se llena) y con poca vida se van atrás de sus compañeros. Los rápidos, si su embestida no te toca, a veces **giran y embisten de nuevo**.
@@ -117,8 +124,11 @@ Todas las teclas se pueden cambiar en **Ajustes > Controles**. Hay 3 perfiles de
   - **Relevos:** cambiar de pokemon peleando y pegar con el que entra (ese golpe además pega x1,4).
   - **Sinergias:** usar las asistencias (F / G) de tus compañeros.
   Matar da poco. Baja si te pegan, si te quedás sin hacer nada o si repetís siempre el mismo ataque. **Cuando no quedan enemigos deja de sumar.** Cada rango pega más: C +5%, B +10%, A +17%, S +25%.
+- **Rematar:** el tercer golpe del combo (el remate) termina a los enemigos comunes que tienen menos del 18% de vida.
+- **Cadena de bajas:** el golpe que derrota a un enemigo **rebota** al enemigo más cercano (hasta 190 px) con casi la mitad del daño más un 12% de su vida; si ese también cae, sigue (hasta 3 saltos). Se ve como un rastro de chispas del tipo.
+- **Combo de combos:** cada remate que conecta sube el **COMBO** un nivel (x2, x3... hasta x5): +15% de daño y 14% menos de espera por nivel. Tenés 1,6 s para empezar el próximo combo o se corta. Un **especial justo después de un remate** es un **enlace**: pega x1,25 y también sube el combo. Si te pegan, se corta.
 - **Racha:** bajas seguidas en menos de 3 s dan monedas extra.
-- **Frenesí:** con una racha de 3 entrás en frenesí por 5 s: te movés un 18% más rápido y todos tus ataques recargan un 20% antes. Cada baja nueva lo vuelve a llenar; si te pegan, se corta. Mientras dura, los bordes de la pantalla laten en naranja, tu pokemon deja estela y brillitos, y arriba se ve cuánto queda.
+- **Frenesí:** con una racha de 3 entrás en frenesí por 5 s: te movés un 18% más rápido, todos tus ataques recargan un 20% antes y tu pokemon suma su **habilidad de frenesí**: los **velocistas** (y los psíquicos) tienen **cámara lenta** (enemigos y balas a un tercio), los **atacantes** **doble golpe** (cada golpe pega dos veces), los **tanques** **más vida** (se curan un 35% al entrar, reciben la mitad y un golpe no les corta el frenesí), los **estrategas** **parry automático** (golpes y balas) y los **fantasma, siniestro y hada** **robo de vida** (se curan un 20% del daño que hacen). Cada baja nueva lo vuelve a llenar; si te pegan, se corta. Mientras dura, los bordes de la pantalla laten en naranja, tu pokemon deja estela y brillitos, y arriba se ve cuánto queda.
 - **Nota de la sala** (S, A, B, C, D) al limpiarla, sobre 100: ritmo (25), movimiento (20), combos (20), relevos (15) y sinergias (20). Se ven los puntos de cada parte. S y A dan monedas, experiencia y a veces un objeto.
 
 ### Caminos, tesoros y premios por explorar
@@ -343,7 +353,8 @@ Todo el que se une queda como **amigo para siempre**, aunque después pierdas es
 
 ## Hall
 
-Es a donde volvés cuando cae todo tu equipo (como la casa de Hades). Una pantalla sin enemigos:
+Es a donde volvés cuando cae todo tu equipo (como la casa de Hades). Una pantalla sin enemigos donde **no se rompe ni se quema nada**:
+- **Cada amigo está en un solo lugar** del refugio y sigue su rutina según la hora: de mañana en la plaza o en la cancha, al mediodía comiendo en el lounge, a la tarde por la plaza y de noche durmiendo en el barrio (hay cuatro rutinas y a cada uno le toca una, corrida un poco para que no se muevan todos juntos). El juego se acuerda dónde quedó cada uno. Si les toca cambiar de lugar mientras estás ahí, caminan hasta la puerta y se van; los que llegan entran por la puerta. Caminan arrancando despacio y frenando al llegar, a veces se paran a mirar, y de noche casi siempre se duermen.
 - **Tus amigos pasean** por el hall. Acercate y apretá **E** para hablarles: ahí elegís quién viene al próximo viaje (hasta 3). Si tu equipo está lleno, lo cambiás por alguien que no esté peleando.
 - **Celebi** está al lado del portal: te cuenta cuántos viajes hiciste, cuántas eras derrotaste y cuántos amigos tenés.
 - **El portal** (puerta del norte, *VIAJE TEMPORAL*) arranca otro viaje desde la Era Glacial.
@@ -387,6 +398,18 @@ Además de la sinergia que da cada uno desde la banca, **el equipo entero** gana
 - **Resonancia de tipo:** dos pokemon que comparten un tipo dan +5% de lo que ese tipo hace mejor (fuego, lucha, dragón y siniestro: daño; agua, tierra, roca y acero: defensa; eléctrico, volador y bicho: velocidad; hielo, veneno, psíquico y fantasma: recargas; planta, hada y normal: energía). Los tres del mismo tipo: +9%.
 - **Lazos por su historia** (unos 25): Compañeros de Hoenn (Mudkip y Torchic), Familia Eevee, Rivales de dojo (Mankey y Machop), Maestro y aprendiz (Lucario con los que pelean con los puños), Fósiles revividos, Cazadora de cuervos (Tinkaton y Corviknight), Tragamisil cargado (Cramorant y Arrokuda), Espada y escudo (Gardevoir y Gallade), Trío elemental (fuego, agua y planta), Paradojas...
 - Lo que suman los lazos a una misma cosa tiene un tope de 18%.
+
+### Escenas
+
+- **Llegada a cada era:** sin HUD (con franjas negras), se abre un portal en la puerta, salen tu pokemon y Celebi, el portal se cierra, Celebi sube, abre otro portal en el cielo y se va por ahí. Una tecla la adelanta.
+- **Entrada de los jefes:** la primera vez, cada jefe te espera a su manera: **sentado**, **dormido** o **de espaldas** (Golem y Garchomp sentados, Walrein y Regigigas dormidos, los Regis de espaldas...). Algunos se dan vuelta apenas entrás y otros cuando te sienten cerca (o si les pegás). La cámara va hacia ellos, se despiertan o se paran y **se dan vuelta de a poco**; si son grandes **tiembla todo**, rugen, sale su cartel y recién ahí empieza la pelea y aparece el HUD.
+- **Fin de era:** cuando cae el Regi, Celebi sale de un portal en la puerta, viene volando, **te agarra de la mano** (la mano rosa del PMD) y te lleva corriendo hasta el portal. Lo que soltó el Regi se junta solo. En cada era dice otra cosa y te lleva por otro camino (en curva, a los saltitos...).
+- **Entre eras:** en el cosmos Celebi va adelante tirando de tu mano y vos atrás, serpenteando con estela, mientras aparece el nombre de la era. Al final se tiran al fondo del túnel y **todo se apaga** (la apertura al revés), y del otro lado se abre el portal de la era nueva.
+
+### Un juego vivo
+
+- **Nadie está quieto del todo:** tu pokemon, los enemigos, los jefes, tus amigos y los de los menús, cuando se quedan quietos un rato, hacen un gesto (respiran hondo, miran para arriba, asienten, posan o dan un saltito, según las animaciones del PMD que tengan) y vuelven.
+- **Anticipación:** todos los ataques se cargan lento y salen rápido: los primeros cuadros de la animación van más despacio y el golpe, más rápido. Los **especiales** se cargan un instante (150 ms, con el anillo de luz que se cierra y caminando más lento) y salen de golpe con un tirón de cámara. Los **disparos** y las **embestidas** arrancan lento y aceleran, y el **esquive** arranca un poquito lento y sale disparado (llega igual de lejos).
 
 ### Más movimiento en pantalla
 
@@ -765,6 +788,7 @@ Ya no se venden Repelentes, Lazo Amistad, la Llave del Tesoro, el Caramelo Raro,
 
 **Cómo cambia:**
 - Cada sala tiene un clima y cambia de a poco: nunca pasa de lluvia a sol de golpe.
+- **La hora cambia el clima:** de mañana hay más niebla, al mediodía más sol, a la tarde más lluvia y tormentas, y de noche cielo despejado (y nunca sol: si la sala venía con sol, a la noche se ve despejada). En el refugio el clima también depende de la hora y dura unas 3 horas del juego.
 - En los lugares cerrados (cuevas, mazmorras, fábricas…) no hay clima.
 - Algunos movimientos traen un clima por **15 segundos**:
   - Hidrobomba: lluvia.
@@ -778,13 +802,15 @@ Ya no se venden Repelentes, Lazo Amistad, la Llave del Tesoro, el Caramelo Raro,
 | Clima | Daño | Velocidad | Qué hace en la sala |
 |---|---|---|---|
 | Lluvia | agua x1,4 · fuego x0,6 | agua +15% | hace charcos y lodo, apaga el fuego |
-| Día soleado | fuego x1,4 · agua x0,6 | planta +20% | derrite el hielo, seca charcos y lodo |
+| Día soleado | fuego x1,4 · agua x0,6 | planta +20% | derrite el hielo (ver abajo), seca charcos y lodo |
 | Nevada | hielo x1,2 | hielo +15% | junta nieve y congela charcos |
 | Granizo | hielo x1,4 | hielo +20% | congela el agua. Lastima a todos menos hielo |
 | Tormenta de arena | roca x1,3 · tierra x1,15 | tierra +15% | lastima a todos menos roca, tierra y acero |
 | Niebla | fantasma x1,2 · siniestro x1,2 | — | los enemigos te ven a menos distancia (60%) |
 | Tormenta eléctrica | eléctrico x1,3 | eléctrico +15% | caen rayos (prefieren enemigos, metal y agua) |
 | Nublado / Despejado | — | — | — |
+
+**Hielo: charcos y lagos.** Cuando el fuego (o el sol) derrite hielo, vuelve a lo que era: si ahí había un **lago** (agua del principio o un lago congelado) queda agua; si era **hielo del piso**, queda un **charco** que se puede pisar. Así derretir el piso no te deja encerrado. En la variante *lago congelado* la laguna arranca congelada: se puede cruzar, pero si la derretís vuelve a ser lago.
 
 ---
 
@@ -1007,7 +1033,7 @@ Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGol
 - **Árboles sueltos:** todos los árboles del juego son UNO solo del PMD (el redondo de las hojas *Huts*), recortado con su sombra y pegado suelto donde hace falta: el barrio, la plaza, el hall, la isla del tutorial y las eras (en la Edad Media, el mismo en azulado). Ya no hay tiras de árboles pegados que se cortaban entre sí: a los jardines del barrio se les sacó el bosque de alrededor. La copa sobresale del tronco y, si pasás por atrás, se vuelve medio transparente para que te sigas viendo. Del mismo lugar salen el tocón, la cerca, las matas y las **flores que se mueven** (`python herramientas.py aldea`).
 - **La plaza del refugio:** los edificios son chozas del Red Rescue Team con su patio: el **salón de los modos** es la choza de fuego, **minijuegos** la de agua, la **galería** la de roca y el **lounge** la de planta; abajo a la derecha hay una **choza en obra** (las hojas *Construction*). Se entra caminando por el caminito hasta la puerta. El tablón de misiones, los asientos y el observatorio también son sprites del PMD.
 - **Arenas de los jefes:** cada jefe pelea sobre un *Dungeon Boss Room* del Red Rescue Team: Walrein en Frosty Grotto, Regice en Frigid Cavern, Golem en Wish Cave, Regirock en Mt. Faraway, Corviknight en Mt. Steel, Registeel en Magma Cavern, Garchomp en Northern Range, Regidrago en Sky Tower, Magnezone en Lightning Field, Regieleki en Mt. Thunder, Regigigas en Stormy Sea y Arceus en Silver Trench. El dibujo es el fondo, la plataforma es el piso (medida a mano) y todo lo que cambian los jefes (vacíos, la torre, escarcha) se dibuja con tiles encima. Se arma con `python herramientas.py arenas`; si falta una, vuelve la arena de tiles de antes.
-- **Clima animado:** lluvia que salpica, granizo, nieve, niebla que se cruza, tormenta de arena, el destello del sol y las sombras de las nubes son los cuadros *Weather* del Red Rescue Team (`python herramientas.py clima`). Con buen tiempo pasan sombras de nubes por el piso, en la Era Glacial siempre caen unos copos y donde hay lava, hornos o braseros flotan brasas.
+- **Clima animado:** lluvia que salpica, granizo, niebla que se cruza, tormenta de arena y las sombras de las nubes son los cuadros *Weather* del Red Rescue Team (`python herramientas.py clima`). La **nieve** son copos sueltos recortados de esa hoja que caen en dos capas, se mecen y acompañan a la cámara (antes era una baldosa repetida). El **sol** es un reflejo de lente: cada tanto aparece de a poco, se corre despacio y se va. Con buen tiempo pasan sombras de nubes por el piso, en la Era Glacial siempre caen unos copos y donde hay lava, hornos o braseros flotan brasas.
 - **Estados animados:** arriba del pokemon quemado arde una llama, el envenenado tiene la calavera, el dormido los Zzz, el confundido los pajaritos y el frenado la flecha para abajo (hoja *Status Effects* del Red Rescue Team, `python herramientas.py estados`).
 - **Cosas del piso:** las monedas, la llave de la sala y las piedras que lastiman de los jefes son la moneda, la llave y el pincho del PMD. Todos los objetos de la tienda y la mochila tienen su ícono de BW (pociones, bayas, piedras de evolución...).
 - **Terrenos con tiles del PMD:** además de piso, paredes y agua, ahora hay tilesets de vacío (el abismo de Chasm Cave), ceniza, roca volcánica, charcos y el techo de la torre de Regidrago; la lava, el aceite, la arena movediza y las corrientes son el agua animada del PMD con otros colores. El fuego y el agua electrificada usan las llamas y chispas del PMD, las cascadas el agua de la era cayendo con la salpicadura del PMD, y la alfombra de la tienda es la del Secret Bazaar.
@@ -1017,8 +1043,10 @@ Toda la interfaz usa piezas de **Pokémon Blanco/Negro** (y la letra de HeartGol
 - **HUD del combate** (como la batalla de BW): tu pokemon con la barra de HP del jugador (con la placa oscura, la etiqueta HP y el ícono Lv) y las barras de experiencia y energía; la raya blanca de la energía marca cuánto gasta un esquive. El daño reciente queda en blanco en la barra y se vacía de a poco, y la placa tiembla al recibir un golpe. La banca va en los **paneles en flecha** del menú de equipo (verde: asistencia lista; rojo: debilitado). Abajo a la derecha, un **cuarto de círculo marrón medio transparente** (como la tela de un mostrador, con flecos y costura) es el **cinturón**: 5 círculos negros con las curaciones y su número (el orden en que se usan con Z; el 1 tiene el borde dorado). **Alrededor** van los 6 ataques, **E, Q, Shift, R** (tus movimientos) y **F, G** (las asistencias de la banca), en los **botones octogonales de la pantalla táctil** (con la textura de puntitos y el borde del color del tipo) y con el nombre debajo; la espera se cierra como un abanico. Arriba a la derecha va el **minimapa** en la esquina y el **estilo** a su izquierda. Los jefes usan la barra del rival.
 - **En la pelea:** números de daño que saltan (amarillos si es súper eficaz, grises si resiste, naranjas en contraataques, rojos los que recibís), íconos de estado de BW arriba de los enemigos (BRN, PAR, FRZ), destello de pantalla en el parry, el esquive perfecto y el remate, y aviso amarillo con "!" en el momento del parry.
 - **Carteles:** el nombre de la sala y los jefes entran barriendo en una franja inclinada con rayas de color (rojas en los jefes); los avisos chicos caen desde arriba con una raya de color.
-- **Elegir tu pokemon** (partida nueva): es la pantalla de elegir inicial de Blanco/Negro. El fondo de arcos cambia de color con cada uno (celeste Mudkip, dorado Torchic, blanco Riolu, verde Natu), el elegido se ve en grande sobre la Pokéball que gira, la lista va en paneles en flecha con la **manito** de BW, y abajo dice su rol, lo que lo hace único y en qué se convierte. Al confirmar salta, grita y hay un destello (`python herramientas.py inicial`).
-- **Menús:** el logo cae al abrir el título; los botones son los paneles en flecha de BW y entran escalonados desde la izquierda (el elegido se corre y titila). El fondo de grilla de BW se mueve en diagonal con la **Pokéball de la pantalla táctil** girando. La pausa entra con una franja inclinada y la Pokéball grande girando detrás.
+- **Escenas del cosmos:** el cosmos es el túnel del viaje temporal del Explorers of Sky armado en dos capas: el cosmos quieto y, encima y medio transparente, los cuadrados y rayas que pasan despacio fundiéndose (`python herramientas.py viaje`). Tu espíritu es el resplandor redondo del cielo de *Moonlight* del Explorers of Sky con la estrella que titila del efecto 0038 de sus Attack Effects (`python herramientas.py espiritu`). El **portal** es el agujero dimensional violeta del Explorers of Time/Darkness: late abierto y al cerrarse se agrieta y se rompe (`python herramientas.py portal`); es el mismo para ir entre eras, en la llegada a cada era y al final de la partida nueva. El "!" es el de los estados. Celebi usa sus animaciones (Float, Twirl, Pull...) y cambia de cara con las del retrato (`python herramientas.py caras celebi`).
+- **Rueda de curaciones** (mantener Z): como la de Breath of the Wild. La pelea se congela y alrededor están tus curaciones en botones de la pantalla táctil de BW, con su ícono y cuántas llevás; se elige con el mouse, las flechas o los números y se usa al soltar.
+- **Minimapa en el refugio:** también muestra las puertas de las chozas, el tablón y los demás puntos, a Celebi y a tus amigos (las zonas enormes se achican para que entren).
+- **Menús:** el logo cae al abrir el título; el botón de salir del menú principal es un panel rojo de BW (antes era un círculo dibujado); los botones son los paneles en flecha de BW y entran escalonados desde la izquierda (el elegido se corre y titila). El fondo de grilla de BW se mueve en diagonal con la **Pokéball de la pantalla táctil** girando. La pausa entra con una franja inclinada y la Pokéball grande girando detrás.
 
 Las piezas recortadas están en `assets/interfaz/hud` (las arma `python herramientas.py hud` desde las hojas de `assets/hojas/blanco_negro`). Si falta alguna, el juego dibuja una forma básica.
 
@@ -1033,7 +1061,10 @@ python herramientas.py props               cajas, vasijas, heno y troncos del PM
 python herramientas.py casas               jardín (sin el bosque de alrededor), interior y bandera de cada choza (hojas Huts del Red Rescue Team) para el barrio
 python herramientas.py aldea               el árbol suelto, tocón, cerca, matas, flores animadas y las chozas de la plaza con su patio (hojas Huts)
 python herramientas.py logo                pasa assets/typo_logo_pokemanic.png a assets/interfaz/logo.png (pixeles originales, sin fondo)
-python herramientas.py inicial             fondos y manito de la pantalla de elegir inicial (Starter Selection Screen de BW)
+python herramientas.py caras celebi        las demás caras del retrato de un pokemon (feliz, sorprendido, preocupado...) para las charlas
+python herramientas.py icono               el ícono de Pokemanic.exe (la cara de Celebi)
+python herramientas.py portal              el portal violeta de las escenas (Dimensional Hole del Explorers of Time/Darkness)
+python herramientas.py espiritu            el aura y la estrellita del espíritu (Moonlight y Attack Effects del Explorers of Sky)
 python herramientas.py chispas             estrellitas y brillos de los golpes (Miscellaneous - Effects del Red Rescue Team)
 python herramientas.py arenas              la arena ya dibujada de cada jefe (Dungeon Boss Rooms del Red Rescue Team) y su piso
 python herramientas.py clima               lluvia, nieve, granizo, niebla, sol, brasas y sombras de nubes (hojas Weather del Red Rescue Team)
@@ -1049,8 +1080,6 @@ python herramientas.py hud                 recorta las barras de HP, íconos de 
 python herramientas.py visor               ventana para mirar salas generadas sin jugar
 python herramientas.py salas               dibuja en texto algunas salas generadas
 python herramientas.py plan                muestra el plan de salas de una partida
-python herramientas.py verificar           compara tipos y movimientos con la PokeAPI (hoy no anda: espera la tabla de tipos vieja)
-python herramientas.py sincronizar         NO USAR: pisa datos_pokeapi.json con un formato viejo (sin evoluciones ni movimientos)
 ```
 
 **Teclas del visor:**
@@ -1061,3 +1090,19 @@ python herramientas.py sincronizar         NO USAR: pisa datos_pokeapi.json con 
 - P: ver el plan de una partida.
 - S: guardar una captura.
 - ESC: salir.
+
+---
+
+## Crear el .exe
+
+Sí, se le puede hacer un ejecutable de Windows. Una vez instalá PyInstaller:
+
+```
+python -m pip install pyinstaller
+```
+
+Después doble clic en **`crear_exe.bat`** (o correlo desde una consola). Arma el ícono, junta el juego con Python, pygame y todos los assets,
+y deja todo en **`dist\Pokemanic\`**: adentro está **`Pokemanic.exe`**. Esa carpeta entera es el juego: se puede copiar, comprimir y pasar
+a otra computadora sin instalar nada (pesa unos 120 MB por los assets). Los ajustes y las partidas de esa copia se guardan en
+`dist\Pokemanic\_internal\`. `build\`, `dist\` y el `.spec` que deja PyInstaller no van a git.
+

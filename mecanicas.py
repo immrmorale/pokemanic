@@ -489,6 +489,7 @@ def armar(c):
         c.recibir_ataque(o, {'tipo': tipo, 'daño': daño(j, base, tipo, 'cuerpo'), 'retroceso': retroceso, 'efecto': efecto, 'jugador': True}, j['direccion'])
 
     def objetivo_cercano(j, nivel, alcance=600, sin=()):
+        """El enemigo vivo más cercano a un punto (dentro de un radio)."""
         cand = [o for o in c.objetivos_de(nivel, False) if o['vida'] > 0 and o not in sin
                 and math.hypot(o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery) <= alcance]
         return min(cand, key=lambda o: math.hypot(o['rect'].centerx - j['rect'].centerx, o['rect'].centery - j['rect'].centery), default=None)
@@ -679,6 +680,7 @@ def armar(c):
 
     # ---------- al derrotar / limpiar
     def derrota(j, o, nivel):
+        """Lo que pasa con la mecánica cuando cae un enemigo (cargas, curas, contadores)."""
         clave = mec(j)[0]; e = estado(j)
         if clave == 'autoestima': e['bajas'] = e.get('bajas', 0) + 1
         if clave == 'glotoneria': j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * 0.04)
@@ -687,6 +689,7 @@ def armar(c):
             c.efectos.cura(c.mundo['ef'], *j['rect'].center)
 
     def sala_limpia(j, nivel):
+        """Lo que pasa con la mecánica al limpiar una sala."""
         if es(j, 'recogida') and random.random() < (0.25 if etapa(j) == 1 else 0.35):
             clave = random.choice(('baya_aranja', 'zumo_baya', 'pocion', 'baya_ziuela', 'superpocion', 'baya_zidra', 'caramelo_raro'))
             c.soltar_objeto(nivel, *j['rect'].center, clave)
@@ -712,6 +715,7 @@ def armar(c):
         return 1.5 if es(j, 'mirada') and (c.clima() in ('sol', 'despejado') or c.terreno_bajo(j) == 'hierba') else 1.0
 
     def mult_velocidad(j):
+        """Multiplicador de velocidad que suma la mecánica (impulsos, sol, pasto...)."""
         e = estado(j); m = 1.0
         if es(j, 'mirada') and (c.clima() in ('sol', 'despejado') or c.terreno_bajo(j) == 'hierba'): m *= 1.1
         if es(j, 'impulso'): m *= 1 + 0.08 * e.get('impulsos', 0) * (0.5 if j['nombre'] == 'nincada' else 1)
@@ -730,6 +734,7 @@ def armar(c):
         return m
 
     def mult_recarga(j):
+        """Cuánto se acortan las recargas por la mecánica (impulsos)."""
         e = estado(j); m = 1.0
         if es(j, 'impulso'): m *= 1 - 0.05 * e.get('impulsos', 0)
         return m
@@ -748,6 +753,7 @@ def armar(c):
         return estado(j).get('bajo_hasta', 0) > T()
 
     def altura_vuelo(j):
+        """A qué altura se dibuja el pokemon (saltos en parábola, vuelo)."""
         e = estado(j); ahora = T()
         if e.get('salto'):                                             # picado, plancha, salto tiburon: una parabola
             s = e['salto']; k = min(1.0, (ahora - s['inicio']) / s['dura'])
@@ -836,6 +842,7 @@ def armar(c):
 
     # ---------- rastro de pasto (Chikorita)
     def rastro_pasto(j, nivel, et):
+        """Deja pasto por donde camina y lo saca cuando se vence (líneas de planta)."""
         ent = nivel['ent']; ahora = T(); e = estado(j)
         rastro = nivel.setdefault('rastro_pasto', {})
         for celda, (viejo, hasta) in list(rastro.items()):
@@ -1013,17 +1020,20 @@ def armar(c):
                                     'forma': 'embestida', 'jugador': True})
 
     def termina_ilusion(j):
+        """Termina la ilusión o el disfraz (vuelve el sprite de siempre)."""
         if j.get('ilusion_hasta'):
             j.pop('ilusion_hasta', None)
             if j.get('disfraz'): j.pop('disfraz'); c.rehacer_animador(j)
 
     def dentro_jardin(nivel, j):
+        """Si el jugador está dentro de un jardín que puso una mecánica."""
         ahora = T()
         return any(x['clase'] == 'jardin' and x['hasta'] > ahora and math.hypot(x['x'] - j['rect'].centerx, x['y'] - j['rect'].centery) < x['radio']
                    for x in nivel.get('mec_cosas', ()))
 
     # ---------- lo que quedo en la sala
     def actualizar_cosas(j, nivel):
+        """Cada cuadro: las cosas que dejan las mecánicas en el piso (jardines, charcos, nieve, barro...)."""
         ahora = T()
         cosas = nivel.get('mec_cosas')
         if not cosas: return
@@ -1146,6 +1156,7 @@ def armar(c):
     _capas = {}
 
     def circulo(ventana, x, y, radio, color, alfa, borde=0):
+        """Un círculo medio transparente (guardado para no armarlo cada cuadro)."""
         clave = (radio, color, alfa, borde)
         if clave not in _capas:
             s = pygame.Surface((radio * 2 + 4, radio * 2 + 4), pygame.SRCALPHA)
@@ -1326,6 +1337,7 @@ def armar(c):
         j['embestida'] = None
 
     def actualizar_salto(j, nivel, e, ahora, et):
+        """Un cuadro de un salto (picado, plancha): mueve al pokemon en arco y pega al caer."""
         s = e['salto']; k = min(1.0, (ahora - s['inicio']) / s['dura'])
         x = s['desde'][0] + (s['hasta'][0] - s['desde'][0]) * k; y = s['desde'][1] + (s['hasta'][1] - s['desde'][1]) * k
         j['rect'].center = (round(x), round(y)); c.mover_entidad(j, 0, 0, True)
@@ -1379,6 +1391,7 @@ def armar(c):
         return [o for o in c.objetivos_de(nivel, False) if o['vida'] > 0 and zona.colliderect(o['rect'])]
 
     def en_cosa(nivel, j, clase):
+        """Si el jugador está parado sobre una cosa de esa clase que dejó una mecánica."""
         ahora = T()
         return any(x['clase'] == clase and x['hasta'] > ahora and math.hypot(x['x'] - j['rect'].centerx, x['y'] - j['rect'].centery) < x['radio']
                    for x in nivel.get('mec_cosas', ()))
@@ -1596,6 +1609,7 @@ def armar(c):
         return False
 
     def dibujar_cosa_nueva(ventana, x, sx, sy, ahora):
+        """Dibuja una de las cosas que dejan las mecánicas en el piso."""
         cl = x['clase']
         if cl == 'nieve': circulo(ventana, sx, sy, x['radio'], (240, 248, 255), 70)
         elif cl == 'barro': circulo(ventana, sx, sy, x['radio'], (130, 70, 140) if x.get('veneno') else (120, 85, 50), 120)

@@ -1791,6 +1791,7 @@ def armar_ia():
         b['aviso'] = {'hasta': ahora + A['aviso_vozarron'], 'clase': 'vozarron', 'inicio': ahora}
         _animar(b, ('spattack', 'charge'), ahora, A['aviso_vozarron'] + 300)
         def salen(b, ctx):
+            """Suelta las ondas del ataque (paso del guion)."""
             b['aviso'] = None
             b['vozarron'].extend(_vozarron(b, ctx['ahora']))
             ctx['impacto'](*b['rect'].center, 80, 250)
@@ -1809,6 +1810,7 @@ def armar_ia():
         """Neutra - Gigaimpacto: cruza la zona de un lado al otro 3 veces (cada vez por donde estas) y vuelve a su lugar."""
         M = MOVS_BETA['gigaimpacto']
         def pasar(b, ctx):
+            """Hacia dónde cruza la arena la embestida (paso del guion)."""
             jx, jy = ctx['jugador']['rect'].center
             dx, dy = _dir(b['rect'].center, (jx, jy))
             return cruzar_zona(b['zona'], (jx, jy), math.atan2(dy, dx), M['pasa'])[1]
@@ -2061,6 +2063,7 @@ def armar_ia():
     def _mov_embestida_simple(b, M, tipo, efecto=None):
         """Embestida hasta donde estas (y un poco mas) y vuelta a su lugar: Pajaro Osado, Chupavidas y Desarme."""
         def mira(b, ctx):
+            """A qué punto apunta la embestida (paso del guion)."""
             jx, jy = ctx['jugador']['rect'].center
             dx, dy = _dir(b['rect'].center, (jx, jy))
             return jx + dx * M['pasa'], jy + dy * M['pasa']
@@ -2077,6 +2080,7 @@ def armar_ia():
         """Mental - Psiquico: te levanta y te tira al lado contrario de la zona (se esquiva justo cuando termina el aviso)."""
         M = MOVS_BETA['psiquico']
         def lanzar(b, ctx):
+            """Tira el ataque marcado (paso del guion)."""
             j, ahora, z = ctx['jugador'], ctx['ahora'], b['zona']
             b['marca_psi'] = None
             if ahora < j.get('inv_hasta', 0): ctx['dañar_jugador'](1, 'psiquico'); return     # lo esquivaste
@@ -2093,6 +2097,7 @@ def armar_ia():
         M, ahora = MOVS_BETA['psicorruido'], ctx['ahora']
         b['aviso'] = {'hasta': ahora + M['aviso'], 'clase': 'vozarron', 'inicio': ahora}
         def salen(b, ctx):
+            """Suelta las ondas del ataque (paso del guion)."""
             b['aviso'] = None
             b['vozarron'].extend(ondas_en_arcos(b['rect'].center, ctx['ahora'], M['ondas'], M['entre'], M['dura'], M['radio'], M['grosor'], M['daño'],
                                                 M['arcos'], M['lleno'], 'psiquico'))
@@ -2107,6 +2112,7 @@ def armar_ia():
             b['escondido'] = b['invulnerable'] = True
             b['destellos'].append({'pos': b['rect'].center, 'inicio': ctx['ahora']})
         def volver(b, ctx):
+            """El jefe vuelve a aparecer lejos de donde estaba (Teletransporte)."""
             viejo = b['casa']
             opciones = [_limitar(ctx['ent'], b, afuera_zona(b['zona'], random.randint(*M['distancia']))) for _ in range(6)]
             b['casa'] = max(opciones, key=lambda p: math.hypot(p[0] - viejo[0], p[1] - viejo[1]))
@@ -2119,6 +2125,7 @@ def armar_ia():
         """Bicho - Corte Furia: 3 cortes donde estas (cada uno en una direccion al azar); cada uno pega mas que el anterior."""
         M = MOVS_BETA['corte_furia']
         def cortar(i):
+            """Arma el corte número i de Corte Furia."""
             def f(b, ctx):
                 a, c = _linea_por(ctx['jugador']['rect'].center, random.uniform(0, math.pi), M['largo'])
                 _golpe(b, ctx['ahora'], 'linea', M['aviso'], 'bicho', M['daños'][i], a=a, b=c, ancho=M['ancho'] + 10 * i, dibujo='tajo', temblor=100 + 80 * i)
@@ -2156,7 +2163,9 @@ def armar_ia():
         """Petrea - Hachazo Petreo: un golpe en forma de X en un lugar al azar y despues otro en forma de cruz."""
         M = MOVS_BETA['hachazo_petreo']
         def hachazo(cruz):
+            """Arma un hachazo de Hachazo Pétreo (en cruz o en X)."""
             def f(b, ctx):
+                """El golpe en sí (paso del guion)."""
                 j, z = ctx['jugador'], b['zona']
                 p = punto_zona(z, 40) if random.random() < 0.5 else ajustar_zona(z, (j['rect'].centerx + random.randint(-90, 90), j['rect'].centery + random.randint(-90, 90)), 30)
                 for ang in ((0, math.pi / 2) if cruz else (math.pi / 4, -math.pi / 4)):
@@ -2180,6 +2189,7 @@ def armar_ia():
         """Oscura - Alarido: 6 ataques siniestros que salen de el en abanico hacia donde estas."""
         M = MOVS_BETA['alarido']
         def gritar(b, ctx):
+            """Suelta las balas del Alarido en abanico."""
             (bx, by), (jx, jy) = b['rect'].center, ctx['jugador']['rect'].center
             base = math.atan2(jy - by, jx - bx)
             for i in range(M['balas']):
@@ -2199,6 +2209,7 @@ def armar_ia():
         """Oscura - Mordisco: 5 mordiscos; antes de cada uno aparece en un lugar al azar al lado de la zona y muerde hacia adentro."""
         M = MOVS_BETA['mordisco']
         def morder(b, ctx):
+            """El mordisco de Arceus Beta desde afuera de la arena."""
             z = b['zona']
             p = afuera_zona(z, M['afuera'])
             _poner_beta(b, ctx, p)
@@ -2230,6 +2241,7 @@ def armar_ia():
         """Duende - Cañon Floral: carga 2 s y despues un ataque en linea recta (horizontal o vertical) por donde estas, que dura 7 s."""
         M = MOVS_BETA['cañon_floral']
         def disparar(b, ctx):
+            """Dispara el Cañón Floral cruzando la arena."""
             b['carga_floral'] = None
             a, c = cruzar_zona(b['zona'], ctx['jugador']['rect'].center, math.pi / 2 if random.random() < 0.5 else 0, 80)
             _golpe(b, ctx['ahora'], 'linea', 400, 'hada', M['daño'], dura=M['dura'], tick=M['tick'], a=a, b=c, ancho=M['ancho'], temblor=300, dibujo='floral')
@@ -3344,6 +3356,7 @@ def armar_ia():
 
 
     def _actualizar_cometas(b, ctx):
+        """Cada cuadro: los cometas de Regidrago que caen y pegan."""
         j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
         for c in b['cometas'][:]:
             for m in c['puntos']:
@@ -3356,6 +3369,7 @@ def armar_ia():
 
 
     def _boca(b, ctx, pos):
+        """Pone una boca de dragón de Regidrago (dispara; en la tercera fase se le puede pegar)."""
         boca = {'pos': pos, 'prox': ctx['ahora'] + 600, 'disparos': REGIDRAGO['disparos_boca'], 'mira': None, 'hasta': 0, 'nace': ctx['ahora']}
         if b['fase'] == 3:                                          # en la tercera fase se les puede pegar
             vida = max(1, round(b['max_vida'] * REGIDRAGO['vida_boca']))
@@ -3407,6 +3421,7 @@ def armar_ia():
 
 
     def _actualizar_draco(b, ctx):
+        """Cada cuadro: el aliento de dragón de Regidrago."""
         j, ahora, R = ctx['jugador'], ctx['ahora'], REGIDRAGO
         d = b['draco']
         bx, by = b['rect'].center
@@ -3454,6 +3469,7 @@ def armar_ia():
 
 
     def actualizar_regidrago(b, ctx):
+        """La pelea entera de Regidrago cada cuadro: fases, torre, bocas, cometas y aliento."""
         ent, j, ahora = ctx['ent'], ctx['jugador'], ctx['ahora']
         jx, jy = j['rect'].center
         bx, by = b['rect'].center
@@ -3731,6 +3747,7 @@ def armar_ia():
 
 
     def _actualizar_empuje(b, ctx):
+        """Cada cuadro: el empujón que le dieron al jefe."""
         ent, j, ahora, S = ctx['ent'], ctx['jugador'], ctx['ahora'], b['sub']
         e = S['empuje']
         if not e: return
@@ -3765,6 +3782,7 @@ def armar_ia():
 
 
     def _actualizar_proys(b, ctx):
+        """Cada cuadro: las balas del jefe (se mueven, rebotan y pegan)."""
         j, ahora, S = ctx['jugador'], ctx['ahora'], b['sub']
         A = _rect_arena(b)
         k = _lento_sub(b, ahora)
@@ -3845,6 +3863,7 @@ def armar_ia():
 
 
     def _pos_hace(hist, t, defecto):
+        """Dónde estaba el jugador hace un rato (para los ataques que te persiguen con retraso)."""
         for tt, pos in reversed(hist):
             if tt <= t: return pos
         return hist[0][1] if hist else defecto
@@ -3882,6 +3901,7 @@ def armar_ia():
     # ----- movimientos de Giratina -----
 
     def _mov_golpe_umbrio(b, ctx, a):
+        """El ataque «Golpe Umbrio», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['golpe_umbrio']
         if 't0' not in a:
             a.update(t0=ahora, pos=b['rect'].center, prox=0)
@@ -3904,6 +3924,7 @@ def armar_ia():
 
 
     def _mov_bola_sombra(b, ctx, a):
+        """El ataque «Bola Sombra», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['bola_sombra']
         if 't0' not in a:
             a['t0'] = ahora; b['sin_contacto'] = True
@@ -3919,6 +3940,7 @@ def armar_ia():
 
 
     def _mov_garra_dragon(b, ctx, a):
+        """El ataque «Garra Dragon», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], GIRATINA['garra_dragon']
         if 't0' not in a: a.update(t0=ahora, i=0, etapa=None)
         if a['etapa'] is None:                                      # apunta el proximo zarpazo
@@ -3950,6 +3972,7 @@ def armar_ia():
 
 
     def _mov_cometa_draco(b, ctx, a):
+        """El ataque «Cometa Draco», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora, D = ctx['ahora'], GIRATINA['cometa_draco']
         if 't0' not in a:
             a['t0'] = ahora
@@ -3961,6 +3984,7 @@ def armar_ia():
 
 
     def _mov_esfera_aural(b, ctx, a):
+        """El ataque «Esfera Aural», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora = ctx['ahora']
         b['sub']['esferas'].append({'pos': b['rect'].center, 'inicio': ahora, 'prox': 0})
         _animar(b, ('shoot', 'attack'), ahora, 500)
@@ -3983,6 +4007,7 @@ def armar_ia():
 
 
     def _mov_cara_susto(b, ctx, a):
+        """El ataque «Cara Susto», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora, D = ctx['ahora'], GIRATINA['cara_susto']
         if 't0' not in a:
             a['t0'] = ahora
@@ -3999,6 +4024,7 @@ def armar_ia():
     # ----- movimientos de Dialga -----
 
     def _mov_distorsion(b, ctx, a):
+        """El ataque «Distorsion», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['distorsion']
         if 't0' not in a:
             a['t0'] = ahora
@@ -4021,6 +4047,7 @@ def armar_ia():
 
 
     def _mov_pulso_dragon(b, ctx, a):
+        """El ataque «Pulso Dragon», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['pulso_dragon']
         if 't0' not in a:
             bx, by = b['rect'].center
@@ -4054,6 +4081,7 @@ def armar_ia():
 
 
     def _mov_cola_ferrea(b, ctx, a):
+        """El ataque «Cola Ferrea», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['cola_ferrea']
         if 't0' not in a:
             mx, my = b['sub'].get('mira', (0, 1))
@@ -4074,6 +4102,7 @@ def armar_ia():
 
 
     def _mov_foco_resplandor(b, ctx, a):
+        """El ataque «Foco Resplandor», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora, D = ctx['ahora'], DIALGA['foco_resplandor']
         for _ in range(D['bolas']):
             pos = punto_zona(b['zona'], 40)
@@ -4094,6 +4123,7 @@ def armar_ia():
 
 
     def _mov_joya_luz(b, ctx, a):
+        """El ataque «Joya Luz», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora, D = ctx['ahora'], DIALGA['joya_luz']
         for i in range(D['rocas']):
             ang = i * math.tau / D['rocas'] + random.uniform(-0.2, 0.2)
@@ -4138,6 +4168,7 @@ def armar_ia():
 
 
     def _mov_eco_metalico(b, ctx, a):
+        """El ataque «Eco Metalico», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], DIALGA['eco_metalico']
         if 't0' not in a:
             a['t0'] = ahora
@@ -4154,6 +4185,7 @@ def armar_ia():
     # ----- movimientos de Palkia -----
 
     def _mov_corte_vacio(b, ctx, a):
+        """El ataque «Corte Vacio», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ent, j, ahora, D = ctx['ent'], ctx['jugador'], ctx['ahora'], PALKIA['corte_vacio']
         A = _rect_arena(b)
         if 't0' not in a:
@@ -4187,6 +4219,7 @@ def armar_ia():
 
 
     def _mov_vasto_impacto(b, ctx, a):
+        """El ataque «Vasto Impacto», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ent, j, ahora, D = ctx['ent'], ctx['jugador'], ctx['ahora'], PALKIA['vasto_impacto']
         k = _lento_sub(b, ahora)
         if 't0' not in a:
@@ -4230,6 +4263,7 @@ def armar_ia():
 
 
     def _mov_torbellino(b, ctx, a):
+        """El ataque «Torbellino», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         ahora, D = ctx['ahora'], PALKIA['torbellino']
         if 't0' not in a:
             a['t0'] = ahora
@@ -4270,6 +4304,7 @@ def armar_ia():
 
 
     def _mov_hidrobomba(b, ctx, a):
+        """El ataque «Hidrobomba», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D, S = ctx['jugador'], ctx['ahora'], PALKIA['hidrobomba'], b['sub']
         k = _lento_sub(b, ahora)
         bx, by = b['rect'].center
@@ -4289,6 +4324,7 @@ def armar_ia():
 
 
     def _mov_trueno(b, ctx, a):
+        """El ataque «Trueno», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], PALKIA['trueno']
         if 't0' not in a:
             a['t0'] = ahora
@@ -4303,6 +4339,7 @@ def armar_ia():
 
 
     def _mov_gravedad(b, ctx, a):
+        """El ataque «Gravedad», paso a paso (aviso, golpe y cierre). Devuelve True mientras sigue."""
         j, ahora, D = ctx['jugador'], ctx['ahora'], PALKIA['gravedad']
         if 't0' not in a:
             a['t0'] = ahora
@@ -4676,6 +4713,7 @@ def armar_ia():
 
 
     def _dibujar_regidrago(ventana, e, x, y, cx, cy, ahora):
+        """Dibuja lo de Regidrago: cometas, bocas y aliento."""
         R = REGIDRAGO
         W, H = ventana.get_size()
         for c in e['cometas']:                                      # banda roja y los meteoritos cayendo de a uno

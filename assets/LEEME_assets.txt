@@ -16,10 +16,12 @@ assets/
   efectos/<nombre>.png                 efectos animados: una tira horizontal de frames cuadrados (alto = ancho de cada frame)
                                        estado_<nombre>: lo que se ve arriba de un pokemon quemado, dormido, envenenado, confundido...
                                        nombres: golpe, golpe_<tipo>, proyectil_<tipo>, romper, explosion, nivel, evolucion, cura, cambio, aparecer, destello,
-                                       estrella y brillo (las chispas de los golpes, de la hoja Effects del Red Rescue Team)
+                                       estrella y brillo (las chispas de los golpes, de la hoja Effects del Red Rescue Team),
+                                       portal (el agujero dimensional violeta, 8 cuadros: late y se rompe), aura y estrellita (el espiritu)
   interfaz/
     logo.png                           el logo del juego en sus pixeles originales y sin fondo (sale de assets/typo_logo_pokemanic.png)
-    inicial/fondo_<color>.png, mano.png   la pantalla de elegir tu pokemon (Starter Selection Screen de Blanco/Negro)
+    icono.ico                          el icono de Pokemanic.exe (la cara de Celebi; lo arma 'python herramientas.py icono')
+    minimapa/aliado.png, fondo_mapa.png   el punto amarillo de compañero y el marron a cuadros del mapa grande (tecla M)
     fondos/menu.png                    fondo del titulo y del menu principal (se estira a 1000x600)
     objetos/<clave>.png                (para mas adelante) iconos de la tienda y la mochila: claves de tienda.ITEMS
   hojas/                               hojas originales sin recortar (el juego no las usa; para recortar con recortar_assets.py)
@@ -39,7 +41,8 @@ Comandos para pasar las hojas al juego:
   python herramientas.py aldea      hojas 'Huts' (Water, Fire, Plant, Rock, Grass, las 'Construction' y Pikachu) -> mundo/objetos: el arbol suelto con su sombra,
                                     tocon, cerca, mata, cartel, flores animadas y las chozas de la plaza con su patio (parcela_<nombre>.png)
   python herramientas.py logo       assets/typo_logo_pokemanic.png -> interfaz/logo.png
-  python herramientas.py inicial    hoja 'Starter Selection Screen' de Blanco/Negro -> interfaz/inicial (fondos de arcos y la manito)
+  python herramientas.py caras <pokemon>   las demas caras del retrato del PMD (SpriteCollab) -> sprites/pokemones/sprite_<pokemon>/portrait
+  python herramientas.py icono      la cara de Celebi -> interfaz/icono.ico (para crear_exe.bat)
   python herramientas.py chispas    hoja 'Miscellaneous - Effects' del Red Rescue Team -> efectos/estrella.png y brillo.png
   python herramientas.py arenas     'Dungeon Boss Rooms' (y 'Friend Areas - Frigid Cavern') del Red Rescue Team -> mundo/arenas (la arena de cada jefe)
                                     el piso de cada arena es un poligono medido a mano sobre la hoja: esta en la tabla ARENAS de herramientas.py
@@ -57,5 +60,6 @@ Iconos de objetos (de Blanco/Negro): interfaz/objetos/<clave>.png (las MT pueden
 Donde estan las hojas:
   assets/hojas/<juego>/<seccion>/      las hojas que YA usa el juego (las herramientas las buscan en assets y en todas sus subcarpetas, por el nombre)
   assets/ (sueltas)                    las que todavia no se usan: Events, Friend Areas, Treasure Town, ataques del Red Rescue Team y del
-                                       Time/Darkness, Trainer Card y las chozas de otro molde (Bulbasaur, Machop, Cubone). Ya se usan (aunque sigan sueltas): Starter
-                                       Selection Screen, las chozas Water/Fire/Plant/Rock/Grass con sus 'Construction' y Miscellaneous - Effects del Red Rescue Team
+                                       Time/Darkness, Trainer Card, Starter Selection Screen y las chozas de otro molde (Bulbasaur, Machop, Cubone). Ya se usan
+                                       (aunque sigan sueltas): las chozas Water/Fire/Plant/Rock/Grass con sus 'Construction', Miscellaneous - Effects del Red Rescue
+                                       Team y Map Sprites del Explorers of Time/Darkness (el mapa de la tecla M)

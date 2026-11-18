@@ -181,6 +181,18 @@ def armar_generacion():
                         if (f, c) not in abiertas and vecinas >= 5: nueva.add((f, c))
                 roca = nueva
             tapar = roca
+        elif forma == 'camino':                                     # pasillo: una franja que serpentea de puerta a puerta, con algun claro
+            vertical = columnas < filas
+            largo, ancho = (filas, columnas) if vertical else (columnas, filas)
+            medio, vueltas, amplitud = ancho // 2, azar.choice((1, 2)), azar.uniform(2.0, ancho / 2 - 3.5)
+            claros = {azar.randint(4, largo - 5) for _ in range(azar.randint(1, 2))}
+            abierto = set()
+            for k in range(1, largo - 1):
+                centro = medio + amplitud * math.sin(math.tau * vueltas * k / (largo - 1))
+                radio = 3.8 if any(abs(k - cl) <= 2 for cl in claros) else 2.2
+                for x in range(1, ancho - 1):
+                    if abs(x - centro) <= radio: abierto.add((k, x) if vertical else (x, k))
+            tapar = {(f, c) for f in range(1, filas - 1) for c in range(1, columnas - 1) if (f, c) not in abierto}
         tapar = {p for f, c in tapar for p in _espejos(f, c, sim, filas, columnas)}   # la silueta tambien se espeja
         for f, c in tapar:
             if (f, c) not in libres and m[f][c] == 'suelo': m[f][c] = 'pared'
@@ -280,6 +292,7 @@ def armar_generacion():
     def _cintas(m, azar, libres, sim):
         """Fabrica: lineas de cintas transportadoras en una misma direccion."""
         def una(azar):
+            """Una cinta transportadora al azar (dirección y terreno)."""
             lado = azar.choice(('n', 's', 'e', 'o'))
             df, dc = {'n': (-1, 0), 's': (1, 0), 'e': (0, 1), 'o': (0, -1)}[lado]
             return df, dc, 'cinta_' + lado
@@ -661,6 +674,23 @@ def armar_generacion():
                        'piezas': est['piezas'], 'simetria': est['sim'], 'forma': est['forma']})
 
 
+    PASILLO_LARGO = {'vertical': (15, 25), 'horizontal': (31, 13)}   # (columnas, filas) del camino segun hacia donde va
+
+
+    def generar_pasillo(era, entrada, salidas, semilla=None):
+        """Camino tranquilo entre dos salas: largo y angosto (para el lado al que vas), con el piso, las manchas y los adornos de una
+        variante de la era pero sin nada peligroso. Sin enemigos: ahi pasean pokemon de la era (los pone main.py)."""
+        azar = random.Random(semilla)
+        afuera = [d for d in mundos.ERAS[era]['variantes'].values() if not d.get('interior')] or list(mundos.ERAS[era]['variantes'].values())
+        base = azar.choice(afuera)
+        var = {'forma': {'camino': 1}, 'simetria': {'no': 1}, 'paredes': (0, 0), 'cantidad': (5, 9), 'objetos': base.get('objetos', {}),
+               'terrenos': [t for t in base.get('terrenos', []) if t[0] not in PELIGROSOS]}
+        columnas, filas = PASILLO_LARGO['vertical' if entrada in ('norte', 'sur') else 'horizontal']
+        est = _generar(var, entrada, list(salidas), azar, columnas, filas)
+        return _armar(est['m'], est['objetos'], TAM_CASILLA, entrada, salidas,
+                      {'tipo': 'pasillo', 'era': era, 'variante': 'camino', 'interior': False, 'piezas': est['piezas'], 'simetria': 'no', 'forma': 'camino'})
+
+
     def generar_arena(era, salidas=('norte',), semilla=None, tipo='jefe', datos=None):
         """Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas)).
         datos: como se arma (los subjefes traen la suya, ver subjefes.arena); si no, la de la era."""
@@ -803,48 +833,6 @@ def armar_generacion():
                                                         'tendero': secciones[1]['tendero'], 'curandera': curandera, 'interior': True})
 
 
-    def generar_hall(era, estilo='celebi', semilla=None):
-        """El hall: a donde volves al perder y desde donde sale cada viaje. Del tamaño de la pantalla (como la tienda), sin enemigos.
-        estilo 'celebi': el claro del bosque donde aparece Celebi (hierba, arboles y las columnas del templo alrededor del portal).
-        estilo 'atemporal': una isla flotando en el flujo del tiempo (el vacio con estrellas alrededor); el piso es el de la era
-        que se le pase, asi cambia segun hasta donde llegaste. El portal (puerta del norte) arranca otro viaje.
-        'guardian' es donde esta Celebi (se le habla con E)."""
-        azar = random.Random(semilla)
-        tam, columnas, filas = TIENDA_CASILLA, TIENDA_COLUMNAS, TIENDA_FILAS
-        ancho, alto = columnas * tam, filas * tam
-        cc, fc = columnas // 2, filas // 2
-        guardian = (ancho // 2 + 70, 2 * tam + 34)                       # al lado del portal
-        if estilo == 'atemporal':
-            m = _matriz_base(columnas, filas, None, ['norte'])
-            for f in range(filas):                                        # isla: una elipse de piso y el vacio alrededor (tambien en el borde)
-                for c in range(columnas):
-                    if m[f][c] == 'puerta': continue
-                    adentro = ((c - cc) / (cc - 1.5)) ** 2 + ((f - fc - 0.5) / (fc - 1.0)) ** 2 <= 1
-                    camino = abs(c - cc) <= 1 and f <= fc                 # puente de piso hasta el portal
-                    m[f][c] = 'suelo' if adentro or camino else 'vacio'
-            objetos = [crear_objeto('pilar_de_cristal', (ancho // 2 - 6 * tam, alto // 2 - tam)), crear_objeto('pilar_de_cristal', (ancho // 2 + 6 * tam, alto // 2 - tam)),
-                       crear_objeto('columna_rota', (ancho // 2 - 4 * tam, alto - 3 * tam)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, alto - 3 * tam))]
-        else:
-            m = _matriz_base(columnas, filas, None, ['norte'])
-            for f in range(1, filas - 1):                                 # claro del bosque: hierba con un caminito de piedra hasta el portal
-                for c in range(1, columnas - 1):
-                    m[f][c] = 'suelo' if abs(c - cc) <= 1 else 'hierba'
-            for f in range(filas - 5, filas - 2):                         # laguna chiquita abajo a la izquierda
-                for c in range(3, 7):
-                    if azar.random() < 0.85: m[f][c] = 'agua'
-            objetos = [crear_objeto('columna_rota', (ancho // 2 - 4 * tam, 2 * tam + 10)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, 2 * tam + 10)),   # ruinas del templo
-                       crear_objeto('columna_rota', (ancho // 2 - 4 * tam, 5 * tam)), crear_objeto('columna_rota', (ancho // 2 + 4 * tam, 5 * tam))]
-            objetos += [crear_objeto('arbol', (x, y)) for x, y in ((2 * tam, 2 * tam), (ancho - 2 * tam, 2 * tam), (ancho - 2 * tam, alto - 2 * tam),
-                                                                   (2 * tam, alto // 2 - tam), (ancho - 3 * tam, alto // 2))]
-            objetos += [crear_objeto('arbusto', (x, y)) for x, y in ((8 * tam, alto - 2 * tam), (ancho - 7 * tam, alto - 3 * tam))]
-        objetos.append(crear_objeto('celebi', guardian))
-        for o in objetos:
-            o['celdas'] = _celdas_de(o['nombre'], o['rect'].center, tam)
-            o['vida'] = o['max_vida'] = None                              # en el hall no se rompe nada
-        return _armar(m, objetos, tam, None, ['norte'], {'tipo': 'hall', 'era': era, 'variante': 'hall', 'estilo': estilo, 'guardian': guardian,
-                                                         'interior': False, 'inicio': (ancho // 2, alto // 2 + 2 * tam)})
-
-
     # ================= el refugio de Celebi (el hall): plaza, barrio y habitaciones =================
     # Las habitaciones usan los fondos ya dibujados del PMD (el Gremio de Wigglytuff y el Secret Bazaar): el piso caminable sale
     # de un poligono medido sobre la imagen (en pixeles del recorte, antes de agrandarla x2) y lo demas queda como pared invisible.
@@ -886,6 +874,7 @@ def armar_generacion():
 
 
     def _adentro_poligono(x, y, puntos):
+        """Si un punto está adentro de un polígono (el piso de las arenas dibujadas)."""
         dentro, j = False, len(puntos) - 1
         for i in range(len(puntos)):
             xi, yi = puntos[i]; xj, yj = puntos[j]
@@ -950,6 +939,7 @@ def armar_generacion():
         for f in range(1, filas - 1):
             for c in range(1, columnas - 1): m[f][c] = base
         def camino(f0, c0, f1, c1, ancho_c=1):
+            """Pinta un camino de piso entre dos casillas."""
             for f in range(min(f0, f1), max(f0, f1) + 1):
                 for c in range(min(c0, c1), max(c0, c1) + 1):
                     for d_ in range(-ancho_c, ancho_c + 1):
@@ -979,6 +969,7 @@ def armar_generacion():
                 if azar.random() < 0.9: m[f][c] = 'agua'
         objetos, puntos, pasos, letreros, llegadas = [], [], [], [], {}
         def obj(nombre, x, y, color=None, sprite=None):
+            """Crea un objeto y lo agrega a la sala."""
             o = crear_objeto(nombre, (round(x), round(y)))
             if color: o['color'] = color
             if sprite: o['sprite'] = sprite
@@ -1355,13 +1346,6 @@ def armar_generacion():
         return _armar(m, objetos, tam, 'sur', salidas, {'tipo': 'tesoro', 'era': era, 'variante': 'tienda', 'vitrinas': vitrinas, 'interior': True})
 
 
-    def generar_nivel(semilla=None):
-        """Compatibilidad con mainprubag.py: sala con las claves viejas (paredes, piedras, puertas, agua)."""
-        sala = generar_sala(3, 'patio del castillo', 'sur', ['norte', 'este', 'oeste'], semilla)
-        m, tam = sala['matriz'], sala['tam']
-        return {'matriz': m, 'paredes': rectangulos(m, lambda t: t == 'pared', tam), 'piedras': [o['rect'] for o in sala['objetos'] if o['solido']],
-                'puertas': [p['rect'] for p in sala['puertas']], 'agua': rectangulos(m, lambda t: t == 'agua', tam)}
-
     return SimpleNamespace(**locals())
 
 
@@ -1403,7 +1387,7 @@ def armar_entorno():
         ('agua', 'hielo'): ('convertir', 'hielo'), ('agua', 'electrico'): ('electrificar',), ('agua', 'veneno'): ('convertir', 'toxico'),
         ('charco', 'hielo'): ('convertir', 'hielo'), ('charco', 'electrico'): ('electrificar',), ('charco', 'fuego'): ('convertir', 'suelo'),
         ('charco', 'veneno'): ('convertir', 'toxico'),
-        ('hielo', 'fuego'): ('convertir', 'agua'), ('nieve', 'fuego'): ('convertir', 'charco'),
+        ('hielo', 'fuego'): ('derretir',), ('nieve', 'fuego'): ('convertir', 'charco'),
         ('hierba', 'fuego'): ('encender',), ('aceite', 'fuego'): ('encender',),
         ('fuego', 'agua'): ('apagar',), ('fuego', 'hielo'): ('apagar',),
         ('arena', 'agua'): ('convertir', 'lodo'), ('lodo', 'fuego'): ('convertir', 'arena'),
@@ -1947,9 +1931,20 @@ def armar_entorno():
                'version': 0, 'cache': {}, 'electrico': {}, 'fuego': {}, 'reaccion': {}, 'ocupadas': set(),
                'clima': None, 'clima_hasta': None, 'clima_base': None if sala.get('interior') else clima, 'prox_clima': 0, 'prox_fuego': 0, 'charcos_lluvia': 0, 'ahora': ahora,
                'pendientes': [], 'visuales': [], 'eventos': [], 'fondo': None, 'animadas': [], 'lava': [], 'maquinas': [], 'vacios': 0, 'celdas_vacio': set()}
+        if 'lagos' not in sala:                                         # donde hay lagos: el agua del principio (y el lago congelado, congelado)
+            sala['lagos'] = {(f, c) for f, fila in enumerate(sala['matriz']) for c, t in enumerate(fila) if t == 'agua'}
+            if sala.get('variante') == 'lago congelado':
+                for f, c in sala['lagos']: sala['matriz'][f][c] = 'hielo'
+        ent['lagos'] = sala['lagos']
         _buscar_maquinas(ent)
         ent['clima'] = ent['clima_base']
         return ent
+
+
+    def derretir(ent, f, c):
+        """El hielo que se derrite vuelve a lo que era: si ahi habia un lago, agua; si era hielo del piso, un charco que se puede pisar
+        (asi derretir el piso con fuego no te deja encerrado)."""
+        return cambiar(ent, f, c, 'agua' if (f, c) in ent.get('lagos', ()) else 'charco')
 
 
     def _buscar_maquinas(ent):
@@ -2038,7 +2033,8 @@ def armar_entorno():
 
 
     def destructibles(ent):
-        """Objetos que se pueden romper (se suman a los objetivos de los ataques)."""
+        """Objetos que se pueden romper (se suman a los objetivos de los ataques). En el refugio ninguno."""
+        if ent.get('intocable'): return []
         return [o for o in ent['objetos'] if o['vida'] is not None and o['vida'] > 0]
 
 
@@ -2139,7 +2135,7 @@ def armar_entorno():
     def reaccionar(ent, x, y, radio, tipo, ahora):
         """Un ataque de ese tipo toco el circulo (x, y, radio): congela agua, quema hierba, electrifica, etc."""
         tipo = normalizar_tipo(tipo)
-        if not tipo: return
+        if not tipo or ent.get('intocable'): return
         for f, c in _casillas_circulo(ent, x, y, radio):
             t = ent['m'][f][c]
             accion = REACCIONES.get(('cinta' if t.startswith('cinta') else t, tipo))
@@ -2164,6 +2160,7 @@ def armar_entorno():
         elif accion[0] == 'electrificar': electrificar(ent, f, c, ahora)
         elif accion[0] == 'encender': encender(ent, f, c, ahora)
         elif accion[0] == 'apagar': cambiar(ent, f, c, 'ceniza')
+        elif accion[0] == 'derretir': derretir(ent, f, c)
         elif accion[0] == 'invertir':
             vuelta = {'n': 's', 's': 'n', 'e': 'o', 'o': 'e'}
             cambiar(ent, f, c, 'cinta_' + vuelta[ent['m'][f][c][-1]])
@@ -2186,29 +2183,6 @@ def armar_entorno():
                     vistas.add((na, nb)); pendientes.append((na, nb))
         for casilla_ in vistas:
             if m[casilla_[0]][casilla_[1]] in CONDUCEN: ent['electrico'][casilla_] = ahora + DURACION_ELECTRICO
-
-
-    def abrir_vacio(ent, x, y, radio, maximo):
-        """El piso se rompe y queda un vacio. Nunca debajo de alguien ni delante de las puertas, y como mucho 'maximo' casillas por sala."""
-        cerca_puerta = [p['rect'].inflate(ent['tam'] * 4, ent['tam'] * 4) for p in ent['sala']['puertas']]
-        entrada = ent['sala'].get('inicio')
-        for f, c in _casillas_circulo(ent, x, y, radio):
-            if ent['vacios'] >= maximo: return
-            r = rect_casilla(ent, f, c)
-            if ent['m'][f][c] not in generacion.PISABLES or r.collidelist(cerca_puerta) != -1: continue
-            if entrada and r.inflate(ent['tam'] * 2, ent['tam'] * 2).collidepoint(entrada): continue
-            if cambiar(ent, f, c, 'vacio'): ent['vacios'] += 1; ent['celdas_vacio'].add((f, c))
-
-
-    def vaciar_franja(ent, y_hasta):
-        """Todo el piso por encima de y_hasta se vuelve vacio (menos debajo de alguien) y los objetos de ahi caen."""
-        tam = ent['tam']
-        for f in range(int(y_hasta // tam)):
-            for c in range(len(ent['m'][0])):
-                if ent['m'][f][c] not in ('pared', 'puerta', 'entrada', 'vacio') and cambiar(ent, f, c, 'vacio'): ent['celdas_vacio'].add((f, c))
-        caen = [o for o in ent['objetos'] if o['rect'].centery < y_hasta]
-        for o in caen: ent['objetos'].remove(o)
-        if caen: ent['version'] += 1
 
 
     def vaciar_alrededor(ent, centro, libre, x=None, y=None, radio=None):
@@ -2331,7 +2305,7 @@ def armar_entorno():
 
     def dañar_objeto(ent, obj, datos, direccion, ahora):
         """Un ataque le pega a un objeto: daño segun material y tipo, empujes, chispas en el metal..."""
-        if obj['vida'] is None or obj['vida'] <= 0: return
+        if obj['vida'] is None or obj['vida'] <= 0 or ent.get('intocable'): return
         tipo = normalizar_tipo(datos.get('tipo'))
         try: base = float(datos.get('daño', 0))
         except (TypeError, ValueError): base = 0
@@ -2448,10 +2422,11 @@ def armar_entorno():
             if lugar and ent['charcos_lluvia'] < 30:
                 cambiar(ent, *lugar, 'charco' if ent['m'][lugar[0]][lugar[1]] != 'arena' else 'lodo'); ent['charcos_lluvia'] += 1
         elif clima == 'sol':
-            cambios = {'hielo': 'agua', 'nieve': 'charco', 'charco': 'suelo', 'lodo': 'arena'}
+            cambios = {'hielo': None, 'nieve': 'charco', 'charco': 'suelo', 'lodo': 'arena'}
             for _ in range(2):
                 lugar = _casilla_al_azar(ent, tuple(cambios))
-                if lugar: cambiar(ent, *lugar, cambios[ent['m'][lugar[0]][lugar[1]]])
+                if lugar and cambios[ent['m'][lugar[0]][lugar[1]]] is None: derretir(ent, *lugar)
+                elif lugar: cambiar(ent, *lugar, cambios[ent['m'][lugar[0]][lugar[1]]])
         elif clima == 'nieve':                                      # nieva despacio: se junta nieve y se congelan los charcos
             lugar = _casilla_al_azar(ent, ('suelo', 'charco'))
             if lugar and ent['charcos_lluvia'] < 25:
@@ -2822,6 +2797,7 @@ def armar_entorno():
 
 
     def _dibujar_tablon(ventana, r, color):
+        """El tablón de madera dibujado (solo si falta su sprite)."""
         madera, borde = (150, 100, 55), (45, 28, 18)
         for x in (r.x + 6, r.right - 12): pygame.draw.rect(ventana, (110, 72, 40), (x, r.y + 10, 6, r.height))
         tabla = pygame.Rect(r.x, r.y, r.width, r.height - 12)
@@ -2832,6 +2808,7 @@ def armar_entorno():
 
 
     def _dibujar_telescopio(ventana, r, color):
+        """El telescopio dibujado (solo si falta su sprite)."""
         borde = (30, 30, 50)
         for dx in (-12, 0, 12): pygame.draw.line(ventana, (90, 70, 50), (r.centerx, r.centery), (r.centerx + dx, r.bottom), 3)
         tubo = [(r.centerx - 6, r.centery + 2), (r.right + 2, r.y - 6), (r.right + 8, r.y + 2), (r.centerx + 2, r.centery + 8)]
@@ -2840,6 +2817,7 @@ def armar_entorno():
 
 
     def _dibujar_banco(ventana, r, color):
+        """El banco dibujado (solo si falta su sprite)."""
         borde = (45, 28, 18)
         for x in (r.x + 6, r.right - 12): pygame.draw.rect(ventana, (100, 66, 38), (x, r.y + 10, 6, r.height - 10))
         asiento = pygame.Rect(r.x, r.y + 4, r.width, 12)
@@ -2847,6 +2825,7 @@ def armar_entorno():
 
 
     def _dibujar_cartel(ventana, r, color):
+        """El cartel dibujado (solo si falta su sprite)."""
         borde = (45, 28, 18)
         pygame.draw.rect(ventana, (110, 72, 40), (r.centerx - 3, r.y + 20, 6, r.height - 20))
         tabla = pygame.Rect(r.x, r.y, r.width, 30)
@@ -3086,6 +3065,57 @@ def armar_entorno():
         return True
 
 
+    _copos = {}
+    SOL = {'ciclo': 17000, 'visible': 11000, 'entra': 2200, 'sale': 2800, 'brillo': 0.45}   # ms del reflejo del sol: cada cuanto pasa y cuanto se ve
+
+
+    def _reflejo_sol(ventana, ahora):
+        """El destello del sol del PMD como un reflejo en la lente: cada tanto aparece de a poco, se corre despacio y se va.
+        Devuelve que tan visible esta (0 a 1) para teñir la pantalla al mismo ritmo."""
+        vuelta, t = divmod(ahora, SOL['ciclo'])
+        if t >= SOL['visible']: return 0.0
+        fuerza = max(0.0, min(1.0, t / SOL['entra'], (SOL['visible'] - t) / SOL['sale']))
+        k = t / SOL['visible']
+        cuadros = len(_cuadros_clima('sol')) // 2 + 1                       # (la lista va y vuelve: se usa solo la ida)
+        indice = min(cuadros - 1, int(k * cuadros))
+        if ('sol', indice) not in _copos:                                # sobre negro: asi se suma como luz (lo oscuro no tapa)
+            img = _cuadro_clima('sol', indice * 130, 130, 3)
+            if img is None: return fuerza
+            _copos[('sol', indice)] = pygame.Surface(img.get_size()); _copos[('sol', indice)].blit(img, (0, 0))
+        luz = _copos[('sol', indice)].copy()
+        v = round(255 * fuerza * SOL['brillo']); luz.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+        azar = random.Random(vuelta)                                     # cada pasada arranca un poco distinta
+        ventana.blit(luz, (round(azar.randint(-90, 10) + k * 150), round(azar.randint(-50, 0) + k * 60)), special_flags=pygame.BLEND_RGB_ADD)
+        return fuerza
+
+
+    def _nevar(ent, ventana, ahora, cantidad, alfa=255):
+        """Copos sueltos de la nieve del Red Rescue Team (cada uno recortado de la hoja): dos capas, los de adelante mas grandes y
+        rapidos, todos meciendose y corridos con la camara. Calculados por tiempo, sin guardar nada. False si falta la hoja."""
+        if 'formas' not in _copos:
+            hoja = (_cuadros_clima('nieve') or [None])[0]
+            _copos['formas'] = [hoja.subsurface(r).copy() for r in pygame.mask.from_surface(hoja).get_bounding_rects()] if hoja else []
+        formas = _copos['formas']
+        if not formas: return False
+        W, H = ventana.get_size()
+        cx, cy = ent.get('camara', (0, 0))
+        for i in range(cantidad):
+            cerca = i % 3 == 0
+            clave = (i % len(formas), cerca, alfa)
+            if clave not in _copos:
+                k = 3 if cerca else 2
+                img = pygame.transform.scale(formas[clave[0]], (formas[clave[0]].get_width() * k, formas[clave[0]].get_height() * k))
+                img.set_alpha(alfa if cerca else round(alfa * 0.55))
+                _copos[clave] = img
+            paralaje, vy = (0.55, 0.06) if cerca else (0.25, 0.032)
+            vy += (i * 37 % 11) * 0.002
+            mece = math.sin(ahora / (800 + i * 131 % 900) + i) * (8 + i % 5 * 4)
+            x = (i * 7919 % (W + 40) + ahora * 0.006 + mece - cx * paralaje) % (W + 40) - 20
+            y = (i * 104729 % (H + 40) + ahora * vy - cy * paralaje) % (H + 40) - 20
+            ventana.blit(_copos[clave], (round(x), round(y)))
+        return True
+
+
     def _sombras_de_nubes(ent, ventana, ahora, alfa=60, velocidad=0.02):
         """Las sombras de las nubes del PMD pasando despacio por el piso (pegadas al mundo: si caminas, quedan atras)."""
         cx, cy = ent.get('camara', (0, 0))
@@ -3103,11 +3133,13 @@ def armar_entorno():
         (lluvia, granizo, nieve, niebla, arena, sol, sombras de nubes y brasas); si faltan, las lineas y circulos de antes."""
         clima = ent['clima']
         W, H = ventana.get_size()
+        noche = ent.get('momento') == 'noche'
+        if clima == 'sol' and noche: clima = 'despejado'                 # (de noche no hay sol: ver CLIMA_HORA)
         if _hay_brasas(ent): _embaldosar(ventana, _cuadro_clima('brasas', ahora, 110, 2), banderas=pygame.BLEND_RGB_ADD)   # brasas de la lava y los hornos
         if not clima or clima == 'despejado':                          # buen tiempo: afuera pasan sombras de nubes por el piso
-            if not ent['sala'].get('interior') and not ent['sala'].get('sin_nubes'): _sombras_de_nubes(ent, ventana, ahora, 38)
+            if not ent['sala'].get('interior') and not ent['sala'].get('sin_nubes') and not noche: _sombras_de_nubes(ent, ventana, ahora, 38)
             if not ent['sala'].get('interior') and ent['era']['clave'] == 'glaciacion':     # en la Era Glacial siempre caen unos copos
-                _embaldosar(ventana, _cuadro_clima('nieve', ahora, 160, 2, 120), ahora * 0.008, ahora * 0.01)
+                _nevar(ent, ventana, ahora, 24, 170)
             if not clima: return
         elif clima == 'lluvia':                                        # la lluvia del PMD: rayitas que caen y salpican
             ventana.blit(_velo((W, H), (40, 60, 120, 45)), (0, 0))
@@ -3125,8 +3157,7 @@ def armar_entorno():
                 for x, y in _particulas(50, W, H, ahora, 1.2, 0.2): pygame.draw.line(ventana, (220, 190, 120), (x, y), (x + 18, y + 3), 1)
         elif clima == 'nieve':                                         # copos del PMD: una capa lenta y otra mas chica atras
             ventana.blit(_velo((W, H), (220, 230, 255, 30)), (0, 0))
-            _embaldosar(ventana, _cuadro_clima('nieve', ahora + 400, 150, 2, 150), -ahora * 0.01, ahora * 0.012)
-            if not _embaldosar(ventana, _cuadro_clima('nieve', ahora, 110, 3), ahora * 0.015, ahora * 0.02):
+            if not _nevar(ent, ventana, ahora, 85):
                 for i in range(60):
                     pygame.draw.circle(ventana, (255, 255, 255), ((i * 97 + ahora // 40 * (1 + i % 3)) % W, (i * 53 + ahora // 25 * (1 + i % 2)) % H), 2 + i % 2)
         elif clima == 'nublado':                                       # nubes cerradas: sombras grandes que pasan mas rapido
@@ -3137,10 +3168,9 @@ def armar_entorno():
             n = _cuadro_clima('niebla', 0, 1000, 4)
             if _embaldosar(ventana, n, ahora * 0.018, ahora * 0.004, pygame.BLEND_RGB_ADD): _embaldosar(ventana, n, -ahora * 0.011 + 500, 240, pygame.BLEND_RGB_ADD)
             else: ventana.blit(_velo((W, H), (170, 170, 170, 40)), (0, 0))
-        elif clima == 'sol':                                           # el destello del sol del PMD arriba a la izquierda
-            ventana.blit(_velo((W, H), (255, 220, 80, 30)), (0, 0))
-            d = _cuadro_clima('sol', ahora, 130, 3, 130)
-            if d: ventana.blit(d, (0, 0))
+        elif clima == 'sol':                                           # un tinte calido y, cada tanto, el reflejo del sol que pasa despacio
+            fuerza = _reflejo_sol(ventana, ahora)
+            ventana.blit(_velo((W, H), (255, 220, 80, 16 + round(16 * fuerza))), (0, 0))
         elif clima == 'tormenta_electrica':                            # nubes negras, lluvia y el fogonazo de cada rayo
             destello = any(v['clase'] == 'rayo' and v['vida'] > 12 for v in ent['visuales'])
             ventana.blit(_velo((W, H), (255, 255, 255, 70) if destello else (20, 20, 50, 70)), (0, 0))
@@ -3366,12 +3396,6 @@ def armar_efectos():
     def transicion(ef, clase, ahora, centro, duracion=None):
         """'entrar': el negro se abre en circulo desde donde entras. 'salir': se cierra hacia la puerta."""
         ef['transicion'] = {'clase': clase, 'inicio': ahora, 'hasta': ahora + (duracion or (500 if clase == 'entrar' else 250)), 'centro': centro}
-
-
-    def en_transicion(ef, ahora):
-        """Si la transicion de entrada o salida todavia se esta viendo."""
-        t = ef['transicion']
-        return bool(t) and ahora < t['hasta']
 
 
     def dibujar_transicion(ef, ventana, ahora):
