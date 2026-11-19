@@ -324,6 +324,103 @@ def armar_menus():
         return caja
 
 
+    # ---------- las escenas a x2 ----------
+    # En una escena, TAB (o el boton de ver el equipo, o un clic en el boton de arriba a la derecha) la pasa a x2 y de vuelta a x1.
+    # Queda guardado en config['cine_x2']. Las escenas usan reloj_cine() en vez del reloj de pygame: corre a la par o al doble.
+    CINE = {'x2': False, 'real': None, 'virtual': 0.0}
+    _boton_x2 = {}
+
+
+    def reloj_cine():
+        """El reloj de las escenas: corre a la par del de verdad o, con el x2, al doble (sin saltos al cambiar)."""
+        real = pygame.time.get_ticks()
+        if CINE['real'] is None: CINE['real'], CINE['virtual'] = real, float(real)
+        CINE['virtual'] += (real - CINE['real']) * (2 if CINE['x2'] else 1); CINE['real'] = real
+        return int(CINE['virtual'])
+
+
+    def cambiar_x2(config):
+        """Pasa la escena de x1 a x2 (o al reves) y lo guarda en config."""
+        CINE['x2'] = not CINE['x2']; config['cine_x2'] = CINE['x2']; _boton_x2['cambio'] = pygame.time.get_ticks()
+
+
+    def tecla_x2(ev, ui):
+        """Si el evento es TAB (o el boton del equipo, o un clic en el boton de x2), cambia la velocidad de la escena. True si lo uso."""
+        toca = (ev.type == pygame.KEYDOWN and ev.key == pygame.K_TAB) or 'equipo' in controles.acciones(ev)
+        if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and _boton_x2.get('rect') and _boton_x2['rect'].collidepoint(ui['a_logico'](ev.pos)): toca = True
+        if toca: cambiar_x2(ui['config'])
+        return toca
+
+
+    def boton_x2(ventana):
+        """El boton de la velocidad de la escena, arriba a la derecha: dos flechitas y x1 (gris) o x2 (amarillo), con la tecla al lado.
+        Al cambiar da un saltito."""
+        x2, W = CINE['x2'], ventana.get_width()
+        rect = pygame.Rect(W - 120, 7, 106, 32)
+        salto = max(0.0, 1 - (pygame.time.get_ticks() - _boton_x2.get('cambio', -10 ** 6)) / 220)
+        r = rect.inflate(round(12 * salto), round(6 * salto))
+        capa = pygame.Surface(r.size, pygame.SRCALPHA)
+        color = (255, 220, 90) if x2 else (175, 175, 195)
+        pygame.draw.rect(capa, (12, 14, 30, 200), capa.get_rect(), border_radius=10)
+        pygame.draw.rect(capa, color, capa.get_rect(), 2, border_radius=10)
+        for k in range(2):                                                # ▶▶
+            x0 = 11 + k * 11
+            pygame.draw.polygon(capa, color, [(x0, 9), (x0, r.height - 9), (x0 + 10, r.height // 2)])
+        t = fuente(24).render('x2' if x2 else 'x1', True, color)
+        capa.blit(t, t.get_rect(midleft=(38, r.height // 2)))
+        tecla = fuente(16).render('TAB', True, (205, 205, 220))
+        capa.blit(tecla, tecla.get_rect(midright=(r.width - 9, r.height // 2)))
+        ventana.blit(capa, r)
+        _boton_x2['rect'] = rect
+        return rect
+
+
+    # ---------- la mano de Celebi ----------
+    MANO = {'entra': 140, 'aprieta': 170, 'queda': 360, 'sale': 160}   # ms de cada parte del agarre
+    _mano = {}
+
+
+    def _mano_verde():
+        """La mano del PMD (el primer cuadro del efecto 0200, la mano abierta y quieta) pintada con los verdes de Celebi: los tonos
+        de su retrato, del mas oscuro al mas claro, en el lugar de los rosas (cada rosa toma el verde de su mismo brillo)."""
+        if 'img' not in _mano:
+            _mano['img'] = None
+            tira = efectos._tira('mano')
+            if not tira: return None
+            img = tira[0].copy()
+            luz = lambda c: c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11
+            cara = animaciones.cargar_retrato('celebi')
+            verdes = sorted({tuple(cara.get_at((x, y)))[:3] for x in range(cara.get_width()) for y in range(cara.get_height())
+                             if cara.get_at((x, y))[3] > 200 and cara.get_at((x, y))[1] > cara.get_at((x, y))[0] + 25
+                             and cara.get_at((x, y))[1] > cara.get_at((x, y))[2] + 25}, key=luz) if cara else []
+            if len(verdes) < 3: verdes = [(40, 104, 48), (88, 168, 72), (136, 208, 96), (184, 232, 136), (224, 248, 192)]
+            puntos = [(x, y) for x in range(img.get_width()) for y in range(img.get_height()) if img.get_at((x, y))[3] > 0]
+            brillos = [luz(img.get_at(p)) for p in puntos]
+            b0, b1 = min(brillos), max(brillos)
+            for p, b in zip(puntos, brillos):
+                v = verdes[min(len(verdes) - 1, round((b - b0) / max(1, b1 - b0) * (len(verdes) - 1)))]
+                img.set_at(p, (*v, img.get_at(p)[3]))
+            _mano['img'] = img
+        return _mano['img']
+
+
+    def mano(ventana, centro, lado, t):
+        """Celebi te agarra: su mano (verde, quieta) aparece apenas mas grande, se cierra un poquito (aprieta), se queda y se va.
+        t: ms desde que empezo. False cuando termino."""
+        img = _mano_verde()
+        e, a, q, s = MANO['entra'], MANO['aprieta'], MANO['queda'], MANO['sale']
+        if not img or not 0 <= t < e + a + q + s: return False
+        if t < e: k = t / e; esc, alfa = 1.12 - 0.12 * _suave(k), k
+        elif t < e + a: esc, alfa = 1.0 - 0.1 * math.sin((t - e) / a * math.pi / 2), 1.0
+        elif t < e + a + q: esc, alfa = 0.9, 1.0
+        else: esc, alfa = 0.9, 1 - (t - e - a - q) / s
+        n = max(4, round(lado * esc))
+        sup = pygame.transform.scale(img, (n, n))
+        sup.set_alpha(round(255 * alfa))
+        ventana.blit(sup, sup.get_rect(center=(round(centro[0]), round(centro[1]))))
+        return True
+
+
     def animacion(ventana, nombre, centro, lado, t, ms=60):
         """Un efecto de assets/efectos (tira de cuadros) que pasa una sola vez: t = ms desde que arranco. False si no esta o ya termino."""
         cuadros = efectos._frames(nombre, lado)
@@ -1027,6 +1124,7 @@ def armar_menus():
         AL_COSTADO = (W - 150, 215)                                      # donde queda Celebi mientras elegis tu forma
         CEL = 0.6                                                        # el tamaño de Celebi ya cerca (el cosmos es enorme: todo se ve chico)
         celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 96) if tiene_sprites('celebi') else None
+        CINE['x2'] = bool(ui['config'].get('cine_x2'))                   # TAB: la escena al doble
         e = {'fondo': 'negro', 'oscuro': 0, 'luz': None, 'cel': None, 'alerta': None, 'portal': 0, 'cierre': None, 'cuerpo': None, 'sombra': None,
              'blanco': 0, 'anims': [], 'habla': False, 'cara': 'Normal', 'fase': 0.0, 'vel': 1.0, 'antes': None, 'cuadro': 0, 'gesto': None}
         chispas, fantasmas, motas = [], [], motas_nuevas()               # el polvito que sueltan, las copias de Celebi al ir rapido y el polvo del cosmos
@@ -1037,7 +1135,8 @@ def armar_menus():
         def actor(a, pos, esc, direccion, anim):
             """Dibuja un pokemon (agrandado o achicado) y devuelve (imagen, x, y)."""
             if not a.cambiar(anim, direccion, True): a.cambiar('idle', direccion, True)
-            a.rect.center = (round(pos[0]), round(pos[1])); a.actualizar()
+            a.rect.center = (round(pos[0]), round(pos[1]))
+            for _ in range(2 if CINE['x2'] else 1): a.actualizar()      # (a x2 se mueve al doble)
             c = a.cuadro()
             if not c: return None
             img, x, y = c
@@ -1154,9 +1253,11 @@ def armar_menus():
                 desde = e['alerta']; x, y = e['cel'].get('dibujado', e['cel']['pos'])
                 animacion(ventana, 'estado_alerta', (x + 18, y - 72 * e['cel']['esc'] / CEL), round(38 * min(1.0, (ahora - desde) / 150 + 0.4)), (ahora - desde) % 900, 100)
             for nombre, centro, lado, desde, ms in e['anims'][:]:
-                if not animacion(ventana, nombre, centro, lado, ahora - desde, ms) and ahora - desde > 0: e['anims'].remove((nombre, centro, lado, desde, ms))
+                hecho = mano(ventana, centro, lado, ahora - desde) if nombre == 'mano' else animacion(ventana, nombre, centro, lado, ahora - desde, ms)
+                if not hecho and ahora - desde > 0: e['anims'].remove((nombre, centro, lado, desde, ms))
             if e['blanco'] and not e['cuerpo']:
                 velo = pygame.Surface((W, H)); velo.fill((255, 255, 255)); velo.set_alpha(e['blanco']); ventana.blit(velo, (0, 0))
+            boton_x2(ventana)
 
         def dibujar_sombra(ahora, color=(12, 12, 28), alfa=255, a=None):
             """La sombra del pokemon que estas eligiendo (o el blanco que lo cubre al materializarse), con la transformacion al cambiar."""
@@ -1183,11 +1284,12 @@ def armar_menus():
         def correr(ms, mover=None):
             """Deja correr la escena ms milisegundos llamando a mover(k, ahora) (k de 0 a 1). Una tecla la adelanta al final.
             'ok', None si ESC o 'salir'."""
-            inicio = pygame.time.get_ticks()
+            inicio = reloj_cine()
             while True:
-                ahora = pygame.time.get_ticks()
+                ahora = reloj_cine()
                 for ev in controles.eventos():
                     if ev.type == pygame.QUIT: return 'salir'
+                    if tecla_x2(ev, ui): continue
                     if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE: return None
                     if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN): inicio = ahora - ms
                 k = min(1.0, (ahora - inicio) / max(1, ms))
@@ -1255,20 +1357,21 @@ def armar_menus():
         def decir(texto, cara='Normal', opciones_=None, anim=None):
             """Celebi dice algo con esa cara (letra por letra; mientras habla se mueve un poquito y hace el gesto de esa cara: salta,
             se sobresalta, se hunde o se inclina hacia vos). Con opciones_ devuelve el indice."""
-            if cara != e['cara'] or not e['gesto']: e['gesto'] = (GESTO_DE_CARA.get(cara), pygame.time.get_ticks())
+            if cara != e['cara'] or not e['gesto']: e['gesto'] = (GESTO_DE_CARA.get(cara), reloj_cine())
             e['cara'] = cara
             if anim and e['cel']: e['cel']['anim'] = anim
             elegido = 0
-            t = texto_nuevo(ajustar_texto(texto, fuente(30), W - 80 - 44 - DIALOGO['retrato'] - 26))
+            t = texto_nuevo(ajustar_texto(texto, fuente(30), W - 80 - 44 - DIALOGO['retrato'] - 26), reloj_cine())
             y_caja = H - DIALOGO['alto'] - 18
             botones = [pygame.Rect(W - 380, y_caja - 16 - (len(opciones_ or ()) - k) * 52, 340, 44) for k in range(len(opciones_ or ()))]
             while True:
-                ahora = pygame.time.get_ticks()
+                ahora = reloj_cine()
                 cuanto, visto, mas = texto_estado(t, ahora)
                 completo = visto and not mas                                   # (con opciones: recien cuando se leyo todo)
                 e['habla'] = not visto
                 for ev in controles.eventos():
                     if ev.type == pygame.QUIT: return 'salir'
+                    if tecla_x2(ev, ui): continue
                     elegir = None
                     if ev.type == pygame.KEYDOWN:
                         if ev.key == pygame.K_ESCAPE: return None
@@ -1297,9 +1400,10 @@ def armar_menus():
             nombre = ''
             e['cara'] = 'Happy'
             while True:
-                ahora = pygame.time.get_ticks()
+                ahora = reloj_cine()
                 for ev in controles.eventos():
                     if ev.type == pygame.QUIT: return 'salir'
+                    if tecla_x2(ev, ui): continue
                     if ev.type != pygame.KEYDOWN: continue
                     if ev.key == pygame.K_ESCAPE: return None
                     if ev.key == pygame.K_RETURN and nombre.strip(): return nombre.strip()
@@ -1322,13 +1426,14 @@ def armar_menus():
             A la derecha, que hace y en que se convierte. Devuelve el nombre, None o 'salir'."""
             animadores = [AnimadorPokemon(n, pygame.Rect(0, 0, 10, 10), 120) for n in INICIALES]
             finales = [_evolucion_final(n) for n in INICIALES]
-            elegido, cambio = 1, pygame.time.get_ticks()
+            elegido, cambio = 1, reloj_cine()
             e['sombra'] = {'a': animadores[elegido], 'escala': 1.0}
             info = pygame.Rect(40, 96, 400, 250)
             while True:
-                ahora = pygame.time.get_ticks()
+                ahora = reloj_cine()
                 for ev in controles.eventos():
                     if ev.type == pygame.QUIT: return 'salir'
+                    if tecla_x2(ev, ui): continue
                     nuevo = None
                     if ev.type == pygame.KEYDOWN:
                         if ev.key == pygame.K_ESCAPE: return None
@@ -1426,7 +1531,7 @@ def armar_menus():
             c = e['cel']; c.update(pos=[VOS[0] - 360, VOS[1] + 260], esc=CEL, dir_fija=None, anim=None); c.pop('ultimo', None)
             r = recorrido([(-250, 90), (-212, 26)], 1000, 'rapido', VOS)   # vuelve disparado y frena de golpe
             if r != 'ok': return r
-            e['alerta'] = pygame.time.get_ticks(); e['gesto'] = ('sobresalto', e['alerta'])
+            e['alerta'] = reloj_cine(); e['gesto'] = ('sobresalto', e['alerta'])
             r = recorrido([(-196, 16), (-188, 34), (-206, 44), (-222, 30), (-212, 20)], 800, 'suave', VOS, 'twirl')   # un rulito en el lugar
             if r != 'ok': return r
             e['gesto'] = None
@@ -1495,7 +1600,7 @@ def armar_menus():
         inicial = elegir_forma()
         if inicial is None or inicial == 'salir': return inicial
         # ===== 6. te materializas: estrellas que giran y se juntan, un destello y tu cuerpo =====
-        ahora0 = pygame.time.get_ticks()
+        ahora0 = reloj_cine()
         def materializar(k, ahora):
             """Te materializás: estrellas que giran y se juntan, un destello y aparece tu pokemon."""
             if k < 0.6:
@@ -1529,7 +1634,7 @@ def armar_menus():
         if e['cel']:
             r = ir((VOS[0] + 50, VOS[1] - 10), 420, anim='pull', mira=VOS, rapido=True)   # te agarra
             if r != 'ok': return r
-            e['anims'].append(('mano', (VOS[0] + 26, VOS[1] - 6), 72, pygame.time.get_ticks(), 65))   # (la mano del PMD)
+            e['anims'].append(('mano', (VOS[0] + 26, VOS[1] - 4), 50, reloj_cine(), 0))   # (la mano del PMD, verde como Celebi)
             r = correr(450)
             if r != 'ok': return r
         inicio_c, inicio_v = (e['cel']['pos'][:] if e['cel'] else None), e['cuerpo']['pos'][:]
@@ -1563,13 +1668,15 @@ def armar_menus():
         vos = AnimadorPokemon(pokemon, pygame.Rect(0, 0, 10, 10), 100)
         celebi = AnimadorPokemon('celebi', pygame.Rect(0, 0, 10, 10), 84) if tiene_sprites('celebi') else None
         FONDO = centro_cosmos(W, H)
-        estela, inicio = ([], []), pygame.time.get_ticks()
+        CINE['x2'] = bool(ui['config'].get('cine_x2'))
+        estela, inicio = ([], []), reloj_cine()
         fase, antes = 0.0, None                                          # el cosmos: tranquilo y, al tirarse al fondo, rapido
         camino = lambda t: (W / 2 + math.sin(t / 760) * 230, H * 0.62 + math.sin(t / 470) * 45)   # Celebi va adelante; vos, por el mismo camino un poco atras
         while True:
-            ahora = pygame.time.get_ticks(); t = ahora - inicio
+            ahora = reloj_cine(); t = ahora - inicio
             for ev in controles.eventos():
                 if ev.type == pygame.QUIT: return 'salir'
+                if tecla_x2(ev, ui): continue
                 if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN) and t < duracion - 1500: inicio = ahora - (duracion - 1500)
             if t >= duracion: return None
             fin = max(0.0, (t - (duracion - 1500)) / 1500)                # al final: al fondo del tunel y se apaga todo
@@ -1583,7 +1690,9 @@ def armar_menus():
                 x, y = x + (FONDO[0] - x) * hundir, y + (FONDO[1] - y) * hundir
                 esc = esc0 * (1 - 0.9 * hundir)
                 if not a.cambiar(anim, _mira(x2 - x, y2 - y), True): a.cambiar('idle', _mira(x2 - x, y2 - y), True)
-                a.rect.center = (round(x), round(y)); a.actualizar(); c = a.cuadro()
+                a.rect.center = (round(x), round(y))
+                for _ in range(2 if CINE['x2'] else 1): a.actualizar()
+                c = a.cuadro()
                 if not c: continue
                 img = pygame.transform.scale(c[0], (max(1, round(c[0].get_width() * esc)), max(1, round(c[0].get_height() * esc))))
                 lugar = img.get_rect(center=(round(x), round(y))); ventana.blit(img, lugar)
@@ -1597,6 +1706,7 @@ def armar_menus():
                 velo = pygame.Surface((W, H)); velo.set_alpha(round(255 * _suave(fin))); ventana.blit(velo, (0, 0))
                 brillos = efectos._frames('brillo', max(6, round(30 * (1 - fin))))
                 if brillos and fin < 0.95: b = brillos[(ahora // 110) % len(brillos)]; ventana.blit(b, b.get_rect(center=FONDO))
+            boton_x2(ventana)
             ui['presentar'](); reloj.tick(60)
 
 
@@ -1628,10 +1738,11 @@ def armar_menus():
         return ui['retrato'](quien.lower().replace(' ', '_'), DIALOGO['retrato'])
 
 
-    def texto_nuevo(lineas):
+    def texto_nuevo(lineas, ahora=None):
         """Un texto largo para la caja de dialogo: se escribe letra por letra y, si no entra, baja (scroll) cuando volves a tocar.
-        'arriba' es el primer renglon que se ve (al que se va) y 'corrido' por donde va el scroll animado."""
-        return {'lineas': lineas or [''], 'arriba': 0, 'corrido': 0.0, 'previas': 0, 'inicio': pygame.time.get_ticks()}
+        'arriba' es el primer renglon que se ve (al que se va) y 'corrido' por donde va el scroll animado. ahora: el reloj de la
+        escena (si no, el de pygame)."""
+        return {'lineas': lineas or [''], 'arriba': 0, 'corrido': 0.0, 'previas': 0, 'inicio': pygame.time.get_ticks() if ahora is None else ahora}
 
 
     def texto_estado(t, ahora):

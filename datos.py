@@ -11,6 +11,7 @@ datos.py - Todo lo que es informacion del juego (no dibuja nada):
 """
 
 import json
+import math
 import os
 import random
 import unicodedata
@@ -1398,6 +1399,18 @@ def armar_mundos():
     CLIMA_REFUGIO = {'despejado': 5, 'nublado': 2, 'lluvia': 1, 'niebla': 1, 'sol': 2}   # el del refugio (tambien segun la hora)
 
 
+    SOL_HORA = {'sale': 6 * 60, 'pone': 19 * 60 + 30}   # el sol sale por el este (la derecha), al mediodia esta al norte (arriba) y se pone por el oeste
+
+
+    def sol(hora):
+        """Donde esta el sol: (altura de 0 a 1, hacia donde caen las sombras (dx, dy)). De noche la altura es 0. A la mañana las
+        sombras van a la izquierda, al mediodia para abajo (cortitas) y a la tarde a la derecha."""
+        h0, h1, h = SOL_HORA['sale'], SOL_HORA['pone'], hora % 1440
+        if not h0 < h < h1: return 0.0, (0.0, 1.0)
+        k = (h - h0) / (h1 - h0)
+        return math.sin(k * math.pi), (-math.cos(k * math.pi), math.sin(k * math.pi))
+
+
     def momento(hora):
         """'noche', 'mañana', 'dia' o 'tarde' segun la hora (minutos del dia)."""
         return [m for desde, m in MOMENTOS if hora % 1440 >= desde][-1]
@@ -1577,6 +1590,8 @@ def armar_mundos():
         'parcela': {'tam': (432, 420), 'material': 'piedra', 'vida': None, 'color': (120, 170, 90), 'solido': False},   # una choza del PMD con su patio (es un dibujo: se camina por arriba)
         'tope': {'tam': (40, 40), 'material': 'piedra', 'vida': None, 'color': (0, 0, 0)},                              # no se ve y no deja pasar (lo que no se pisa de una parcela)
         'cerca': {'tam': (124, 30), 'material': 'madera', 'vida': None, 'color': (190, 170, 110)},
+        # el farol de la noche (brasero del gremio de Wigglytuff; no se rompe): 'llama' = donde va la llama del PMD, en pixeles del dibujo
+        'farol': {'tam': (40, 30), 'material': 'metal', 'vida': None, 'color': (70, 64, 60), 'escala': 2, 'llama': (13, 8)},
         # hall (a donde volves al perder; no se rompe nada)
         'celebi': {'tam': (40, 40), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 230, 120)},   # cuida el hall y te manda de viaje
     }

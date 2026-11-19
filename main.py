@@ -61,6 +61,7 @@ def main():
     pygame.init()
     W, H = 1000, 600
     config = opciones.cargar()                       # ajustes guardados en config.json
+    menus.CINE['x2'] = bool(config.get('cine_x2'))   # las escenas a x2 (TAB en una escena)
     controles.iniciar(config)
     sonido.iniciar(config)                           # gritos y musica (si estan los archivos)
     ventana = pantalla.iniciar(W, H, config)        # todo se dibuja en 1000x600 y se escala a la ventana
@@ -973,6 +974,9 @@ def main():
         RESERVA_MAX = 3                             # pokemon en la reserva como mucho (y solo se cambian en la tienda)
         EVOLUCION = {'mantener': 900}               # ms que hay que mantener la tecla de evolucionar
         ENEMIGOS_SALA = 1.5                         # las salas comunes traen 50% mas enemigos que la escala de la era (en el modo facil, no)
+        # faroles de la noche: si entras a una sala de noche (o cayendo la tarde), algunas los tienen; la primera de cada era y la primera
+        # que pisas al ponerte a jugar, siempre. Se decide una vez por sala (queda en la partida)
+        FAROLES = {'desde': 17 * 60 + 30, 'hasta': 6 * 60 + 30, 'chance': 0.55, 'cuantos': {'combate': 5, 'pasillo': 4}}
         DESAFIO = {'enemigos': 2.3, 'vida': 1.25, 'daño': 1.15, 'oleadas': 1,   # salas de desafio: muchos mas enemigos, mas duros y una oleada mas...
                    'monedas': 3, 'monedas_extra': 40, 'chance': 0.6, 'xp': 1.5,  # ...y la nota da el triple, casi seguro un objeto y mas experiencia
                    'premios': ('caramelo_raro', 'zumo_baya', 'baya_aranja', 'llave_tesoro')}   # lo que puede soltar ademas al terminarla
@@ -1456,9 +1460,10 @@ def main():
                     entra = ahora >= j.get('frenesi_hasta', 0)
                     j['frenesi_hasta'] = ahora + FRENESI['dura']
                     hab = habilidad_de(j)
-                    cartel(nivel, ('¡Frenesí! ' + NOMBRE_HAB[hab] + '  ' if entra else '') + 'Racha x' + str(e['racha']) + '!', 1100 if entra else 700)
+                    cartel(nivel, 'Racha x' + str(e['racha']) + '!', 700)
                     if entra:
                         nivel['destello'] = (ahora, (255, 190, 60)); efectos.brillos(mundo['ef'], *j['rect'].center, 5, 34)
+                        nivel['corte'] = {'desde': ahora, 'nombre': j['nombre'], 'tipo': normalizar_tipo(j['tipos'][0]) if j['tipos'] else 'normal', 'sub': NOMBRE_HAB[hab]}
                         if hab == 'vida' and not trucos.get('vida_infinita'):
                             j['vida'] = min(j['max_vida'], j['vida'] + j['max_vida'] * HAB['vida_cura']); efectos.cura(mundo['ef'], *j['rect'].center)
                     soltar_monedas(nivel, j, *j['rect'].center, ESTILO['monedas_racha'] * min(FRENETICO['tope_racha'], e['racha'] - 2))   # con tope
@@ -2385,6 +2390,15 @@ def main():
         def armar_salas():
             """Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame."""
             _previas = {}
+            _sesion = {'pisaste': False}                                # (si ya entraste a alguna sala desde que te pusiste a jugar)
+
+            def con_faroles(registro, primera):
+                """Si la sala va con faroles (ver FAROLES). primera: es la primera sala que pisas al ponerte a jugar."""
+                if registro['tipo'] not in FAROLES['cuantos']: return False
+                h = hora()
+                noche = h >= FAROLES['desde'] or h < FAROLES['hasta']
+                if 'faroles' not in registro: registro['faroles'] = noche and (registro['sala'] == 0 or random.random() < FAROLES['chance'])
+                return registro['faroles'] or (primera and noche)
 
             def subjefe_rush(rec, era, sala):
                 """En el boss rush los subjefes de la era van seguidos: el primero y despues el segundo."""
@@ -2658,7 +2672,8 @@ def main():
                         elif tipo in ('subjefe', 'jefe', 'regi', 'final'): destinos = destinos[:1]; lados = ['norte']; variante = None
                         else:
                             variantes = mundos.ERAS[era]['variantes']
-                            variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(list(variantes))
+                            afuera = [v for v in variantes if not variantes[v].get('interior')]   # la primera sala de la era, afuera (se ve la era)
+                            variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(afuera if rec['sala'] == 0 and afuera else list(variantes))
                             lados = random.sample([l for l in generacion.LADOS if l != entrada], len(destinos))
                     registro = {'era': era, 'sala': rec['sala'], 'tipo': tipo, 'semilla': random.random(), 'variante': variante, 'entrada': entrada,
                                 'lados': lados, 'destinos': destinos, 'clima': rec['clima'], 'completada': tipo == 'pasillo', 'salida': None, 'vitrinas': None,
@@ -2675,6 +2690,8 @@ def main():
                 elif tipo == 'subjefe': sala = generacion.generar_arena(era, registro['lados'], semilla, tipo, subjefes.arena(nombre_sj))
                 elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, registro['lados'], semilla, tipo)
                 else: sala = generacion.generar_sala(era, registro['variante'], registro['entrada'], registro['lados'], semilla)
+                primera = not _sesion['pisaste']; _sesion['pisaste'] = True
+                if con_faroles(registro, primera): generacion.poner_faroles(sala, semilla, FAROLES['cuantos'][tipo])   # de noche, para ver
                 hecha = registro['completada']
                 ultima = rec['pos'] == len(rec['historial']) - 1
                 for puerta, d in zip(sala['puertas'], registro['destinos']):
@@ -2690,7 +2707,8 @@ def main():
                 clima = datos_era.get('clima_regi') if tipo == 'regi' else datos_era.get('clima_final') if tipo == 'final' else None
                 if nombre_sj: clima = subjefes.clima(nombre_sj)
                 ent = entorno.crear(sala, clima or registro['clima'], tiempo())
-                if not rec.get('rush') and not viaje.get('rush'): entorno.a_oscuras(ent, registro.get('variante'), semilla, tipo)   # algunas salas, a oscuras
+                if not rec.get('rush') and not viaje.get('rush') and registro['sala'] > 0 and not primera:   # algunas salas, a oscuras (la primera
+                    entorno.a_oscuras(ent, registro.get('variante'), semilla, tipo)                         # de la era y la primera que pisas, nunca)
                 subjefes.limpiar_jugador(j)                              # lo que te dejo un subjefe no pasa a la sala siguiente
                 mundo['ent'] = ent
                 if nuevo and tipo != 'pasillo': tienda.nueva_sala(j['inventario'], tipo)   # los objetos de "por 3 salas" se gastan solo en salas nuevas
@@ -4306,6 +4324,34 @@ def main():
                 r = pygame.Rect(rect.x-cx, rect.y-cy, rect.width, rect.height)
                 (pygame.draw.ellipse if forma == 'ellipse' else pygame.draw.rect)(ventana, color, r)
 
+            _pies = {}
+
+            def pies(animador):
+                """(x, y, ancho) de los pies de un pokemon en el mundo: lo mas bajo de su dibujo (cada cuadro se mide una vez)."""
+                c = animador.cuadro() if animador else None
+                if not c: return None
+                img, x, y = c
+                clave = (id(img), img.get_size())
+                if clave not in _pies:
+                    if len(_pies) > 4000: _pies.clear()
+                    _pies[clave] = img.get_bounding_rect()
+                bb = _pies[clave]
+                return x + bb.centerx, y + bb.bottom - 3, min(bb.width, bb.height * 1.2)
+
+            def cuerpos_de(nivel, j):
+                """Los pies de los pokemon de la sala (para sus sombras). De paso, los que caminan por la hierba la sacuden."""
+                ahora, ent, lista = tiempo(), nivel['ent'], []
+                jefe = nivel['jefe'] if nivel['jefe'] and not nivel['jefe'].get('escondido') else None
+                if not mec.invisible(j) and not mec.altura_vuelo(j):
+                    p = pies(j['animador'])
+                    if p: lista.append(p)
+                    if j['moviendose']: entorno.sacudir(ent, j['rect'].centerx, j['rect'].bottom - 6, ahora)
+                for e in nivel['enemigos'] + list(nivel.get('amigos', ())) + list(nivel.get('residentes', ())) + ([jefe] if jefe else []):
+                    p = pies(e.get('animador'))
+                    if p: lista.append(p)
+                    if e.get('_pie') != e['rect'].center: entorno.sacudir(ent, e['rect'].centerx, e['rect'].bottom - 6, ahora); e['_pie'] = e['rect'].center
+                return lista
+
             def dibujar_jugador(j, cx, cy):
                 """Dibuja al pokemon activo (un cuadrado rosa si no tiene sprites)."""
                 centro = j['rect'].center
@@ -4411,6 +4457,48 @@ def main():
                     ventana.blit(t, t.get_rect(center=centro))
                 pygame.draw.circle(ventana, 'black', centro, radio, 3)
                 if atenuado: ventana.blit(sombra_circular(radio, 150), (centro[0] - radio, centro[1] - radio))
+
+            CORTE = {'dura': 860, 'entra': 150, 'sale': 230, 'alto': 124, 'inclina': 44}   # la franja del frenesi: ms, px de alto y de inclinacion
+            _corte = {}
+
+            def dibujar_corte(nivel, ahora):
+                """Al entrar en frenesi, una franja cruzada como en Persona: entra de golpe desde la derecha con la cara de tu pokemon,
+                rayitas de velocidad, ¡FRENESÍ! y el nombre de la habilidad, se queda un instante y se va para la izquierda acelerando."""
+                c = nivel.get('corte')
+                if not c: return
+                t = ahora - c['desde']
+                if not 0 <= t < CORTE['dura']: nivel['corte'] = None; return
+                entra = 1 - (1 - min(1.0, t / CORTE['entra'])) ** 3
+                sale = max(0.0, (t - CORTE['dura'] + CORTE['sale']) / CORTE['sale']) ** 2
+                dx = round((1 - entra) * W - sale * W * 1.3)
+                alto, inc = CORTE['alto'], CORTE['inclina']
+                y0 = H // 2 - alto // 2 - 30
+                if _corte.get('tam') != (W, H): _corte['tam'] = (W, H); _corte['capa'] = pygame.Surface((W, H), pygame.SRCALPHA)
+                capa = _corte['capa']; capa.fill((0, 0, 0, 0))
+                color = COLORES_TIPO.get(c['tipo'], (255, 190, 60))
+                franja = lambda a, b: [(dx - 80, y0 + inc + a), (dx + W + 80, y0 + a), (dx + W + 80, y0 + b), (dx - 80, y0 + inc + b)]
+                pygame.draw.polygon(capa, (*color, 235), franja(-10, alto + 10))                     # el borde de color
+                pygame.draw.polygon(capa, (14, 14, 26, 235), franja(0, alto))                        # la franja oscura
+                pygame.draw.polygon(capa, (255, 255, 255, 235), franja(alto - 6, alto - 3))          # una rayita blanca abajo
+                for i in range(12):                                                                  # rayitas de velocidad
+                    ry = 10 + (i * 37) % (alto - 20)
+                    rx = dx + W + 80 - (i * 211 + t * 3) % (W + 300)
+                    yy = y0 + ry + inc * (1 - (rx - dx + 80) / (W + 160))
+                    pygame.draw.line(capa, (*color, 120), (rx, yy), (rx + 60 + i * 9 % 50, yy - 2), 2)
+                ventana.blit(capa, (0, 0))
+                cara = cargar_retrato(c['nombre'])
+                if cara:
+                    lado = alto - 14
+                    if _corte.get('cara') != (c['nombre'], lado): _corte['cara'] = (c['nombre'], lado); _corte['img'] = pygame.transform.scale(cara, (lado, lado))
+                    xc = dx + 110
+                    marco = pygame.Rect(xc - 4, y0 + inc * 0.82 + 3, lado + 8, lado + 8)
+                    pygame.draw.rect(ventana, (255, 255, 255), marco, border_radius=6)
+                    pygame.draw.rect(ventana, color, marco, 3, border_radius=6)
+                    ventana.blit(_corte['img'], (marco.x + 4, marco.y + 4))
+                titulo = render(f_cartel, '¡FRENESÍ!', (255, 225, 90) if (t // 80) % 2 else (255, 255, 255))
+                x_t = dx + 110 + alto + 30
+                ventana.blit(titulo, (x_t, y0 + inc * 0.55 + 14))
+                ventana.blit(render(f_cartel_sub, c['sub'], color), (x_t + 6, y0 + inc * 0.45 + 22 + titulo.get_height()))
 
             def con_sombra(f, texto, color, pos):
                 """Texto claro con sombra oscura: se lee sobre cualquier piso."""
@@ -4982,7 +5070,8 @@ def main():
                     fuerza = min(10, 2 + (nivel['temblor'] - ahora) // 40)
                     cx += random.randint(-fuerza, fuerza); cy += random.randint(-fuerza, fuerza)
                 ventana.fill('black')
-                entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'])   # piso de la era, terrenos, maquinas y objetos
+                nivel['ent']['hora'] = hora(); nivel['ent']['momento'] = mundos.momento(hora())   # (el sol, las sombras y el rocio)
+                entorno.dibujar(nivel['ent'], ventana, cx, cy, ahora, j['tipos'], cuerpos_de(nivel, j))   # piso de la era, terrenos, sombras y objetos
                 ia.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # Arceus Beta: el triangulo, charcos, rastros y arena
                 subjefes.dibujar_suelo(ventana, nivel['jefe'], cx, cy, ahora, COLORES_TIPO)   # agujeros, alcantarillas, metales, velas, agua...
                 mec.dibujar(nivel, j, cx, cy)                            # nubes, charcos, bombas, raices, jardin... y los avisos de enemigos con mecanica
@@ -5173,14 +5262,13 @@ def main():
                 if nivel['tipo'] in ('tienda', 'tesoro'): dibujar_tienda(nivel, j, cx, cy)
                 dibujar_cine(nivel, j, cx, cy, ahora)                      # Celebi y los portales de las escenas
                 efectos.dibujar(mundo['ef'], ventana, cx, cy)              # chispas, pedazos, explosiones, brillitos
-                nivel['ent']['momento'] = mundos.momento(hora())
                 entorno.dibujar_clima(nivel['ent'], ventana, ahora, cartel=False)
                 color_luz = mundos.luz(hora())                               # la luz del dia: azul de noche, rosado al amanecer, naranja al atardecer
                 oscuro = entorno.oscuridad_de(nivel['ent'], color_luz, nivel['tipo'])   # de noche (o en una sala a oscuras): solo se ve cerca de las luces
                 if oscuro: entorno.dibujar_oscuridad(nivel['ent'], ventana, cx, cy, ahora, oscuro, luces_de(nivel, j))
                 if nivel['sala'].get('interior'): color_luz = tuple(round(c + (255 - c) * 0.6) for c in color_luz)   # (adentro se nota menos)
                 if oscuro: color_luz = tuple(round(c + (255 - c) * 0.55) for c in color_luz)   # (la oscuridad ya oscurece: el tinte, mas suave)
-                if color_luz != (255, 255, 255): ventana.fill(color_luz, special_flags=pygame.BLEND_RGB_MULT)
+                if color_luz != (255, 255, 255): entorno.teñir(ventana, color_luz)
                 entorno.cartel_clima(nivel['ent'], ventana, ahora)
                 if nivel.get('destello') and ahora - nivel['destello'][0] < DESTELLO:   # parry, esquive perfecto, remate: un flash cortito
                     velo = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -5193,6 +5281,7 @@ def main():
                     k_c = min(1.0, (ahora - nivel.get('inicio_cine', ahora)) / 300) if nivel.get('cinematica') else 1 - (ahora - nivel['fin_cine']) / 400
                     franja_c = round(46 * k_c)
                     pygame.draw.rect(ventana, (0, 0, 0), (0, 0, W, franja_c)); pygame.draw.rect(ventana, (0, 0, 0), (0, H - franja_c, W, franja_c))
+                    if nivel.get('cinematica') and k_c > 0.8: menus.boton_x2(ventana)   # TAB: x2
                     if not nivel.get('cinematica'): nivel.pop('inicio_cine', None)
                     efectos.dibujar_transicion(mundo['ef'], ventana, ahora); dibujar_carteles(nivel); pantalla.presentar()
                     return
@@ -5205,6 +5294,7 @@ def main():
                     pygame.draw.rect(ventana, (40, 24, 10), (caja_f.centerx - 62, caja_f.bottom + 2, 124, 7))
                     pygame.draw.rect(ventana, (255, 190, 60), (caja_f.centerx - 60, caja_f.bottom + 4, round(120 * queda_f), 3))
                     t_h = render(f_borde, NOMBRE_HAB[habilidad_de(j)], (255, 230, 170)); ventana.blit(t_h, t_h.get_rect(midtop=(W // 2, caja_f.bottom + 10)))
+                dibujar_corte(nivel, ahora)                                # entraste en frenesi: la franja con tu cara
                 dibujar_indicadores(nivel, cx, cy)
                 cadena = j['estilo'].get('cadena', 0)
                 if cadena >= CADENA['desde'] and ahora - (j['estilo'].get('ultimo_golpe_t') or -10 ** 6) <= CADENA['corte']:      # golpes seguidos
@@ -5305,7 +5395,7 @@ def main():
                     anim, d = 'float', direcciones.index(direccion_de(pygame.Vector2(j['rect'].centerx - dx_, j['rect'].centery - dy_)))
                 elif not c.get('desde_corre'):                                   # te agarra de la mano (con la mano del PMD)
                     x, y, anim, d = j['rect'].centerx + 40, j['rect'].centery - 24, 'pull', 6
-                    menus.animacion(ventana, 'mano', (j['rect'].centerx + 20 - cx, j['rect'].centery - 14 - cy), 60, t - 2700, 65)
+                    menus.mano(ventana, (j['rect'].centerx + 20 - cx, j['rect'].centery - 12 - cy), 42, t - 2700)
                 else:                                                            # adelante tuyo, tirando
                     k = min(1.0, (t - c['desde_corre']) / 1300)
                     x, y = camino_rescate(c, min(1.0, k + 0.12), (dx_, dy_))
@@ -6231,6 +6321,8 @@ def main():
                 for e in controles.eventos():
                     if e.type == pygame.QUIT: return 'salir', j['nombre']
                     acciones = controles.acciones(e)
+                    if nivel.get('cinematica') and ((e.type == pygame.KEYDOWN and e.key == pygame.K_TAB) or 'equipo' in acciones):
+                        menus.cambiar_x2(config); continue               # en una escena: TAB la pasa a x2 (y de vuelta)
                     if nivel.get('bloqueo'):                             # llegada o rescate: una tecla la adelanta, nada mas
                         if (e.type == pygame.KEYDOWN or e.type == pygame.MOUSEBUTTONDOWN) and 'pausa' not in acciones and nivel['cine']['tipo'] == 'llegada':
                             nivel['cine']['desde'] = min(nivel['cine']['desde'], tiempo() - ESCENA['llegada'] + 300)
@@ -6317,6 +6409,9 @@ def main():
                     if controles._boton(controles.perfil('control').get('basico2', '')): usar_basico(j, 1, nivel)
                 avanzar_reloj()
                 resultado = actualizar_nivel(nivel, j) if tiempo() >= nivel.get('pausa_hasta', 0) else None   # pausa de impacto: solo se dibuja
+                if resultado is None and nivel.get('cinematica') and menus.CINE['x2']:   # escena a x2: el reloj se adelanta y la sala da otro paso
+                    pausa['total'] -= 17; avanzar_reloj()
+                    resultado = actualizar_nivel(nivel, j) if tiempo() >= nivel.get('pausa_hasta', 0) else None
                 if nivel['tipo'] in ('hall', 'pasillo'): actualizar_residentes(nivel)
                 dibujar_objetos(nivel, j, rec)
                 r_modo = actualizar_modo(nivel, j, resultado)           # el tutorial y el minijuego avanzan; el boss rush termina si cayo el equipo
