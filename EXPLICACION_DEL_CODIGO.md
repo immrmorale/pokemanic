@@ -155,7 +155,7 @@ logo, y `viaje_temporal` y `cruzar_portal` son las escenas del cosmos.
 
 Cada función con su línea y qué hace. Las que están adentro de otras van con sangría.
 
-### `main.py` (6553 líneas)
+### `main.py` (6569 líneas)
 
 > main.py - El juego en si: la ventana, los menus y la partida. Todo vive adentro de main(), en funciones armadas por grupos
 > (armar_*) que comparten la ventana, la configuracion y el estado de la partida.
@@ -230,324 +230,325 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
     - `hora()` (l. 888): La hora del juego en minutos del dia (se guarda en el perfil; arranca a las 8).
     - `avanzar_reloj()` (l. 892): Cada cuadro: la hora avanza con el tiempo jugado (un minuto por segundo); al pasar la medianoche cuenta un dia mas.
     - `pausado(f, *args, **kwargs)` (l. 901): Llama a un menu sin que el tiempo de la partida avance mientras esta abierto (los enfriamientos no corren).
-    - `habilidad_de(j)` (l. 1009): La habilidad de frenesi del pokemon que pelea (aunque no este en frenesi).
-    - `habilidad_frenesi(j)` (l. 1013): La habilidad activa ahora (None si no esta en frenesi).
-    - `armar_reglas()` (l. 1060): Reglas generales del combate: choques, tipos, modificadores y a quien se le puede pegar.
-      - `mover(rect, dx, dy, piedras)` (l. 1062): Mueve un rect por x y despues por y, sin meterse en ninguno de los rects de 'piedras'.
-      - `tipo_combate(datos)` (l. 1069): Tipo principal de un pokemon (el primero de su lista).
-      - `daño_con_tipo(daño, ataque_tipo, defensa_tipo)` (l. 1074): Daño final segun la tabla de tipos y el clima de la sala (minimo 1 si el ataque pegaba algo).
-      - `mod(j, clave)` (l. 1081): Multiplicador del entorno (terreno, maquinas, clima), lo de equipo comprado en la tienda y los objetos que lleva el que pelea.
-      - `llevados(j)` (l. 1085): Objetos equipados del pokemon que esta peleando (hasta 2).
-      - `objetivos_de(nivel, con_objetos)` (l. 1089): A quien le pueden pegar los ataques: enemigos, jefe y objetos rompibles.
-    - `armar_equipo()` (l. 1101): El equipo del jugador: miembros, cambio de pokemon, sinergias, debug y velocidad.
-      - `crear_miembro(nombre, nivel)` (l. 1103): Pokemon del equipo: nivel, xp, IV/EV y movimientos (progreso.py) mas su vida y su asistencia.
-      - `juego_de(m)` (l. 1112): Datos de combate de la especie con las MT enseñadas puestas en sus casillas (E, Q, Shift, R).
-      - `nombre_mov(nombre)` (l. 1123): Nombre para mostrar de un movimiento o una MT.
-      - `datos_mov(nombre)` (l. 1128): Datos de un movimiento: de la MT si es una, si no de la lista de movimientos.
-      - `reiniciar_asistencia(m)` (l. 1132): Al entrar a una sala la asistencia arranca con un 30% de su espera ya cargada.
-      - `actualizar_sinergia(j)` (l. 1136): Suma las pasivas de los pokemon vivos de la banca (cada rol da algo: daño, defensa, velocidad o recargas).
-      - `aplicar_pokemon(j, nombre, vida, centro)` (l. 1152): Pone en el jugador los datos del pokemon activo: tamaño, vida, velocidad, multiplicadores y su animador.
-      - `crear_jugador(nombres, centro, modo)` (l. 1167): Arrancas solo con tu inicial; el resto del equipo se suma por amistad.
-      - `guardar_activo(j)` (l. 1179): Guarda la vida del pokemon activo en su lugar del equipo (antes de cambiarlo o de salir de la sala).
-      - `cambiar_slot(j, indice, forzar)` (l. 1183): Cambia al pokemon del espacio 'indice' (no si esta debilitado, atacando, congelado o en la espera de 2,5 s).
-      - `equipar_debug(j, nombre, espacio)` (l. 1205): Menu debug: pone un pokemon en un espacio del equipo de la partida (o lo intercambia si ya estaba).
-      - `reiniciar_jugador(j, centro)` (l. 1229): Al entrar a una sala: te pone en la entrada. La vida sigue como estaba (sin curas, como en Hades).
-      - `mult_buff(j, clave)` (l. 1242): Multiplicador de un buff activo (danza espada, agilidad...) o 1 si no hay o ya se vencio.
-      - `velocidad_actual(j)` (l. 1247): Velocidad del jugador con todo encima: buffs, sinergia, correr, terreno, tienda y nivel.
-    - `armar_movimiento()` (l. 1263): Mover al jugador, la camara y hacia donde apunta.
-      - `mover_jugador(j, piedras)` (l. 1265): Mueve al jugador segun las teclas o la palanca: correr gasta energia, el hielo resbala y las cintas empujan.
-      - `camara(j)` (l. 1300): Esquina de arriba a la izquierda de lo que se ve: centrada en el jugador sin salirse de la sala.
-      - `apuntar(j)` (l. 1305): Hacia donde mira y apunta el jugador: mouse, palanca derecha o la ultima direccion caminada (segun el modo).
-      - `asistido(j, aim, alcance, grados)` (l. 1338): Apuntado asistido (teclas o control sin la palanca derecha): el enemigo mas cercano dentro de un cono adelante, o None.
-      - `punto_apuntado(j, alcance)` (l. 1351): Punto del mapa donde apunta el jugador, como mucho a 'alcance' pixeles (asistencias de area).
-      - `direccion_de(v)` (l. 1369): Una de las 8 direcciones ('norte', 'sureste'...) para un vector.
-    - `armar_estilo()` (l. 1379): Medidor de estilo (D a S) y nota de la sala. Sube con el ritmo de tus golpes (variados), moviendote, con combos completos,
-      - `estilo_nuevo()` (l. 1383): El estado del medidor de estilo al empezar.
-      - `stats_nuevas(enemigos)` (l. 1387): Lo que se va midiendo en una sala para la nota.
-      - `hay_peligro(nivel)` (l. 1393): Si quedan enemigos vivos (o por aparecer) en la sala.
-      - `rango_de(puntos)` (l. 1400): La letra de estilo (D a S) que corresponde a esos puntos.
-      - `sumar_estilo(j, puntos, nivel)` (l. 1403): Suma (o resta) puntos de estilo. Si sube de rango, la letra salta. Sin enemigos vivos no suma (solo baja).
-      - `contar(nivel, clave, cuanto)` (l. 1414): Suma a lo que se mide para la nota (combos, relevos, sinergias...), solo mientras hay enemigos.
-      - `registrar_accion(j, clase)` (l. 1418): Cada vez que usas un ataque: si es el mismo que el anterior, cuenta como repetido (rinde menos estilo).
-      - `estilo_por_golpe(j, nivel)` (l. 1424): Un golpe que conecta: mas puntos cuanto mas seguido le venis pegando (ritmo) y cuanto mas variado.
-      - `mult_estilo(j)` (l. 1446): Multiplicador de daño del rango actual (D x1 ... S x1.25).
-      - `baja(j, nivel)` (l. 1450): Un enemigo menos: un poco de estilo y racha (bajas seguidas en pocos segundos dan monedas extra).
-      - `golpe_recibido(j, nivel)` (l. 1473): Te pegaron: baja el estilo y se corta la racha.
-      - `enfriar_estilo(j, nivel)` (l. 1480): Cada cuadro: moverte con enemigos vivos suma un poquito (y cuenta para la nota); el estilo se va solo,
-      - `nota_sala(nivel, j)` (l. 1495): Nota de la sala al limpiarla (S, A, B, C o D): ritmo, movimiento, combos, relevos y sinergias. Devuelve (letra, detalle).
-        - `entre(valor, cero, lleno)` (l. 1498): Qué tan lleno está un valor entre un mínimo y un máximo (0 a 1), para la nota de la sala.
-    - `armar_ataques()` (l. 1522): Ataques del jugador (basicos, especiales, asistencias, embestidas) y el daño que recibe.
-      - `preparar(j, datos)` (l. 1524): Copia del movimiento con el daño final: rol, buffs, sinergia, tienda, critico y el stat (Ataque o At. Esp.).
-      - `enfriamiento_de(j, datos)` (l. 1541): Espera (ms) antes de poder repetir el ataque, con rol, sinergia, buffs y terreno.
-      - `iniciar_ataque(j, forma, enfriamiento, movimiento, tipo)` (l. 1550): Pone la animacion del ataque (por su nombre, tipo y forma: puño -> Punch, electrico -> Shock, proyectil -> Shoot),
-      - `golpear(j, datos, objetivos, efectos, arco, alcance_extra)` (l. 1560): Golpe cuerpo a cuerpo: le pega a todo lo que esta adelante (en un arco de 'arco' grados a cada lado, o en el rectangulo
-      - `lanzar(j, datos, proyectiles)` (l. 1594): Dispara uno o varios proyectiles (en abanico) hacia donde apunta el jugador.
-      - `area_efecto(j, datos, objetivos, efectos, centro)` (l. 1609): Golpe en circulo alrededor del jugador (o en 'centro'): pega a todos adentro y hace reaccionar el terreno.
-      - `iniciar_embestida(j, datos)` (l. 1621): Empieza una embestida: el jugador sale disparado hacia donde apunta.
-      - `actualizar_embestida(j, objetivos, piedras)` (l. 1631): Un paso de la embestida: avanza, le pega una vez a cada uno que toca y frena contra las paredes.
-      - `descongelar(j, tipo)` (l. 1654): Congelado solo se puede usar un movimiento de fuego o de lucha, y te descongela (si no, hay que esperar).
-      - `ocupado(j)` (l. 1662): Si el jugador no puede atacar ahora: embistiendo, esquivando o nadando a la orilla.
-      - `apuntar_al_cercano(j, objetivos, alcance)` (l. 1666): Iman del golpe: si hay un enemigo cerca y casi adelante, el golpe se acomoda hacia el.
-      - `premiar(j, energia, recarga, cura)` (l. 1679): Premio por pelear bien (golpes que conectan, parry, esquive perfecto): energia, menos espera en los especiales y algo de vida.
-      - `abrir_parry(j, nivel)` (l. 1686): Apretar el golpe abre la ventana de parry (si no la gastaste recien). Los que estan por pegarte ahora mismo quedan bloqueados.
-      - `usar_basico(j, indice, nivel, apretado)` (l. 1697): Ataque basico: 0 = cuerpo a cuerpo (combo de 3 golpes, abre el parry), 1 = a distancia.
-      - `golpe_combo(j, datos, nivel, movimiento)` (l. 1726): Un golpe del combo: 1 y 2 rapidos, el 3 es un remate que barre, empuja lejos e interrumpe a los enemigos comunes.
-      - `esquivar(j, nivel)` (l. 1769): Esquive: salto corto hacia donde caminas (si estas quieto, para atras) con invulnerabilidad. Gasta energia.
-      - `actualizar_esquive(j, piedras)` (l. 1791): Un paso del esquive: avanza rapido y frena contra las paredes.
-      - `esquive_perfecto(j)` (l. 1805): Te iban a pegar mientras esquivabas: premio (una vez por esquive).
-      - `intentar_parry(j, e, nivel)` (l. 1818): Si el jugador esta en su ventana de parry y el enemigo esta cerca, bloquea su ataque
-      - `parry_exitoso(j, nivel, donde)` (l. 1837): Lo que pasa con cualquier parry (golpe o bala): destello, premio y la ventana queda libre para el proximo.
-      - `usar_especial(j, indice, nivel)` (l. 1851): Especial 1 o 2 (Shift / R): proyectil, golpe, area, embestida, buff o cura, segun el movimiento.
-        - `soltar()` (l. 1869): El especial sale, despues de la carga.
-      - `usar_asistencia(j, k, nivel)` (l. 1891): Asistencia de un pokemon de la banca (F / G): impacto, escudo, furia, carrera, cura, desvanecer o masivo.
-      - `actualizar_jugador(j)` (l. 1926): Animacion del jugador: termina el ataque en curso o camina / queda quieto al ritmo de su velocidad.
-      - `dañar_jugador(j, daño, tipo, evitable, atacante)` (l. 1940): Le saca vida al jugador: tipos, buffs, sinergia, tienda y defensa (nada si esta el truco de vida infinita).
+    - `habilidad_de(j)` (l. 1012): La habilidad de frenesi del pokemon que pelea (aunque no este en frenesi).
+    - `habilidad_frenesi(j)` (l. 1016): La habilidad activa ahora (None si no esta en frenesi).
+    - `armar_reglas()` (l. 1063): Reglas generales del combate: choques, tipos, modificadores y a quien se le puede pegar.
+      - `mover(rect, dx, dy, piedras)` (l. 1065): Mueve un rect por x y despues por y, sin meterse en ninguno de los rects de 'piedras'.
+      - `tipo_combate(datos)` (l. 1072): Tipo principal de un pokemon (el primero de su lista).
+      - `daño_con_tipo(daño, ataque_tipo, defensa_tipo)` (l. 1077): Daño final segun la tabla de tipos y el clima de la sala (minimo 1 si el ataque pegaba algo).
+      - `mod(j, clave)` (l. 1084): Multiplicador del entorno (terreno, maquinas, clima), lo de equipo comprado en la tienda y los objetos que lleva el que pelea.
+      - `llevados(j)` (l. 1088): Objetos equipados del pokemon que esta peleando (hasta 2).
+      - `objetivos_de(nivel, con_objetos)` (l. 1092): A quien le pueden pegar los ataques: enemigos, jefe y objetos rompibles.
+    - `armar_equipo()` (l. 1104): El equipo del jugador: miembros, cambio de pokemon, sinergias, debug y velocidad.
+      - `crear_miembro(nombre, nivel)` (l. 1106): Pokemon del equipo: nivel, xp, IV/EV y movimientos (progreso.py) mas su vida y su asistencia.
+      - `juego_de(m)` (l. 1115): Datos de combate de la especie con las MT enseñadas puestas en sus casillas (E, Q, Shift, R).
+      - `nombre_mov(nombre)` (l. 1126): Nombre para mostrar de un movimiento o una MT.
+      - `datos_mov(nombre)` (l. 1131): Datos de un movimiento: de la MT si es una, si no de la lista de movimientos.
+      - `reiniciar_asistencia(m)` (l. 1135): Al entrar a una sala la asistencia arranca con un 30% de su espera ya cargada.
+      - `actualizar_sinergia(j)` (l. 1139): Suma las pasivas de los pokemon vivos de la banca (cada rol da algo: daño, defensa, velocidad o recargas).
+      - `aplicar_pokemon(j, nombre, vida, centro)` (l. 1155): Pone en el jugador los datos del pokemon activo: tamaño, vida, velocidad, multiplicadores y su animador.
+      - `crear_jugador(nombres, centro, modo)` (l. 1170): Arrancas solo con tu inicial; el resto del equipo se suma por amistad.
+      - `guardar_activo(j)` (l. 1182): Guarda la vida del pokemon activo en su lugar del equipo (antes de cambiarlo o de salir de la sala).
+      - `cambiar_slot(j, indice, forzar)` (l. 1186): Cambia al pokemon del espacio 'indice' (no si esta debilitado, atacando, congelado o en la espera de 2,5 s).
+      - `equipar_debug(j, nombre, espacio)` (l. 1208): Menu debug: pone un pokemon en un espacio del equipo de la partida (o lo intercambia si ya estaba).
+      - `reiniciar_jugador(j, centro)` (l. 1232): Al entrar a una sala: te pone en la entrada. La vida sigue como estaba (sin curas, como en Hades).
+      - `mult_buff(j, clave)` (l. 1245): Multiplicador de un buff activo (danza espada, agilidad...) o 1 si no hay o ya se vencio.
+      - `velocidad_actual(j)` (l. 1250): Velocidad del jugador con todo encima: buffs, sinergia, correr, terreno, tienda y nivel.
+    - `armar_movimiento()` (l. 1266): Mover al jugador, la camara y hacia donde apunta.
+      - `mover_jugador(j, piedras)` (l. 1268): Mueve al jugador segun las teclas o la palanca: correr gasta energia, el hielo resbala y las cintas empujan.
+      - `camara(j)` (l. 1303): Esquina de arriba a la izquierda de lo que se ve: centrada en el jugador sin salirse de la sala.
+      - `apuntar(j)` (l. 1308): Hacia donde mira y apunta el jugador: mouse, palanca derecha o la ultima direccion caminada (segun el modo).
+      - `asistido(j, aim, alcance, grados)` (l. 1341): Apuntado asistido (teclas o control sin la palanca derecha): el enemigo mas cercano dentro de un cono adelante, o None.
+      - `punto_apuntado(j, alcance)` (l. 1354): Punto del mapa donde apunta el jugador, como mucho a 'alcance' pixeles (asistencias de area).
+      - `direccion_de(v)` (l. 1372): Una de las 8 direcciones ('norte', 'sureste'...) para un vector.
+    - `armar_estilo()` (l. 1382): Medidor de estilo (D a S) y nota de la sala. Sube con el ritmo de tus golpes (variados), moviendote, con combos completos,
+      - `estilo_nuevo()` (l. 1386): El estado del medidor de estilo al empezar.
+      - `stats_nuevas(enemigos)` (l. 1390): Lo que se va midiendo en una sala para la nota.
+      - `hay_peligro(nivel)` (l. 1396): Si quedan enemigos vivos (o por aparecer) en la sala.
+      - `rango_de(puntos)` (l. 1403): La letra de estilo (D a S) que corresponde a esos puntos.
+      - `sumar_estilo(j, puntos, nivel)` (l. 1406): Suma (o resta) puntos de estilo. Si sube de rango, la letra salta. Sin enemigos vivos no suma (solo baja).
+      - `contar(nivel, clave, cuanto)` (l. 1417): Suma a lo que se mide para la nota (combos, relevos, sinergias...), solo mientras hay enemigos.
+      - `registrar_accion(j, clase)` (l. 1421): Cada vez que usas un ataque: si es el mismo que el anterior, cuenta como repetido (rinde menos estilo).
+      - `estilo_por_golpe(j, nivel)` (l. 1427): Un golpe que conecta: mas puntos cuanto mas seguido le venis pegando (ritmo) y cuanto mas variado.
+      - `mult_estilo(j)` (l. 1449): Multiplicador de daño del rango actual (D x1 ... S x1.25).
+      - `baja(j, nivel)` (l. 1453): Un enemigo menos: un poco de estilo y racha (bajas seguidas en pocos segundos dan monedas extra).
+      - `golpe_recibido(j, nivel)` (l. 1476): Te pegaron: baja el estilo y se corta la racha.
+      - `enfriar_estilo(j, nivel)` (l. 1483): Cada cuadro: moverte con enemigos vivos suma un poquito (y cuenta para la nota); el estilo se va solo,
+      - `nota_sala(nivel, j)` (l. 1498): Nota de la sala al limpiarla (S, A, B, C o D): ritmo, movimiento, combos, relevos y sinergias. Devuelve (letra, detalle).
+        - `entre(valor, cero, lleno)` (l. 1501): Qué tan lleno está un valor entre un mínimo y un máximo (0 a 1), para la nota de la sala.
+    - `armar_ataques()` (l. 1525): Ataques del jugador (basicos, especiales, asistencias, embestidas) y el daño que recibe.
+      - `preparar(j, datos)` (l. 1527): Copia del movimiento con el daño final: rol, buffs, sinergia, tienda, critico y el stat (Ataque o At. Esp.).
+      - `enfriamiento_de(j, datos)` (l. 1544): Espera (ms) antes de poder repetir el ataque, con rol, sinergia, buffs y terreno.
+      - `iniciar_ataque(j, forma, enfriamiento, movimiento, tipo)` (l. 1553): Pone la animacion del ataque (por su nombre, tipo y forma: puño -> Punch, electrico -> Shock, proyectil -> Shoot),
+      - `golpear(j, datos, objetivos, efectos, arco, alcance_extra)` (l. 1563): Golpe cuerpo a cuerpo: le pega a todo lo que esta adelante (en un arco de 'arco' grados a cada lado, o en el rectangulo
+      - `lanzar(j, datos, proyectiles)` (l. 1597): Dispara uno o varios proyectiles (en abanico) hacia donde apunta el jugador.
+      - `area_efecto(j, datos, objetivos, efectos, centro)` (l. 1612): Golpe en circulo alrededor del jugador (o en 'centro'): pega a todos adentro y hace reaccionar el terreno.
+      - `iniciar_embestida(j, datos)` (l. 1624): Empieza una embestida: el jugador sale disparado hacia donde apunta.
+      - `actualizar_embestida(j, objetivos, piedras)` (l. 1634): Un paso de la embestida: avanza, le pega una vez a cada uno que toca y frena contra las paredes.
+      - `descongelar(j, tipo)` (l. 1657): Congelado solo se puede usar un movimiento de fuego o de lucha, y te descongela (si no, hay que esperar).
+      - `ocupado(j)` (l. 1665): Si el jugador no puede atacar ahora: embistiendo, esquivando o nadando a la orilla.
+      - `apuntar_al_cercano(j, objetivos, alcance)` (l. 1669): Iman del golpe: si hay un enemigo cerca y casi adelante, el golpe se acomoda hacia el.
+      - `premiar(j, energia, recarga, cura)` (l. 1682): Premio por pelear bien (golpes que conectan, parry, esquive perfecto): energia, menos espera en los especiales y algo de vida.
+      - `abrir_parry(j, nivel)` (l. 1689): Apretar el golpe abre la ventana de parry (si no la gastaste recien). Los que estan por pegarte ahora mismo quedan bloqueados.
+      - `usar_basico(j, indice, nivel, apretado)` (l. 1700): Ataque basico: 0 = cuerpo a cuerpo (combo de 3 golpes, abre el parry), 1 = a distancia.
+      - `golpe_combo(j, datos, nivel, movimiento)` (l. 1729): Un golpe del combo: 1 y 2 rapidos, el 3 es un remate que barre, empuja lejos e interrumpe a los enemigos comunes.
+      - `esquivar(j, nivel)` (l. 1772): Esquive: salto corto hacia donde caminas (si estas quieto, para atras) con invulnerabilidad. Gasta energia.
+      - `actualizar_esquive(j, piedras)` (l. 1794): Un paso del esquive: avanza rapido y frena contra las paredes.
+      - `esquive_perfecto(j)` (l. 1808): Te iban a pegar mientras esquivabas: premio (una vez por esquive).
+      - `intentar_parry(j, e, nivel)` (l. 1821): Si el jugador esta en su ventana de parry y el enemigo esta cerca, bloquea su ataque
+      - `parry_exitoso(j, nivel, donde)` (l. 1840): Lo que pasa con cualquier parry (golpe o bala): destello, premio y la ventana queda libre para el proximo.
+      - `usar_especial(j, indice, nivel)` (l. 1854): Especial 1 o 2 (Shift / R): proyectil, golpe, area, embestida, buff o cura, segun el movimiento.
+        - `soltar()` (l. 1872): El especial sale, despues de la carga.
+      - `usar_asistencia(j, k, nivel)` (l. 1894): Asistencia de un pokemon de la banca (F / G): impacto, escudo, furia, carrera, cura, desvanecer o masivo.
+      - `actualizar_jugador(j)` (l. 1929): Animacion del jugador: termina el ataque en curso o camina / queda quieto al ritmo de su velocidad.
+      - `dañar_jugador(j, daño, tipo, evitable, atacante)` (l. 1943): Le saca vida al jugador: tipos, buffs, sinergia, tienda y defensa (nada si esta el truco de vida infinita).
     - **Estados del jugador (cada pokemon tiene los suyos): los ponen los golpes de algunos tipos y algunas mecanicas**
-      - `golpe_al_jugador(j, d, t, atacante)` (l. 1974): Un enemigo te pega (cuerpo a cuerpo si se sabe quien): daño, la mordida de Mawile y a veces un estado segun el tipo.
-      - `tiene_estado(j, estado)` (l. 1994): Si el pokemon que pelea tiene ese estado ahora (veneno, quemadura...).
-      - `poner_estado(j, estado, ms)` (l. 1997): Le pone un estado al pokemon que pelea (si su tipo no es inmune). Devuelve True si quedo.
-      - `curar_estados(m, cuales)` (l. 2008): Le saca los estados a un pokemon (a todos, o solo los de 'cuales').
-      - `estado_por_golpe(j, tipo)` (l. 2015): Un golpe enemigo que te dio: segun su tipo, a veces te deja un estado.
-      - `actualizar_estados(j)` (l. 2020): Cada cuadro: el veneno y la quemadura sacan vida de a poco (sin dejarte en 0) y los estados vencidos se van.
-      - `nivel_super(j)` (l. 2035): Nivel del combo de combos (0 si no hay o se vencio la ventana).
-      - `supercombo(j, ahora, conecto)` (l. 2040): Un remate (o un enlace) que conecto sube el combo de combos y abre otra ventana para seguirlo. Devuelve el nivel.
-      - `rematar(nivel, tocados, tipo)` (l. 2048): El remate termina a los enemigos comunes que quedaron con poca vida (y su baja rebota como cualquier otra).
-      - `eco_de_baja(muerto, datos, daño)` (l. 2056): Cadena de bajas: el golpe que derrota a un enemigo rebota al mas cercano (no a los jefes). Si ese tambien cae, sigue
-      - `recibir_ataque(obj, datos, direccion)` (l. 2073): Un enemigo, jefe u objeto recibe un ataque: daño por tipo, efecto de estado (quemar, paralizar...) y empujon.
-    - `armar_enemigos()` (l. 2139): Enemigos, proyectiles y jefes.
-      - `elegir_pokemon_enemigo(era)` (l. 2141): Pokemon al azar de los de la era (primero los que tienen sprites).
-      - `pokemon_de_tipo(tipo, era)` (l. 2146): Pokemon (no jefes) que tienen ese tipo: primero los de la era, despues cualquiera.
-      - `crear_enemigo(nivel, punto, cazando, nombre, nv, estilo)` (l. 2154): Enemigo de la era de la sala, mas fuerte cuanto mas avanzas (o el pokemon y nivel que se pidan).
-      - `crear_mini_regi(nivel, nombre, punto, cazando)` (l. 2174): Regi chiquito de Regigigas: un enemigo comun un poco mas fuerte, mucho mas flojo que el Regi de verdad.
-      - `crear_aparicion(nivel, a, j)` (l. 2183): La marca de aparicion se cumplio: sale el enemigo (comun, refuerzo de un Regi o Regi chiquito).
-      - `invocaciones_jefe(nivel, j, jefe)` (l. 2191): Los Regis llaman refuerzos de su tipo al perder un cuarto de vida; Regigigas invoca Regis chiquitos cada tanto; Arceus avisa cada fase.
-      - `torre_regidrago(nivel, j, jefe, ahora)` (l. 2221): Regidrago pide subir (te mordio) o bajar (se rompio la torre). Los que estaban en la sala esperan abajo.
-      - `actualizar_animacion_enemigo(e)` (l. 2238): Animacion de un enemigo segun como se movio: suaviza la direccion para que no titile y camina al ritmo real.
-      - `dibujar_enemigo(e, cx, cy)` (l. 2263): Dibuja un enemigo con un anillo del color de su tipo a los pies. False si no tiene sprite.
-      - `actualizar_estado(e)` (l. 2284): Estados alterados: la quemadura saca vida cada 0,7 s; al vencerse el estado se borra.
-      - `crear_proyectil(x, y, dx, dy, daño, jefe, tipo, vel, alcance, tam)` (l. 2293): Bala de un enemigo o jefe: posicion, direccion, daño, velocidad y alcance.
-      - `actualizar_proyectil(proyectil, j, piedras, rebotados)` (l. 2298): Mueve una bala enemiga: se apaga al llegar a su alcance o chocar, y si toca al jugador le pega.
-      - `actualizar_proyectil_pokemon(proyectil, objetivos, piedras)` (l. 2316): Mueve un proyectil del jugador: pega a lo que toca (los que atraviesan siguen) y se apaga al chocar.
-      - `crear_jefe(nivel, nombre, vida, nv, tam, centro, tam_sprite)` (l. 2339): Jefe, Regi o Arceus: aparece arriba del centro de la arena (o donde se pida).
-      - `crear_piedras_verdes(jefe)` (l. 2352): Piedras que lastiman si las pisas, alrededor del jefe (sin pisarse entre ellas ni salir de la sala).
-      - `actualizar_jefe(jefe, j, proyectiles, verdes, contexto)` (l. 2363): Movimiento y ataques avisados en ia.py; aca el anillo de balas, las piedras verdes y el choque.
-    - `armar_salas()` (l. 2387): Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame.
-      - `subjefe_rush(rec, era, sala)` (l. 2391): En el boss rush los subjefes de la era van seguidos: el primero y despues el segundo.
-      - `previa_sala(era, i, tipo)` (l. 2397): Una sala de ejemplo de ese lugar del plan, dibujada entera (mapa y objetos) para el menu F2. Se arma una sola vez.
-      - `miniatura(previa, ancho, alto)` (l. 2415): La sala achicada para que entre en (ancho, alto) sin deformarse.
-      - `menu_niveles(rec)` (l. 2423): F2: elegir era (pestañas arriba) y sala (con una vista del mapa). La ultima carta salta a la era siguiente.
-      - `cartel(nivel, texto, duracion, subtitulo, grande)` (l. 2526): Mensaje que se ve un rato y se va solo (no hay que cerrarlo).
-      - `repartir(total, partes)` (l. 2533): Divide la cantidad de enemigos en oleadas (la primera un poco mas grande).
+      - `golpe_al_jugador(j, d, t, atacante)` (l. 1977): Un enemigo te pega (cuerpo a cuerpo si se sabe quien): daño, la mordida de Mawile y a veces un estado segun el tipo.
+      - `tiene_estado(j, estado)` (l. 1997): Si el pokemon que pelea tiene ese estado ahora (veneno, quemadura...).
+      - `poner_estado(j, estado, ms)` (l. 2000): Le pone un estado al pokemon que pelea (si su tipo no es inmune). Devuelve True si quedo.
+      - `curar_estados(m, cuales)` (l. 2011): Le saca los estados a un pokemon (a todos, o solo los de 'cuales').
+      - `estado_por_golpe(j, tipo)` (l. 2018): Un golpe enemigo que te dio: segun su tipo, a veces te deja un estado.
+      - `actualizar_estados(j)` (l. 2023): Cada cuadro: el veneno y la quemadura sacan vida de a poco (sin dejarte en 0) y los estados vencidos se van.
+      - `nivel_super(j)` (l. 2038): Nivel del combo de combos (0 si no hay o se vencio la ventana).
+      - `supercombo(j, ahora, conecto)` (l. 2043): Un remate (o un enlace) que conecto sube el combo de combos y abre otra ventana para seguirlo. Devuelve el nivel.
+      - `rematar(nivel, tocados, tipo)` (l. 2051): El remate termina a los enemigos comunes que quedaron con poca vida (y su baja rebota como cualquier otra).
+      - `eco_de_baja(muerto, datos, daño)` (l. 2059): Cadena de bajas: el golpe que derrota a un enemigo rebota al mas cercano (no a los jefes). Si ese tambien cae, sigue
+      - `recibir_ataque(obj, datos, direccion)` (l. 2076): Un enemigo, jefe u objeto recibe un ataque: daño por tipo, efecto de estado (quemar, paralizar...) y empujon.
+    - `armar_enemigos()` (l. 2142): Enemigos, proyectiles y jefes.
+      - `elegir_pokemon_enemigo(era)` (l. 2144): Pokemon al azar de los de la era (primero los que tienen sprites).
+      - `pokemon_de_tipo(tipo, era)` (l. 2149): Pokemon (no jefes) que tienen ese tipo: primero los de la era, despues cualquiera.
+      - `crear_enemigo(nivel, punto, cazando, nombre, nv, estilo)` (l. 2157): Enemigo de la era de la sala, mas fuerte cuanto mas avanzas (o el pokemon y nivel que se pidan).
+      - `crear_mini_regi(nivel, nombre, punto, cazando)` (l. 2177): Regi chiquito de Regigigas: un enemigo comun un poco mas fuerte, mucho mas flojo que el Regi de verdad.
+      - `crear_aparicion(nivel, a, j)` (l. 2186): La marca de aparicion se cumplio: sale el enemigo (comun, refuerzo de un Regi o Regi chiquito).
+      - `invocaciones_jefe(nivel, j, jefe)` (l. 2194): Los Regis llaman refuerzos de su tipo al perder un cuarto de vida; Regigigas invoca Regis chiquitos cada tanto; Arceus avisa cada fase.
+      - `torre_regidrago(nivel, j, jefe, ahora)` (l. 2224): Regidrago pide subir (te mordio) o bajar (se rompio la torre). Los que estaban en la sala esperan abajo.
+      - `actualizar_animacion_enemigo(e)` (l. 2241): Animacion de un enemigo segun como se movio: suaviza la direccion para que no titile y camina al ritmo real.
+      - `dibujar_enemigo(e, cx, cy)` (l. 2266): Dibuja un enemigo con un anillo del color de su tipo a los pies. False si no tiene sprite.
+      - `actualizar_estado(e)` (l. 2287): Estados alterados: la quemadura saca vida cada 0,7 s; al vencerse el estado se borra.
+      - `crear_proyectil(x, y, dx, dy, daño, jefe, tipo, vel, alcance, tam)` (l. 2296): Bala de un enemigo o jefe: posicion, direccion, daño, velocidad y alcance.
+      - `actualizar_proyectil(proyectil, j, piedras, rebotados)` (l. 2301): Mueve una bala enemiga: se apaga al llegar a su alcance o chocar, y si toca al jugador le pega.
+      - `actualizar_proyectil_pokemon(proyectil, objetivos, piedras)` (l. 2319): Mueve un proyectil del jugador: pega a lo que toca (los que atraviesan siguen) y se apaga al chocar.
+      - `crear_jefe(nivel, nombre, vida, nv, tam, centro, tam_sprite)` (l. 2342): Jefe, Regi o Arceus: aparece arriba del centro de la arena (o donde se pida).
+      - `crear_piedras_verdes(jefe)` (l. 2355): Piedras que lastiman si las pisas, alrededor del jefe (sin pisarse entre ellas ni salir de la sala).
+      - `actualizar_jefe(jefe, j, proyectiles, verdes, contexto)` (l. 2366): Movimiento y ataques avisados en ia.py; aca el anillo de balas, las piedras verdes y el choque.
+    - `armar_salas()` (l. 2390): Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame.
+      - `con_faroles(registro, primera)` (l. 2395): Si la sala va con faroles (ver FAROLES). primera: es la primera sala que pisas al ponerte a jugar.
+      - `subjefe_rush(rec, era, sala)` (l. 2403): En el boss rush los subjefes de la era van seguidos: el primero y despues el segundo.
+      - `previa_sala(era, i, tipo)` (l. 2409): Una sala de ejemplo de ese lugar del plan, dibujada entera (mapa y objetos) para el menu F2. Se arma una sola vez.
+      - `miniatura(previa, ancho, alto)` (l. 2427): La sala achicada para que entre en (ancho, alto) sin deformarse.
+      - `menu_niveles(rec)` (l. 2435): F2: elegir era (pestañas arriba) y sala (con una vista del mapa). La ultima carta salta a la era siguiente.
+      - `cartel(nivel, texto, duracion, subtitulo, grande)` (l. 2538): Mensaje que se ve un rato y se va solo (no hay que cerrarlo).
+      - `repartir(total, partes)` (l. 2545): Divide la cantidad de enemigos en oleadas (la primera un poco mas grande).
     - **Escenas: mientras duran no hay HUD (nivel['cinematica']) y en algunas no te podes mover (nivel['bloqueo'])**
-      - `empezar_llegada_era(nivel)` (l. 2543): Primera sala de una era: se abre un portal en la puerta, salen tu pokemon y Celebi, se cierra, y Celebi sube, abre otro
-      - `preparar_intro_jefe(nivel, titulo, sub)` (l. 2552): El jefe te espera sentado, dormido o de espaldas (modos.POSE_JEFE). Cuando entras (o te siente cerca) se da vuelta de a poco,
-      - `empezar_rescate(nivel, j)` (l. 2564): Cayo el Regi: Celebi sale de un portal en la puerta, viene volando, te agarra de la mano y te lleva corriendo hasta el portal
-      - `actualizar_cine(nivel, j, ahora)` (l. 2574): Un cuadro de la escena que este pasando. Devuelve True si la pelea tiene que esperar (enemigos y jefe quietos).
-      - `camino_rescate(c, k, destino)` (l. 2636): Por donde te lleva Celebi hasta el portal (k de 0 a 1): una curva de costado y, en algunas eras, a los saltitos.
-      - `crear_nivel(rec, destino, entrada, j, registro, llegada)` (l. 2644): Arma la sala actual del recorrido: mapa, entorno, puertas con su destino, enemigos y el cartel de entrada.
-      - `crear_prueba(rec, j)` (l. 2774): Sala del modo prueba: una arena de la era sin puertas, con muñecos (no atacan, no se mueren y miden tu daño)
-        - `libre_cerca(x, y)` (l. 2808): La casilla pisable mas cercana a (x, y), para que los muñecos no queden en el agua o en una pared.
-        - `muñeco(x, y)` (l. 2816): Pone un muñeco de práctica (modo prueba) en un lugar libre.
-        - `enemigo(estilo)` (l. 2825): Crea un enemigo del modo prueba con el estilo pedido.
-      - `menu_prueba(fondo_juego, rec)` (l. 2844): F3 en el modo prueba: elegir modo, era y tipo de sala (con flechas o clic) y aplicar. Devuelve True si cambio algo, o 'salir'.
-        - `valor(f)` (l. 2854): El texto de cada opción del menú del modo prueba.
-        - `aplicar()` (l. 2859): Aplica lo elegido en el menú del modo prueba (modo, era y sala).
-      - `suave_ui(k)` (l. 2898): Curva que frena al final (0 a 1), para que las cosas de la pantalla entren deslizándose.
-      - `enemigos_de_era_lista(era)` (l. 2901): Los pokemon de la era que tienen sprites (o, si no hay, cualquiera jugable).
-      - `actualizar_muñeco(nivel, e, ahora)` (l. 2904): Un muñeco: no se mueve ni ataca, vuelve a su lugar, anota el daño que recibe y se cura solo si lo dejas de pegar.
-      - `impacto(nivel, x, y, radio, temblor)` (l. 2915): Golpe fuerte de un jefe contra el piso: polvo, piedritas y la pantalla tiembla un rato.
-      - `empezar_llegada_beta(nivel, j, arceus)` (l. 2921): Arceus desaparece, pasas al medio de la arena y se preparan las Sentencias que van a caer alrededor (de afuera hacia adentro).
-      - `actualizar_llegada_beta(nivel, j)` (l. 2937): Caen las Sentencias y vuelven vacio el piso y las paredes donde caen; al final todo es vacio menos tu circulo
-      - `empezar_subjefe(nivel, j, beta, nombre)` (l. 2960): La ultima piedad de Arceus Beta: elegiste un circulo del triangulo. Arceus Beta espera afuera, se arma la arena de
-      - `terminar_subjefe(nivel, j, sub, contexto)` (l. 2978): Le ganaste al subjefe: monedas y experiencia, vuelve el triangulo y Arceus Beta sigue la pelea.
-      - `forzar_cambio(j)` (l. 2993): Llave Giro de Arceus Beta: te cambia al siguiente pokemon vivo (por la espera de cambio no podes volver por 2 s).
-      - `quitar_objeto(j)` (l. 3001): Desarme de Arceus Beta: perdes un objeto al azar de la mochila. Devuelve su nombre (None si no tenias).
-      - `usar_curacion(j, m, indice)` (l. 3011): Gasta la curacion de ese lugar del cinturon en el miembro m (el congelamiento solo lo tiene el que pelea).
-      - `curarse_rapido(j, nivel, rueda)` (l. 3032): Tecla de curarse (Z): dos toques usan la curacion del lugar 1 del cinturon en el que pelea; con rueda=True (mantenerla) se
-      - `dar_pocion_maxima(j, nivel)` (l. 3060): Celebi te da una Pocion Maxima si no tenes (solo se puede llevar una) y si hay lugar en el cinturon.
-      - `soltar_objeto(nivel, x, y, clave)` (l. 3068): Deja un objeto en el piso (baya, llave, caramelo...): salta un poquito y se junta al pasar cerca.
-      - `actualizar_recogibles(nivel, j)` (l. 3073): Los objetos del piso: frenan, se acercan si estas cerca (o si la sala esta limpia) y al tocarlos se usan o van a la mochila.
-      - `soltar_monedas(nivel, j, x, y, cantidad)` (l. 3093): Deja una pila de monedas en el piso (el amuleto moneda de la tienda las multiplica).
-      - `tecla_de(accion)` (l. 3098): Tecla asignada a una accion en el perfil de teclado, para mostrarla en los carteles.
-      - `ganar_xp(nivel, j, cantidad)` (l. 3102): Experiencia: el que pelea toda, los de la banca 3/4. Con el ajuste elastico: cada uno gana menos si va muy arriba del nivel
-      - `amistad_de_era()` (l. 3117): Cuantas veces alguien quiso unirse en esta era y cuantas salas van sin que nadie quiera (se reinicia al cambiar de era).
-      - `amigo_garantizado()` (l. 3123): Si en esta sala alguien tiene que querer unirse si o si: la sala 2 de la Era Glacial, y en cada era la 1ra oferta
-      - `quiza_amigo(nivel, j, e)` (l. 3131): A veces un pokemon derrotado quiere unirse a vos (no se captura: se hace tu amigo).
-      - `hablar_amigo(nivel, j)` (l. 3157): Interactuar con el que quiere unirse (el mas cercano, si hay varios por el baile). Devuelve True si estaba cerca.
-      - `bailar(j, nivel)` (l. 3188): V / R3: bailas un momento (Rotate, o Twirl / Hop si no tiene) y le afecta a los que estan cerca
-      - `premio_jefe(nivel, j, jefe)` (l. 3220): Los jefes dejan una MT que tu equipo pueda aprender (y el Regi, ademas, un objeto de evolucion si alguien lo necesita).
-      - `abrir_portal(nivel, avisar)` (l. 3234): Cayo el Regi: Celebi aparece al lado de la puerta y la convierte en un portal del tiempo hacia la era siguiente.
-      - `hablar_portal(nivel, j)` (l. 3251): E al lado de Celebi en la sala del Regi: te ofrece cruzar el portal ahora. Devuelve True si estaba cerca.
-      - `vitrina_cercana(nivel, j)` (l. 3265): La vitrina sin vender mas cerca del jugador (si esta al alcance y no esta mas cerca el lugar donde cura Chikorita).
-      - `bloque_cercano(j)` (l. 3275): El bloque de hielo de Regice que tenes al lado (si hay).
-      - `empujar_bloque(nivel, j)` (l. 3281): E al lado de un bloque de hielo: sale disparado para el otro lado y se desliza por la escarcha.
-      - `curandera_cerca(nivel, j)` (l. 3293): Si estas al lado del mostrador de Chikorita rosa (curaciones) en la tienda.
-      - `hablar_curandera(nivel, j)` (l. 3298): E al lado de Chikorita rosa: curar al que pelea o curar (y revivir) a todo el equipo, por monedas. True si estaba cerca.
-      - `comprar_cercano(nivel, j)` (l. 3325): E en la tienda: compra lo que tenes adelante. Devuelve True si habia algo para comprar.
-      - `invocar_minion(nivel, nombre, pos, vida, intocable)` (l. 3351): Un pokemon de la pelea de un subjefe (Arrokuda, Pikachu, Magnemite, Grimer): lo mueve el subjefe, no da monedas
-      - `actualizar_nivel(nivel, j)` (l. 3363): Todo lo que pasa en un frame de la sala: jugador, entorno, enemigos, jefe, balas, monedas, llave y puertas.
-    - `armar_mecanicas()` (l. 3638): Las mecanicas unicas de cada linea (mecanicas.py): le pasa lo que necesitan del juego.
-      - `mover_entidad(o, dx, dy, libre)` (l. 3640): Mueve a un enemigo (o al jugador) sin meterlo en paredes ni objetos (libre: bajo tierra, sin chocar).
-      - `poner_buff(j, clave, valor, ms)` (l. 3646): Le pone un buff al jugador por unos milisegundos (lo usan las mecánicas).
-      - `guardar_y_aplicar(j)` (l. 3649): Después de que una mecánica tocó al equipo: la vida del que pelea y la sinergia al día.
-      - `rehacer_animador(ent, nombre)` (l. 3652): Cambia los sprites (la Ilusion de Zorua, o un enemigo disfrazado que se revela).
-      - `enemigos_de_era(nivel)` (l. 3661): Los pokemon de la era de la sala (para las mecánicas que invocan o copian).
-    - `armar_hall()` (l. 3679): El hall (como la casa de Hades): al caer todo el equipo Celebi te trae aca. El viaje se pierde, pero tus amigos se quedan
-      - `charla_de(a, perfil)` (l. 3684): Lo que dice un amigo del refugio: segun su especie, su tipo, su naturaleza, cuanto te quiere y hasta donde llegaron juntos (modos.py).
-      - `pedir_favor(a, perfil, nombre)` (l. 3698): Un amigo te pide algo para el proximo viaje (uno a la vez): si lo cumplis con el en el equipo, sube su amistad.
-      - `perfil_nuevo(nombre, genero)` (l. 3713): El perfil de una partida nueva (despues del viaje temporal).
-      - `registrar_amigos(perfil, miembros)` (l. 3717): Guarda (o actualiza) a estos pokemon en tus amigos: su forma (la evolucion que alcanzaron no se pierde aunque caiga el equipo),
-      - `desbloquear_todo(perfil)` (l. 3729): Truco: todas las eras derrotadas, todos los titanes en su sala y un amigo de cada especie que se puede jugar.
-      - `miembro_de(a)` (l. 3739): Un amigo listo para viajar: en la forma que alcanzo (sus evoluciones se quedan) y en el nivel del principio, con sus IV, su
-      - `estilo_hall(perfil)` (l. 3747): Que hall toca segun Ajustes > Hall: auto = donde aparece Celebi hasta que derrotes una era, despues el atemporal.
-      - `residente(a, punto)` (l. 3753): Un amigo que pasea por el hall (no esta en tu equipo): se anima como los enemigos pero no pelea.
-      - `pisables_hall(sala)` (l. 3762): Centros de las casillas del hall donde se puede caminar (sin objetos, sin agua ni vacio).
-      - `crear_hall(j, perfil)` (l. 3769): Arma la zona del refugio en la que estas (plaza, barrio, minijuegos, dojo o una habitacion): sin enemigos, con las puertas
-      - `zona_amigo(a, h)` (l. 3825): Donde esta un amigo a esa hora: su rutina (modos.RUTINAS, una por id) corrida hasta 45 minutos.
-      - `amigos_en(perfil, zona, en_equipo)` (l. 3832): Los amigos (que no estan en tu equipo) que a esta hora estan en esa zona del refugio.
-      - `salida_hacia(nivel, zona_destino)` (l. 3836): La puerta de la zona que lleva a otra (desde las habitaciones se sale a la plaza); si no hay, cualquiera.
-      - `mover_amigos(nivel, perfil, zona)` (l. 3843): Una vez por segundo: al que ya le toca estar en otro lado camina hasta la puerta y se va; el que llega entra por una puerta.
-      - `actualizar_residentes(nivel)` (l. 3856): Tus amigos pasean: eligen un lugar y caminan (arrancan despacio y frenan al llegar; a veces se paran a mirar); al llegar
-      - `posar(r, pose, ms)` (l. 3895): Un amigo del hall hace una animacion un rato (Nod al hablarle, Hop cuando viene al viaje).
-      - `cerca(j, punto, distancia)` (l. 3902): Si el jugador está a menos de cierta distancia de un punto (para hablar o usar algo).
-      - `hay_pasillo(nivel, puerta, rec)` (l. 3905): Si antes de la sala que sigue hay un camino tranquilo (no en el boss rush ni en el tutorial, ni saliendo de otro camino).
-      - `poblar_pasillo(nivel)` (l. 3912): Pokemon de la era paseando por el camino (los mismos cada vez que pasas: salen de la semilla de la sala).
-      - `hablar_pasillo(nivel, j)` (l. 3921): E en un camino: el pokemon mas cercano te dice algo de su era y, a veces, te regala una baya.
-      - `hablar_hall(nivel, j, perfil)` (l. 3933): E en el hall: hablar con Celebi o con un amigo (o, en un camino, con los pokemon de la era). Devuelve True si habia alguien cerca.
-      - `hablar_con(nivel, j, perfil, r)` (l. 3962): Charlar con un amigo del refugio (y llevarlo al proximo viaje si queres).
+      - `empezar_llegada_era(nivel)` (l. 2555): Primera sala de una era: se abre un portal en la puerta, salen tu pokemon y Celebi, se cierra, y Celebi sube, abre otro
+      - `preparar_intro_jefe(nivel, titulo, sub)` (l. 2564): El jefe te espera sentado, dormido o de espaldas (modos.POSE_JEFE). Cuando entras (o te siente cerca) se da vuelta de a poco,
+      - `empezar_rescate(nivel, j)` (l. 2576): Cayo el Regi: Celebi sale de un portal en la puerta, viene volando, te agarra de la mano y te lleva corriendo hasta el portal
+      - `actualizar_cine(nivel, j, ahora)` (l. 2586): Un cuadro de la escena que este pasando. Devuelve True si la pelea tiene que esperar (enemigos y jefe quietos).
+      - `camino_rescate(c, k, destino)` (l. 2648): Por donde te lleva Celebi hasta el portal (k de 0 a 1): una curva de costado y, en algunas eras, a los saltitos.
+      - `crear_nivel(rec, destino, entrada, j, registro, llegada)` (l. 2656): Arma la sala actual del recorrido: mapa, entorno, puertas con su destino, enemigos y el cartel de entrada.
+      - `crear_prueba(rec, j)` (l. 2790): Sala del modo prueba: una arena de la era sin puertas, con muñecos (no atacan, no se mueren y miden tu daño)
+        - `libre_cerca(x, y)` (l. 2824): La casilla pisable mas cercana a (x, y), para que los muñecos no queden en el agua o en una pared.
+        - `muñeco(x, y)` (l. 2832): Pone un muñeco de práctica (modo prueba) en un lugar libre.
+        - `enemigo(estilo)` (l. 2841): Crea un enemigo del modo prueba con el estilo pedido.
+      - `menu_prueba(fondo_juego, rec)` (l. 2860): F3 en el modo prueba: elegir modo, era y tipo de sala (con flechas o clic) y aplicar. Devuelve True si cambio algo, o 'salir'.
+        - `valor(f)` (l. 2870): El texto de cada opción del menú del modo prueba.
+        - `aplicar()` (l. 2875): Aplica lo elegido en el menú del modo prueba (modo, era y sala).
+      - `suave_ui(k)` (l. 2914): Curva que frena al final (0 a 1), para que las cosas de la pantalla entren deslizándose.
+      - `enemigos_de_era_lista(era)` (l. 2917): Los pokemon de la era que tienen sprites (o, si no hay, cualquiera jugable).
+      - `actualizar_muñeco(nivel, e, ahora)` (l. 2920): Un muñeco: no se mueve ni ataca, vuelve a su lugar, anota el daño que recibe y se cura solo si lo dejas de pegar.
+      - `impacto(nivel, x, y, radio, temblor)` (l. 2931): Golpe fuerte de un jefe contra el piso: polvo, piedritas y la pantalla tiembla un rato.
+      - `empezar_llegada_beta(nivel, j, arceus)` (l. 2937): Arceus desaparece, pasas al medio de la arena y se preparan las Sentencias que van a caer alrededor (de afuera hacia adentro).
+      - `actualizar_llegada_beta(nivel, j)` (l. 2953): Caen las Sentencias y vuelven vacio el piso y las paredes donde caen; al final todo es vacio menos tu circulo
+      - `empezar_subjefe(nivel, j, beta, nombre)` (l. 2976): La ultima piedad de Arceus Beta: elegiste un circulo del triangulo. Arceus Beta espera afuera, se arma la arena de
+      - `terminar_subjefe(nivel, j, sub, contexto)` (l. 2994): Le ganaste al subjefe: monedas y experiencia, vuelve el triangulo y Arceus Beta sigue la pelea.
+      - `forzar_cambio(j)` (l. 3009): Llave Giro de Arceus Beta: te cambia al siguiente pokemon vivo (por la espera de cambio no podes volver por 2 s).
+      - `quitar_objeto(j)` (l. 3017): Desarme de Arceus Beta: perdes un objeto al azar de la mochila. Devuelve su nombre (None si no tenias).
+      - `usar_curacion(j, m, indice)` (l. 3027): Gasta la curacion de ese lugar del cinturon en el miembro m (el congelamiento solo lo tiene el que pelea).
+      - `curarse_rapido(j, nivel, rueda)` (l. 3048): Tecla de curarse (Z): dos toques usan la curacion del lugar 1 del cinturon en el que pelea; con rueda=True (mantenerla) se
+      - `dar_pocion_maxima(j, nivel)` (l. 3076): Celebi te da una Pocion Maxima si no tenes (solo se puede llevar una) y si hay lugar en el cinturon.
+      - `soltar_objeto(nivel, x, y, clave)` (l. 3084): Deja un objeto en el piso (baya, llave, caramelo...): salta un poquito y se junta al pasar cerca.
+      - `actualizar_recogibles(nivel, j)` (l. 3089): Los objetos del piso: frenan, se acercan si estas cerca (o si la sala esta limpia) y al tocarlos se usan o van a la mochila.
+      - `soltar_monedas(nivel, j, x, y, cantidad)` (l. 3109): Deja una pila de monedas en el piso (el amuleto moneda de la tienda las multiplica).
+      - `tecla_de(accion)` (l. 3114): Tecla asignada a una accion en el perfil de teclado, para mostrarla en los carteles.
+      - `ganar_xp(nivel, j, cantidad)` (l. 3118): Experiencia: el que pelea toda, los de la banca 3/4. Con el ajuste elastico: cada uno gana menos si va muy arriba del nivel
+      - `amistad_de_era()` (l. 3133): Cuantas veces alguien quiso unirse en esta era y cuantas salas van sin que nadie quiera (se reinicia al cambiar de era).
+      - `amigo_garantizado()` (l. 3139): Si en esta sala alguien tiene que querer unirse si o si: la sala 2 de la Era Glacial, y en cada era la 1ra oferta
+      - `quiza_amigo(nivel, j, e)` (l. 3147): A veces un pokemon derrotado quiere unirse a vos (no se captura: se hace tu amigo).
+      - `hablar_amigo(nivel, j)` (l. 3173): Interactuar con el que quiere unirse (el mas cercano, si hay varios por el baile). Devuelve True si estaba cerca.
+      - `bailar(j, nivel)` (l. 3204): V / R3: bailas un momento (Rotate, o Twirl / Hop si no tiene) y le afecta a los que estan cerca
+      - `premio_jefe(nivel, j, jefe)` (l. 3236): Los jefes dejan una MT que tu equipo pueda aprender (y el Regi, ademas, un objeto de evolucion si alguien lo necesita).
+      - `abrir_portal(nivel, avisar)` (l. 3250): Cayo el Regi: Celebi aparece al lado de la puerta y la convierte en un portal del tiempo hacia la era siguiente.
+      - `hablar_portal(nivel, j)` (l. 3267): E al lado de Celebi en la sala del Regi: te ofrece cruzar el portal ahora. Devuelve True si estaba cerca.
+      - `vitrina_cercana(nivel, j)` (l. 3281): La vitrina sin vender mas cerca del jugador (si esta al alcance y no esta mas cerca el lugar donde cura Chikorita).
+      - `bloque_cercano(j)` (l. 3291): El bloque de hielo de Regice que tenes al lado (si hay).
+      - `empujar_bloque(nivel, j)` (l. 3297): E al lado de un bloque de hielo: sale disparado para el otro lado y se desliza por la escarcha.
+      - `curandera_cerca(nivel, j)` (l. 3309): Si estas al lado del mostrador de Chikorita rosa (curaciones) en la tienda.
+      - `hablar_curandera(nivel, j)` (l. 3314): E al lado de Chikorita rosa: curar al que pelea o curar (y revivir) a todo el equipo, por monedas. True si estaba cerca.
+      - `comprar_cercano(nivel, j)` (l. 3341): E en la tienda: compra lo que tenes adelante. Devuelve True si habia algo para comprar.
+      - `invocar_minion(nivel, nombre, pos, vida, intocable)` (l. 3367): Un pokemon de la pelea de un subjefe (Arrokuda, Pikachu, Magnemite, Grimer): lo mueve el subjefe, no da monedas
+      - `actualizar_nivel(nivel, j)` (l. 3379): Todo lo que pasa en un frame de la sala: jugador, entorno, enemigos, jefe, balas, monedas, llave y puertas.
+    - `armar_mecanicas()` (l. 3654): Las mecanicas unicas de cada linea (mecanicas.py): le pasa lo que necesitan del juego.
+      - `mover_entidad(o, dx, dy, libre)` (l. 3656): Mueve a un enemigo (o al jugador) sin meterlo en paredes ni objetos (libre: bajo tierra, sin chocar).
+      - `poner_buff(j, clave, valor, ms)` (l. 3662): Le pone un buff al jugador por unos milisegundos (lo usan las mecánicas).
+      - `guardar_y_aplicar(j)` (l. 3665): Después de que una mecánica tocó al equipo: la vida del que pelea y la sinergia al día.
+      - `rehacer_animador(ent, nombre)` (l. 3668): Cambia los sprites (la Ilusion de Zorua, o un enemigo disfrazado que se revela).
+      - `enemigos_de_era(nivel)` (l. 3677): Los pokemon de la era de la sala (para las mecánicas que invocan o copian).
+    - `armar_hall()` (l. 3695): El hall (como la casa de Hades): al caer todo el equipo Celebi te trae aca. El viaje se pierde, pero tus amigos se quedan
+      - `charla_de(a, perfil)` (l. 3700): Lo que dice un amigo del refugio: segun su especie, su tipo, su naturaleza, cuanto te quiere y hasta donde llegaron juntos (modos.py).
+      - `pedir_favor(a, perfil, nombre)` (l. 3714): Un amigo te pide algo para el proximo viaje (uno a la vez): si lo cumplis con el en el equipo, sube su amistad.
+      - `perfil_nuevo(nombre, genero)` (l. 3729): El perfil de una partida nueva (despues del viaje temporal).
+      - `registrar_amigos(perfil, miembros)` (l. 3733): Guarda (o actualiza) a estos pokemon en tus amigos: su forma (la evolucion que alcanzaron no se pierde aunque caiga el equipo),
+      - `desbloquear_todo(perfil)` (l. 3745): Truco: todas las eras derrotadas, todos los titanes en su sala y un amigo de cada especie que se puede jugar.
+      - `miembro_de(a)` (l. 3755): Un amigo listo para viajar: en la forma que alcanzo (sus evoluciones se quedan) y en el nivel del principio, con sus IV, su
+      - `estilo_hall(perfil)` (l. 3763): Que hall toca segun Ajustes > Hall: auto = donde aparece Celebi hasta que derrotes una era, despues el atemporal.
+      - `residente(a, punto)` (l. 3769): Un amigo que pasea por el hall (no esta en tu equipo): se anima como los enemigos pero no pelea.
+      - `pisables_hall(sala)` (l. 3778): Centros de las casillas del hall donde se puede caminar (sin objetos, sin agua ni vacio).
+      - `crear_hall(j, perfil)` (l. 3785): Arma la zona del refugio en la que estas (plaza, barrio, minijuegos, dojo o una habitacion): sin enemigos, con las puertas
+      - `zona_amigo(a, h)` (l. 3841): Donde esta un amigo a esa hora: su rutina (modos.RUTINAS, una por id) corrida hasta 45 minutos.
+      - `amigos_en(perfil, zona, en_equipo)` (l. 3848): Los amigos (que no estan en tu equipo) que a esta hora estan en esa zona del refugio.
+      - `salida_hacia(nivel, zona_destino)` (l. 3852): La puerta de la zona que lleva a otra (desde las habitaciones se sale a la plaza); si no hay, cualquiera.
+      - `mover_amigos(nivel, perfil, zona)` (l. 3859): Una vez por segundo: al que ya le toca estar en otro lado camina hasta la puerta y se va; el que llega entra por una puerta.
+      - `actualizar_residentes(nivel)` (l. 3872): Tus amigos pasean: eligen un lugar y caminan (arrancan despacio y frenan al llegar; a veces se paran a mirar); al llegar
+      - `posar(r, pose, ms)` (l. 3911): Un amigo del hall hace una animacion un rato (Nod al hablarle, Hop cuando viene al viaje).
+      - `cerca(j, punto, distancia)` (l. 3918): Si el jugador está a menos de cierta distancia de un punto (para hablar o usar algo).
+      - `hay_pasillo(nivel, puerta, rec)` (l. 3921): Si antes de la sala que sigue hay un camino tranquilo (no en el boss rush ni en el tutorial, ni saliendo de otro camino).
+      - `poblar_pasillo(nivel)` (l. 3928): Pokemon de la era paseando por el camino (los mismos cada vez que pasas: salen de la semilla de la sala).
+      - `hablar_pasillo(nivel, j)` (l. 3937): E en un camino: el pokemon mas cercano te dice algo de su era y, a veces, te regala una baya.
+      - `hablar_hall(nivel, j, perfil)` (l. 3949): E en el hall: hablar con Celebi o con un amigo (o, en un camino, con los pokemon de la era). Devuelve True si habia alguien cerca.
+      - `hablar_con(nivel, j, perfil, r)` (l. 3978): Charlar con un amigo del refugio (y llevarlo al proximo viaje si queres).
     - **El refugio de Celebi: zonas, cosas para tocar y misiones**
-      - `_hoja(nombre)` (l. 3990): Ruta de una hoja suelta del Explorers of Sky en assets.
-      - `imagen_refugio(ruta)` (l. 3999): Un pedazo de una hoja de assets (cargado una vez) para los cuadros del refugio.
-      - `estado_misiones(perfil)` (l. 4011): Las misiones del perfil (las arma si es una partida vieja que no las tenía).
-      - `mision_evento(evento, cantidad)` (l. 4017): Algo paso en el viaje (derrota, sala, jefe, nota_s, evolucion): suma a las misiones activas que lo cuentan.
-      - `tablon_misiones(perfil)` (l. 4042): El tablon: activar o dejar misiones (hasta 3 a la vez).
-      - `ver_imagen(ruta, titulo, texto)` (l. 4063): Un cuadro de la galeria (o el cielo) en grande con su marco y una linea que lo cuenta.
-      - `observatorio()` (l. 4082): El telescopio: el cosmos (los cielos del PMD que se van fundiendo) con estrellas fugaces. Las estrellas guardan los otros modos.
-      - `accion_punto(nivel, j, perfil, p)` (l. 4113): E al lado de algo del refugio (carteles, cuadros, camas, telescopio...). Devuelve 'salir' si se cerro la ventana.
-      - `dibujar_refugio(nivel, j, cx, cy)` (l. 4179): Encima del refugio: carteles de los edificios, las cosas que se pueden tocar (con 'E: ...' si estas cerca), los cuadros de
-      - `punto_cercano(nivel, j)` (l. 4219): El punto del refugio al alcance (cartel, cama, telescopio...) más cercano al jugador.
-      - `revisar_pasos(nivel, j)` (l. 4223): Entrar o salir de una habitacion del refugio caminando por su puerta. True si hay que cambiar de zona.
-      - `crear_dojo(j)` (l. 4236): El dojo del salon: la sala de prueba (muñecos y enemigos que reaparecen) para probar pokemon. Lo que cambies con F1 aca
-      - `volver_al_hall(j, perfil)` (l. 4247): Cayo todo el equipo: el viaje se pierde. Tus amigos (equipo y reserva) quedan en el perfil y vuelven al hall evolucionados como
-      - `caida(nivel, j, rec)` (l. 4260): Cayo todo el equipo: el ultimo se desmaya (Faint, o Hurt si no tiene), la pantalla se oscurece y Celebi te va a buscar.
-      - `empezar_viaje(j)` (l. 4286): Cruzaste el portal: el equipo arranca con la vida llena (ya esta en su forma base y en el nivel del principio).
-    - `armar_dibujo()` (l. 4304): Todo lo que se dibuja jugando: jugador, HUD, indicadores, carteles, tienda y objetos.
-      - `dibujar_rect(rect, cx, cy, color, forma)` (l. 4306): Rectangulo (o elipse) del mundo dibujado en la pantalla segun la camara.
-      - `pies(animador)` (l. 4313): (x, y, ancho) de los pies de un pokemon en el mundo: lo mas bajo de su dibujo (cada cuadro se mide una vez).
-      - `cuerpos_de(nivel, j)` (l. 4325): Los pies de los pokemon de la sala (para sus sombras). De paso, los que caminan por la hierba la sacuden.
-      - `dibujar_jugador(j, cx, cy)` (l. 4339): Dibuja al pokemon activo (un cuadrado rosa si no tiene sprites).
-      - `dibujar_congelado(j, cx, cy)` (l. 4357): Si el jugador esta congelado, un bloque de hielo encima.
-      - `barra(rect, vida, max_vida, alto)` (l. 4364): Barrita de vida de BW arriba de un enemigo.
-      - `borde_peligro()` (l. 4380): Los bordes de la pantalla en rojo (se arma una vez): mas fuerte en las esquinas, nada en el medio.
-      - `borde_frenesi()` (l. 4394): Los bordes de la pantalla en naranja (como los del peligro, se arma una vez): se ven mientras dura el frenesi.
-      - `render(f, texto, color)` (l. 4404): Texto ya renderizado: el HUD dibuja los mismos textos cada frame, asi se hace una sola vez.
-      - `retrato(nombre, radio)` (l. 4412): Retrato redondo de un pokemon (recortado en circulo y guardado).
-      - `sombra_circular(radio, alfa)` (l. 4427): Circulo negro semitransparente (pokemon en espera, especial recargando), armado una vez por tamaño.
-      - `circulo_poke(centro, radio, nombre, atenuado)` (l. 4434): Circulo blanco con la cara del pokemon (o sus iniciales); oscurecido si esta esperando o debilitado.
-      - `dibujar_corte(nivel, ahora)` (l. 4448): Al entrar en frenesi, una franja cruzada como en Persona: entra de golpe desde la derecha con la cara de tu pokemon,
-      - `con_sombra(f, texto, color, pos)` (l. 4487): Texto claro con sombra oscura: se lee sobre cualquier piso.
-      - `cortar(f, texto, ancho)` (l. 4495): El texto recortado con '…' para que entre en 'ancho' pixeles.
-      - `pieza_mini(nombre, escala)` (l. 4504): Una pieza de assets/interfaz/minimapa (la recorta: python herramientas.py minimapa), agrandada. None si falta.
-      - `fondo_minimapa(nivel, c)` (l. 4514): El piso de la sala con la trama azul del PMD y los bordes blancos donde termina (paredes, vacio, objetos que no se pisan).
-        - `piso(f, col)` (l. 4522): Si una casilla es piso (para el minimapa).
-      - `dibujar_minimapa(nivel, j, derecha, arriba)` (l. 4538): Minimapa como el de la pantalla de arriba del Mystery Dungeon: el piso de la sala, las puertas (escaleras), la llave
-        - `icono(nombre, pos)` (l. 4554): Pone un ícono del PMD en el minimapa en el lugar de la sala que corresponde.
-      - `tela_cinturon()` (l. 4588): El cuarto de circulo marron medio transparente, como la tela de un mostrador (con flecos y una costura). Se arma una vez.
-      - `lugares_cinturon()` (l. 4607): Centros de los 5 circulos del cinturon (del 1 abajo a la izquierda al 5 arriba a la derecha).
-      - `dibujar_cinturon(j, ahora)` (l. 4613): Abajo a la derecha: la tela marron y adentro las 5 curaciones (circulos negros con el numero del orden en que se usan con
-      - `dibujar_ataques(j, ahora, congelado)` (l. 4638): Alrededor del cuarto de circulo: E, Q, Shift y R (los 4 movimientos) y F y G (las asistencias de la banca), en botones
-      - `dibujar_estilo(j, xe, ye, ahora)` (l. 4688): El estilo (la letra de D a S, la barra hasta la proxima y la racha), con el centro en (xe, ye).
-      - `dibujar_prueba(nivel, j)` (l. 4709): Panel del modo prueba: modo, daño que le hiciste a los muñecos, teclas y lo que hace la mecanica del pokemon.
-      - `dibujar_hud(j, nivel, rec)` (l. 4740): HUD como el combate de BW: arriba a la izquierda tu pokemon (barra de HP con la placa, experiencia y energia), la banca en
+      - `_hoja(nombre)` (l. 4006): Ruta de una hoja suelta del Explorers of Sky en assets.
+      - `imagen_refugio(ruta)` (l. 4015): Un pedazo de una hoja de assets (cargado una vez) para los cuadros del refugio.
+      - `estado_misiones(perfil)` (l. 4027): Las misiones del perfil (las arma si es una partida vieja que no las tenía).
+      - `mision_evento(evento, cantidad)` (l. 4033): Algo paso en el viaje (derrota, sala, jefe, nota_s, evolucion): suma a las misiones activas que lo cuentan.
+      - `tablon_misiones(perfil)` (l. 4058): El tablon: activar o dejar misiones (hasta 3 a la vez).
+      - `ver_imagen(ruta, titulo, texto)` (l. 4079): Un cuadro de la galeria (o el cielo) en grande con su marco y una linea que lo cuenta.
+      - `observatorio()` (l. 4098): El telescopio: el cosmos (los cielos del PMD que se van fundiendo) con estrellas fugaces. Las estrellas guardan los otros modos.
+      - `accion_punto(nivel, j, perfil, p)` (l. 4129): E al lado de algo del refugio (carteles, cuadros, camas, telescopio...). Devuelve 'salir' si se cerro la ventana.
+      - `dibujar_refugio(nivel, j, cx, cy)` (l. 4195): Encima del refugio: carteles de los edificios, las cosas que se pueden tocar (con 'E: ...' si estas cerca), los cuadros de
+      - `punto_cercano(nivel, j)` (l. 4235): El punto del refugio al alcance (cartel, cama, telescopio...) más cercano al jugador.
+      - `revisar_pasos(nivel, j)` (l. 4239): Entrar o salir de una habitacion del refugio caminando por su puerta. True si hay que cambiar de zona.
+      - `crear_dojo(j)` (l. 4252): El dojo del salon: la sala de prueba (muñecos y enemigos que reaparecen) para probar pokemon. Lo que cambies con F1 aca
+      - `volver_al_hall(j, perfil)` (l. 4263): Cayo todo el equipo: el viaje se pierde. Tus amigos (equipo y reserva) quedan en el perfil y vuelven al hall evolucionados como
+      - `caida(nivel, j, rec)` (l. 4276): Cayo todo el equipo: el ultimo se desmaya (Faint, o Hurt si no tiene), la pantalla se oscurece y Celebi te va a buscar.
+      - `empezar_viaje(j)` (l. 4302): Cruzaste el portal: el equipo arranca con la vida llena (ya esta en su forma base y en el nivel del principio).
+    - `armar_dibujo()` (l. 4320): Todo lo que se dibuja jugando: jugador, HUD, indicadores, carteles, tienda y objetos.
+      - `dibujar_rect(rect, cx, cy, color, forma)` (l. 4322): Rectangulo (o elipse) del mundo dibujado en la pantalla segun la camara.
+      - `pies(animador)` (l. 4329): (x, y, ancho) de los pies de un pokemon en el mundo: lo mas bajo de su dibujo (cada cuadro se mide una vez).
+      - `cuerpos_de(nivel, j)` (l. 4341): Los pies de los pokemon de la sala (para sus sombras). De paso, los que caminan por la hierba la sacuden.
+      - `dibujar_jugador(j, cx, cy)` (l. 4355): Dibuja al pokemon activo (un cuadrado rosa si no tiene sprites).
+      - `dibujar_congelado(j, cx, cy)` (l. 4373): Si el jugador esta congelado, un bloque de hielo encima.
+      - `barra(rect, vida, max_vida, alto)` (l. 4380): Barrita de vida de BW arriba de un enemigo.
+      - `borde_peligro()` (l. 4396): Los bordes de la pantalla en rojo (se arma una vez): mas fuerte en las esquinas, nada en el medio.
+      - `borde_frenesi()` (l. 4410): Los bordes de la pantalla en naranja (como los del peligro, se arma una vez): se ven mientras dura el frenesi.
+      - `render(f, texto, color)` (l. 4420): Texto ya renderizado: el HUD dibuja los mismos textos cada frame, asi se hace una sola vez.
+      - `retrato(nombre, radio)` (l. 4428): Retrato redondo de un pokemon (recortado en circulo y guardado).
+      - `sombra_circular(radio, alfa)` (l. 4443): Circulo negro semitransparente (pokemon en espera, especial recargando), armado una vez por tamaño.
+      - `circulo_poke(centro, radio, nombre, atenuado)` (l. 4450): Circulo blanco con la cara del pokemon (o sus iniciales); oscurecido si esta esperando o debilitado.
+      - `dibujar_corte(nivel, ahora)` (l. 4464): Al entrar en frenesi, una franja cruzada como en Persona: entra de golpe desde la derecha con la cara de tu pokemon,
+      - `con_sombra(f, texto, color, pos)` (l. 4503): Texto claro con sombra oscura: se lee sobre cualquier piso.
+      - `cortar(f, texto, ancho)` (l. 4511): El texto recortado con '…' para que entre en 'ancho' pixeles.
+      - `pieza_mini(nombre, escala)` (l. 4520): Una pieza de assets/interfaz/minimapa (la recorta: python herramientas.py minimapa), agrandada. None si falta.
+      - `fondo_minimapa(nivel, c)` (l. 4530): El piso de la sala con la trama azul del PMD y los bordes blancos donde termina (paredes, vacio, objetos que no se pisan).
+        - `piso(f, col)` (l. 4538): Si una casilla es piso (para el minimapa).
+      - `dibujar_minimapa(nivel, j, derecha, arriba)` (l. 4554): Minimapa como el de la pantalla de arriba del Mystery Dungeon: el piso de la sala, las puertas (escaleras), la llave
+        - `icono(nombre, pos)` (l. 4570): Pone un ícono del PMD en el minimapa en el lugar de la sala que corresponde.
+      - `tela_cinturon()` (l. 4604): El cuarto de circulo marron medio transparente, como la tela de un mostrador (con flecos y una costura). Se arma una vez.
+      - `lugares_cinturon()` (l. 4623): Centros de los 5 circulos del cinturon (del 1 abajo a la izquierda al 5 arriba a la derecha).
+      - `dibujar_cinturon(j, ahora)` (l. 4629): Abajo a la derecha: la tela marron y adentro las 5 curaciones (circulos negros con el numero del orden en que se usan con
+      - `dibujar_ataques(j, ahora, congelado)` (l. 4654): Alrededor del cuarto de circulo: E, Q, Shift y R (los 4 movimientos) y F y G (las asistencias de la banca), en botones
+      - `dibujar_estilo(j, xe, ye, ahora)` (l. 4704): El estilo (la letra de D a S, la barra hasta la proxima y la racha), con el centro en (xe, ye).
+      - `dibujar_prueba(nivel, j)` (l. 4725): Panel del modo prueba: modo, daño que le hiciste a los muñecos, teclas y lo que hace la mecanica del pokemon.
+      - `dibujar_hud(j, nivel, rec)` (l. 4756): HUD como el combate de BW: arriba a la izquierda tu pokemon (barra de HP con la placa, experiencia y energia), la banca en
       - **Tu pokemon**
       - **La banca**
       - **Abajo a la derecha: el cinturon (cuarto de circulo) y los ataques alrededor**
       - **Arriba a la derecha: el minimapa en la esquina y el estilo a su izquierda (debajo de la barra del jefe si hay)**
       - **Donde estas**
       - **El jefe: la barra del rival de BW**
-      - `dibujar_indicadores(nivel, cx, cy)` (l. 4840): Circulito con punta en el borde de la pantalla para cada enemigo que no se ve, con su cara en chiquito.
-      - `silueta(img, color, alfa)` (l. 4873): La forma de un sprite pintada de un color con transparencia (estelas, destellos de golpe). Se arma una vez y se reusa.
-      - `franja(ancho, alto, color, inclinacion)` (l. 4883): Paralelogramo (franja inclinada) del color pedido, con transparencia.
-      - `dibujar_carteles(nivel)` (l. 4891): Carteles: el grande (nombre de la sala, jefes, fases) es una franja inclinada que entra barriendo desde la izquierda con
-      - `panel_tienda(color)` (l. 4946): El panel de abajo a la izquierda donde se lee que vas a comprar (no lo tapa el cuarto de circulo de los ataques).
-      - `dibujar_tienda(nivel, j, cx, cy)` (l. 4953): Tienda: el cartel de cada mostrador y sus objetos con el precio (el que tenes mas cerca se marca y muestra el nombre).
-      - `dibujar_numeros(nivel, cx, cy, ahora)` (l. 5010): Numeros de daño que saltan y suben: blancos, amarillos si fue super eficaz, grises si resistio, naranjas y grandes en
-      - `dibujar_aviso_evolucion(nivel, j)` (l. 5022): Abajo en el medio: el retrato del que quiere evolucionar, una flecha, el de su evolucion y la tecla con el anillo que se llena.
-      - `dibujar_objetos(nivel, j, rec)` (l. 5045): Dibuja un frame de la partida: sala, puertas, balas, efectos, pokemon, jefe, clima, HUD y carteles.
-      - `luces_de(nivel, j, cx)` (l. 5314): Lo que alumbra en la sala aparte de la sala misma: vos (los de fuego, mas), los enemigos de fuego y electricos, las balas de
-      - `dibujar_celebi_cine(a, x, y, cx, cy, ahora, anim, direccion, esc)` (l. 5341): Celebi en una escena (en coordenadas de la sala), flotando, con brillitos detras.
-      - `nivel_cuadro(ahora)` (l. 5351): El número de cuadro (a 60 por segundo) de un momento.
-      - `dibujar_cine(nivel, j, cx, cy, ahora)` (l. 5353): Lo que se ve de las escenas: los portales y Celebi (la entrada del jefe no necesita nada: es el jefe mismo).
+      - `dibujar_indicadores(nivel, cx, cy)` (l. 4856): Circulito con punta en el borde de la pantalla para cada enemigo que no se ve, con su cara en chiquito.
+      - `silueta(img, color, alfa)` (l. 4889): La forma de un sprite pintada de un color con transparencia (estelas, destellos de golpe). Se arma una vez y se reusa.
+      - `franja(ancho, alto, color, inclinacion)` (l. 4899): Paralelogramo (franja inclinada) del color pedido, con transparencia.
+      - `dibujar_carteles(nivel)` (l. 4907): Carteles: el grande (nombre de la sala, jefes, fases) es una franja inclinada que entra barriendo desde la izquierda con
+      - `panel_tienda(color)` (l. 4962): El panel de abajo a la izquierda donde se lee que vas a comprar (no lo tapa el cuarto de circulo de los ataques).
+      - `dibujar_tienda(nivel, j, cx, cy)` (l. 4969): Tienda: el cartel de cada mostrador y sus objetos con el precio (el que tenes mas cerca se marca y muestra el nombre).
+      - `dibujar_numeros(nivel, cx, cy, ahora)` (l. 5026): Numeros de daño que saltan y suben: blancos, amarillos si fue super eficaz, grises si resistio, naranjas y grandes en
+      - `dibujar_aviso_evolucion(nivel, j)` (l. 5038): Abajo en el medio: el retrato del que quiere evolucionar, una flecha, el de su evolucion y la tecla con el anillo que se llena.
+      - `dibujar_objetos(nivel, j, rec)` (l. 5061): Dibuja un frame de la partida: sala, puertas, balas, efectos, pokemon, jefe, clima, HUD y carteles.
+      - `luces_de(nivel, j, cx)` (l. 5330): Lo que alumbra en la sala aparte de la sala misma: vos (los de fuego, mas), los enemigos de fuego y electricos, las balas de
+      - `dibujar_celebi_cine(a, x, y, cx, cy, ahora, anim, direccion, esc)` (l. 5357): Celebi en una escena (en coordenadas de la sala), flotando, con brillitos detras.
+      - `nivel_cuadro(ahora)` (l. 5367): El número de cuadro (a 60 por segundo) de un momento.
+      - `dibujar_cine(nivel, j, cx, cy, ahora)` (l. 5369): Lo que se ve de las escenas: los portales y Celebi (la entrada del jefe no necesita nada: es el jefe mismo).
     - **El mapa grande (tecla M)**
-      - `fondo_mapa()` (l. 5398): Atras del mapa grande: el marron a cuadros del mapa de la pantalla de arriba del PMD (se arma una vez).
-      - `bloque_pmd(rect, lleno, esc)` (l. 5410): Un bloque del mapa del PMD: la trama azul con el borde blanco (lleno: el azul parejo, la sala donde estas).
-      - `icono_mapa(nombre, pos, esc)` (l. 5425): Dibuja un ícono del mapa del PMD agrandado en ese lugar de la pantalla.
-      - `etiqueta(texto, pos, color)` (l. 5429): Un texto chico con borde, centrado debajo de un punto (nombres del mapa).
-      - `disposicion_era(rec, era)` (l. 5432): Donde va cada sala de la era en el mapa: la primera en (0, 0) y cada una al lado de la anterior, para el lado de la puerta
-      - `mapa_era(rec, j, ahora, corrido, zoom)` (l. 5447): El mapa de la era como en un metroidvania: cada sala y cada camino por los que pasaste (los bloques azules del PMD), las puertas
-        - `tam_de(r)` (l. 5459): El tamaño del bloque de cada sala en el mapa de la era.
-      - `mapa_refugio(nivel, j, ahora, corrido, zoom)` (l. 5498): El mapa de la zona del refugio donde estas, grande: el piso con los bloques del PMD y todo lo que hay (las puertas de las chozas
-      - `flecha_mapa(punta, ahora, color)` (l. 5538): Flecha que apunta para abajo y rebota, con la punta en 'punta' (marca un lugar en el mapa).
-      - `flecha_borde(p, vista, texto, color)` (l. 5544): Un lugar que quedo fuera de la vista del mapa: una flecha en el borde apuntando para alla, con su nombre.
-      - `mapa_completo(nivel, j, rec)` (l. 5556): Tecla M: el mapa grande sobre el fondo marron del PMD. En un viaje, el de la era; en el refugio, el de la zona donde estas
-    - `armar_extras()` (l. 5587): Pantalla final, acciones del menu de equipo (TAB) y trucos.
-      - `pantalla_final()` (l. 5589): Cuando cae Arceus.
-      - `acciones_equipo(j)` (l. 5606): Lo que puede hacer el menu de equipo (TAB) sobre el jugador.
-        - `refrescar()` (l. 5608): Recalcula vida y multiplicadores despues de gastar puntos o subir de nivel desde el menu.
-        - `evolucionar(i, req)` (l. 5616): Evoluciona al pokemon i (gasta el objeto si hacia falta) manteniendo el porcentaje de vida.
-        - `enseñar(i, casilla, mt)` (l. 5635): Enseña una MT en una casilla de movimiento (la MT se gasta salvo con los trucos).
-        - `traer(ri, k)` (l. 5643): Trae un pokemon de la reserva al equipo (al final, o cambiandolo por el del espacio k).
-        - `movs(m)` (l. 5653): Nombres de los 4 movimientos de un miembro (E, Q, Shift, R) con sus MT puestas.
-        - `info_movs(m)` (l. 5658): Que hace cada una de las 4 casillas: texto listo para mostrar (con los ajustes de los basicos y el combo).
-        - `equipar(i, ranura, clave)` (l. 5671): Pone (o saca, con clave None) un objeto en la ranura 0 o 1 del pokemon i. El que estaba vuelve a la mochila.
-        - `elegir_sinergia(i, clave)` (l. 5679): La pasiva que da el pokemon i desde la banca (None = la de su rol).
-        - `texto_asistencia(m)` (l. 5684): Que hace la asistencia de un miembro (F / G desde la banca).
-        - `caramelo(i)` (l. 5689): Caramelo Raro: el pokemon i sube un nivel (gasta un caramelo).
-        - `usar(i, indice)` (l. 5700): Usa la curacion de ese lugar del cinturon en el miembro i (o en el de la reserva si i es ('r', k)). Devuelve el texto.
-        - `datos_movs(m)` (l. 5706): Los datos de las 4 casillas (E, Q, Shift, R) con las MT puestas, para la pestaña Ataques de la ficha.
-      - `aplicar_trucos(nivel, j)` (l. 5717): Los trucos que hacen algo una sola vez (subir niveles).
-      - `evolucion_pendiente(j)` (l. 5726): (indice, requisito) del primero del equipo que ya puede evolucionar, o None.
-      - `actualizar_evolucion(nivel, j, mantiene)` (l. 5734): Evolucionar sin menus: cuando no hay peligro aparece el aviso y manteniendo la tecla se llena un anillo y evoluciona ahi mismo.
-    - `armar_modos()` (l. 5760): Lo que no es el viaje: el tutorial de la isla de Celebi, el boss rush (libre o con tu partida), los titanes del refugio y
-      - `plan_era_rush(k, e)` (l. 5765): Las peleas de una era en el boss rush, en el orden de un viaje: una tienda antes (menos en la primera), el primer subjefe
-      - `letra(tam, borde)` (l. 5775): Las letras de los paneles (se arman una vez).
-      - `panel(caja, color)` (l. 5780): Fondo oscuro medio transparente con borde, para los carteles de los modos.
-      - `reloj_txt(ms)` (l. 5785): Milisegundos como minutos:segundos.
-      - `nivel_suelto(sala, tipo, nv, modo_prueba)` (l. 5788): Una sala fuera del viaje (como la del modo prueba): no hay registro que guardar y si cae el equipo no se pierde nada.
+      - `fondo_mapa()` (l. 5414): Atras del mapa grande: el marron a cuadros del mapa de la pantalla de arriba del PMD (se arma una vez).
+      - `bloque_pmd(rect, lleno, esc)` (l. 5426): Un bloque del mapa del PMD: la trama azul con el borde blanco (lleno: el azul parejo, la sala donde estas).
+      - `icono_mapa(nombre, pos, esc)` (l. 5441): Dibuja un ícono del mapa del PMD agrandado en ese lugar de la pantalla.
+      - `etiqueta(texto, pos, color)` (l. 5445): Un texto chico con borde, centrado debajo de un punto (nombres del mapa).
+      - `disposicion_era(rec, era)` (l. 5448): Donde va cada sala de la era en el mapa: la primera en (0, 0) y cada una al lado de la anterior, para el lado de la puerta
+      - `mapa_era(rec, j, ahora, corrido, zoom)` (l. 5463): El mapa de la era como en un metroidvania: cada sala y cada camino por los que pasaste (los bloques azules del PMD), las puertas
+        - `tam_de(r)` (l. 5475): El tamaño del bloque de cada sala en el mapa de la era.
+      - `mapa_refugio(nivel, j, ahora, corrido, zoom)` (l. 5514): El mapa de la zona del refugio donde estas, grande: el piso con los bloques del PMD y todo lo que hay (las puertas de las chozas
+      - `flecha_mapa(punta, ahora, color)` (l. 5554): Flecha que apunta para abajo y rebota, con la punta en 'punta' (marca un lugar en el mapa).
+      - `flecha_borde(p, vista, texto, color)` (l. 5560): Un lugar que quedo fuera de la vista del mapa: una flecha en el borde apuntando para alla, con su nombre.
+      - `mapa_completo(nivel, j, rec)` (l. 5572): Tecla M: el mapa grande sobre el fondo marron del PMD. En un viaje, el de la era; en el refugio, el de la zona donde estas
+    - `armar_extras()` (l. 5603): Pantalla final, acciones del menu de equipo (TAB) y trucos.
+      - `pantalla_final()` (l. 5605): Cuando cae Arceus.
+      - `acciones_equipo(j)` (l. 5622): Lo que puede hacer el menu de equipo (TAB) sobre el jugador.
+        - `refrescar()` (l. 5624): Recalcula vida y multiplicadores despues de gastar puntos o subir de nivel desde el menu.
+        - `evolucionar(i, req)` (l. 5632): Evoluciona al pokemon i (gasta el objeto si hacia falta) manteniendo el porcentaje de vida.
+        - `enseñar(i, casilla, mt)` (l. 5651): Enseña una MT en una casilla de movimiento (la MT se gasta salvo con los trucos).
+        - `traer(ri, k)` (l. 5659): Trae un pokemon de la reserva al equipo (al final, o cambiandolo por el del espacio k).
+        - `movs(m)` (l. 5669): Nombres de los 4 movimientos de un miembro (E, Q, Shift, R) con sus MT puestas.
+        - `info_movs(m)` (l. 5674): Que hace cada una de las 4 casillas: texto listo para mostrar (con los ajustes de los basicos y el combo).
+        - `equipar(i, ranura, clave)` (l. 5687): Pone (o saca, con clave None) un objeto en la ranura 0 o 1 del pokemon i. El que estaba vuelve a la mochila.
+        - `elegir_sinergia(i, clave)` (l. 5695): La pasiva que da el pokemon i desde la banca (None = la de su rol).
+        - `texto_asistencia(m)` (l. 5700): Que hace la asistencia de un miembro (F / G desde la banca).
+        - `caramelo(i)` (l. 5705): Caramelo Raro: el pokemon i sube un nivel (gasta un caramelo).
+        - `usar(i, indice)` (l. 5716): Usa la curacion de ese lugar del cinturon en el miembro i (o en el de la reserva si i es ('r', k)). Devuelve el texto.
+        - `datos_movs(m)` (l. 5722): Los datos de las 4 casillas (E, Q, Shift, R) con las MT puestas, para la pestaña Ataques de la ficha.
+      - `aplicar_trucos(nivel, j)` (l. 5733): Los trucos que hacen algo una sola vez (subir niveles).
+      - `evolucion_pendiente(j)` (l. 5742): (indice, requisito) del primero del equipo que ya puede evolucionar, o None.
+      - `actualizar_evolucion(nivel, j, mantiene)` (l. 5750): Evolucionar sin menus: cuando no hay peligro aparece el aviso y manteniendo la tecla se llena un anillo y evoluciona ahi mismo.
+    - `armar_modos()` (l. 5776): Lo que no es el viaje: el tutorial de la isla de Celebi, el boss rush (libre o con tu partida), los titanes del refugio y
+      - `plan_era_rush(k, e)` (l. 5781): Las peleas de una era en el boss rush, en el orden de un viaje: una tienda antes (menos en la primera), el primer subjefe
+      - `letra(tam, borde)` (l. 5791): Las letras de los paneles (se arman una vez).
+      - `panel(caja, color)` (l. 5796): Fondo oscuro medio transparente con borde, para los carteles de los modos.
+      - `reloj_txt(ms)` (l. 5801): Milisegundos como minutos:segundos.
+      - `nivel_suelto(sala, tipo, nv, modo_prueba)` (l. 5804): Una sala fuera del viaje (como la del modo prueba): no hay registro que guardar y si cae el equipo no se pierde nada.
     - **El tutorial: la isla de practica de Celebi**
-      - `muñeco_en(nivel, nombre, punto, nv)` (l. 5807): Un muñeco de practica: no pega, no se mueve y no se muere.
-      - `de_practica(nivel, j, nombre, punto, estilo, vida, daño, **extra)` (l. 5814): Un enemigo de verdad pero flojito (para practicar el parry, el baile y las salas). 'unico': si cae no reaparece.
-      - `vasijas(nivel)` (l. 5822): Cuántos barriles y cajas quedan sanos en la sala (minijuego de romper).
-      - `crear_tutorial(j)` (l. 5825): La sala del tutorial en la que estas: la isla (casi todos los pasos) o la tienda de practica (comprar y salir).
-      - `empezar_paso(nivel, j, clave)` (l. 5849): Prepara lo que hace falta para el paso: la marca a la que ir, el rival del parry, Torchic, el Machop cansado, la pelea de la sala...
-      - `poner_amigo(nivel, j)` (l. 5880): El Machop cansado del paso de la amistad (con poca vida: el baile lo encariña).
-      - `paso_cumplido(nivel, j, clave)` (l. 5886): Si ya hiciste lo que pide el paso. d['n'] / d['de'] es lo que se muestra como avance (2/3).
-      - `actualizar_tutorial(nivel, j, resultado)` (l. 5921): Un cuadro del tutorial: empieza el paso que toca, mira si lo cumpliste y pasa al siguiente. Salir por la puerta de la isla
-      - `dibujar_tutorial(nivel, j, cx, cy)` (l. 5940): El panel de Celebi arriba (el paso, lo que hay que hacer y cuanto llevas), el consejo y la marca a la que hay que ir.
+      - `muñeco_en(nivel, nombre, punto, nv)` (l. 5823): Un muñeco de practica: no pega, no se mueve y no se muere.
+      - `de_practica(nivel, j, nombre, punto, estilo, vida, daño, **extra)` (l. 5830): Un enemigo de verdad pero flojito (para practicar el parry, el baile y las salas). 'unico': si cae no reaparece.
+      - `vasijas(nivel)` (l. 5838): Cuántos barriles y cajas quedan sanos en la sala (minijuego de romper).
+      - `crear_tutorial(j)` (l. 5841): La sala del tutorial en la que estas: la isla (casi todos los pasos) o la tienda de practica (comprar y salir).
+      - `empezar_paso(nivel, j, clave)` (l. 5865): Prepara lo que hace falta para el paso: la marca a la que ir, el rival del parry, Torchic, el Machop cansado, la pelea de la sala...
+      - `poner_amigo(nivel, j)` (l. 5896): El Machop cansado del paso de la amistad (con poca vida: el baile lo encariña).
+      - `paso_cumplido(nivel, j, clave)` (l. 5902): Si ya hiciste lo que pide el paso. d['n'] / d['de'] es lo que se muestra como avance (2/3).
+      - `actualizar_tutorial(nivel, j, resultado)` (l. 5937): Un cuadro del tutorial: empieza el paso que toca, mira si lo cumpliste y pasa al siguiente. Salir por la puerta de la isla
+      - `dibujar_tutorial(nivel, j, cx, cy)` (l. 5956): El panel de Celebi arriba (el paso, lo que hay que hacer y cuanto llevas), el consejo y la marca a la que hay que ir.
     - **Boss rush: todos los jefes seguidos**
-      - `recorrido_rush(solo)` (l. 5972): El plan del boss rush: en cada era sus dos subjefes, el semijefe y el Regi (con una tienda antes, menos en la primera) y al
-      - `empezar_rush(j, pedido, propio)` (l. 5981): Arranca el boss rush. Con tu partida (propio): tu equipo de verdad, tus monedas y tu mochila quedan guardados aparte y vuelven al terminar.
-      - `preparar_rush(nivel, j)` (l. 5994): Antes de cada jefe del rush: el equipo sube solo hasta un poco menos que el jefe (como llegarias en un viaje) y, si no es el
-      - `pantalla_rush(r, gano, ms, premio)` (l. 6010): Como te fue en el boss rush: cuantos jefes, en cuanto tiempo y lo que te llevas.
-      - `terminar_rush(j, gano)` (l. 6031): Se termino el boss rush (ganaste, cayo el equipo o te retiraste). Si era con tu partida vuelve tu equipo de verdad al
-      - `dibujar_rush(nivel)` (l. 6051): La chapita del boss rush abajo al medio: por que jefe vas y cuanto tiempo llevas.
+      - `recorrido_rush(solo)` (l. 5988): El plan del boss rush: en cada era sus dos subjefes, el semijefe y el Regi (con una tienda antes, menos en la primera) y al
+      - `empezar_rush(j, pedido, propio)` (l. 5997): Arranca el boss rush. Con tu partida (propio): tu equipo de verdad, tus monedas y tu mochila quedan guardados aparte y vuelven al terminar.
+      - `preparar_rush(nivel, j)` (l. 6010): Antes de cada jefe del rush: el equipo sube solo hasta un poco menos que el jefe (como llegarias en un viaje) y, si no es el
+      - `pantalla_rush(r, gano, ms, premio)` (l. 6026): Como te fue en el boss rush: cuantos jefes, en cuanto tiempo y lo que te llevas.
+      - `terminar_rush(j, gano)` (l. 6047): Se termino el boss rush (ganaste, cayo el equipo o te retiraste). Si era con tu partida vuelve tu equipo de verdad al
+      - `dibujar_rush(nivel)` (l. 6067): La chapita del boss rush abajo al medio: por que jefe vas y cuanto tiempo llevas.
     - **Los titanes: los jefes que ya derrotaste te esperan en el refugio**
-      - `crear_titanes(sala, perfil)` (l. 6062): Un titan por pedestal. Los que todavia no derrotaste se ven como una sombra.
-      - `titan_cercano(nivel, j)` (l. 6075): El titán de la sala de los titanes al que estás parado al lado.
-      - `hablar_titan(nivel, j, perfil)` (l. 6079): E al lado de un titan: te cuenta algo y te ofrece la revancha (un boss rush de un solo jefe). Devuelve True si habia uno cerca.
-      - `dibujar_titan(t, j, cx, cy)` (l. 6093): El titan sobre su pedestal (una sombra si todavia no lo derrotaste), con su nombre y el cartelito para hablarle.
+      - `crear_titanes(sala, perfil)` (l. 6078): Un titan por pedestal. Los que todavia no derrotaste se ven como una sombra.
+      - `titan_cercano(nivel, j)` (l. 6091): El titán de la sala de los titanes al que estás parado al lado.
+      - `hablar_titan(nivel, j, perfil)` (l. 6095): E al lado de un titan: te cuenta algo y te ofrece la revancha (un boss rush de un solo jefe). Devuelve True si habia uno cerca.
+      - `dibujar_titan(t, j, cx, cy)` (l. 6109): El titan sobre su pedestal (una sombra si todavia no lo derrotaste), con su nombre y el cartelito para hablarle.
     - **Minijuegos de la cancha**
-      - `crear_minijuego(j, clave)` (l. 6113): Arma el minijuego en una arena: tu equipo entra con la vida llena (es prestado, como en el dojo) y los enemigos reaparecen solos.
-      - `actualizar_minijuego(nivel, j, resultado)` (l. 6131): Lleva la cuenta del minijuego y lo termina cuando se acaba el tiempo (o, en supervivencia, cuando cae todo el equipo).
-      - `dibujar_minijuego(nivel)` (l. 6161): Arriba al medio: el nombre, el tiempo y los puntos. Antes de empezar, la cuenta regresiva en grande.
+      - `crear_minijuego(j, clave)` (l. 6129): Arma el minijuego en una arena: tu equipo entra con la vida llena (es prestado, como en el dojo) y los enemigos reaparecen solos.
+      - `actualizar_minijuego(nivel, j, resultado)` (l. 6147): Lleva la cuenta del minijuego y lo termina cuando se acaba el tiempo (o, en supervivencia, cuando cae todo el equipo).
+      - `dibujar_minijuego(nivel)` (l. 6177): Arriba al medio: el nombre, el tiempo y los puntos. Antes de empezar, la cuenta regresiva en grande.
     - **Lo que llama el bucle de la partida**
-      - `actualizar_modo(nivel, j, resultado)` (l. 6177): Despues de cada cuadro: el tutorial y el minijuego avanzan, y el boss rush termina si cayo el equipo.
-      - `dibujar_modo(nivel, j, cx, cy)` (l. 6188): El panel del modo en curso: tutorial, minijuego o boss rush.
-    - `armar_guardado()` (l. 6200): Pasar la partida a datos guardables (equipo, mochila, recorrido) y armarla de vuelta al cargar.
-      - `serializar(j, rec)` (l. 6204): Todo lo que hace falta para seguir la partida despues (en el hall el recorrido es el del proximo viaje, todavia sin empezar).
-      - `revivir(d)` (l. 6220): Un miembro del equipo desde lo guardado (la vida maxima y la asistencia se recalculan).
-      - `restaurar(datos_)` (l. 6229): (jugador, recorrido) de una partida guardada.
-      - `guardar_partida(j, rec)` (l. 6249): Autoguardado en la ranura de esta partida (al entrar a cada sala, al completarla y al comprar).
+      - `actualizar_modo(nivel, j, resultado)` (l. 6193): Despues de cada cuadro: el tutorial y el minijuego avanzan, y el boss rush termina si cayo el equipo.
+      - `dibujar_modo(nivel, j, cx, cy)` (l. 6204): El panel del modo en curso: tutorial, minijuego o boss rush.
+    - `armar_guardado()` (l. 6216): Pasar la partida a datos guardables (equipo, mochila, recorrido) y armarla de vuelta al cargar.
+      - `serializar(j, rec)` (l. 6220): Todo lo que hace falta para seguir la partida despues (en el hall el recorrido es el del proximo viaje, todavia sin empezar).
+      - `revivir(d)` (l. 6236): Un miembro del equipo desde lo guardado (la vida maxima y la asistencia se recalculan).
+      - `restaurar(datos_)` (l. 6245): (jugador, recorrido) de una partida guardada.
+      - `guardar_partida(j, rec)` (l. 6265): Autoguardado en la ranura de esta partida (al entrar a cada sala, al completarla y al comprar).
 
 ### `sistema.py` (1451 líneas)
 
@@ -685,7 +686,7 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
   - `_archivo(pista)` (l. 1426): El archivo de música de una pista (o el de la pista de respaldo si falta).
   - `musica(pista)` (l. 1435): Cambia la musica (con un fundido). Si ya suena el mismo archivo, sigue sin cortarse.
 
-### `datos.py` (1916 líneas)
+### `datos.py` (1918 líneas)
 
 > datos.py - Todo lo que es informacion del juego (no dibuja nada):
 >
@@ -761,20 +762,20 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
   - `luz(hora)` (l. 1425): El color con el que se tiñe la pantalla a esa hora (blanco de dia, azul de noche, rosado al amanecer, naranja al atardecer).
   - `_pesos_hora(pesos, hora)` (l. 1435): Los pesos de los climas con lo que suma o resta la hora.
   - `clima_refugio(hora, dia)` (l. 1442): El clima del refugio: el mismo durante un rato (cambia cada 3 horas del juego) y segun la hora.
-  - `planificar(azar)` (l. 1780): Lista de listas de tipos de sala (una por era). La tienda nunca cae en un jefe.
-  - `clima_inicial(azar, era, hora)` (l. 1804): Clima al azar segun lo comun que es en la era (y la hora).
-  - `siguiente_clima(azar, era, actual, hora)` (l. 1810): Clima de la sala que viene: casi siempre sigue igual o pasa a uno vecino, segun lo que es comun en la era y la hora
-  - `nuevo_recorrido(semilla)` (l. 1821): Estado de una partida: el plan entero, en que sala estas y el clima que viene arrastrando.
-  - `tipo_sala(rec, era, sala)` (l. 1828): Que hay en una sala del plan: 'combate', 'tienda', 'subjefe', 'jefe', 'regi' o 'final'.
-  - `salas_de(rec, era)` (l. 1833): Cuantas salas tiene una era.
-  - `siguiente(rec)` (l. 1838): (era, sala) de la sala que viene, o None si la actual es la ultima.
-  - `avanzar(rec, hora)` (l. 1845): Pasa a la sala siguiente y le elige el clima segun la hora (si cambia de era, el clima arranca de nuevo).
-  - `ir_a(rec, era, sala, hora)` (l. 1855): Salto directo (menu debug F2).
-  - `destinos_siguientes(rec, azar)` (l. 1861): Lo que hay detras de cada puerta: variantes distintas si la que viene es de combate, una sola si es especial.
-  - `subjefe_de(era, sala)` (l. 1878): El subjefe de esa sala de la era (sala desde 0): el primero en la sala 10 y el segundo en la 20.
-  - `jefe_de(era, tipo, sala)` (l. 1885): Pokemon que pelea en una sala de subjefe (segun la sala), de jefe, de Regi o la final.
-  - `etiqueta_destino(destino)` (l. 1892): Texto del cartel arriba de una puerta.
-  - `escala(era, sala)` (l. 1908): Cuanto mas fuertes son los enemigos segun por donde vas.
+  - `planificar(azar)` (l. 1782): Lista de listas de tipos de sala (una por era). La tienda nunca cae en un jefe.
+  - `clima_inicial(azar, era, hora)` (l. 1806): Clima al azar segun lo comun que es en la era (y la hora).
+  - `siguiente_clima(azar, era, actual, hora)` (l. 1812): Clima de la sala que viene: casi siempre sigue igual o pasa a uno vecino, segun lo que es comun en la era y la hora
+  - `nuevo_recorrido(semilla)` (l. 1823): Estado de una partida: el plan entero, en que sala estas y el clima que viene arrastrando.
+  - `tipo_sala(rec, era, sala)` (l. 1830): Que hay en una sala del plan: 'combate', 'tienda', 'subjefe', 'jefe', 'regi' o 'final'.
+  - `salas_de(rec, era)` (l. 1835): Cuantas salas tiene una era.
+  - `siguiente(rec)` (l. 1840): (era, sala) de la sala que viene, o None si la actual es la ultima.
+  - `avanzar(rec, hora)` (l. 1847): Pasa a la sala siguiente y le elige el clima segun la hora (si cambia de era, el clima arranca de nuevo).
+  - `ir_a(rec, era, sala, hora)` (l. 1857): Salto directo (menu debug F2).
+  - `destinos_siguientes(rec, azar)` (l. 1863): Lo que hay detras de cada puerta: variantes distintas si la que viene es de combate, una sola si es especial.
+  - `subjefe_de(era, sala)` (l. 1880): El subjefe de esa sala de la era (sala desde 0): el primero en la sala 10 y el segundo en la 20.
+  - `jefe_de(era, tipo, sala)` (l. 1887): Pokemon que pelea en una sala de subjefe (segun la sala), de jefe, de Regi o la final.
+  - `etiqueta_destino(destino)` (l. 1894): Texto del cartel arriba de una puerta.
+  - `escala(era, sala)` (l. 1910): Cuanto mas fuertes son los enemigos segun por donde vas.
 
 ### `modos.py` (239 líneas)
 
@@ -793,7 +794,7 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
 - **Lo que te aconseja Celebi en el refugio (segun cuantas eras derrotaste)**
 - **Misiones del tablon**
 
-### `mundo.py` (3964 líneas)
+### `mundo.py` (4128 líneas)
 
 > mundo.py - La sala donde se pelea: como se genera, lo que pasa adentro y las particulas.
 >
@@ -804,262 +805,269 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
 >     from mundo import generacion, entorno, efectos
 
 - **Generacion**
-- `armar_generacion()` (l. 24): Generacion procedural de salas (estilo Hades): combate, tienda y arena de jefe.
-  - `crear_escenario(columnas, filas, tam)` (l. 73): Rect del tamaño total de una sala (columnas x filas casillas).
-  - `crear_area(escenario, tam)` (l. 78): Zona por donde se puede caminar (sin el borde de paredes).
-  - `_elegir(azar, pesos, defecto)` (l. 83): Elige una clave de un diccionario {opcion: peso}.
+- `armar_generacion()` (l. 25): Generacion procedural de salas (estilo Hades): combate, tienda y arena de jefe.
+  - `crear_escenario(columnas, filas, tam)` (l. 74): Rect del tamaño total de una sala (columnas x filas casillas).
+  - `crear_area(escenario, tam)` (l. 79): Zona por donde se puede caminar (sin el borde de paredes).
+  - `_elegir(azar, pesos, defecto)` (l. 84): Elige una clave de un diccionario {opcion: peso}.
 - **Puertas y zonas libres**
-  - `_casillas_puerta(lado, columnas, filas)` (l. 91): Las 3 casillas del borde que ocupa la puerta de un lado.
-  - `_frente(lado, columnas, filas, profundidad)` (l. 100): Casillas de adentro justo en frente de una puerta.
-  - `_adentro_de_puerta(lado, columnas, filas)` (l. 106): Primera casilla de adentro en frente del medio de una puerta.
-  - `_zonas_libres(columnas, filas, lados, radio_centro)` (l. 112): El centro y el frente de las puertas.
-  - `_matriz_base(columnas, filas, entrada, salidas)` (l. 120): Borde de paredes, piso adentro, la entrada cerrada y las salidas.
-  - `_adentro(m, f, c)` (l. 130): Si (f, c) esta adentro de la matriz.
-  - `_espejos(f, c, sim, filas, columnas)` (l. 135): La casilla y sus copias espejadas segun la simetria.
+  - `_casillas_puerta(lado, columnas, filas)` (l. 92): Las 3 casillas del borde que ocupa la puerta de un lado.
+  - `_frente(lado, columnas, filas, profundidad)` (l. 101): Casillas de adentro justo en frente de una puerta.
+  - `_adentro_de_puerta(lado, columnas, filas)` (l. 107): Primera casilla de adentro en frente del medio de una puerta.
+  - `_zonas_libres(columnas, filas, lados, radio_centro)` (l. 113): El centro y el frente de las puertas.
+  - `_matriz_base(columnas, filas, entrada, salidas)` (l. 121): Borde de paredes, piso adentro, la entrada cerrada y las salidas.
+  - `_adentro(m, f, c)` (l. 131): Si (f, c) esta adentro de la matriz.
+  - `_espejos(f, c, sim, filas, columnas)` (l. 136): La casilla y sus copias espejadas segun la simetria.
 - **1. silueta**
-  - `_silueta(m, azar, forma, libres, sim)` (l. 146): Le da forma a la sala tapando con pared lo que queda afuera.
-  - `_pasillos(m, azar, libres)` (l. 201): Caminos serpenteantes de 3 de ancho desde cada puerta al centro (para que la cueva nunca quede cerrada).
+  - `_silueta(m, azar, forma, libres, sim)` (l. 147): Le da forma a la sala tapando con pared lo que queda afuera.
+  - `_pasillos(m, azar, libres)` (l. 202): Caminos serpenteantes de 3 de ancho desde cada puerta al centro (para que la cueva nunca quede cerrada).
 - **3. especiales**
-  - `_rio(m, azar, libres, sim)` (l. 221): Rio de 2 casillas que serpentea de pared a pared, con puentes y una cascada donde nace.
-  - `_laguna(m, azar, libres, sim)` (l. 245): Laguna redondeada lejos del centro.
-  - `_foso(m, azar, libres, sim)` (l. 260): Anillo de agua alrededor del centro con un puente hacia cada lado.
-  - `_costa(m, azar, libres, sim)` (l. 271): Franja de agua de 2 casillas pegada a una pared (mar, muelle), con hueco en las puertas.
-  - `_lineas(m, azar, libres, sim, terreno_de, cantidad, largo)` (l. 281): Tramos rectos (cintas transportadoras, cables).
-  - `_cintas(m, azar, libres, sim)` (l. 292): Fabrica: lineas de cintas transportadoras en una misma direccion.
-    - `una(azar)` (l. 294): Una cinta transportadora al azar (dirección y terreno).
-  - `_cables(m, azar, libres, sim)` (l. 302): Central electrica: lineas de cables en el piso.
-  - `_agregar_paredes(m, azar, libres, sim, segmentos)` (l. 310): Tramos de pared de 1 x N casillas, separados del borde y entre si por una casilla.
+  - `_rio(m, azar, libres, sim)` (l. 222): Rio de 2 casillas que serpentea de pared a pared, con puentes y una cascada donde nace.
+  - `_laguna(m, azar, libres, sim)` (l. 246): Laguna redondeada lejos del centro.
+  - `_foso(m, azar, libres, sim)` (l. 261): Anillo de agua alrededor del centro con un puente hacia cada lado.
+  - `_costa(m, azar, libres, sim)` (l. 272): Franja de agua de 2 casillas pegada a una pared (mar, muelle), con hueco en las puertas.
+  - `_lineas(m, azar, libres, sim, terreno_de, cantidad, largo)` (l. 282): Tramos rectos (cintas transportadoras, cables).
+  - `_cintas(m, azar, libres, sim)` (l. 293): Fabrica: lineas de cintas transportadoras en una misma direccion.
+    - `una(azar)` (l. 295): Una cinta transportadora al azar (dirección y terreno).
+  - `_cables(m, azar, libres, sim)` (l. 303): Central electrica: lineas de cables en el piso.
+  - `_agregar_paredes(m, azar, libres, sim, segmentos)` (l. 311): Tramos de pared de 1 x N casillas, separados del borde y entre si por una casilla.
 - **4. terreno**
-  - `_mancha(m, azar, terreno, tam, libres, sim)` (l. 330): Mancha organica: crece al azar desde una casilla y despues se suaviza (se rellenan huecos y se sacan puntas).
-  - `_poner_maquina(m, azar, maquina, libres, sim)` (l. 354): Cascadas y hornos van pegados a una pared (la cascada con su laguito abajo); el resto sueltas en el piso.
+  - `_mancha(m, azar, terreno, tam, libres, sim)` (l. 331): Mancha organica: crece al azar desde una casilla y despues se suaviza (se rellenan huecos y se sacan puntas).
+  - `_poner_maquina(m, azar, maquina, libres, sim)` (l. 355): Cascadas y hornos van pegados a una pared (la cascada con su laguito abajo); el resto sueltas en el piso.
 - **Objetos**
-  - `crear_objeto(nombre, centro, celdas)` (l. 386): Un objeto listo para usar en el juego (vida, rect, material...).
-  - `_celdas_de(nombre, centro, tam)` (l. 395): Casillas que tapa un objeto puesto en ese centro.
-  - `_espejo_punto(x, y, sim, ancho, alto)` (l. 402): Los puntos espejados de (x, y) segun la simetria de la sala (para poner objetos espejados).
-  - `_intentar_objeto(est, nombre, x, y, espejar)` (l. 411): Pone el objeto (y sus copias espejadas) si entra: piso firme, fuera de zonas libres y sin pisar otro objeto.
+  - `crear_objeto(nombre, centro, celdas)` (l. 387): Un objeto listo para usar en el juego (vida, rect, material...).
+  - `_celdas_de(nombre, centro, tam)` (l. 396): Casillas que tapa un objeto puesto en ese centro.
+  - `_espejo_punto(x, y, sim, ancho, alto)` (l. 403): Los puntos espejados de (x, y) segun la simetria de la sala (para poner objetos espejados).
+  - `_intentar_objeto(est, nombre, x, y, espejar)` (l. 412): Pone el objeto (y sus copias espejadas) si entra: piso firme, fuera de zonas libres y sin pisar otro objeto.
 - **6. piezas**
-  - `_girar(mapa, azar)` (l. 431): Rota y espeja una pieza al azar.
-  - `_poner_pieza(est, azar, nombre)` (l. 438): Busca un lugar donde entre la pieza entera y la pone (con sus copias si la sala es simetrica).
+  - `_girar(mapa, azar)` (l. 432): Rota y espeja una pieza al azar.
+  - `_poner_pieza(est, azar, nombre)` (l. 439): Busca un lugar donde entre la pieza entera y la pone (con sus copias si la sala es simetrica).
 - **7 y 8. cobertura y sueltos (Poisson)**
-  - `_poisson(est, azar, nombres, cantidad, separacion, radio_min, radio_max)` (l. 477): Reparte objetos sin que queden pegados entre si (muestreo de Poisson por rechazo), en un anillo alrededor del centro.
+  - `_poisson(est, azar, nombres, cantidad, separacion, radio_min, radio_max)` (l. 478): Reparte objetos sin que queden pegados entre si (muestreo de Poisson por rechazo), en un anillo alrededor del centro.
 - **9. validacion**
-  - `bloqueadas(m, objetos)` (l. 492): Casillas por las que no se puede caminar (terreno que bloquea u objeto solido).
-  - `_alcanzables(m, objetos, inicio, malas)` (l. 500): Casillas a las que se llega caminando desde inicio.
-  - `_camino(m, malas, desde, hasta)` (l. 512): Camino mas corto entre dos casillas (BFS), o None.
-  - `_ancho_ok(m, malas, desde, metas)` (l. 526): Se llega a cada meta con un camino de 2 casillas de ancho (nada de pasadizos de una casilla en el camino principal).
-  - `_validar(est, entrada, salidas)` (l. 540): Arregla y chequea la sala. Devuelve el puntaje (o None si no sirve).
+  - `bloqueadas(m, objetos)` (l. 493): Casillas por las que no se puede caminar (terreno que bloquea u objeto solido).
+  - `_alcanzables(m, objetos, inicio, malas)` (l. 501): Casillas a las que se llega caminando desde inicio.
+  - `_camino(m, malas, desde, hasta)` (l. 513): Camino mas corto entre dos casillas (BFS), o None.
+  - `_ancho_ok(m, malas, desde, metas)` (l. 527): Se llega a cada meta con un camino de 2 casillas de ancho (nada de pasadizos de una casilla en el camino principal).
+  - `_validar(est, entrada, salidas)` (l. 541): Arregla y chequea la sala. Devuelve el puntaje (o None si no sirve).
 - **Armado**
-  - `_rect_puerta(lado, columnas, filas, tam)` (l. 585): Rect en pixeles de la puerta de ese lado (3 casillas en el medio de la pared).
-  - `rectangulos(m, condicion, tam)` (l. 593): Junta en rectangulos las casillas que cumplen condicion(terreno).
-  - `_armar(m, objetos, tam, entrada, salidas, extra)` (l. 609): Diccionario final de la sala.
-  - `_candidata(var, entrada, salidas, azar, columnas, filas, tam, radio_centro)` (l. 624): Una sala armada capa por capa (sin validar).
-  - `_generar(var, entrada, salidas, azar, columnas, filas, tam, radio_centro)` (l. 652): Genera varias candidatas validas y se queda con la de mejor puntaje.
-  - `generar_sala(era, variante, entrada, salidas, semilla)` (l. 667): Sala de combate de una era con la variante elegida en la puerta.
-  - `generar_pasillo(era, entrada, salidas, semilla)` (l. 680): Camino tranquilo entre dos salas: largo y angosto (para el lado al que vas), con el piso, las manchas y los adornos de una
-  - `generar_arena(era, salidas, semilla, tipo, datos)` (l. 694): Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas)).
+  - `_rect_puerta(lado, columnas, filas, tam)` (l. 586): Rect en pixeles de la puerta de ese lado (3 casillas en el medio de la pared).
+  - `rectangulos(m, condicion, tam)` (l. 594): Junta en rectangulos las casillas que cumplen condicion(terreno).
+  - `_armar(m, objetos, tam, entrada, salidas, extra)` (l. 610): Diccionario final de la sala.
+  - `_candidata(var, entrada, salidas, azar, columnas, filas, tam, radio_centro)` (l. 625): Una sala armada capa por capa (sin validar).
+  - `_generar(var, entrada, salidas, azar, columnas, filas, tam, radio_centro)` (l. 653): Genera varias candidatas validas y se queda con la de mejor puntaje.
+  - `generar_sala(era, variante, entrada, salidas, semilla)` (l. 668): Sala de combate de una era con la variante elegida en la puerta.
+  - `generar_pasillo(era, entrada, salidas, semilla)` (l. 681): Camino tranquilo entre dos salas: largo y angosto (para el lado al que vas), con el piso, las manchas y los adornos de una
+  - `poner_faroles(sala, semilla, cuantos)` (l. 701): Pone hasta 'cuantos' faroles en la sala (los suma a sala['objetos']) sin cortar ningun camino: cada uno se prueba y, si deja
+  - `generar_arena(era, salidas, semilla, tipo, datos)` (l. 746): Arena del jefe o del Regi: centro grande y libre, pocas cosas en los costados. La era puede pedir otro tamaño ('tamaño': (columnas, filas)).
 - **Arenas ya dibujadas (assets/mundo/arenas/<era>_<tipo>.png + .json, las arma 'python herramientas.py arenas')**
-  - `_arena_pmd(clave)` (l. 709): Los datos de una arena dibujada ({'k', 'piso', 'brasas', 'imagen': el dibujo ya agrandado}) o None si no esta.
-  - `_arena_dibujada(era, salidas, azar, tipo, datos)` (l. 723): La arena de un jefe sobre un 'Dungeon Boss Room' del PMD: el dibujo entero es el fondo, la plataforma (el poligono medido) es
-    - `borde(lado)` (l. 741): La ultima casilla de piso yendo desde el medio hacia ese lado.
-  - `generar_tienda(era, salidas, semilla)` (l. 787): La tienda: un salon grande (como 3 salas de ancho) partido en 3 habitaciones por paredes con un paso en el medio.
+  - `_arena_pmd(clave)` (l. 761): Los datos de una arena dibujada ({'k', 'piso', 'brasas', 'imagen': el dibujo ya agrandado}) o None si no esta.
+  - `_arena_dibujada(era, salidas, azar, tipo, datos)` (l. 775): La arena de un jefe sobre un 'Dungeon Boss Room' del PMD: el dibujo entero es el fondo, la plataforma (el poligono medido) es
+    - `borde(lado)` (l. 793): La ultima casilla de piso yendo desde el medio hacia ese lado.
+  - `generar_tienda(era, salidas, semilla)` (l. 839): La tienda: un salon grande (como 3 salas de ancho) partido en 3 habitaciones por paredes con un paso en el medio.
 - **El refugio de Celebi (el hall): plaza, barrio y habitaciones**
-  - `_adentro_poligono(x, y, puntos)` (l. 876): Si un punto está adentro de un polígono (el piso de las arenas dibujadas).
-  - `generar_habitacion(nombre, era, choza)` (l. 886): Una habitacion del refugio con su fondo del PMD agrandado x2. El piso es el poligono medido; lo demas, pared invisible.
-    - `a_mundo(x, y)` (l. 900): Pasa un punto de la imagen de la habitación a coordenadas de la sala.
-  - `generar_plaza(era, estilo, semilla)` (l. 926): La plaza del refugio (el plano): el portal arriba al medio con decoracion de la era a los costados, el patiecito de arriba a
-    - `camino(f0, c0, f1, c1, ancho_c)` (l. 941): Pinta un camino de piso entre dos casillas.
-    - `obj(nombre, x, y, color, sprite)` (l. 971): Crea un objeto y lo agrega a la sala.
-    - `choza(parcela, zona, titulo, color, c_puerta, f_arriba, f_calle)` (l. 977): Una choza con la puerta en la columna c_puerta, la parte de arriba en la fila f_arriba y su caminito hasta la fila f_calle.
-  - `_barrio_dibujado(era, estilo, semilla)` (l. 1041): El barrio de antes (si faltan las chozas del PMD): una calle con casas. La tuya, la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas).
+  - `_adentro_poligono(x, y, puntos)` (l. 928): Si un punto está adentro de un polígono (el piso de las arenas dibujadas).
+  - `generar_habitacion(nombre, era, choza)` (l. 938): Una habitacion del refugio con su fondo del PMD agrandado x2. El piso es el poligono medido; lo demas, pared invisible.
+    - `a_mundo(x, y)` (l. 952): Pasa un punto de la imagen de la habitación a coordenadas de la sala.
+  - `_lugar_farol(m, objetos, f, c, base, tam)` (l. 978): La casilla de pasto mas cercana a (f, c) donde entra un farol sin pisar nada (ni chozas ni sus patios): su centro, o None.
+  - `generar_plaza(era, estilo, semilla)` (l. 988): La plaza del refugio (el plano): el portal arriba al medio con decoracion de la era a los costados, el patiecito de arriba a
+    - `camino(f0, c0, f1, c1, ancho_c)` (l. 1003): Pinta un camino de piso entre dos casillas.
+    - `obj(nombre, x, y, color, sprite)` (l. 1033): Crea un objeto y lo agrega a la sala.
+    - `choza(parcela, zona, titulo, color, c_puerta, f_arriba, f_calle)` (l. 1039): Una choza con la puerta en la columna c_puerta, la parte de arriba en la fila f_arriba y su caminito hasta la fila f_calle.
+  - `_barrio_dibujado(era, estilo, semilla)` (l. 1108): El barrio de antes (si faltan las chozas del PMD): una calle con casas. La tuya, la tiendita de Celebi (adentro, el bazar) y las de tus amigos (todavia cerradas).
 - **El barrio con las chozas del Red Rescue Team (assets/mundo/casas, las arma 'python herramientas.py casas')**
-  - `_imagen_casa(nombre)` (l. 1081): Imagen de assets/mundo/casas/<nombre>.png (None si no esta).
-  - `_tope(rect, tam)` (l. 1093): Un objeto que no se ve y no deja pasar (lo que no se pisa de una parcela).
-  - `_poner_parcela(objetos, nombre, cx, y, tam, k)` (l. 1100): Pone la choza 'nombre' con su patio (el dibujo del PMD agrandado x k) con la puerta en cx y la parte de arriba en y. Del patio
-  - `choza_de(tipos)` (l. 1116): La choza que le toca a un pokemon con esos tipos (None si no hay chozas).
-  - `_habitacion_choza(choza)` (l. 1123): Datos de 'Tu casa' cuando es una choza del PMD por dentro (como una entrada de HABITACIONES). El piso es redondo: sale del tamaño del dibujo.
-  - `_pieza_aldea(nombre)` (l. 1135): Una pieza suelta de la aldea (arbol, tocon, cerca, flor...) de assets/mundo/objetos, o None. Las recorta: python herramientas.py aldea.
-  - `_flor_animada(nombre, x, y, k)` (l. 1144): Una flor del PMD que se mueve (va y vuelve: cuadros 1-2-3-4-3-2), para la lista 'animados' de la sala. None si falta la tira.
-  - `generar_barrio(era, estilo, semilla, choza)` (l. 1160): El barrio: una fila de jardines con chozas del Red Rescue Team y la calle de arena por delante. La tuya (la choza del tipo de tu
-  - `generar_minijuegos(era, estilo, semilla)` (l. 1253): La sala de los minijuegos: una cancha de pasto con tres carteles (contrarreloj, supervivencia y lluvia de monedas).
-  - `generar_titanes(era)` (l. 1275): La sala de los titanes: un salon largo del Origen con un pedestal para cada jefe (los que ya derrotaste estan ahi parados).
-  - `generar_isla(semilla)` (l. 1293): La isla de practica de Celebi (el tutorial): pasto en el medio, una vuelta de arena y el mar alrededor. Al oeste el claro
-    - `obj(nombre, c, f)` (l. 1314): Crea un objeto y lo agrega a la sala.
-  - `generar_tesoro(era, salidas, semilla)` (l. 1334): Sala del tesoro: el salon de la tienda sin tendero, con tres pedestales en el medio (se elige uno de los premios).
+  - `_imagen_casa(nombre)` (l. 1148): Imagen de assets/mundo/casas/<nombre>.png (None si no esta).
+  - `_tope(rect, tam)` (l. 1160): Un objeto que no se ve y no deja pasar (lo que no se pisa de una parcela).
+  - `_poner_parcela(objetos, nombre, cx, y, tam, k)` (l. 1167): Pone la choza 'nombre' con su patio (el dibujo del PMD agrandado x k) con la puerta en cx y la parte de arriba en y. Del patio
+  - `choza_de(tipos)` (l. 1183): La choza que le toca a un pokemon con esos tipos (None si no hay chozas).
+  - `_habitacion_choza(choza)` (l. 1190): Datos de 'Tu casa' cuando es una choza del PMD por dentro (como una entrada de HABITACIONES). El piso es redondo: sale del tamaño del dibujo.
+  - `_pieza_aldea(nombre)` (l. 1202): Una pieza suelta de la aldea (arbol, tocon, cerca, flor...) de assets/mundo/objetos, o None. Las recorta: python herramientas.py aldea.
+  - `_flor_animada(nombre, x, y, k)` (l. 1211): Una flor del PMD que se mueve (va y vuelve: cuadros 1-2-3-4-3-2), para la lista 'animados' de la sala. None si falta la tira.
+  - `generar_barrio(era, estilo, semilla, choza)` (l. 1227): El barrio: una fila de jardines con chozas del Red Rescue Team y la calle de arena por delante. La tuya (la choza del tipo de tu
+  - `generar_minijuegos(era, estilo, semilla)` (l. 1320): La sala de los minijuegos: una cancha de pasto con tres carteles (contrarreloj, supervivencia y lluvia de monedas).
+  - `generar_titanes(era)` (l. 1342): La sala de los titanes: un salon largo del Origen con un pedestal para cada jefe (los que ya derrotaste estan ahi parados).
+  - `generar_isla(semilla)` (l. 1360): La isla de practica de Celebi (el tutorial): pasto en el medio, una vuelta de arena y el mar alrededor. Al oeste el claro
+    - `obj(nombre, c, f)` (l. 1381): Crea un objeto y lo agrega a la sala.
+  - `generar_tesoro(era, salidas, semilla)` (l. 1401): Sala del tesoro: el salon de la tienda sin tendero, con tres pedestales en el medio (se elige uno de los premios).
 - **Entorno**
-- `armar_entorno()` (l. 1357): Lo que pasa en la sala mientras jugas: terrenos que reaccionan a los ataques, objetos que se rompen,
-  - `imagen(tipo, nombre, era)` (l. 1495): Sprite de assets/mundo/<era>/<tipo>/<nombre>.png o, si no hay, de assets/mundo/<tipo>/<nombre>.png. None si no existe.
+- `armar_entorno()` (l. 1424): Lo que pasa en la sala mientras jugas: terrenos que reaccionan a los ataques, objetos que se rompen,
+  - `imagen(tipo, nombre, era)` (l. 1562): Sprite de assets/mundo/<era>/<tipo>/<nombre>.png o, si no hay, de assets/mundo/<tipo>/<nombre>.png. None si no existe.
 - **Tilesets del PMD (los arma: python herramientas.py tiles)**
-  - `_normalizar(mascara)` (l. 1520): Saca de la mascara las esquinas que no cuentan (las que no tienen sus dos lados vecinos).
-  - `capa(terreno, era, variante)` (l. 1527): Tileset de un terreno o None. Busca de lo mas especifico a lo general
-  - `_calar(img, brillo, d)` (l. 1553): Los parches del PMD (agua, hielo, hierba alta...) traen pegado alrededor el piso de SU mazmorra, que no es el de la sala
-    - `borde_abierto(m)` (l. 1564): Pixeles del borde de la pieza por donde ya no sigue el terreno (lados y esquinas).
-  - `_con_orilla(cp, piso)` (l. 1594): El mismo tileset de agua con la orilla pintada en el tono del piso de la sala (un poco mas oscuro, como tierra mojada),
-  - `_cargar_capa(ruta, terreno)` (l. 1612): Lee un tileset (.png + .json) y arma el indice mascara -> piezas. None si esta roto o vacio.
-  - `_pieza(cp, mascara, f, c)` (l. 1641): (pieza, variante) del tileset para esa mascara de vecinos. Si no esta exacta, la mas parecida (primero los lados, despues las esquinas).
-    - `diferencia(m2)` (l. 1646): Que tan distinta es otra mascara: pesan mas los lados que las esquinas.
-  - `_pintar(sup, desde, hacia)` (l. 1659): Cambia los colores de una fila de la paleta por los de otra (como el agua del PMD). En dos pasos para no pisar colores.
-  - `_tile(cp, i, variante, tam, frame, brillo)` (l. 1667): Pieza i del tileset al tamaño de la casilla, con los colores del frame de su paleta (los brillos con el magenta transparente).
-  - `_mancha(cp, i, variante, tam, mascara, frame)` (l. 1683): La pieza recortada con bordes redondos del lado donde no sigue el mismo terreno (asi un parche de nieve no queda cuadrado).
-  - `_mascara(m, f, c, iguales)` (l. 1699): Bits de los vecinos que son del mismo terreno (afuera de la sala cuenta como igual).
-  - `_frame(ahora, cada, cantidad)` (l. 1708): Frame de una paleta que cambia cada 'cada' frames del juego original (60 por segundo).
+  - `_normalizar(mascara)` (l. 1587): Saca de la mascara las esquinas que no cuentan (las que no tienen sus dos lados vecinos).
+  - `capa(terreno, era, variante)` (l. 1594): Tileset de un terreno o None. Busca de lo mas especifico a lo general
+  - `_calar(img, brillo, d)` (l. 1620): Los parches del PMD (agua, hielo, hierba alta...) traen pegado alrededor el piso de SU mazmorra, que no es el de la sala
+    - `borde_abierto(m)` (l. 1631): Pixeles del borde de la pieza por donde ya no sigue el terreno (lados y esquinas).
+  - `_con_orilla(cp, piso)` (l. 1661): El mismo tileset de agua con la orilla pintada en el tono del piso de la sala (un poco mas oscuro, como tierra mojada),
+  - `_cargar_capa(ruta, terreno)` (l. 1679): Lee un tileset (.png + .json) y arma el indice mascara -> piezas. None si esta roto o vacio.
+  - `_pieza(cp, mascara, f, c)` (l. 1708): (pieza, variante) del tileset para esa mascara de vecinos. Si no esta exacta, la mas parecida (primero los lados, despues las esquinas).
+    - `diferencia(m2)` (l. 1713): Que tan distinta es otra mascara: pesan mas los lados que las esquinas.
+  - `_pintar(sup, desde, hacia)` (l. 1726): Cambia los colores de una fila de la paleta por los de otra (como el agua del PMD). En dos pasos para no pisar colores.
+  - `_tile(cp, i, variante, tam, frame, brillo)` (l. 1734): Pieza i del tileset al tamaño de la casilla, con los colores del frame de su paleta (los brillos con el magenta transparente).
+  - `_mancha(cp, i, variante, tam, mascara, frame)` (l. 1750): La pieza recortada con bordes redondos del lado donde no sigue el mismo terreno (asi un parche de nieve no queda cuadrado).
+  - `_mascara(m, f, c, iguales)` (l. 1766): Bits de los vecinos que son del mismo terreno (afuera de la sala cuenta como igual).
+  - `_frame(ahora, cada, cantidad)` (l. 1775): Frame de una paleta que cambia cada 'cada' frames del juego original (60 por segundo).
 - **Maquinas y puertas**
-  - `_loop(ventana, nombre, centro, lado, ahora, ms)` (l. 1719): Dibuja un efecto de assets/efectos en loop centrado en 'centro'. False si no hay sprite.
-  - `_llama(ventana, centro, lado, ahora, apagada)` (l. 1729): Fuego de fogatas, braseros y hornos (o un hilito de humo si esta apagado).
-  - `_base_maquina(t, tam, lados)` (l. 1743): Lo que no se mueve de cada maquina (piedras, metal, troncos), dibujado una sola vez por tamaño de casilla.
-  - `_cascada_pmd(ventana, t, r, ahora, lados, ent)` (l. 1805): Cascada con el agua animada del tileset del PMD de la era cayendo (se desplaza para abajo), el borde de roca con la pared
-  - `_maquina(ventana, t, r, ahora, lados, ent)` (l. 1837): Una maquina en el rect r de la pantalla: la base y lo que se mueve (agua que cae, llamas, chispas, brillos).
-  - `_puerta(sup, r, abierta, ahora)` (l. 1889): Una puerta en el rect r: marco de piedra y hueco oscuro. Cerrada tiene tablas y candado; con la llave late en verde.
-  - `dibujar_puerta(ventana, rect, abierta, ahora)` (l. 1908): Para main: una puerta de salida en la pantalla (cerrada con tablas, o abierta y brillando si tenes la llave).
-  - `_escalada(img, ancho, alto)` (l. 1913): Imagen escalada (pixel art: sin suavizar). Sin alto, mantiene la proporcion.
-  - `_texto(texto, tam, color)` (l. 1921): Texto renderizado una sola vez y guardado.
-  - `crear(sala, clima, ahora)` (l. 1929): Estado de la sala en juego. clima es el de la sala (en salas interiores no llega).
-  - `derretir(ent, f, c)` (l. 1945): El hielo que se derrite vuelve a lo que era: si ahi habia un lago, agua; si era hielo del piso, un charco que se puede pisar
-  - `_buscar_maquinas(ent)` (l. 1951): Lista (x, y, maquina) de todas las maquinas de la sala (se rehace si cambia alguna).
-  - `tipos_de(entidad)` (l. 1958): El jugador tiene 'tipos' (lista), los enemigos 'tipo' (uno solo).
+  - `_loop(ventana, nombre, centro, lado, ahora, ms)` (l. 1786): Dibuja un efecto de assets/efectos en loop centrado en 'centro'. False si no hay sprite.
+  - `_llama(ventana, centro, lado, ahora, apagada)` (l. 1796): Fuego de fogatas, braseros y hornos (o un hilito de humo si esta apagado).
+  - `_llama_farol(ventana, lugar, d, ahora, semilla)` (l. 1810): La llama del PMD sobre los carbones del farol, con un resplandor naranja que late (lugar: donde quedo el dibujo del farol).
+  - `_base_maquina(t, tam, lados)` (l. 1821): Lo que no se mueve de cada maquina (piedras, metal, troncos), dibujado una sola vez por tamaño de casilla.
+  - `_cascada_pmd(ventana, t, r, ahora, lados, ent)` (l. 1883): Cascada con el agua animada del tileset del PMD de la era cayendo (se desplaza para abajo), el borde de roca con la pared
+  - `_maquina(ventana, t, r, ahora, lados, ent)` (l. 1915): Una maquina en el rect r de la pantalla: la base y lo que se mueve (agua que cae, llamas, chispas, brillos).
+  - `_puerta(sup, r, abierta, ahora)` (l. 1967): Una puerta en el rect r: marco de piedra y hueco oscuro. Cerrada tiene tablas y candado; con la llave late en verde.
+  - `dibujar_puerta(ventana, rect, abierta, ahora)` (l. 1986): Para main: una puerta de salida en la pantalla (cerrada con tablas, o abierta y brillando si tenes la llave).
+  - `_escalada(img, ancho, alto)` (l. 1991): Imagen escalada (pixel art: sin suavizar). Sin alto, mantiene la proporcion.
+  - `_texto(texto, tam, color)` (l. 1999): Texto renderizado una sola vez y guardado.
+  - `crear(sala, clima, ahora)` (l. 2007): Estado de la sala en juego. clima es el de la sala (en salas interiores no llega).
+  - `derretir(ent, f, c)` (l. 2023): El hielo que se derrite vuelve a lo que era: si ahi habia un lago, agua; si era hielo del piso, un charco que se puede pisar
+  - `_buscar_maquinas(ent)` (l. 2029): Lista (x, y, maquina) de todas las maquinas de la sala (se rehace si cambia alguna).
+  - `tipos_de(entidad)` (l. 2036): El jugador tiene 'tipos' (lista), los enemigos 'tipo' (uno solo).
 - **Casillas**
-  - `casilla(ent, x, y)` (l. 1965): (fila, columna) de la casilla donde esta el punto (x, y).
-  - `terreno_en(ent, x, y)` (l. 1970): Terreno en el punto (x, y); afuera de la sala cuenta como pared.
-  - `rect_casilla(ent, f, c)` (l. 1977): Rect en pixeles de la casilla (f, c).
-  - `_casillas_rect(ent, r)` (l. 1982): Casillas que toca un rect.
-  - `_casillas_circulo(ent, x, y, radio)` (l. 1989): Casillas que toca un circulo.
-  - `cambiar(ent, f, c, nuevo)` (l. 2002): Cambia el terreno de una casilla. No pone algo que bloquee debajo de alguien (lo dejaria trabado).
+  - `casilla(ent, x, y)` (l. 2043): (fila, columna) de la casilla donde esta el punto (x, y).
+  - `terreno_en(ent, x, y)` (l. 2048): Terreno en el punto (x, y); afuera de la sala cuenta como pared.
+  - `rect_casilla(ent, f, c)` (l. 2055): Rect en pixeles de la casilla (f, c).
+  - `_casillas_rect(ent, r)` (l. 2060): Casillas que toca un rect.
+  - `_casillas_circulo(ent, x, y, radio)` (l. 2067): Casillas que toca un circulo.
+  - `cambiar(ent, f, c, nuevo)` (l. 2080): Cambia el terreno de una casilla. No pone algo que bloquee debajo de alguien (lo dejaria trabado).
 - **Choques**
-  - `solidos(ent, tipos)` (l. 2015): Rectangulos que no puede atravesar alguien de esos tipos (el agua no frena a los de agua, los fantasma pasan los objetos...).
-  - `solidos_proyectil(ent)` (l. 2027): Lo que frena un proyectil: paredes, maquinas y objetos (el agua y la lava no).
-  - `destructibles(ent)` (l. 2036): Objetos que se pueden romper (se suman a los objetivos de los ataques). En el refugio ninguno.
-  - `mover(ent, rect, dx, dy, tipos)` (l. 2042): Mueve un rect frenando contra lo solido para esos tipos.
-  - `orilla(ent, rect, tipos)` (l. 2050): Si alguien de esos tipos quedo adentro de algo que no puede pisar (cambiaste a uno que no nada en medio del agua),
-  - `punto_libre(ent, azar, lejos, distancia)` (l. 2068): Centro de una casilla alcanzable, pisable y sin objetos (para hacer aparecer enemigos o jefes).
+  - `solidos(ent, tipos)` (l. 2093): Rectangulos que no puede atravesar alguien de esos tipos (el agua no frena a los de agua, los fantasma pasan los objetos...).
+  - `solidos_proyectil(ent)` (l. 2105): Lo que frena un proyectil: paredes, maquinas y objetos (el agua y la lava no).
+  - `destructibles(ent)` (l. 2114): Objetos que se pueden romper (se suman a los objetivos de los ataques). En el refugio ninguno.
+  - `mover(ent, rect, dx, dy, tipos)` (l. 2120): Mueve un rect frenando contra lo solido para esos tipos.
+  - `orilla(ent, rect, tipos)` (l. 2128): Si alguien de esos tipos quedo adentro de algo que no puede pisar (cambiaste a uno que no nada en medio del agua),
+  - `punto_libre(ent, azar, lejos, distancia)` (l. 2146): Centro de una casilla alcanzable, pisable y sin objetos (para hacer aparecer enemigos o jefes).
 - **Efectos sobre pokemon**
-  - `_sumar(ef, nuevos)` (l. 2081): Junta efectos: los multiplicadores se multiplican, los empujes se suman y lo demas se queda con el primero.
-  - `_elegir(tabla, tipos, con_todos)` (l. 2090): Efectos de una tabla para esos tipos. Si es doble tipo se juntan, y el daño por tick es el menor de los dos.
-  - `efectos_de(ent, tipos, rect)` (l. 2101): Todo lo que el entorno le hace a un pokemon parado en rect: terreno, maquinas cerca, agua electrificada y clima.
-  - `deteccion(ent, jugador)` (l. 2122): Multiplicador del rango con que te ven los enemigos (escondido en hierba/sombra, niebla).
-  - `mult_clima(ent, tipo)` (l. 2128): Cuanto potencia (o debilita) el clima de la sala a un tipo de ataque.
+  - `_sumar(ef, nuevos)` (l. 2159): Junta efectos: los multiplicadores se multiplican, los empujes se suman y lo demas se queda con el primero.
+  - `_elegir(tabla, tipos, con_todos)` (l. 2168): Efectos de una tabla para esos tipos. Si es doble tipo se juntan, y el daño por tick es el menor de los dos.
+  - `efectos_de(ent, tipos, rect)` (l. 2179): Todo lo que el entorno le hace a un pokemon parado en rect: terreno, maquinas cerca, agua electrificada y clima.
+  - `deteccion(ent, jugador)` (l. 2200): Multiplicador del rango con que te ven los enemigos (escondido en hierba/sombra, niebla).
+  - `mult_clima(ent, tipo)` (l. 2206): Cuanto potencia (o debilita) el clima de la sala a un tipo de ataque.
 - **Reacciones a ataques**
-  - `reaccionar(ent, x, y, radio, tipo, ahora)` (l. 2136): Un ataque de ese tipo toco el circulo (x, y, radio): congela agua, quema hierba, electrifica, etc.
-  - `reaccionar_linea(ent, x0, y0, x1, y1, radio, tipo, ahora)` (l. 2148): Igual que reaccionar pero a lo largo de un golpe cuerpo a cuerpo.
-  - `_hacer(ent, accion, f, c, ahora)` (l. 2155): Aplica la reaccion de un terreno a un ataque (convertir, electrificar, encender, apagar, invertir cintas, generadores).
-  - `electrificar(ent, f, c, ahora)` (l. 2176): Electrifica toda el agua (y cables) conectada a esa casilla por unos segundos.
-  - `vaciar_alrededor(ent, centro, libre, x, y, radio)` (l. 2189): Piso y paredes se vuelven vacio (toda la sala, o solo el circulo x, y, radio) menos un circulo de piso en el medio (centro, libre).
-  - `congelar_linea(ent, a, b, radio)` (l. 2205): El rayo hielo de Regice deja escarcha (resbala) a lo largo de su camino.
-  - `poner_objeto(ent, nombre, centro, evitar)` (l. 2213): Pone un objeto en la sala si entra (piso libre, lejos de las puertas y sin pisar a nadie). Devuelve el objeto o None.
-  - `poner_barrera(ent, nombre, rect)` (l. 2228): Pared fina de un jefe (Jaula Voltio) con el tamaño exacto de rect. No tapa casillas y no la dibuja el entorno.
-  - `sacar_de_regi(ent)` (l. 2237): Cuando cae el Regi se van sus muros, rocas y torres.
-  - `armar_torre(ent, columnas, filas, fila0)` (l. 2243): Regidrago te lleva arriba de una torre: queda un rectangulo gris en el medio y todo lo demas es vacio. Devuelve el rectangulo.
-  - `desarmar_torre(ent)` (l. 2255): Se rompe la torre: vuelve la sala como estaba.
-  - `armar_plataforma(ent, es_piso, protegido)` (l. 2264): Arceus Beta cambia la arena: donde es_piso(f, c) queda piso y todo lo demas se vuelve vacio (las puertas no se tocan).
-  - `cerrar_vacios(ent)` (l. 2284): El piso vuelve a donde habia vacios (y las paredes que se habian vuelto vacio vuelven a ser pared).
-  - `encender(ent, f, c, ahora)` (l. 2294): Prende fuego una casilla que puede arder (hierba, aceite, suelo...) por un rato.
-  - `explotar(ent, x, y, radio, daño, tipo, al_jugador, efecto, clase)` (l. 2300): Encola una explosion: se aplica en actualizar() (asi una explosion puede romper otro barril y encadenar).
+  - `reaccionar(ent, x, y, radio, tipo, ahora)` (l. 2214): Un ataque de ese tipo toco el circulo (x, y, radio): congela agua, quema hierba, electrifica, etc.
+  - `reaccionar_linea(ent, x0, y0, x1, y1, radio, tipo, ahora)` (l. 2226): Igual que reaccionar pero a lo largo de un golpe cuerpo a cuerpo.
+  - `_hacer(ent, accion, f, c, ahora)` (l. 2233): Aplica la reaccion de un terreno a un ataque (convertir, electrificar, encender, apagar, invertir cintas, generadores).
+  - `electrificar(ent, f, c, ahora)` (l. 2254): Electrifica toda el agua (y cables) conectada a esa casilla por unos segundos.
+  - `vaciar_alrededor(ent, centro, libre, x, y, radio)` (l. 2267): Piso y paredes se vuelven vacio (toda la sala, o solo el circulo x, y, radio) menos un circulo de piso en el medio (centro, libre).
+  - `congelar_linea(ent, a, b, radio)` (l. 2283): El rayo hielo de Regice deja escarcha (resbala) a lo largo de su camino.
+  - `poner_objeto(ent, nombre, centro, evitar)` (l. 2291): Pone un objeto en la sala si entra (piso libre, lejos de las puertas y sin pisar a nadie). Devuelve el objeto o None.
+  - `poner_barrera(ent, nombre, rect)` (l. 2306): Pared fina de un jefe (Jaula Voltio) con el tamaño exacto de rect. No tapa casillas y no la dibuja el entorno.
+  - `sacar_de_regi(ent)` (l. 2315): Cuando cae el Regi se van sus muros, rocas y torres.
+  - `armar_torre(ent, columnas, filas, fila0)` (l. 2321): Regidrago te lleva arriba de una torre: queda un rectangulo gris en el medio y todo lo demas es vacio. Devuelve el rectangulo.
+  - `desarmar_torre(ent)` (l. 2333): Se rompe la torre: vuelve la sala como estaba.
+  - `armar_plataforma(ent, es_piso, protegido)` (l. 2342): Arceus Beta cambia la arena: donde es_piso(f, c) queda piso y todo lo demas se vuelve vacio (las puertas no se tocan).
+  - `cerrar_vacios(ent)` (l. 2362): El piso vuelve a donde habia vacios (y las paredes que se habian vuelto vacio vuelven a ser pared).
+  - `encender(ent, f, c, ahora)` (l. 2372): Prende fuego una casilla que puede arder (hierba, aceite, suelo...) por un rato.
+  - `explotar(ent, x, y, radio, daño, tipo, al_jugador, efecto, clase)` (l. 2378): Encola una explosion: se aplica en actualizar() (asi una explosion puede romper otro barril y encadenar).
 - **Objetos**
-  - `dañar_objeto(ent, obj, datos, direccion, ahora)` (l. 2307): Un ataque le pega a un objeto: daño segun material y tipo, empujes, chispas en el metal...
-  - `_mult_material(material, tipo)` (l. 2327): Multiplicador de daño de un tipo de ataque contra un material (la madera arde, el hielo se rompe con fuego...).
-  - `romper(ent, obj, tipo)` (l. 2333): Saca el objeto, suelta monedas a veces, explota si es explosivo y deja su terreno (charco, aceite, toxico...).
-  - `_actualizar_empujados(ent, ctx, ahora)` (l. 2351): Objetos deslizandose: chocan con paredes, otros objetos y enemigos (les pegan). Al agua se hunden.
+  - `dañar_objeto(ent, obj, datos, direccion, ahora)` (l. 2385): Un ataque le pega a un objeto: daño segun material y tipo, empujes, chispas en el metal...
+  - `_mult_material(material, tipo)` (l. 2405): Multiplicador de daño de un tipo de ataque contra un material (la madera arde, el hielo se rompe con fuego...).
+  - `romper(ent, obj, tipo)` (l. 2411): Saca el objeto, suelta monedas a veces, explota si es explosivo y deja su terreno (charco, aceite, toxico...).
+  - `_actualizar_empujados(ent, ctx, ahora)` (l. 2429): Objetos deslizandose: chocan con paredes, otros objetos y enemigos (les pegan). Al agua se hunden.
 - **Clima**
-  - `iniciar_clima(ent, clave, ahora, duracion)` (l. 2391): Clima temporal (de un movimiento o de un jefe). Sin duracion queda toda la sala. Adentro no llueve.
-  - `al_usar_movimiento(ent, nombre, ahora)` (l. 2399): Algunos movimientos cambian el clima (lluvia, sol, granizo...).
-  - `_casilla_al_azar(ent, terrenos)` (l. 2404): Una casilla al azar de esos terrenos (o None si no encontro en 25 intentos).
-  - `_actualizar_clima(ent, ctx, ahora)` (l. 2413): Una vez por segundo: la lluvia hace charcos y apaga el fuego, el sol derrite y seca, el granizo congela, caen rayos.
+  - `iniciar_clima(ent, clave, ahora, duracion)` (l. 2469): Clima temporal (de un movimiento o de un jefe). Sin duracion queda toda la sala. Adentro no llueve.
+  - `al_usar_movimiento(ent, nombre, ahora)` (l. 2477): Algunos movimientos cambian el clima (lluvia, sol, granizo...).
+  - `_casilla_al_azar(ent, terrenos)` (l. 2482): Una casilla al azar de esos terrenos (o None si no encontro en 25 intentos).
+  - `_actualizar_clima(ent, ctx, ahora)` (l. 2491): Una vez por segundo: la lluvia hace charcos y apaga el fuego, el sol derrite y seca, el granizo congela, caen rayos.
 - **Cada frame**
-  - `actualizar(ent, ctx, ahora)` (l. 2455): ctx = {'jugador': j, 'enemigos': [...], 'dañar_jugador': f(daño, tipo), 'dañar_enemigo': f(enemigo, daño, tipo, efecto)}
+  - `actualizar(ent, ctx, ahora)` (l. 2533): ctx = {'jugador': j, 'enemigos': [...], 'dañar_jugador': f(daño, tipo), 'dañar_enemigo': f(enemigo, daño, tipo, efecto)}
 - **Dibujo**
-  - `_aclarar(color, k)` (l. 2516): Color mas claro (k > 0) o mas oscuro (k < 0).
-  - `_dibujar_textura(fondo, t, r, f, c)` (l. 2521): Dibujito simple para que cada terreno se distinga del piso (hasta que lleguen los sprites).
-  - `_poner_tile(ent, fondo, cp, terreno, f, c, r)` (l. 2555): Pieza del tileset segun los vecinos. Si el terreno se anima (agua del PMD) queda anotado para redibujarlo cada frame.
-  - `_alfombra(ancho, alto)` (l. 2573): Alfombra roja del Secret Bazaar del tamaño pedido (pixeles al doble): bordes y esquinas recortados de la hoja y rombos
-  - `_dibujar_charcos(fondo, celdas, tam)` (l. 2596): Charcos: agua quieta y semitransparente sobre el piso de la era (se ve el piso a traves), con los bordes redondeados,
-  - `_armar_fondo(ent)` (l. 2622): Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno).
-  - `_chamuscado(tam, semilla)` (l. 2723): Mancha de piso quemado para multiplicar sobre el piso: oscura en el medio y sin bordes rectos (una de 4 formas).
-  - `_resplandor(lado)` (l. 2739): Circulo naranja que se apaga hacia afuera, para sumarlo sobre lo que arde (se arma una vez por tamaño).
-  - `_tono(color, k)` (l. 2750): El color aclarado (k > 1) u oscurecido (k < 1).
-  - `_dibujar_mostrador(ventana, r, color, franja)` (l. 2755): Mostrador de la tienda: el frente de madera, la tela del color del tendero colgando con flecos y la tapa clara arriba.
-  - `_dibujar_edificio(ventana, r, color, casa)` (l. 2774): Edificio o casa del refugio: paredes claras con vigas, techo del color del lugar, ventanas y la puerta.
-  - `_dibujar_tablon(ventana, r, color)` (l. 2800): El tablón de madera dibujado (solo si falta su sprite).
-  - `_dibujar_telescopio(ventana, r, color)` (l. 2811): El telescopio dibujado (solo si falta su sprite).
-  - `_dibujar_banco(ventana, r, color)` (l. 2820): El banco dibujado (solo si falta su sprite).
-  - `_dibujar_cartel(ventana, r, color)` (l. 2828): El cartel dibujado (solo si falta su sprite).
-  - `_dibujar_estante(ventana, r, color)` (l. 2836): Estante de la tienda: madera con dos tablas, sombra abajo y patitas (las cosas van arriba, ver dibujar_tienda).
-  - `_dibujar_mesa(ventana, r, color)` (l. 2850): Mesa de los destacados: patas de madera y un mantel del color del tendero con borde claro.
-  - `_sprite_de(d, img, r)` (l. 2861): El dibujo de un objeto al tamaño que va y donde se pone: del ancho del objeto y apoyado abajo; los que tienen 'escala' (el arbol
-  - `_blanca(sprite)` (l. 2871): La silueta del dibujo en blanco suave (para el destello cuando le pegan), guardada.
-  - `dibujar_copas(ent, ventana, cx, cy, rects)` (l. 2878): Despues de dibujar a los pokemon: la copa de cada arbol se vuelve a dibujar medio transparente arriba de los que estan parados
-  - `_brillo_pasto(ent, ventana, cx, cy, ahora, vista)` (l. 2897): Gotitas de rocio que titilan en las matas de hierba (sobre todo a la mañana). Las casillas de hierba se buscan una vez por
-  - `_brillo_suave(radio, color)` (l. 2921): Un circulo de color que se apaga hacia el borde, para sumar encima (se arma una vez por tamaño y color).
+  - `_aclarar(color, k)` (l. 2594): Color mas claro (k > 0) o mas oscuro (k < 0).
+  - `_dibujar_textura(fondo, t, r, f, c)` (l. 2599): Dibujito simple para que cada terreno se distinga del piso (hasta que lleguen los sprites).
+  - `_poner_tile(ent, fondo, cp, terreno, f, c, r)` (l. 2633): Pieza del tileset segun los vecinos. Si el terreno se anima (agua del PMD) queda anotado para redibujarlo cada frame.
+  - `_alfombra(ancho, alto)` (l. 2651): Alfombra roja del Secret Bazaar del tamaño pedido (pixeles al doble): bordes y esquinas recortados de la hoja y rombos
+  - `_dibujar_charcos(fondo, celdas, tam)` (l. 2674): Charcos: agua quieta y semitransparente sobre el piso de la era (se ve el piso a traves), con los bordes redondeados,
+  - `_armar_fondo(ent)` (l. 2700): Piso, terrenos, paredes y maquinas en una imagen (se rehace solo cuando cambia el terreno).
+  - `_chamuscado(tam, semilla)` (l. 2801): Mancha de piso quemado para multiplicar sobre el piso: oscura en el medio y sin bordes rectos (una de 4 formas).
+  - `_resplandor(lado)` (l. 2817): Circulo naranja que se apaga hacia afuera, para sumarlo sobre lo que arde (se arma una vez por tamaño).
+  - `_tono(color, k)` (l. 2828): El color aclarado (k > 1) u oscurecido (k < 1).
+  - `_dibujar_mostrador(ventana, r, color, franja)` (l. 2833): Mostrador de la tienda: el frente de madera, la tela del color del tendero colgando con flecos y la tapa clara arriba.
+  - `_dibujar_edificio(ventana, r, color, casa)` (l. 2852): Edificio o casa del refugio: paredes claras con vigas, techo del color del lugar, ventanas y la puerta.
+  - `_dibujar_tablon(ventana, r, color)` (l. 2878): El tablón de madera dibujado (solo si falta su sprite).
+  - `_dibujar_telescopio(ventana, r, color)` (l. 2889): El telescopio dibujado (solo si falta su sprite).
+  - `_dibujar_banco(ventana, r, color)` (l. 2898): El banco dibujado (solo si falta su sprite).
+  - `_dibujar_cartel(ventana, r, color)` (l. 2906): El cartel dibujado (solo si falta su sprite).
+  - `_dibujar_estante(ventana, r, color)` (l. 2914): Estante de la tienda: madera con dos tablas, sombra abajo y patitas (las cosas van arriba, ver dibujar_tienda).
+  - `_dibujar_mesa(ventana, r, color)` (l. 2928): Mesa de los destacados: patas de madera y un mantel del color del tendero con borde claro.
+  - `_sprite_de(d, img, r)` (l. 2939): El dibujo de un objeto al tamaño que va y donde se pone: del ancho del objeto y apoyado abajo; los que tienen 'escala' (el arbol
+  - `_blanca(sprite)` (l. 2949): La silueta del dibujo en blanco suave (para el destello cuando le pegan), guardada.
+  - `dibujar_copas(ent, ventana, cx, cy, rects)` (l. 2956): Despues de dibujar a los pokemon: la copa de cada arbol se vuelve a dibujar medio transparente arriba de los que estan parados
+  - `_brillo_pasto(ent, ventana, cx, cy, ahora, vista)` (l. 2975): Gotitas de rocio que titilan en las matas de hierba (sobre todo a la mañana). Las casillas de hierba se buscan una vez por
+  - `_brillo_suave(radio, color)` (l. 2999): Un circulo de color que se apaga hacia el borde, para sumar encima (se arma una vez por tamaño y color).
 - **El sol: el pasto que brilla, las sombras de los pokemon, los rayos y el agua que destella**
-  - `sol_de(ent)` (l. 2955): El sol en la sala ahora: (fuerza de 0 a 1, altura de 0 a 1, hacia donde caen las sombras (dx, dy), color de la luz: rosado al
-  - `_capa(nombre, tam)` (l. 2965): Una superficie de trabajo del tamaño de la pantalla (se arma una vez y se reusa).
-  - `_solido(nombre, color, tam)` (l. 2972): Una superficie de un solo color para multiplicar (blit con BLEND_RGB_MULT es rapido; fill con special_flags, no).
-  - `teñir(ventana, color)` (l. 2982): Multiplica toda la pantalla por un color (la luz del dia).
-  - `_canales(sup)` (l. 2987): Dos copias de la superficie con los canales de color corridos, moviendo sus bytes (la forma de mezclar canales sin numpy)
-  - `_por(sup, veces)` (l. 2994): La superficie multiplicada por 2, 4, 8... (sumandola a si misma).
-  - `_mezclar(sup, color, banderas, lleno)` (l. 3000): sup mezclada con un color parejo (fill con special_flags es lento: se usa una superficie llena y blit).
-  - `_armar_luz_pasto(ent)` (l. 3006): Lo que brilla del pasto al sol, pixel por pixel pero todo de una (mezclando superficies): solo lo verde (cuanto mas verde
-  - `_banda()` (l. 3040): La franja de luz que pasa con el viento: diagonales que se repiten (la textura empalma sola al repetirse).
-  - `_manchas()` (l. 3052): Manchas de sol que se cuelan entre las hojas: las sombras de nubes del Red Rescue Team al reves (luz), bien suaves.
-  - `_luz_del_sol(ent, ventana, cx, cy, ahora)` (l. 3065): El sol en el pasto: brillan las puntas de las hojas (siempre un poco), mas cuando pasa la franja del viento y adentro de las
-  - `_mancha_sombra(largo, grueso, angulo, alfa)` (l. 3084): Una sombra suave (elipse que se apaga hacia el borde) de ese largo y grosor, girada; se arma una vez por medida.
-  - `dibujar_sombras(ent, ventana, cx, cy, cuerpos)` (l. 3104): La sombra de cada pokemon: una suave bajo los pies y, afuera con sol, la que tira el sol (larga a la mañana y a la tarde,
-  - `_textura_rayos(tam, angulo, semilla)` (l. 3127): Rayos de sol que bajan en diagonal desde el lado del sol, suaves (se dibujan chicos y se agrandan suavizados) y que se
-  - `_rayos(ent, ventana, ahora)` (l. 3151): Rayos de sol (como en un bosque): bajan en diagonal desde el lado del sol, mas cuando el sol esta bajo (a la mañana y a la
-  - `_destellos_agua(ent, ventana, cx, cy, ahora, vista)` (l. 3169): Con sol, el agua destella: la estrellita del PMD aparece y se apaga sobre el agua, cada una a su tiempo (mas seguido con
-  - `sacudir(ent, x, y, ahora)` (l. 3190): Alguien pasa por la hierba: la mata se sacude (como el pasto alto de los juegos de Pokemon).
-  - `_sacudidas(ent, ventana, cx, cy, ahora)` (l. 3198): Las matas que se sacuden (ver sacudir): la casilla del fondo va de lado a lado y se aquieta.
-  - `dibujar(ent, ventana, cx, cy, ahora, tipos_jugador, cuerpos)` (l. 3208): Dibuja la sala vista desde la camara (cx, cy). Las maquinas muestran su radio solo si ayudan a tus tipos. cuerpos: los pies
-  - `_velo(tam, color)` (l. 3320): Superficie de un color (con transparencia) de ese tamaño, armada una vez y reusada.
-  - `_reflejo(tam)` (l. 3328): Rayitas claras para sumarle al agua que no tiene paleta (se mueven de lado a lado).
-  - `_particulas(cantidad, W, H, ahora, vx, vy)` (l. 3342): Posiciones de las particulas del clima en este momento: cada una arranca en un lugar fijo y avanza con el tiempo
+  - `sol_de(ent)` (l. 3034): El sol en la sala ahora: (fuerza de 0 a 1, altura de 0 a 1, hacia donde caen las sombras (dx, dy), color de la luz: rosado al
+  - `_capa(nombre, tam)` (l. 3044): Una superficie de trabajo del tamaño de la pantalla (se arma una vez y se reusa).
+  - `_solido(nombre, color, tam)` (l. 3051): Una superficie de un solo color para multiplicar (blit con BLEND_RGB_MULT es rapido; fill con special_flags, no).
+  - `teñir(ventana, color)` (l. 3061): Multiplica toda la pantalla por un color (la luz del dia).
+  - `_canales(sup)` (l. 3066): Dos copias de la superficie con los canales de color corridos, moviendo sus bytes (la forma de mezclar canales sin numpy)
+  - `_por(sup, veces)` (l. 3073): La superficie multiplicada por 2, 4, 8... (sumandola a si misma).
+  - `_mezclar(sup, color, banderas, lleno)` (l. 3079): sup mezclada con un color parejo (fill con special_flags es lento: se usa una superficie llena y blit).
+  - `_armar_luz_pasto(ent)` (l. 3085): Lo que brilla del piso al sol, pixel por pixel pero todo de una (mezclando superficies): lo que es mas claro que lo de
+  - `_banda()` (l. 3120): La franja de luz que pasa con el viento: diagonales que se repiten (la textura empalma sola al repetirse).
+  - `_manchas()` (l. 3132): Manchas de sol que se cuelan entre las hojas: las sombras de nubes del Red Rescue Team al reves (luz), bien suaves.
+  - `_luz_del_sol(ent, ventana, cx, cy, ahora)` (l. 3145): El sol en el pasto: brillan las puntas de las hojas (siempre un poco), mas cuando pasa la franja del viento y adentro de las
+  - `_mancha_sombra(largo, grueso, angulo, alfa)` (l. 3164): Una sombra suave (elipse que se apaga hacia el borde) de ese largo y grosor, girada; se arma una vez por medida.
+  - `dibujar_sombras(ent, ventana, cx, cy, cuerpos)` (l. 3184): La sombra de cada pokemon: una suave bajo los pies y, afuera con sol, la que tira el sol (larga a la mañana y a la tarde,
+  - `_textura_rayos(tam, angulo, semilla)` (l. 3207): Rayos de sol que bajan en diagonal desde el lado del sol, suaves (se dibujan chicos y se agrandan suavizados) y que se
+  - `_rayos(ent, ventana, ahora)` (l. 3231): Rayos de sol (como en un bosque): bajan en diagonal desde el lado del sol, mas cuando el sol esta bajo (a la mañana y a la
+  - `_lugares_haces(ent)` (l. 3253): Donde caen los haces de la sala: casillas libres lejos entre si (siempre las mismas para la misma sala).
+  - `_textura_haz(ancho, alto, angulo)` (l. 3267): La columna de luz (blanca: se tiñe al dibujarla): mas fuerte abajo, en el piso, y suave en los bordes; inclinada hacia el sol.
+  - `_charco_haz(ancho)` (l. 3285): El charco de luz en el piso donde cae el haz (aplastado: vista de arriba).
+  - `_haces(ent, ventana, ahora)` (l. 3292): Los haces de luz de las cuevas y salas de adentro de dia (mas fuertes al mediodia, dorados a la mañana y a la tarde), con
+  - `_destellos(ent, ventana, cx, cy, ahora, vista)` (l. 3328): Con sol, el agua, el hielo y la nieve destellan: la estrellita del PMD aparece y se apaga, cada una a su tiempo (mas seguido
+  - `sacudir(ent, x, y, ahora)` (l. 3351): Alguien pasa por la hierba: la mata se sacude (como el pasto alto de los juegos de Pokemon).
+  - `_sacudidas(ent, ventana, cx, cy, ahora)` (l. 3359): Las matas que se sacuden (ver sacudir): la casilla del fondo va de lado a lado y se aquieta.
+  - `dibujar(ent, ventana, cx, cy, ahora, tipos_jugador, cuerpos)` (l. 3369): Dibuja la sala vista desde la camara (cx, cy). Las maquinas muestran su radio solo si ayudan a tus tipos. cuerpos: los pies
+  - `_velo(tam, color)` (l. 3482): Superficie de un color (con transparencia) de ese tamaño, armada una vez y reusada.
+  - `_reflejo(tam)` (l. 3490): Rayitas claras para sumarle al agua que no tiene paleta (se mueven de lado a lado).
+  - `_particulas(cantidad, W, H, ahora, vx, vy)` (l. 3504): Posiciones de las particulas del clima en este momento: cada una arranca en un lugar fijo y avanza con el tiempo
 - **El clima del Red Rescue Team (assets/clima/<efecto>/<nn>.png, los arma 'python herramientas.py clima')**
-  - `_cuadros_clima(nombre)` (l. 3353): Los cuadros de assets/clima/<nombre> en orden (lista vacia si no estan: se dibuja el clima de antes, con lineas y circulos).
-  - `_cuadro_clima(nombre, ahora, ms, escala, alfa)` (l. 3366): El cuadro que toca ahora, agrandado. Se agranda una sola vez por cuadro (queda guardado hasta que cambia).
-  - `_embaldosar(ventana, img, dx, dy, banderas)` (l. 3379): Repite img por toda la ventana, corrida (dx, dy) pixeles (da la vuelta sola).
-  - `_reflejo_sol(ventana, ahora)` (l. 3393): El destello del sol del PMD como un reflejo en la lente: cada tanto aparece de a poco, se corre despacio y se va.
-  - `area_sala(ent, cx, cy, ventana)` (l. 3416): El rectangulo de la sala en la pantalla (lo de afuera es negro: ahi no nieva ni llueve).
-  - `_nevar(ent, ventana, ahora, cantidad, alfa)` (l. 3421): Copos del Red Rescue Team (cada uno recortado de la hoja) cayendo de verdad sobre la sala: cada copo tiene su lugar en el piso
-  - `_sombras_de_nubes(ent, ventana, ahora, alfa, velocidad)` (l. 3470): Las sombras de las nubes del PMD pasando despacio por el piso (pegadas al mundo: si caminas, quedan atras).
-  - `_ambiente(ent, ventana, ahora, noche)` (l. 3479): Lo que flota en el aire cuando no hay clima fuerte: adentro (o a oscuras) polvito que brilla despacio; afuera de dia, polen
-  - `_hay_brasas(ent)` (l. 3518): Si en la sala hay lava, hornos o braseros (flotan brasas en el aire). Se mira una vez por sala.
+  - `_cuadros_clima(nombre)` (l. 3515): Los cuadros de assets/clima/<nombre> en orden (lista vacia si no estan: se dibuja el clima de antes, con lineas y circulos).
+  - `_cuadro_clima(nombre, ahora, ms, escala, alfa)` (l. 3528): El cuadro que toca ahora, agrandado. Se agranda una sola vez por cuadro (queda guardado hasta que cambia).
+  - `_embaldosar(ventana, img, dx, dy, banderas)` (l. 3541): Repite img por toda la ventana, corrida (dx, dy) pixeles (da la vuelta sola).
+  - `_reflejo_sol(ventana, ahora)` (l. 3555): El destello del sol del PMD como un reflejo en la lente: cada tanto aparece de a poco, se corre despacio y se va.
+  - `area_sala(ent, cx, cy, ventana)` (l. 3578): El rectangulo de la sala en la pantalla (lo de afuera es negro: ahi no nieva ni llueve).
+  - `_nevar(ent, ventana, ahora, cantidad, alfa)` (l. 3583): Copos del Red Rescue Team (cada uno recortado de la hoja) cayendo de verdad sobre la sala: cada copo tiene su lugar en el piso
+  - `_sombras_de_nubes(ent, ventana, ahora, alfa, velocidad)` (l. 3632): Las sombras de las nubes del PMD pasando despacio por el piso (pegadas al mundo: si caminas, quedan atras).
+  - `_ambiente(ent, ventana, ahora, noche)` (l. 3641): Lo que flota en el aire cuando no hay clima fuerte: adentro (o a oscuras) polvito que brilla despacio; afuera de dia, polen
+  - `_hay_brasas(ent)` (l. 3680): Si en la sala hay lava, hornos o braseros (flotan brasas en el aire). Se mira una vez por sala.
 - **La luz: de noche (y en las salas a oscuras) solo se ve cerca de las pocas cosas que alumbran**
-  - `a_oscuras(ent, variante, semilla, tipo)` (l. 3544): Decide (siempre igual para la misma sala) si es una sala a oscuras: solo pasa en las de combate; en las cuevas y mazmorras
-  - `oscuridad_de(ent, hora_luz, tipo)` (l. 3552): Que tan oscura esta la sala ahora (0: nada, hasta 255). hora_luz: el color del dia (mundos.luz). Las salas de jefes no (tienen
-  - `_sello_luz(radio)` (l. 3564): El agujero de una luz en la oscuridad: transparente en el medio y cada vez mas oscuro hasta el borde (para BLEND_RGBA_MIN).
-  - `_brillo_luz(radio, color)` (l. 3581): El color de una luz para sumar encima (mas fuerte en el medio y nada en el borde).
-  - `fuentes_de_luz(ent)` (l. 3596): Las luces fijas de la sala (maquinas prendidas, lava, postes...): [(x, y, radio, color, titila)] en el mundo. Se arma una vez por
-  - `dibujar_oscuridad(ent, ventana, cx, cy, ahora, alfa, extra)` (l. 3608): Tapa la sala con la oscuridad y le abre agujeros de luz: las fuentes de la sala (las mas cercanas, como mucho LUZ['max_fuentes']),
-  - `_luciernagas(ent, ventana, cx, cy, ahora, fuerza, cantidad)` (l. 3638): Luciernagas de la noche: puntitos verde-amarillos que vagan pegados al mundo y se prenden y se apagan (solo sobre la sala).
-  - `_luciernagas_en(ent, ventana, cx, cy, ahora, fuerza, cantidad)` (l. 3645): (ayudante interno)
-  - `dibujar_clima(ent, ventana, ahora, cartel)` (l. 3659): Capa del clima encima de todo y el cartelito de cuanto le queda. Usa los cuadros animados del Red Rescue Team
-  - `cartel_clima(ent, ventana, ahora)` (l. 3669): El cartelito de arriba con el clima y cuanto le queda (aparte, para dibujarlo encima de la oscuridad).
-  - `_clima_en_sala(ent, ventana, ahora)` (l. 3678): Las capas del clima (ver dibujar_clima).
+  - `a_oscuras(ent, variante, semilla, tipo)` (l. 3707): Decide (siempre igual para la misma sala) si es una sala a oscuras: solo pasa en las de combate; en las cuevas y mazmorras
+  - `oscuridad_de(ent, hora_luz, tipo)` (l. 3715): Que tan oscura esta la sala ahora (0: nada, hasta 255). hora_luz: el color del dia (mundos.luz). Las salas de jefes no (tienen
+  - `_sello_luz(radio)` (l. 3727): El agujero de una luz en la oscuridad: transparente en el medio y cada vez mas oscuro hasta el borde (para BLEND_RGBA_MIN).
+  - `_brillo_luz(radio, color)` (l. 3744): El color de una luz para sumar encima (mas fuerte en el medio y nada en el borde).
+  - `fuentes_de_luz(ent)` (l. 3759): Las luces fijas de la sala (maquinas prendidas, lava, postes...): [(x, y, radio, color, titila)] en el mundo. Se arma una vez por
+  - `dibujar_oscuridad(ent, ventana, cx, cy, ahora, alfa, extra)` (l. 3771): Tapa la sala con la oscuridad y le abre agujeros de luz: las fuentes de la sala (las mas cercanas, como mucho LUZ['max_fuentes']),
+  - `_luciernagas(ent, ventana, cx, cy, ahora, fuerza, cantidad)` (l. 3801): Luciernagas de la noche: puntitos verde-amarillos que vagan pegados al mundo y se prenden y se apagan (solo sobre la sala).
+  - `_luciernagas_en(ent, ventana, cx, cy, ahora, fuerza, cantidad)` (l. 3808): (ayudante interno)
+  - `dibujar_clima(ent, ventana, ahora, cartel)` (l. 3822): Capa del clima encima de todo y el cartelito de cuanto le queda. Usa los cuadros animados del Red Rescue Team
+  - `cartel_clima(ent, ventana, ahora)` (l. 3832): El cartelito de arriba con el clima y cuanto le queda (aparte, para dibujarlo encima de la oscuridad).
+  - `_clima_en_sala(ent, ventana, ahora)` (l. 3841): Las capas del clima (ver dibujar_clima).
 - **Efectos**
-- `armar_efectos()` (l. 3736): Particulas (golpes, cosas que se rompen, explosiones, subir de nivel...) y la transicion al entrar o salir de una sala.
-  - `crear()` (l. 3752): Estado vacio de las particulas, animaciones y la transicion.
-  - `_tira(nombre)` (l. 3757): Frames de assets/efectos/<nombre>.png o None.
-  - `_frames(nombre, tam)` (l. 3774): Frames del efecto al tamaño pedido (se escalan una sola vez) o None.
-  - `_animacion(ef, nombre, x, y, tam, velocidad)` (l. 3783): Si hay sprite del efecto lo usa. Devuelve True si lo encontro.
-  - `proyectil(ventana, tipo, x, y, radio, ahora)` (l. 3791): Dibuja un proyectil animado del tipo (bola de fuego, hoja, roca...) centrado en (x, y) de la pantalla. False si no hay sprite.
-  - `cura(ef, x, y)` (l. 3801): Brillos verdes al curarse.
-  - `cambio(ef, x, y)` (l. 3809): Destello al cambiar de pokemon.
-  - `aparecer(ef, x, y)` (l. 3814): Nubecita de BW donde aparece un enemigo.
-  - `destello(ef, x, y)` (l. 3819): Estrellitas (aparece la llave, monedas).
-  - `chispas(ef, x, y, color, cantidad, velocidad, vida, tam, gravedad, subir)` (l. 3824): Particulas que salen en todas direcciones desde (x, y).
-  - `golpe(ef, x, y, color, tipo)` (l. 3832): Cuando un ataque le pega a algo.
-  - `estrellas(ef, x, y, cantidad, radio)` (l. 3841): Estrellitas amarillas del Red Rescue Team alrededor de (x, y): la chispa de un golpe que conecta.
-  - `brillos(ef, x, y, cantidad, radio)` (l. 3847): Brillitos blancos del Red Rescue Team (frenesi, hitos de la cadena de golpes).
-  - `baja(ef, x, y, color, tipo)` (l. 3853): Un enemigo derrotado: un anillo de luz, el golpe de su tipo en grande, estrellas y chispas de su color para todos lados.
-  - `rastro(ef, x, y, color)` (l. 3862): La colita de un proyectil: una chispa de su color que queda atras y se apaga (si ya hay muchas particulas, no).
-  - `romper(ef, x, y, color)` (l. 3869): Pedazos que saltan y caen al romper un objeto.
-  - `explosion(ef, x, y, radio)` (l. 3878): Explosion (animacion del PMD o chispas de fuego y humo).
-  - `nivel(ef, x, y)` (l. 3885): Brillitos que suben al subir de nivel.
-  - `evolucion(ef, x, y)` (l. 3893): Destello grande al evolucionar o cuando aparece Arceus Beta.
-  - `corazones(ef, x, y)` (l. 3900): Un pokemon quiere unirse a tu equipo.
-  - `polvo(ef, x, y)` (l. 3907): Polvito bajo los pies al correr o embestir.
-  - `actualizar(ef)` (l. 3913): Avanza un frame las particulas (con gravedad y friccion) y las animaciones; borra las terminadas.
-  - `dibujar(ef, ventana, cx, cy)` (l. 3922): Dibuja particulas y animaciones segun la camara.
+- `armar_efectos()` (l. 3900): Particulas (golpes, cosas que se rompen, explosiones, subir de nivel...) y la transicion al entrar o salir de una sala.
+  - `crear()` (l. 3916): Estado vacio de las particulas, animaciones y la transicion.
+  - `_tira(nombre)` (l. 3921): Frames de assets/efectos/<nombre>.png o None.
+  - `_frames(nombre, tam)` (l. 3938): Frames del efecto al tamaño pedido (se escalan una sola vez) o None.
+  - `_animacion(ef, nombre, x, y, tam, velocidad)` (l. 3947): Si hay sprite del efecto lo usa. Devuelve True si lo encontro.
+  - `proyectil(ventana, tipo, x, y, radio, ahora)` (l. 3955): Dibuja un proyectil animado del tipo (bola de fuego, hoja, roca...) centrado en (x, y) de la pantalla. False si no hay sprite.
+  - `cura(ef, x, y)` (l. 3965): Brillos verdes al curarse.
+  - `cambio(ef, x, y)` (l. 3973): Destello al cambiar de pokemon.
+  - `aparecer(ef, x, y)` (l. 3978): Nubecita de BW donde aparece un enemigo.
+  - `destello(ef, x, y)` (l. 3983): Estrellitas (aparece la llave, monedas).
+  - `chispas(ef, x, y, color, cantidad, velocidad, vida, tam, gravedad, subir)` (l. 3988): Particulas que salen en todas direcciones desde (x, y).
+  - `golpe(ef, x, y, color, tipo)` (l. 3996): Cuando un ataque le pega a algo.
+  - `estrellas(ef, x, y, cantidad, radio)` (l. 4005): Estrellitas amarillas del Red Rescue Team alrededor de (x, y): la chispa de un golpe que conecta.
+  - `brillos(ef, x, y, cantidad, radio)` (l. 4011): Brillitos blancos del Red Rescue Team (frenesi, hitos de la cadena de golpes).
+  - `baja(ef, x, y, color, tipo)` (l. 4017): Un enemigo derrotado: un anillo de luz, el golpe de su tipo en grande, estrellas y chispas de su color para todos lados.
+  - `rastro(ef, x, y, color)` (l. 4026): La colita de un proyectil: una chispa de su color que queda atras y se apaga (si ya hay muchas particulas, no).
+  - `romper(ef, x, y, color)` (l. 4033): Pedazos que saltan y caen al romper un objeto.
+  - `explosion(ef, x, y, radio)` (l. 4042): Explosion (animacion del PMD o chispas de fuego y humo).
+  - `nivel(ef, x, y)` (l. 4049): Brillitos que suben al subir de nivel.
+  - `evolucion(ef, x, y)` (l. 4057): Destello grande al evolucionar o cuando aparece Arceus Beta.
+  - `corazones(ef, x, y)` (l. 4064): Un pokemon quiere unirse a tu equipo.
+  - `polvo(ef, x, y)` (l. 4071): Polvito bajo los pies al correr o embestir.
+  - `actualizar(ef)` (l. 4077): Avanza un frame las particulas (con gravedad y friccion) y las animaciones; borra las terminadas.
+  - `dibujar(ef, ventana, cx, cy)` (l. 4086): Dibuja particulas y animaciones segun la camara.
 - **Transicion de sala**
-  - `transicion(ef, clase, ahora, centro, duracion)` (l. 3941): 'entrar': el negro se abre en circulo desde donde entras. 'salir': se cierra hacia la puerta.
-  - `dibujar_transicion(ef, ventana, ahora)` (l. 3946): Pantalla negra con un circulo que se abre (al entrar) o se cierra (al salir) desde la puerta.
+  - `transicion(ef, clase, ahora, centro, duracion)` (l. 4105): 'entrar': el negro se abre en circulo desde donde entras. 'salir': se cierra hacia la puerta.
+  - `dibujar_transicion(ef, ventana, ahora)` (l. 4110): Pantalla negra con un circulo que se abre (al entrar) o se cierra (al salir) desde la puerta.
 
 ### `combate.py` (5058 líneas)
 
@@ -1923,7 +1931,7 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
   - `animacion_evolucion(ui, nombre, antes)` (l. 3266): Evolucion como en los juegos: el pokemon brilla, se vuelve una silueta blanca que cambia entre la forma vieja y la nueva
     - `silueta(a)` (l. 3276): La silueta del pokemon que evoluciona (blanca, para el destello).
 
-### `herramientas.py` (2156 líneas)
+### `herramientas.py` (2184 líneas)
 
 > herramientas.py - Programas aparte para preparar el juego (no se usan mientras jugas).
 >
@@ -1953,139 +1961,142 @@ Cada función con su línea y qué hace. Las que están adentro de otras van con
 >     python herramientas.py icono               el icono de Pokemanic.exe (la cara de Celebi) para crear_exe.bat
 >     python herramientas.py portal              el portal violeta de las escenas ('Dimensional Hole' del Explorers of Time/Darkness)
 >     python herramientas.py espiritu            el aura redonda del espiritu ('Moonlight' del Explorers of Sky)
+>     python herramientas.py farol               el farol de la noche: el brasero de hierro del gremio de Wigglytuff (Explorers of Time/Darkness)
 >     python herramientas.py salas               muestra en texto algunas salas generadas
 >     python herramientas.py plan                muestra el plan de salas de una partida
 >     python herramientas.py visor               ventana para mirar salas generadas sin jugar
 
 - **Descargar assets**
-- `herramienta_descargar()` (l. 53): Baja de SpriteCollab las animaciones y retratos de cada pokemon a assets/sprites/pokemones.
-  - `bajar(url, intentos)` (l. 66): Baja una URL (reintenta unas veces). None si no se pudo.
-  - `guardar(url, ruta)` (l. 82): Baja una URL a un archivo si todavia no esta. True si quedo guardado.
-  - `descargar(nombre, datos)` (l. 95): Baja los sprites (AnimData.xml y hojas) y el retrato de un pokemon desde SpriteCollab.
-  - `main()` (l. 129): Baja todo lo que falta de todos los pokemon, de a varios a la vez.
+- `herramienta_descargar()` (l. 54): Baja de SpriteCollab las animaciones y retratos de cada pokemon a assets/sprites/pokemones.
+  - `bajar(url, intentos)` (l. 67): Baja una URL (reintenta unas veces). None si no se pudo.
+  - `guardar(url, ruta)` (l. 83): Baja una URL a un archivo si todavia no esta. True si quedo guardado.
+  - `descargar(nombre, datos)` (l. 96): Baja los sprites (AnimData.xml y hojas) y el retrato de un pokemon desde SpriteCollab.
+  - `main()` (l. 130): Baja todo lo que falta de todos los pokemon, de a varios a la vez.
 - **Analizar animaciones**
-- `herramienta_animaciones(solo)` (l. 161): Lee el AnimData.xml de cada pokemon, dice que hace cada animacion y que animacion le toca a cada uno de sus ataques
-  - `leer_xml(carpeta)` (l. 176): Animaciones del AnimData.xml: nombre -> (cantidad de frames, de quien es copia o None).
-  - `origen(animador, movimiento, tipo, forma, elegida)` (l. 189): Por que se eligio esa animacion: por el nombre del ataque, por su tipo, por su forma o la generica.
+- `herramienta_animaciones(solo)` (l. 162): Lee el AnimData.xml de cada pokemon, dice que hace cada animacion y que animacion le toca a cada uno de sus ataques
+  - `leer_xml(carpeta)` (l. 177): Animaciones del AnimData.xml: nombre -> (cantidad de frames, de quien es copia o None).
+  - `origen(animador, movimiento, tipo, forma, elegida)` (l. 190): Por que se eligio esa animacion: por el nombre del ataque, por su tipo, por su forma o la generica.
 - **Sonidos**
-- `herramienta_sonidos()` (l. 249): Baja el grito de cada pokemon (los de PokeAPI: github.com/PokeAPI/cries) a assets/sonidos/gritos/<nombre>.ogg.
-  - `bajar(url)` (l. 257): Baja una URL (None si falla).
-  - `uno(nombre)` (l. 263): Baja el grito de un pokemon.
+- `herramienta_sonidos()` (l. 250): Baja el grito de cada pokemon (los de PokeAPI: github.com/PokeAPI/cries) a assets/sonidos/gritos/<nombre>.ogg.
+  - `bajar(url)` (l. 258): Baja una URL (None si falla).
+  - `uno(nombre)` (l. 264): Baja el grito de un pokemon.
 - **Generar datos**
-- `herramienta_datos()` (l. 288): Pide a la PokeAPI stats, movimientos, descripcion y evoluciones y los guarda en datos_pokeapi.json.
-  - `_json(url)` (l. 299): Pide una URL y la lee como JSON.
-  - `_por_espejo(url)` (l. 304): La misma pagina desde el espejo de GitHub: ahi todo esta por numero, asi que los nombres se buscan en el indice.
-  - `pedir(url)` (l. 315): JSON de la PokeAPI (una URL completa o el nombre de un pokemon). Si pokeapi.co no responde, usa el espejo de GitHub.
-  - `como_evoluciona(hijo)` (l. 326): Nivel, piedra u otra condicion para evolucionar a ese hijo de la cadena.
-  - `buscar_cadena(nodo, objetivo, padre)` (l. 333): Busca a un pokemon en su cadena evolutiva: (de quien viene, a quienes evoluciona, como).
-  - `descripcion(especie)` (l. 344): Texto de la pokedex en castellano (o en ingles si no hay).
-  - `main()` (l. 352): Arma datos_pokeapi.json con stats, movimientos, evoluciones y descripciones de todos los pokemon.
+- `herramienta_datos()` (l. 289): Pide a la PokeAPI stats, movimientos, descripcion y evoluciones y los guarda en datos_pokeapi.json.
+  - `_json(url)` (l. 300): Pide una URL y la lee como JSON.
+  - `_por_espejo(url)` (l. 305): La misma pagina desde el espejo de GitHub: ahi todo esta por numero, asi que los nombres se buscan en el indice.
+  - `pedir(url)` (l. 316): JSON de la PokeAPI (una URL completa o el nombre de un pokemon). Si pokeapi.co no responde, usa el espejo de GitHub.
+  - `como_evoluciona(hijo)` (l. 327): Nivel, piedra u otra condicion para evolucionar a ese hijo de la cadena.
+  - `buscar_cadena(nodo, objetivo, padre)` (l. 334): Busca a un pokemon en su cadena evolutiva: (de quien viene, a quienes evoluciona, como).
+  - `descripcion(especie)` (l. 345): Texto de la pokedex en castellano (o en ingles si no hay).
+  - `main()` (l. 353): Arma datos_pokeapi.json con stats, movimientos, evoluciones y descripciones de todos los pokemon.
 - **Recortar assets**
-- `herramienta_recortar(ruta)` (l. 397): Para recortar sprites de una hoja (por ejemplo de The Spriters Resource) y dejarlos donde el juego los busca.
-  - `main(ruta)` (l. 416): Ventana para recortar a mano sprites de una hoja y guardarlos como objetos o terrenos del mundo.
-    - `a_hoja(pos)` (l. 430): De pixeles de la ventana a pixeles de la hoja (segun zoom y desplazamiento).
-    - `recorte()` (l. 434): La seleccion achicada al borde del dibujo, con el fondo transparente.
-    - `nombres_conocidos()` (l. 444): Nombres de objetos o terrenos que ya usa el juego (para sugerirlos al guardar).
+- `herramienta_recortar(ruta)` (l. 398): Para recortar sprites de una hoja (por ejemplo de The Spriters Resource) y dejarlos donde el juego los busca.
+  - `main(ruta)` (l. 417): Ventana para recortar a mano sprites de una hoja y guardarlos como objetos o terrenos del mundo.
+    - `a_hoja(pos)` (l. 431): De pixeles de la ventana a pixeles de la hoja (segun zoom y desplazamiento).
+    - `recorte()` (l. 435): La seleccion achicada al borde del dibujo, con el fondo transparente.
+    - `nombres_conocidos()` (l. 445): Nombres de objetos o terrenos que ya usa el juego (para sugerirlos al guardar).
 - **Visor de mundos**
-- `herramienta_visor()` (l. 527): Para mirar salas generadas sin jugar.
-  - `generar(era, variante, tipo, semilla)` (l. 544): Sala y su entorno segun lo elegido en el visor.
-  - `main()` (l. 556): Ventana para mirar salas generadas de cualquier era y variante sin jugar.
+- `herramienta_visor()` (l. 528): Para mirar salas generadas sin jugar.
+  - `generar(era, variante, tipo, semilla)` (l. 545): Sala y su entorno segun lo elegido en el visor.
+  - `main()` (l. 557): Ventana para mirar salas generadas de cualquier era y variante sin jugar.
 - **Pruebas**
 - **Bajar las hojas de spriters-resource**
-- `herramienta_hojas()` (l. 628): Baja todas las hojas (menos los pokemon) de los 4 juegos a assets/hojas/<juego>/<seccion>/.
-  - `pedir(url, intentos)` (l. 639): Baja una URL (con reintentos) por archive.org.
-  - `limpio(texto)` (l. 654): Nombre de archivo sin caracteres que Windows no acepta.
-  - `catalogo(pagina)` (l. 658): [(seccion, id, nombre, carpeta)] de la pagina del juego, sin las secciones de pokemon.
-  - `guardada(ruta, crudo)` (l. 670): Direccion de la copia que tiene archive.org (o None). Se pregunta a su API antes de bajar: asi no se le pide de mas.
-  - `bajar(juego, pagina, seccion, i, nombre, carpeta)` (l. 678): Baja una hoja de spriters-resource (por archive.org) si todavia no esta.
-  - `main()` (l. 695): Baja todas las hojas de BW y los PMD que faltan a assets/hojas.
+- `herramienta_hojas()` (l. 629): Baja todas las hojas (menos los pokemon) de los 4 juegos a assets/hojas/<juego>/<seccion>/.
+  - `pedir(url, intentos)` (l. 640): Baja una URL (con reintentos) por archive.org.
+  - `limpio(texto)` (l. 655): Nombre de archivo sin caracteres que Windows no acepta.
+  - `catalogo(pagina)` (l. 659): [(seccion, id, nombre, carpeta)] de la pagina del juego, sin las secciones de pokemon.
+  - `guardada(ruta, crudo)` (l. 671): Direccion de la copia que tiene archive.org (o None). Se pregunta a su API antes de bajar: asi no se le pide de mas.
+  - `bajar(juego, pagina, seccion, i, nombre, carpeta)` (l. 679): Baja una hoja de spriters-resource (por archive.org) si todavia no esta.
+  - `main()` (l. 696): Baja todas las hojas de BW y los PMD que faltan a assets/hojas.
 - **Tiles de las mazmorras del PMD**
-- `herramienta_tiles()` (l. 715): Recorta las hojas de tiles de las mazmorras del PMD (Explorers of Sky 'Dungeon Tiles' y Time/Darkness 'Dungeons', de spriters-resource)
-  - `buscar_hoja(lugar)` (l. 789): Ruta de la hoja de tiles de ese lugar (en assets o cualquier subcarpeta) o None.
-  - `casilla(hoja, col, fila)` (l. 797): La casilla (col, fila) de la grilla de la hoja (24x24, sin la linea).
-  - `grupos(hoja)` (l. 801): Que grupo de columnas es cada cosa: {'pared': 1, 'suelo': 4, 'agua': n o None, 'brillo': n o None}.
-  - `leyenda(hoja)` (l. 815): Mascara de vecinos de cada casilla de la leyenda (-1 si esta vacia).
-  - `recortar(hoja, g)` (l. 827): Las 3x23 casillas del grupo sin las lineas (72x552) y que casillas tienen dibujo ('1') o estan vacias ('0').
-  - `paletas(hoja)` (l. 839): Grillas de colores a la derecha de las casillas ('Water palette' y 'Water Sparkle palette'): celdas de 10 px con borde de 1 px.
-  - `colores_de(img)` (l. 862): Todos los colores de una imagen (menos el magenta transparente).
-  - `repartir(bloques, agua, brillo)` (l. 866): Cada grilla de colores va a la capa cuyos colores cambia (algunas hojas solo tienen la de los brillos). (paleta del agua, de los brillos).
-  - `ordenar_paleta(filas, img)` (l. 876): Pone primero la fila de colores que tiene el dibujo (la casilla se recorto en ese frame). None si no tiene nada que ver.
-  - `retocar_color(c, escala)` (l. 884): Un color pasado a la escala de un retoque segun que tan claro es (el magenta de los brillos no se toca).
-  - `retocar_imagen(img, escala)` (l. 895): La imagen con todos sus colores pasados por el retoque.
-  - `main()` (l. 904): Arma cada tileset del PLAN: piezas, variantes, paletas del agua y brillos.
-  - `_juntar(a, b)` (l. 962): Pega dos imagenes una al lado de la otra.
+- `herramienta_tiles()` (l. 716): Recorta las hojas de tiles de las mazmorras del PMD (Explorers of Sky 'Dungeon Tiles' y Time/Darkness 'Dungeons', de spriters-resource)
+  - `buscar_hoja(lugar)` (l. 790): Ruta de la hoja de tiles de ese lugar (en assets o cualquier subcarpeta) o None.
+  - `casilla(hoja, col, fila)` (l. 798): La casilla (col, fila) de la grilla de la hoja (24x24, sin la linea).
+  - `grupos(hoja)` (l. 802): Que grupo de columnas es cada cosa: {'pared': 1, 'suelo': 4, 'agua': n o None, 'brillo': n o None}.
+  - `leyenda(hoja)` (l. 816): Mascara de vecinos de cada casilla de la leyenda (-1 si esta vacia).
+  - `recortar(hoja, g)` (l. 828): Las 3x23 casillas del grupo sin las lineas (72x552) y que casillas tienen dibujo ('1') o estan vacias ('0').
+  - `paletas(hoja)` (l. 840): Grillas de colores a la derecha de las casillas ('Water palette' y 'Water Sparkle palette'): celdas de 10 px con borde de 1 px.
+  - `colores_de(img)` (l. 863): Todos los colores de una imagen (menos el magenta transparente).
+  - `repartir(bloques, agua, brillo)` (l. 867): Cada grilla de colores va a la capa cuyos colores cambia (algunas hojas solo tienen la de los brillos). (paleta del agua, de los brillos).
+  - `ordenar_paleta(filas, img)` (l. 877): Pone primero la fila de colores que tiene el dibujo (la casilla se recorto en ese frame). None si no tiene nada que ver.
+  - `retocar_color(c, escala)` (l. 885): Un color pasado a la escala de un retoque segun que tan claro es (el magenta de los brillos no se toca).
+  - `retocar_imagen(img, escala)` (l. 896): La imagen con todos sus colores pasados por el retoque.
+  - `main()` (l. 905): Arma cada tileset del PLAN: piezas, variantes, paletas del agua y brillos.
+  - `_juntar(a, b)` (l. 963): Pega dos imagenes una al lado de la otra.
 - **Objetos del mundo (rocas, hielo, arbustos)**
-- `herramienta_decorados()` (l. 973): Sprites de objetos del mundo (assets/mundo/objetos/<nombre>.png, como los lee mundo.entorno.imagen)
-  - `buscar(parte)` (l. 987): Ruta de una hoja que termina con ese nombre (en assets o subcarpetas) o None.
-  - `casilla(hoja, col, fila)` (l. 995): La casilla (col, fila) de la grilla de una hoja de tiles.
-  - `roca(hoja)` (l. 999): Pared sin vecinos sobre el piso, con el piso borrado.
-  - `main()` (l. 1026): Recorta todos los objetos de DEL_PMD y TRANSFER a assets/mundo/objetos.
+- `herramienta_decorados()` (l. 974): Sprites de objetos del mundo (assets/mundo/objetos/<nombre>.png, como los lee mundo.entorno.imagen)
+  - `buscar(parte)` (l. 988): Ruta de una hoja que termina con ese nombre (en assets o subcarpetas) o None.
+  - `casilla(hoja, col, fila)` (l. 996): La casilla (col, fila) de la grilla de una hoja de tiles.
+  - `roca(hoja)` (l. 1000): Pared sin vecinos sobre el piso, con el piso borrado.
+  - `main()` (l. 1027): Recorta todos los objetos de DEL_PMD y TRANSFER a assets/mundo/objetos.
 - **Props del PMD (cajas, vasijas, heno...) y casas del Red Rescue Team**
-- `herramienta_props()` (l. 1058): Sprites de cosas hechas a mano (assets/mundo/objetos/<nombre>.png)
-  - `es_pasto(c)` (l. 1073): Pasto (verde) o piedra del borde del mapa (gris): lo que rodea a las cosas.
-  - `sin_pasto(recorte)` (l. 1077): Borra el pasto desde los bordes del recorte (lo que queda encerrado por el contorno oscuro del objeto no se toca).
-  - `vasija(par)` (l. 1096): Una vasija sola y entera a partir del par del mapa: la de adelante tiene la mitad izquierda sin tapar, y es simetrica.
-  - `llamas(mapa)` (l. 1113): Los 4 cuadros de la fogata sin las piedras ni el pasto: queda solo el fuego (rojo, naranja y amarillo bien vivos).
-  - `casa(hoja)` (l. 1136): La casa de una hoja 'Hut': sin el color de fondo y sin los carteles de texto (el pedazo mas grande).
+- `herramienta_props()` (l. 1059): Sprites de cosas hechas a mano (assets/mundo/objetos/<nombre>.png)
+  - `es_pasto(c)` (l. 1074): Pasto (verde) o piedra del borde del mapa (gris): lo que rodea a las cosas.
+  - `sin_pasto(recorte)` (l. 1078): Borra el pasto desde los bordes del recorte (lo que queda encerrado por el contorno oscuro del objeto no se toca).
+  - `vasija(par)` (l. 1097): Una vasija sola y entera a partir del par del mapa: la de adelante tiene la mitad izquierda sin tapar, y es simetrica.
+  - `llamas(mapa)` (l. 1114): Los 4 cuadros de la fogata sin las piedras ni el pasto: queda solo el fuego (rojo, naranja y amarillo bien vivos).
+  - `casa(hoja)` (l. 1137): La casa de una hoja 'Hut': sin el color de fondo y sin los carteles de texto (el pedazo mas grande).
 - **Cielo de la intro**
-- `herramienta_cielo()` (l. 1174): De la hoja 'Skies' del Explorers of Sky (4 paneles de 288x216) recorta para la intro (interfaz.menus.intro)
-  - `main()` (l. 1181): Recorta el cielo y separa cada nube del fondo verde.
-- `herramienta_minimapa()` (l. 1200): De la hoja 'Map Sprites' del Explorers of Time/Darkness (el mapa de la pantalla de arriba del PMD) recorta las piezas del minimapa
-  - `main()` (l. 1212): Recorta cada pieza de la hoja y saca el verde de fondo.
-- `herramienta_viaje()` (l. 1230): Lo del viaje temporal (interfaz.menus.viaje_temporal y cruzar_portal), en assets/interfaz/fondos
-  - `buscar(final)` (l. 1243): La hoja que termina con ese nombre (en assets o en assets/hojas).
-  - `a_cinco_tercios(hoja, x, y, ancho, alto)` (l. 1247): El cuadro (x, y, ancho, alto) recortado arriba y abajo para que quede 5:3, como la pantalla.
-  - `main()` (l. 1252): Recorta el tunel y la apertura.
+- `herramienta_cielo()` (l. 1175): De la hoja 'Skies' del Explorers of Sky (4 paneles de 288x216) recorta para la intro (interfaz.menus.intro)
+  - `main()` (l. 1182): Recorta el cielo y separa cada nube del fondo verde.
+- `herramienta_minimapa()` (l. 1201): De la hoja 'Map Sprites' del Explorers of Time/Darkness (el mapa de la pantalla de arriba del PMD) recorta las piezas del minimapa
+  - `main()` (l. 1213): Recorta cada pieza de la hoja y saca el verde de fondo.
+- `herramienta_viaje()` (l. 1231): Lo del viaje temporal (interfaz.menus.viaje_temporal y cruzar_portal), en assets/interfaz/fondos
+  - `buscar(final)` (l. 1244): La hoja que termina con ese nombre (en assets o en assets/hojas).
+  - `a_cinco_tercios(hoja, x, y, ancho, alto)` (l. 1248): El cuadro (x, y, ancho, alto) recortado arriba y abajo para que quede 5:3, como la pantalla.
+  - `main()` (l. 1253): Recorta el tunel y la apertura.
 - **Efectos de ataque del PMD**
-- `herramienta_efectos()` (l. 1282): De los 'Attack Effects' del Explorers of Sky (move_VFX/<numero>/000/<frame>.png, el zip o la carpeta assets/efectos/move_VFX)
-  - `tira_de(frames)` (l. 1302): Pone frames en una tira horizontal de cuadrados (cada frame centrado en el suyo).
-  - `main()` (l. 1309): Arma las tiras de todos los efectos elegidos (del zip o de la carpeta) y las de la hoja Poke Transfer.
+- `herramienta_efectos()` (l. 1283): De los 'Attack Effects' del Explorers of Sky (move_VFX/<numero>/000/<frame>.png, el zip o la carpeta assets/efectos/move_VFX)
+  - `tira_de(frames)` (l. 1303): Pone frames en una tira horizontal de cuadrados (cada frame centrado en el suyo).
+  - `main()` (l. 1310): Arma las tiras de todos los efectos elegidos (del zip o de la carpeta) y las de la hoja Poke Transfer.
 - **Iconos de objetos de BW**
-- `herramienta_objetos()` (l. 1348): De la hoja 'Items' de Blanco/Negro recorta los iconos de la tienda a assets/interfaz/objetos/<clave>.png (como los lee interfaz.icono_objeto).
-  - `buscar_hoja()` (l. 1374): Ruta de la hoja 'Items' de BW o None.
-  - `icono(hoja, numero)` (l. 1382): La casilla sin el fondo, recortada al dibujo y centrada en un cuadrado.
-  - `main()` (l. 1395): Recorta todos los iconos de ELEGIDOS a assets/interfaz/objetos.
+- `herramienta_objetos()` (l. 1349): De la hoja 'Items' de Blanco/Negro recorta los iconos de la tienda a assets/interfaz/objetos/<clave>.png (como los lee interfaz.icono_objeto).
+  - `buscar_hoja()` (l. 1375): Ruta de la hoja 'Items' de BW o None.
+  - `icono(hoja, numero)` (l. 1383): La casilla sin el fondo, recortada al dibujo y centrada en un cuadrado.
+  - `main()` (l. 1396): Recorta todos los iconos de ELEGIDOS a assets/interfaz/objetos.
 - **Paneles de los menus de BW**
-- `herramienta_paneles()` (l. 1420): De las hojas 'Options Screen' y 'Party Screen' de Blanco/Negro recorta las piezas de los menus a assets/interfaz/paneles
-  - `buscar_hoja(nombre)` (l. 1437): Ruta de una hoja de BW con ese nombre o None.
-  - `sin_borde(sup)` (l. 1445): Vuelve transparente el fondo de la hoja que toca las esquinas (relleno desde las 4 esquinas, sin pasar el marco de la pieza).
-  - `main()` (l. 1458): Recorta todas las PIEZAS a assets/interfaz/paneles.
-- `herramienta_hud()` (l. 1478): De las hojas 'Battle HUD', 'Miscellaneous Icons' y 'Party Screen' de Blanco/Negro recorta las piezas del HUD y de los menus
-  - `buscar_hoja(nombre)` (l. 1500): Busca una hoja de BW en las carpetas de assets.
-  - `transparente(sup, color)` (l. 1508): El color de fondo de la hoja que toca los bordes de la pieza pasa a ser transparente (relleno desde los bordes).
-  - `pokeball(sup)` (l. 1521): La Pokeball grande sin el fondo: todo lo que queda afuera del circulo es transparente.
+- `herramienta_paneles()` (l. 1421): De las hojas 'Options Screen' y 'Party Screen' de Blanco/Negro recorta las piezas de los menus a assets/interfaz/paneles
+  - `buscar_hoja(nombre)` (l. 1438): Ruta de una hoja de BW con ese nombre o None.
+  - `sin_borde(sup)` (l. 1446): Vuelve transparente el fondo de la hoja que toca las esquinas (relleno desde las 4 esquinas, sin pasar el marco de la pieza).
+  - `main()` (l. 1459): Recorta todas las PIEZAS a assets/interfaz/paneles.
+- `herramienta_hud()` (l. 1479): De las hojas 'Battle HUD', 'Miscellaneous Icons' y 'Party Screen' de Blanco/Negro recorta las piezas del HUD y de los menus
+  - `buscar_hoja(nombre)` (l. 1501): Busca una hoja de BW en las carpetas de assets.
+  - `transparente(sup, color)` (l. 1509): El color de fondo de la hoja que toca los bordes de la pieza pasa a ser transparente (relleno desde los bordes).
+  - `pokeball(sup)` (l. 1522): La Pokeball grande sin el fondo: todo lo que queda afuera del circulo es transparente.
 - **Clima del Red Rescue Team**
-- `_buscar_hoja(final)` (l. 1548): Ruta de la hoja (o zip) que termina con ese nombre, en assets o en cualquier subcarpeta. None si no esta.
-- `herramienta_clima()` (l. 1555): De las hojas 'Weather' del Red Rescue Team arma assets/clima/<efecto>/<nn>.png (como los lee mundo.entorno.dibujar_clima)
-  - `sin_fondo(sup, color)` (l. 1571): Copia con ese color transparente.
-  - `del_medio(frames, parte)` (l. 1577): Los cuadros 'llenos' (con al menos esa parte de lo que tiene el mas lleno): el loop sin el arranque ni el final.
-  - `guardar(nombre, frames)` (l. 1583): Deja los cuadros en assets/clima/<nombre>/00.png, 01.png...
-  - `del_zip(final, filtro)` (l. 1591): Los png de un zip (los que pasan el filtro), ordenados por su numero.
+- `_buscar_hoja(final)` (l. 1549): Ruta de la hoja (o zip) que termina con ese nombre, en assets o en cualquier subcarpeta. None si no esta.
+- `herramienta_clima()` (l. 1556): De las hojas 'Weather' del Red Rescue Team arma assets/clima/<efecto>/<nn>.png (como los lee mundo.entorno.dibujar_clima)
+  - `sin_fondo(sup, color)` (l. 1572): Copia con ese color transparente.
+  - `del_medio(frames, parte)` (l. 1578): Los cuadros 'llenos' (con al menos esa parte de lo que tiene el mas lleno): el loop sin el arranque ni el final.
+  - `guardar(nombre, frames)` (l. 1584): Deja los cuadros en assets/clima/<nombre>/00.png, 01.png...
+  - `del_zip(final, filtro)` (l. 1592): Los png de un zip (los que pasan el filtro), ordenados por su numero.
 - **Las chozas del Red Rescue Team (el barrio del refugio)**
-- `herramienta_casas()` (l. 1629): De las hojas 'Huts' del Red Rescue Team (una por pokemon: Pikachu Hut, Mudkip Hut...) arma assets/mundo/casas/
-  - `una(ruta, nombre)` (l. 1642): Recorta el jardin, el interior y la bandera de una hoja. False si la hoja tiene otra forma.
+- `herramienta_casas()` (l. 1630): De las hojas 'Huts' del Red Rescue Team (una por pokemon: Pikachu Hut, Mudkip Hut...) arma assets/mundo/casas/
+  - `una(ruta, nombre)` (l. 1643): Recorta el jardin, el interior y la bandera de una hoja. False si la hoja tiene otra forma.
 - **La aldea: arboles sueltos, flores, cercas y las chozas de la plaza**
-- `_es_piso_rrt(c, margen)` (l. 1697): Si ese color es pasto, claro o arena de las hojas de chozas (o casi).
-- `_suelto(hoja, caja, minimo, sombra, centro)` (l. 1702): Recorta de una hoja de chozas lo que hay en 'caja' sin el piso: desde los bordes se borra el pasto, el claro, la arena y el bosque.
-- `sin_orilla(img)` (l. 1728): El borde de la sombra de la hoja (una linea opaca de 1 o 2 pixeles entre la sombra y el pasto) pasa a ser el borde suave de la
-- `_sin_bosque(jardin)` (l. 1752): El jardin de una choza sin el bosque azulado que lo rodea (chocaba con el del jardin de al lado): se borra el bosque con su
-- `herramienta_aldea()` (l. 1782): De las hojas 'Huts' del Red Rescue Team saca las cosas sueltas de la aldea (el fondo de pasto se vuelve transparente)
-  - `hoja_de(nombre)` (l. 1795): Carga una hoja de chozas del Red Rescue Team.
-  - `guardar(img, carpeta, nombre)` (l. 1798): Guarda un recorte y lo anota en la lista de lo hecho.
+- `_es_piso_rrt(c, margen)` (l. 1698): Si ese color es pasto, claro o arena de las hojas de chozas (o casi).
+- `_suelto(hoja, caja, minimo, sombra, centro)` (l. 1703): Recorta de una hoja de chozas lo que hay en 'caja' sin el piso: desde los bordes se borra el pasto, el claro, la arena y el bosque.
+- `sin_orilla(img)` (l. 1729): El borde de la sombra de la hoja (una linea opaca de 1 o 2 pixeles entre la sombra y el pasto) pasa a ser el borde suave de la
+- `_sin_bosque(jardin)` (l. 1753): El jardin de una choza sin el bosque azulado que lo rodea (chocaba con el del jardin de al lado): se borra el bosque con su
+- `herramienta_aldea()` (l. 1783): De las hojas 'Huts' del Red Rescue Team saca las cosas sueltas de la aldea (el fondo de pasto se vuelve transparente)
+  - `hoja_de(nombre)` (l. 1796): Carga una hoja de chozas del Red Rescue Team.
+  - `guardar(img, carpeta, nombre)` (l. 1799): Guarda un recorte y lo anota en la lista de lo hecho.
 - **Chispas de los golpes (hoja 'Effects' del Red Rescue Team)**
-- `herramienta_chispas()` (l. 1853): De la hoja 'Miscellaneous - Effects' del Red Rescue Team saca dos efectos (tiras de cuadros cuadrados, como las lee mundo.efectos)
+- `herramienta_chispas()` (l. 1854): De la hoja 'Miscellaneous - Effects' del Red Rescue Team saca dos efectos (tiras de cuadros cuadrados, como las lee mundo.efectos)
 - **El portal y el espiritu (escenas del cosmos)**
-- `herramienta_portal()` (l. 1879): De 'Dimensional Hole' del Explorers of Time/Darkness arma assets/efectos/portal.png: los 8 cuadros del portal violeta
-- `herramienta_espiritu()` (l. 1902): El espiritu de la partida nueva: assets/efectos/aura.png, la luz redonda del cielo de 'Moonlight' del Explorers of Sky (el
+- `herramienta_portal()` (l. 1880): De 'Dimensional Hole' del Explorers of Time/Darkness arma assets/efectos/portal.png: los 8 cuadros del portal violeta
+- `herramienta_espiritu()` (l. 1903): El espiritu de la partida nueva: assets/efectos/aura.png, la luz redonda del cielo de 'Moonlight' del Explorers of Sky (el
+- **El farol de la noche**
+- `herramienta_farol()` (l. 1952): assets/mundo/objetos/farol.png: el brasero de hierro (tripode con carbones) de la habitacion de Wigglytuff, en la hoja
 - **El icono del ejecutable**
-- `herramienta_icono()` (l. 1951): Arma assets/interfaz/icono.ico (el icono de Pokemanic.exe) con la cara de Celebi del retrato del PMD, agrandada sin suavizar.
+- `herramienta_icono()` (l. 1978): Arma assets/interfaz/icono.ico (el icono de Pokemanic.exe) con la cara de Celebi del retrato del PMD, agrandada sin suavizar.
 - **El logo**
-- `herramienta_logo()` (l. 1969): Pasa el logo del juego (assets/typo_logo_pokemanic.png: pixel art agrandado sobre un fondo azul liso) a assets/interfaz/logo.png
-  - `cortes(horizontal, fase)` (l. 1990): Cuántos cambios de color caen justo en la grilla con esa fase (para encontrar el tamaño del pixel del logo).
+- `herramienta_logo()` (l. 1996): Pasa el logo del juego (assets/typo_logo_pokemanic.png: pixel art agrandado sobre un fondo azul liso) a assets/interfaz/logo.png
+  - `cortes(horizontal, fase)` (l. 2017): Cuántos cambios de color caen justo en la grilla con esa fase (para encontrar el tamaño del pixel del logo).
 - **Arenas de los jefes (Dungeon Boss Rooms del Red Rescue Team)**
-- `herramienta_arenas()` (l. 2026): De las hojas 'Dungeon Boss Rooms' (y dos 'Friend Areas') del Red Rescue Team arma la arena ya dibujada de cada jefe
-  - `main()` (l. 2056): Recorta cada arena alrededor de su plataforma y guarda el poligono en pixeles del recorte.
+- `herramienta_arenas()` (l. 2053): De las hojas 'Dungeon Boss Rooms' (y dos 'Friend Areas') del Red Rescue Team arma la arena ya dibujada de cada jefe
+  - `main()` (l. 2083): Recorta cada arena alrededor de su plataforma y guarda el poligono en pixeles del recorte.
 - **Estados animados del Red Rescue Team**
-- `herramienta_estados()` (l. 2082): De la hoja 'Status Effects' del Red Rescue Team (filas de cuadros de 16 px desde x=104; el hielo es de 32) arma las tiras
-- `ver_salas()` (l. 2102): Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego).
-- `ver_plan()` (l. 2113): Dibuja el plan de una partida: T tienda, S subjefe, J semijefe, R regi, A arceus. Y el clima de las primeras salas.
+- `herramienta_estados()` (l. 2109): De la hoja 'Status Effects' del Red Rescue Team (filas de cuadros de 16 px desde x=104; el hielo es de 32) arma las tiras
+- `ver_salas()` (l. 2129): Dibuja en texto algunas salas generadas (para ver como quedan sin abrir el juego).
+- `ver_plan()` (l. 2140): Dibuja el plan de una partida: T tienda, S subjefe, J semijefe, R regi, A arceus. Y el clima de las primeras salas.

@@ -974,6 +974,9 @@ def main():
         RESERVA_MAX = 3                             # pokemon en la reserva como mucho (y solo se cambian en la tienda)
         EVOLUCION = {'mantener': 900}               # ms que hay que mantener la tecla de evolucionar
         ENEMIGOS_SALA = 1.5                         # las salas comunes traen 50% mas enemigos que la escala de la era (en el modo facil, no)
+        # faroles de la noche: si entras a una sala de noche (o cayendo la tarde), algunas los tienen; la primera de cada era y la primera
+        # que pisas al ponerte a jugar, siempre. Se decide una vez por sala (queda en la partida)
+        FAROLES = {'desde': 17 * 60 + 30, 'hasta': 6 * 60 + 30, 'chance': 0.55, 'cuantos': {'combate': 5, 'pasillo': 4}}
         DESAFIO = {'enemigos': 2.3, 'vida': 1.25, 'daño': 1.15, 'oleadas': 1,   # salas de desafio: muchos mas enemigos, mas duros y una oleada mas...
                    'monedas': 3, 'monedas_extra': 40, 'chance': 0.6, 'xp': 1.5,  # ...y la nota da el triple, casi seguro un objeto y mas experiencia
                    'premios': ('caramelo_raro', 'zumo_baya', 'baya_aranja', 'llave_tesoro')}   # lo que puede soltar ademas al terminarla
@@ -2387,6 +2390,15 @@ def main():
         def armar_salas():
             """Las salas: crearlas, carteles, monedas, experiencia, amigos, tienda y lo que pasa en cada frame."""
             _previas = {}
+            _sesion = {'pisaste': False}                                # (si ya entraste a alguna sala desde que te pusiste a jugar)
+
+            def con_faroles(registro, primera):
+                """Si la sala va con faroles (ver FAROLES). primera: es la primera sala que pisas al ponerte a jugar."""
+                if registro['tipo'] not in FAROLES['cuantos']: return False
+                h = hora()
+                noche = h >= FAROLES['desde'] or h < FAROLES['hasta']
+                if 'faroles' not in registro: registro['faroles'] = noche and (registro['sala'] == 0 or random.random() < FAROLES['chance'])
+                return registro['faroles'] or (primera and noche)
 
             def subjefe_rush(rec, era, sala):
                 """En el boss rush los subjefes de la era van seguidos: el primero y despues el segundo."""
@@ -2660,7 +2672,8 @@ def main():
                         elif tipo in ('subjefe', 'jefe', 'regi', 'final'): destinos = destinos[:1]; lados = ['norte']; variante = None
                         else:
                             variantes = mundos.ERAS[era]['variantes']
-                            variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(list(variantes))
+                            afuera = [v for v in variantes if not variantes[v].get('interior')]   # la primera sala de la era, afuera (se ve la era)
+                            variante = destino['variante'] if destino and destino.get('variante') in variantes else random.choice(afuera if rec['sala'] == 0 and afuera else list(variantes))
                             lados = random.sample([l for l in generacion.LADOS if l != entrada], len(destinos))
                     registro = {'era': era, 'sala': rec['sala'], 'tipo': tipo, 'semilla': random.random(), 'variante': variante, 'entrada': entrada,
                                 'lados': lados, 'destinos': destinos, 'clima': rec['clima'], 'completada': tipo == 'pasillo', 'salida': None, 'vitrinas': None,
@@ -2677,6 +2690,8 @@ def main():
                 elif tipo == 'subjefe': sala = generacion.generar_arena(era, registro['lados'], semilla, tipo, subjefes.arena(nombre_sj))
                 elif tipo in ('jefe', 'regi', 'final'): sala = generacion.generar_arena(era, registro['lados'], semilla, tipo)
                 else: sala = generacion.generar_sala(era, registro['variante'], registro['entrada'], registro['lados'], semilla)
+                primera = not _sesion['pisaste']; _sesion['pisaste'] = True
+                if con_faroles(registro, primera): generacion.poner_faroles(sala, semilla, FAROLES['cuantos'][tipo])   # de noche, para ver
                 hecha = registro['completada']
                 ultima = rec['pos'] == len(rec['historial']) - 1
                 for puerta, d in zip(sala['puertas'], registro['destinos']):
@@ -2692,7 +2707,8 @@ def main():
                 clima = datos_era.get('clima_regi') if tipo == 'regi' else datos_era.get('clima_final') if tipo == 'final' else None
                 if nombre_sj: clima = subjefes.clima(nombre_sj)
                 ent = entorno.crear(sala, clima or registro['clima'], tiempo())
-                if not rec.get('rush') and not viaje.get('rush'): entorno.a_oscuras(ent, registro.get('variante'), semilla, tipo)   # algunas salas, a oscuras
+                if not rec.get('rush') and not viaje.get('rush') and registro['sala'] > 0 and not primera:   # algunas salas, a oscuras (la primera
+                    entorno.a_oscuras(ent, registro.get('variante'), semilla, tipo)                         # de la era y la primera que pisas, nunca)
                 subjefes.limpiar_jugador(j)                              # lo que te dejo un subjefe no pasa a la sala siguiente
                 mundo['ent'] = ent
                 if nuevo and tipo != 'pasillo': tienda.nueva_sala(j['inventario'], tipo)   # los objetos de "por 3 salas" se gastan solo en salas nuevas

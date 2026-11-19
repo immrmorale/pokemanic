@@ -27,6 +27,7 @@ herramientas.py - Programas aparte para preparar el juego (no se usan mientras j
     python herramientas.py icono               el icono de Pokemanic.exe (la cara de Celebi) para crear_exe.bat
     python herramientas.py portal              el portal violeta de las escenas ('Dimensional Hole' del Explorers of Time/Darkness)
     python herramientas.py espiritu            el aura redonda del espiritu ('Moonlight' del Explorers of Sky)
+    python herramientas.py farol               el farol de la noche: el brasero de hierro del gremio de Wigglytuff (Explorers of Time/Darkness)
     python herramientas.py salas               muestra en texto algunas salas generadas
     python herramientas.py plan                muestra el plan de salas de una partida
     python herramientas.py visor               ventana para mirar salas generadas sin jugar
@@ -1946,6 +1947,32 @@ def herramienta_espiritu():
     print('la mano de Celebi (efecto 0200 del Explorers of Sky) en assets/efectos/mano.png')
 
 
+# ==================== el farol de la noche ====================
+
+def herramienta_farol():
+    """assets/mundo/objetos/farol.png: el brasero de hierro (tripode con carbones) de la habitacion de Wigglytuff, en la hoja
+    '3rd Floor of Guild' del Explorers of Time/Darkness. Se borra el pasto de alrededor desde los bordes del recorte y queda el pedazo
+    mas grande. En el juego lleva encima la llama del PMD (assets/efectos/llama.png) y alumbra de noche."""
+    ruta = _buscar_hoja('3rd Floor of Guild.png')
+    if not ruta: print('falta la hoja 3rd Floor of Guild del Explorers of Time/Darkness'); return
+    pygame.init(); pygame.display.set_mode((1, 1))
+    img = pygame.image.load(ruta).convert_alpha().subsurface((800, 124, 44, 52)).copy()   # el brasero de la izquierda
+    w, h = img.get_size()
+    pasto = lambda c: (c.g > c.b * 1.3 and c.g > 60) or (c.r > 150 and c.g > 120 and c.b < 110)   # pasto verde o amarillento
+    pendientes = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for x in (0, w - 1) for y in range(h)]
+    while pendientes:
+        x, y = pendientes.pop()
+        if not (0 <= x < w and 0 <= y < h): continue
+        c = img.get_at((x, y))
+        if c.a == 0 or not pasto(c): continue
+        img.set_at((x, y), (0, 0, 0, 0)); pendientes += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    mayor = max(pygame.mask.from_surface(img).connected_components(12), key=lambda m_: m_.count())
+    limpio = pygame.Surface((w, h), pygame.SRCALPHA); mayor.to_surface(limpio, setsurface=img, unsetcolor=None)
+    limpio = limpio.subsurface(limpio.get_bounding_rect()).copy()
+    pygame.image.save(limpio, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'mundo', 'objetos', 'farol.png'))
+    print('farol', limpio.get_size(), 'en assets/mundo/objetos/farol.png')
+
+
 # ==================== el icono del ejecutable ====================
 
 def herramienta_icono():
@@ -2149,6 +2176,7 @@ if __name__ == '__main__':
     elif orden == 'icono': herramienta_icono()
     elif orden == 'portal': herramienta_portal()
     elif orden == 'espiritu': herramienta_espiritu()
+    elif orden == 'farol': herramienta_farol()
     elif orden == 'salas': ver_salas()
     elif orden == 'plan': ver_plan()
     elif orden == 'visor': herramienta_visor()

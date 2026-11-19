@@ -1590,6 +1590,8 @@ def armar_mundos():
         'parcela': {'tam': (432, 420), 'material': 'piedra', 'vida': None, 'color': (120, 170, 90), 'solido': False},   # una choza del PMD con su patio (es un dibujo: se camina por arriba)
         'tope': {'tam': (40, 40), 'material': 'piedra', 'vida': None, 'color': (0, 0, 0)},                              # no se ve y no deja pasar (lo que no se pisa de una parcela)
         'cerca': {'tam': (124, 30), 'material': 'madera', 'vida': None, 'color': (190, 170, 110)},
+        # el farol de la noche (brasero del gremio de Wigglytuff; no se rompe): 'llama' = donde va la llama del PMD, en pixeles del dibujo
+        'farol': {'tam': (40, 30), 'material': 'metal', 'vida': None, 'color': (70, 64, 60), 'escala': 2, 'llama': (13, 8)},
         # hall (a donde volves al perder; no se rompe nada)
         'celebi': {'tam': (40, 40), 'material': 'tela', 'vida': None, 'forma': 'circulo', 'color': (150, 230, 120)},   # cuida el hall y te manda de viaje
     }
